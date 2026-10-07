@@ -1,0 +1,923 @@
+<section class="chunk" id="chunk-les-r100-7-i109" data-id="les-r100-7-i109"><details class="audit-card" id="audit-full-chunk-les-r100-7-i109" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-r100-7-i109-1">Motivation</h4><p>Provide farther predictive objectives without leaking the very target being predicted, and maintain a genuine chain of refined hidden states.</p><h4 id="v3-heading-chunk-les-r100-7-i109-2">Prerequisites</h4><ul><li>Next-token target shift</li><li>Causal blocks</li><li>Teacher forcing and concatenation</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-3">Notation and units</h4><ul><li>Base position i</li><li>MTP depth k&gt;=1</li><li>Future input x[i+k]</li><li>Farther target x[i+k+1]</li><li>L_k=S-k-1 for targets restricted to input IDs</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-4">Assumptions</h4><ul><li>Explicit in-input target convention declared below</li><li>S must exceed k+1</li><li>Earlier refined hidden states retain their original base-position indexing</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-5">Step-by-step derivation</h4><ol><li>The main hidden state at i predicts x[i+1]. At MTP depth1 combine h_i^0 with embedding x[i+1] and predict x[i+2].</li><li>At depth k combine h_i^(k-1) with E(x[i+k]); never provide E(x[i+k+1]), which is the target itself.</li><li>With targets restricted to an input of length S, valid base indices are0..S-k-2, so L_k=S-k-1. If separately shifted Y provides the extra final token, a different explicitly aligned convention can retain S-k positions.</li><li>Slice the previously refined hidden tensor by desired PREFIX length L_k. Absolute-depth negative slicing of an already-short tensor compounds truncation incorrectly.</li><li>Concatenate two d-vectors to2d; apply a2d-to-d projection and a dedicated causal Transformer block.</li><li>Assign h_prev=h_curr after every stage; apply the shared final normalization/vocabulary head to its output and compare with targets x[:,k+1:k+1+L_k].</li><li>Compute a mean CE per stage and choose either lambda/D times their sum or lambda times their sum; these coefficients are not interchangeable as D grows.</li><li>The Chapter6 printed listing uses ellipses for CE and omits the h_prev reassignment; the chain and exact objective therefore need completion before it is executable.</li></ol><h4 id="v3-heading-chunk-les-r100-7-i109-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-r100-7-i109-7">Farther-token alignment</h5><p>Given: IDs[0,1,2,3,4,5], k1,2,3</p><ol><li>k1 consumes[1,2,3,4], predicts[2,3,4,5]</li><li>k2 consumes[2,3,4], predicts[3,4,5]</li><li>k3 consumes[3,4], predicts[4,5]</li></ol><p>Answer: Lengths4,3,2; every consume/target pair differs by one position</p><p>Verification: mini_deepseek_integration / MD110-TARGET-3 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r100-7-i109-8">Shared output saves storage</h5><p>Given: d768,V50257</p><ol><li>Vocabulary matrix contains768*50257 weights</li><li>Projection2d-to-d contains2*768^2 weights</li></ol><p>Answer: 38,597,376 vocabulary weights; 1,179,648 projection weights</p><p>Verification: mini_deepseek_integration / MD110-HEAD · passing independent check</p></div><h4 id="v3-heading-chunk-les-r100-7-i109-9">Corrections and source qualifications</h4><ul><li>heading: 14. Source-level caution about MTP indexing; text: Implementation correction: these printed snippets are not merely two interchangeable conventions. Recursive h_prev[:, :-(k+1)] on an already-short h_prev mismatches input_ids[:,k:-1] for k&gt;=2. Use L_k=S-k-1 and h_prev[:,:L_k], with consume input_ids[:,k:k+L_k] and target input_ids[:,k+1:k+1+L_k]. Assign h_prev=h_k.</li><li>heading: 18. Now the most important part: the loss; text: Scope correction: Chapter5 uses lambda/D times summed stage losses; Chapter6 listing shows mtp_weight per stage and abbreviated CE. Declare one normalization explicitly; do not claim the displayed Chapter6 code already implements the earlier average.</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-10">Mastery answers and retained exercise context</h4><ol><li>The shared output shape[B,L,V] retains vocabulary width while valid positions shrink.</li><li>For the earlier chapter example main[2,20,1000], stages[2,19,1000],[2,18,1000],[2,17,1000] belong to its separate convention.</li><li>The Chapter6 in-input convention needs lengthsS-k-1 with prefix slicing and a hidden-state update.</li><li>A shared LM head saves one d*V matrix for each otherwise independent head.</li><li>Teacher forcing supplies x[i+k], not the unknown target x[i+k+1].</li></ol><h4 id="v3-heading-chunk-les-r100-7-i109-11">Edge cases and remaining gaps</h4><ul><li>Ground-truth future inputs are available for training; ordinary inference cannot assume them.</li><li>An auxiliary objective alone does not implement speculative decoding or prove a speedup.</li><li>For S&lt;=k+1 skip that stage rather than taking a mean over zero positions.</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-12">Connections and progression</h4><ul><li>MTP loss flows back through earlier modules and the trunk</li><li>Top-level training uses explicit labels</li><li>Speculative proposals require verification/acceptance logic</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 254, 255, 256, 257, 258, 268, 269, 270, 330, 331, 334 · Original lesson mechanisms and source-specific implementation; corrections separately identify derivations and implementation gaps.</li></ul><h4 id="v3-heading-chunk-les-r100-7-i109-14">Executable code and explained functions</h4><p>file: companion.py; checker: check_companion.py; evidence: evidence.json; outputs: outputs.json; scope: Executed deterministic NumPy teaching reconstruction; original PyTorch and full training are separate.</p><p><a href="#audit-full-code-mini_deepseek_integration">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (43)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R100.7 — MTPModule: Turning One Hidden State into a Causal Prediction Chain</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>1. Why do we need MTP?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>2. The fundamental difference from independent prediction heads</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>3. What exactly is inside one MTP module?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>4. Why is the projection input 2d?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>First</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Second</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>5. Concatenation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6. Projection back to d</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>7. The mathematical form</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Important source distinction</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>8. Why does the module contain a full TransformerBlock?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>9. Why is that powerful?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>10. The causal chain</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>11. Why does h_prev keep changing?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>12. Now understand the sequence shrinking</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>13. The indexing in the actual Chapter 6 code</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>14. Source-level caution about MTP indexing</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>15. The MTP output goes through the shared LM head</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>16. Why is the LM head shared?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>17. Why not use separate output heads?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>18. Now the most important part: the loss</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>19. Why divide by D?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>20. Why does this create a richer gradient?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>21. A concrete chain example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Main objective</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP stage 1</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP stage 2</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP stage 3</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>22. One extremely important point: training vs inference</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>23. So are MTP predictions themselves used to generate the training input?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>24. What happens to MTP during normal model inference?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>25. Complete MTPModule data flow</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>26. Why is the MTP block itself causal?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>27. Why is there no KV cache inside MTP?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>28. The complete Mini-DeepSeek picture so far</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>29. One shape exercise</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Main</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP 1</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP 2</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>MTP 3</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>30. The deepest conceptual point</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>31. Where we stand in Chapter 6</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-r100-7-i109"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r100-7-i109" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r100-6-i108">← Previous lesson</a> · <a href="#chunk-les-r100-8-i110">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r100-6-i108">R100.6 — DeepSeekMoE: ExpertFFN → Router → Top-k → Shared + Routed Output</a></p><p><strong>This lesson:</strong> R100.7 — MTPModule: Turning One Hidden State into a Causal Prediction Chain</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r100-7-i109"></a></p>
+<h3 id="v3-heading-chunk-les-r100-7-i109-15">R100.7 — MTPModule: Turning One Hidden State into a Causal Prediction Chain</h3>
+<p><em>Plan node: A6 · chat order #109</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now build the final special component inside the Mini-DeepSeek architecture:</p>
+<div class="math block">
+\boxed{\text{Multi-Token Prediction (MTP)}}
+</div>
+<p>The important point is that this is <strong>not another ordinary output head</strong>.</p>
+<p>Instead, the source constructs a <strong>sequential chain of dedicated Transformer blocks</strong>. Each MTP stage receives the refined hidden state from the previous stage together with an embedding of a future token, produces a new hidden state, and sends that hidden state to the next MTP stage. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-16">1. Why do we need MTP?</h4>
+<p>A normal autoregressive Transformer primarily learns:</p>
+<div class="math block">
+t_1,t_2,\ldots,t_i
+\rightarrow
+t_{i+1}.
+</div>
+<p>So at each position it is trained for immediate next-token prediction.</p>
+<p>The source's MTP idea asks the model to learn a longer predictive horizon.</p>
+<p>For prediction depth:</p>
+<div class="math block">
+D=3
+</div>
+<p>we construct:</p>
+<pre><code class="language-text">Main trunk
+   │
+   ▼
+h⁰
+   │
+   ▼
+MTP 1
+   │
+   ▼
+h¹
+   │
+   ▼
+MTP 2
+   │
+   ▼
+h²
+   │
+   ▼
+MTP 3
+   │
+   ▼
+h³
+</code></pre>
+<p>The source emphasizes that this is a <strong>causal chain</strong>, not a set of independent heads. The hidden state produced by one MTP module becomes the input hidden state of the next. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-17">2. The fundamental difference from independent prediction heads</h4>
+<p>Imagine we want to predict three future positions.</p>
+<p>An independent-head design might do:</p>
+<pre><code class="language-text">h⁰ ──→ Head 1
+ │
+ ├──→ Head 2
+ │
+ └──→ Head 3
+</code></pre>
+<p>Each head independently sees <span class="math inline">h^0</span>.</p>
+<p>DeepSeek's causal design instead does:</p>
+<pre><code class="language-text">h⁰
+ ↓
+MTP 1
+ ↓
+h¹
+ ↓
+MTP 2
+ ↓
+h²
+ ↓
+MTP 3
+ ↓
+h³
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+h^1=f_1(h^0,\text{future information})
+}
+</div>
+<div class="math block">
+\boxed{
+h^2=f_2(h^1,\text{future information})
+}
+</div>
+<div class="math block">
+\boxed{
+h^3=f_3(h^2,\text{future information})
+}
+</div>
+<p>The source describes this as <strong>cascaded latent refinement</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-18">3. What exactly is inside one MTP module?</h4>
+<p>The Mini-DeepSeek implementation defines:</p>
+<pre><code class="language-python">class MTPModule(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.projection = nn.Linear(
+            args.d_model * 2,
+            args.d_model,
+            bias=False
+        )
+
+        self.block = TransformerBlock(args)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So there are only two major pieces:</p>
+<div class="math block">
+\boxed{
+\text{projection}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{dedicated TransformerBlock}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-19">4. Why is the projection input <span class="math inline">2d</span>?</h4>
+<p>The module receives two vectors.</p>
+<h6 id="v3-heading-chunk-les-r100-7-i109-20">First</h6>
+<p>The hidden state from the previous MTP stage:</p>
+<div class="math block">
+h^{k-1}.
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-21">Second</h6>
+<p>The embedding of a future token:</p>
+<div class="math block">
+E(t_{i+k}).
+</div>
+<p>The source explicitly describes these as the two inputs to each MTP stage. During training, that future-token embedding is the <strong>ground-truth embedding</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Each has dimensionality:</p>
+<div class="math block">
+d.
+</div>
+<p>So concatenating them gives:</p>
+<div class="math block">
+\boxed{2d}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-22">5. Concatenation</h4>
+<p>The source does:</p>
+<pre><code class="language-python">x = torch.cat(
+    [h_prev, next_token_embeds],
+    dim=-1
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose:</p>
+<div class="math block">
+h_{\text{prev}}\in\mathbb R^{B\times L\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+E_{\text{future}}\in\mathbb R^{B\times L\times d}.
+</div>
+<p>Concatenating along the final dimension gives:</p>
+<div class="math block">
+\boxed{
+[B,L,d]
+\rightarrow
+[B,L,2d].
+}
+</div>
+<p>So the module has combined:</p>
+<div class="math block">
+\boxed{
+\text{contextual state}
++
+\text{future-token semantic representation}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-23">6. Projection back to <span class="math inline">d</span></h4>
+<p>The source then applies:</p>
+<pre><code class="language-python">x = self.projection(x)
+</code></pre>
+<p>The projection is:</p>
+<div class="math block">
+M_k:\mathbb R^{2d}\rightarrow\mathbb R^d.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[B,L,2d]
+\rightarrow
+[B,L,d].
+}
+</div>
+<p>This is exactly the purpose described in the source's Chapter 5 derivation: concatenate the two normalized <span class="math inline">d</span>-dimensional vectors, then use a linear projection to return to the model's normal dimension. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-24">7. The mathematical form</h4>
+<p>The source's conceptual equation can be represented as:</p>
+<div class="math block">
+\boxed{
+h_i^{\prime k}
+=
+M_k
+\left[
+\operatorname{Norm}(h_i^{k-1});
+\operatorname{Norm}(E(t_{i+k}))
+\right]
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">[\,;\,]</span> means concatenation,</li>
+<li><span class="math inline">M_k</span> is the projection matrix,</li>
+<li><span class="math inline">h_i^{k-1}</span> is the previous hidden state,</li>
+<li><span class="math inline">E(t_{i+k})</span> is the future token embedding.</li>
+</ul>
+<p>The source explicitly gives this as its Equation 5.1 description. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-r100-7-i109-25">Important source distinction</h6>
+<p>Chapter 5's conceptual implementation shows <strong>separate normalization of the hidden state and future embedding</strong> before concatenation using RMSNorm. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The simplified Chapter 6 <code>MTPModule</code> listing directly concatenates <code>h_prev</code> and <code>next_token_embeds</code> and does not show those separate normalization layers. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So for our Mini-DeepSeek implementation, we follow the Chapter 6 code rather than silently inserting the Chapter 5 normalization.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-26">8. Why does the module contain a full TransformerBlock?</h4>
+<p>This is one of the most important ideas.</p>
+<p>After projection:</p>
+<div class="math block">
+h_i^{\prime k}
+</div>
+<p>does <strong>not</strong> immediately go to the output head.</p>
+<p>It goes through:</p>
+<div class="math block">
+\boxed{
+TRM_k
+}
+</div>
+<p>a dedicated Transformer block.</p>
+<p>The source explicitly stresses that this is a <strong>full Transformer computation</strong>, not merely a linear transformation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>In our Mini-DeepSeek code:</p>
+<pre><code class="language-python">h_k, _ = self.block(
+    x,
+    attn_mask=...
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+h^k=TRM_k(h^{\prime k}).
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-27">9. Why is that powerful?</h4>
+<p>The projection merely merges:</p>
+<div class="math block">
+h^{k-1}
+</div>
+<p>with:</p>
+<div class="math block">
+E(t_{i+k}).
+</div>
+<p>The Transformer block can then perform a much richer transformation over that representation.</p>
+<p>The source explains this as asking, conceptually:</p>
+<blockquote>
+<p>Given my current understanding and the future-token information, what is my updated understanding?</p>
+</blockquote>
+<p>Thus the module doesn't merely generate a token.</p>
+<p>It generates a <strong>new latent state</strong>.</p>
+<p>That new state becomes useful to the next stage. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-28">10. The causal chain</h4>
+<p>Now the entire process for three MTP stages is:</p>
+<div class="math block">
+h_i^0
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+[h_i^0;E(t_{i+1})]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+M_1
+</div>
+<p>↓</p>
+<div class="math block">
+TRM_1
+</div>
+<p>↓</p>
+<div class="math block">
+h_i^1
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+[h_i^1;E(t_{i+2})]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+M_2
+</div>
+<p>↓</p>
+<div class="math block">
+TRM_2
+</div>
+<p>↓</p>
+<div class="math block">
+h_i^2
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+[h_i^2;E(t_{i+3})]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+M_3
+</div>
+<p>↓</p>
+<div class="math block">
+TRM_3
+</div>
+<p>↓</p>
+<div class="math block">
+h_i^3.
+</div>
+<p>The source explicitly says the refined state from Head 1 becomes the input hidden state for Head 2, then Head 2 feeds Head 3. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-29">11. Why does <code>h_prev</code> keep changing?</h4>
+<p>Look at the full-model logic from the source:</p>
+<pre><code class="language-python">h_prev = h_main
+
+for depth_k in range(1, self.num_mtp_heads + 1):
+    ...
+    h_curr = self.mtp_modules[
+        depth_k - 1
+    ](
+        h_prev_sliced,
+        future_token_embeds
+    )
+
+    ...
+    h_prev = h_curr
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The critical line is:</p>
+<pre><code class="language-python">h_prev = h_curr
+</code></pre>
+<p>That is what turns multiple modules into a <strong>chain</strong>.</p>
+<p>Without it:</p>
+<div class="math block">
+M_2(h^0,\cdot)
+</div>
+<p>would be independent of:</p>
+<div class="math block">
+M_1.
+</div>
+<p>With it:</p>
+<div class="math block">
+\boxed{
+M_2(h^1,\cdot)
+}
+</div>
+<p>depends on the refinement performed by MTP 1.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-30">12. Now understand the sequence shrinking</h4>
+<p>Suppose:</p>
+<div class="math block">
+S=20.
+</div>
+<p>With three MTP stages, the source's conceptual verification example produces:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+\text{Main} &amp;: [2,20,1000]\\
+\text{MTP 1} &amp;: [2,19,1000]\\
+\text{MTP 2} &amp;: [2,18,1000]\\
+\text{MTP 3} &amp;: [2,17,1000].
+\end{aligned}
+}
+</div>
+<p>The source explicitly reports these shapes and says the shrinking middle dimension confirms the causal chain. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why does it shrink?</p>
+<p>Because a prediction <span class="math inline">k</span> steps into the future cannot exist for the final <span class="math inline">k</span> positions of the sequence.</p>
+<p>For example, with:</p>
+<div class="math block">
+S=20
+</div>
+<p>you cannot ask for a 3-step future target from the last position because that token doesn't exist in the provided sequence.</p>
+<p>So the valid prediction region gets shorter.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-31">13. The indexing in the actual Chapter 6 code</h4>
+<p>Chapter 6 uses:</p>
+<pre><code class="language-python">h_prev_shifted = h_prev[:, :-(k+1), :]
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">next_tokens_embed = self.embed(
+    input_ids[:, k:-1]
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For example, when:</p>
+<div class="math block">
+k=1
+</div>
+<p>the source removes the last two positions from <code>h_prev</code>:</p>
+<div class="math block">
+S\rightarrow S-2.
+</div>
+<p>And it extracts future embeddings over the same resulting length.</p>
+<p>This is the <strong>specific indexing used by the Chapter 6 Mini-DeepSeek implementation</strong>.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-r100-7-i109-0" data-full-review="added"><p>Correction: Implementation correction: these printed snippets are not merely two interchangeable conventions. Recursive h_prev[:, :-(k+1)] on an already-short h_prev mismatches input_ids[:,k:-1] for k&gt;=2. Use L_k=S-k-1 and h_prev[:,:L_k], with consume input_ids[:,k:k+L_k] and target input_ids[:,k+1:k+1+L_k]. Assign h_prev=h_k.</p><p><a href="#audit-full-chunk-les-r100-7-i109">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-r100-7-i109-32">14. Source-level caution about MTP indexing</h4>
+<p>There is an important source difference here.</p>
+<p>The earlier Chapter 5 verification implementation uses:</p>
+<div class="math block">
+L=S-k
+</div>
+<p>for prediction depth <span class="math inline">k</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The Chapter 6 <code>MiniDeepSeek</code> implementation instead uses:</p>
+<div class="math block">
+h_{\text{prev}}[:, :-(k+1),:]
+</div>
+<p>which yields:</p>
+<div class="math block">
+S-k-1
+</div>
+<p>positions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the two source implementations are <strong>not identical in their indexing convention</strong>.</p>
+<p>We should not silently &quot;fix&quot; one to match the other. For our current task, the Chapter 6 code is the implementation we are studying.</p>
+<p>That distinction becomes important when you later write your own exact implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-33">15. The MTP output goes through the shared LM head</h4>
+<p>After obtaining:</p>
+<div class="math block">
+h_k,
+</div>
+<p>the source computes:</p>
+<pre><code class="language-python">logits_k =
+    self.lm_head(
+        self.norm_f(h_k)
+    )
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+[B,L,d]
+\rightarrow
+[B,L,V].
+</div>
+<p>Each position now gets a vocabulary-sized prediction.</p>
+<p>For vocabulary:</p>
+<div class="math block">
+V=50,257,
+</div>
+<p>we obtain:</p>
+<div class="math block">
+\boxed{
+logits_k\in\mathbb R^{B\times L\times50257}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-34">16. Why is the LM head shared?</h4>
+<p>The source's broader MTP implementation explicitly says that the same output/unembedding layer is used by the main model and all MTP heads. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>In the Mini-DeepSeek code, the same:</p>
+<pre><code class="language-python">self.lm_head
+</code></pre>
+<p>is invoked for the main output and every MTP module. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<pre><code class="language-text">h_main ────────┐
+               │
+h¹ ────────────┤
+               ├──→ shared LM head → vocabulary logits
+h² ────────────┤
+               │
+h³ ────────────┘
+</code></pre>
+<p>This avoids creating a separate huge vocabulary projection for every MTP stage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-35">17. Why not use separate output heads?</h4>
+<p>Suppose:</p>
+<div class="math block">
+d=768
+</div>
+<p>and:</p>
+<div class="math block">
+V=50,257.
+</div>
+<p>One vocabulary projection already contains roughly:</p>
+<div class="math block">
+768\times50,257
+</div>
+<p>weights.</p>
+<p>Creating a completely independent one for every MTP stage would multiply that cost.</p>
+<p>The source instead uses a shared output layer, reducing redundant parameters and maintaining a common vocabulary projection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-r100-7-i109-1" data-full-review="added"><p>Correction: Scope correction: Chapter5 uses lambda/D times summed stage losses; Chapter6 listing shows mtp_weight per stage and abbreviated CE. Declare one normalization explicitly; do not claim the displayed Chapter6 code already implements the earlier average.</p><p><a href="#audit-full-chunk-les-r100-7-i109">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-r100-7-i109-36">18. Now the most important part: the loss</h4>
+<p>The main Transformer gives:</p>
+<div class="math block">
+L_{\text{main}}.
+</div>
+<p>Each MTP head gives:</p>
+<div class="math block">
+L_{\text{MTP}}^{(1)},
+L_{\text{MTP}}^{(2)},
+\ldots,
+L_{\text{MTP}}^{(D)}.
+</div>
+<p>The source combines them as:</p>
+<div class="math block">
+\boxed{
+L
+=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\sum_{k=1}^{D}
+L_{\text{MTP}}^{(k)}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">D</span> = number of MTP depths</li>
+<li><span class="math inline">\lambda</span> = MTP loss weight.</li>
+</ul>
+<p>This is the same formula we derived earlier, now appearing inside the actual model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-37">19. Why divide by <span class="math inline">D</span>?</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=3.
+</div>
+<p>Without normalization, we would add:</p>
+<div class="math block">
+L_1+L_2+L_3.
+</div>
+<p>The contribution from the MTP system grows automatically as we add more heads.</p>
+<p>The source instead uses:</p>
+<div class="math block">
+\frac{\lambda}{D}
+(L_1+L_2+L_3).
+</div>
+<p>This gives a weighted average of the MTP losses, multiplied by <span class="math inline">\lambda</span>.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\lambda
+}
+</div>
+<p>controls the overall importance of MTP relative to the main objective.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-38">20. Why does this create a richer gradient?</h4>
+<p>Suppose the total loss is:</p>
+<div class="math block">
+L=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+(L_1+L_2+L_3).
+</div>
+<p>Then the shared early representations receive gradient contributions from multiple objectives.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                    L_main
+                       │
+                       ▼
+                    h⁰ / trunk
+                       ▲
+                       │
+             ┌─────────┼──────────┐
+             │         │          │
+             L₁        L₂         L₃
+             │         │          │
+             ▼         ▼          ▼
+           MTP1      MTP2       MTP3
+</code></pre>
+<p>But because the modules are chained:</p>
+<div class="math block">
+h^0\rightarrow h^1\rightarrow h^2\rightarrow h^3,
+</div>
+<p>the gradients from deeper MTP stages can propagate backward through earlier MTP stages and ultimately into the main trunk.</p>
+<p>This connects directly to the gradient-flow discussion we completed earlier.</p>
+<p>The source describes the resulting signal as a <strong>rich, multi-faceted gradient signal</strong> that improves both immediate prediction and longer-range forecasting. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-39">21. A concrete chain example</h4>
+<p>Let's use a tiny sequence:</p>
+<pre><code class="language-text">The   cat   sat   on   mat   .
+ t0    t1    t2   t3   t4   t5
+</code></pre>
+<p>The main model produces hidden states:</p>
+<div class="math block">
+h_0^0,h_1^0,h_2^0,\ldots
+</div>
+<p>For a particular starting position <span class="math inline">i=0</span>:</p>
+<h6 id="v3-heading-chunk-les-r100-7-i109-40">Main objective</h6>
+<p>Predict the next token:</p>
+<div class="math block">
+t_1.
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-41">MTP stage 1</h6>
+<p>Use:</p>
+<div class="math block">
+h_0^0
+</div>
+<p>together with the appropriate future-token embedding specified by the MTP construction, then create:</p>
+<div class="math block">
+h_0^1.
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-42">MTP stage 2</h6>
+<p>Use:</p>
+<div class="math block">
+h_0^1
+</div>
+<p>and the next future-token embedding to create:</p>
+<div class="math block">
+h_0^2.
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-43">MTP stage 3</h6>
+<p>Use:</p>
+<div class="math block">
+h_0^2
+</div>
+<p>and another future-token embedding to create:</p>
+<div class="math block">
+h_0^3.
+</div>
+<p>Each stage produces vocabulary logits and contributes an MTP loss.</p>
+<p>The source's conceptual description explicitly frames each stage as producing a refined hidden state that is passed onward. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-44">22. One extremely important point: training vs inference</h4>
+<p>For this source implementation, MTP is primarily a <strong>training mechanism</strong>.</p>
+<p>During training:</p>
+<div class="math block">
+\boxed{
+\text{future token embedding = ground truth}
+}
+</div>
+<p>The source explicitly says this. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore the model gets teacher-forced future embeddings while constructing the MTP chain.</p>
+<p>This is different from ordinary generation, where the next token is not known in advance.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-45">23. So are MTP predictions themselves used to generate the training input?</h4>
+<p>No.</p>
+<p>During training, the source uses:</p>
+<div class="math block">
+E(t_{i+k})
+</div>
+<p>from the actual input sequence.</p>
+<p>So the MTP chain gets the <strong>ground-truth future-token embedding</strong>, not the model's sampled prediction.</p>
+<p>This is why the MTP training mechanism can provide a stable training signal.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-46">24. What happens to MTP during normal model inference?</h4>
+<p>The Chapter 6 source makes an explicit split in <code>MiniDeepSeek.forward()</code>:</p>
+<pre><code class="language-text">targets provided
+        ↓
+training path
+        ↓
+main trunk + MTP
+</code></pre>
+<p>versus:</p>
+<pre><code class="language-text">targets is None
+        ↓
+inference path
+        ↓
+KV-cache generation
+</code></pre>
+<p>The inference path returns the main logits and updated cache, while the MTP training path is entered when targets are supplied. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So for this implementation:</p>
+<div class="math block">
+\boxed{
+\text{MTP is part of the training path}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{ordinary autoregressive generation uses the cached main path}.
+}
+</div>
+<p>The source also discusses MTP as something that can be leveraged for future-token prediction/speculative-style acceleration, but that is a later connection rather than the core Chapter 6 training path.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-47">25. Complete <code>MTPModule</code> data flow</h4>
+<p>Now memorize this:</p>
+<pre><code class="language-text">h_prev
+   │
+   ├────────────────────┐
+   │                    │
+   ▼                    ▼
+contextual state   future token embedding
+   │                    │
+   └─────────┬──────────┘
+             ▼
+        concatenate
+             │
+             ▼
+          [2d]
+             │
+             ▼
+       linear projection
+             │
+             ▼
+            [d]
+             │
+             ▼
+     dedicated Transformer
+             │
+             ▼
+           h_curr
+             │
+        ┌────┴────┐
+        │         │
+        ▼         ▼
+    next MTP    shared LM head
+      stage        │
+                   ▼
+                 logits
+</code></pre>
+<p>The source's <code>Listing 6.14</code> directly implements this structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-48">26. Why is the MTP block itself causal?</h4>
+<p>The Chapter 6 implementation creates:</p>
+<pre><code class="language-python">mask = torch.triu(
+    torch.ones(
+        S, S,
+        device=x.device,
+        dtype=torch.bool
+    ),
+    diagonal=1
+)
+</code></pre>
+<p>then:</p>
+<pre><code class="language-python">attn_mask = torch.zeros(
+    S, S,
+    device=x.device
+).masked_fill(
+    mask,
+    float('-inf')
+)
+</code></pre>
+<p>and passes the resulting mask into the dedicated Transformer block. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So even within an MTP module, attention remains causal.</p>
+<p>The architecture therefore preserves the principle:</p>
+<div class="math block">
+\boxed{
+\text{no future information beyond what the MTP construction intentionally provides}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-49">27. Why is there no KV cache inside MTP?</h4>
+<p>The source explicitly states:</p>
+<pre><code class="language-text">We don't use KV cache inside MTP during training
+</code></pre>
+<p>and the implementation calls the block without a cached state. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That makes sense in this training setup because the whole training sequence is already processed in parallel.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{main trunk training: full sequence}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MTP training: full available MTP sequence}
+}
+</div>
+<p>rather than one-token-at-a-time cached generation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-50">28. The complete Mini-DeepSeek picture so far</h4>
+<p>We can now finally see almost the entire model:</p>
+<pre><code class="language-text">                Input IDs
+                    │
+                    ▼
+                Embedding
+                    │
+                    ▼
+        ┌─────────────────────────┐
+        │   Transformer Block 1   │
+        │ Attention → MLA + RoPE  │
+        │           ↓             │
+        │          MoE             │
+        └────────────┬────────────┘
+                     ↓
+                    ...
+                     ↓
+        ┌─────────────────────────┐
+        │   Transformer Block N   │
+        └────────────┬────────────┘
+                     ↓
+                 h_main = h⁰
+                     │
+             ┌───────┴───────┐
+             │               │
+             ▼               ▼
+        Main LM Head       MTP 1
+             │               │
+             ▼               ▼
+        Main logits         h¹
+                             │
+                             ▼
+                           MTP 2
+                             │
+                             ▼
+                            h²
+                             │
+                             ▼
+                           MTP 3
+                             │
+                             ▼
+                            h³
+
+Main logits + MTP logits
+             │
+             ▼
+      multiple CE losses
+             │
+             ▼
+        combined loss
+</code></pre>
+<p>This is the point where all the architectural ideas we learned earlier finally become one model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-51">29. One shape exercise</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=2,\quad S=20,\quad d=128,\quad V=1000,\quad D=3.
+</div>
+<p>The source's verification example reports:</p>
+<h6 id="v3-heading-chunk-les-r100-7-i109-52">Main</h6>
+<div class="math block">
+\boxed{[2,20,1000]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-53">MTP 1</h6>
+<div class="math block">
+\boxed{[2,19,1000]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-54">MTP 2</h6>
+<div class="math block">
+\boxed{[2,18,1000]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-7-i109-55">MTP 3</h6>
+<div class="math block">
+\boxed{[2,17,1000]}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the vocabulary dimension stays constant:</p>
+<div class="math block">
+1000
+</div>
+<p>but the sequence dimension shrinks as prediction depth increases.</p>
+<p>That is exactly what we should expect when fewer future targets remain available near the end of the sequence.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-56">30. The deepest conceptual point</h4>
+<p>The MTP system is not simply:</p>
+<div class="math block">
+\boxed{
+\text{&quot;predict 3 tokens instead of 1&quot;}
+}
+</div>
+<p>The more useful interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{repeatedly refine a latent representation toward increasingly distant future positions}.
+}
+</div>
+<p>That is why the hidden state itself is passed through the chain:</p>
+<div class="math block">
+\boxed{
+h^0\rightarrow h^1\rightarrow h^2\rightarrow\cdots\rightarrow h^D.
+}
+</div>
+<p>The source calls this sequential/cascaded latent refinement. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-7-i109-57">31. Where we stand in Chapter 6</h4>
+<p>We have now implemented conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Data}
+}
+\rightarrow
+\boxed{
+X,Y
+}
+\rightarrow
+\boxed{
+\texttt{ModelArgs}
+}
+\rightarrow
+\boxed{
+\text{RoPE}
+}
+\rightarrow
+\boxed{
+\text{MLA}
+}
+\rightarrow
+\boxed{
+\text{MoE}
+}
+\rightarrow
+\boxed{
+\text{MTP}.
+}
+</div>
+<p>The one remaining architectural wrapper is the <strong><code>TransformerBlock</code></strong>, which combines:</p>
+<div class="math block">
+\boxed{
+\text{LayerNorm}
+\rightarrow
+\text{DeepSeekAttention}
+\rightarrow
+\text{residual}
+\rightarrow
+\text{LayerNorm}
+\rightarrow
+\text{DeepSeekMoE}
+\rightarrow
+\text{residual}.
+}
+</div>
+<p>The source explicitly calls this a pre-norm Transformer block and threads the KV cache and <code>position_offset</code> through the attention component. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

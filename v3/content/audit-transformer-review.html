@@ -1,0 +1,2267 @@
+<section class="chunk audit-hub" id="audit-transformer-review" data-transformer-review="added"><h2>Transformer continuation: complete CPU training path and corrections</h2><p>The five inherited lessons below have been read in full and qualified with 46 answer-key entries, selected exact source pages and 115 additional passing independent checks. The cumulative scoped total is 349. Every inherited section remains. Full-course coverage and original backend execution remain open.</p><h3 id="v3-heading-audit-transformer-review-1">Follow the verified progression</h3><ol><li><a href="#audit-transformer-1-2">Tokens, IDs and embedding lookup</a></li><li><a href="#audit-transformer-1-5">Q/K/V roles and reproducible score calculations</a></li><li><a href="#audit-transformer-1-10">Position-wise FFN, GELU and consistent matrix orientation</a></li><li><a href="#audit-transformer-1-12">Complete pre-LN block with unrounded outputs</a></li><li><a href="#audit-transformer-1-13">Stack, final normalization, logits and shifted-target loss</a></li></ol><h3 id="v3-heading-audit-transformer-review-2">Correction register</h3><ul><li>Matrix-notation correction: the earlier W1=[d_ff,d] and W2=[d,d_ff] multiply column vectors. With a row matrix X=[T,d], use GELU(X W1ᵀ+b1) W2ᵀ+b2, or explicitly redefine W1 and W2 as their row-oriented transposes. The inherited equations below omit that convention change.</li><li>Numerical correction: softmax([2,3,1,2]) ≈ [0.1966119332,0.5344466454,0.0723294881,0.1966119332]. The first and fourth logits are equal, so their probabilities must be equal. The inherited displayed vector below is incorrect and is retained for traceability. Greedy selection remains token 2.</li><li>Precision qualification: [0.4306,1.4551] is the rounded printed book output. It is not an exact full-precision query. The original source-seeded PyTorch initialization has not been regenerated here; the separate complete mathematical companion uses fully specified illustrative parameters.</li></ul><h3 id="audit-transformer-code">Executable decoder and complete recorded outputs</h3><p>Run python3 examples/decoder.py with NumPy. The file explains every function and prints the input/target IDs, positional input, both blocks, Q/K/V, scaled scores, causal weights, FFN intermediates, final normalization, logits, probabilities, loss, all gradients and five SGD losses. The checker separately reconstructs forward logits with scalar loops and Decimal softmax; central finite differences check all 384 entries across 29 parameter tensors.</p><p>Declared assumptions: CPU float64, seed 7, [B,T,d]=[1,3,4] for the displayed training trace, two heads, hidden width 8, two independent blocks, vocabulary size 6, epsilon=1e−5, exact erf GELU, bias-free attention projections, learned FFN biases, additive learned positions, separate output weights and no dropout. The checker additionally uses a two-row batch with repeated token IDs. This is an implemented mathematical teaching model; original PyTorch and production backends remain unexecuted.</p><details><summary>Read the complete explained implementation</summary><pre><code class="language-python">&quot;&quot;&quot;Small CPU decoder with explicit forward/backward functions (NumPy float64).
+
+Teaching configuration: causal pre-LayerNorm, exact erf GELU, separate output
+weights, bias-free attention projections, learned FFN biases, learned additive
+positions, no dropout, no KV cache or padding. This
+reconstructs the mathematics; it does not execute the inherited PyTorch model.
+All matrices multiply row vectors on the right. Run this file for a two-block
+training trace and the inherited full-block numerical, with complete outputs.
+&quot;&quot;&quot;
+import json
+import math
+import numpy as np
+
+
+def softmax(z):
+    &quot;&quot;&quot;Normalize the last axis after subtracting its finite maximum.&quot;&quot;&quot;
+    z = np.asarray(z, dtype=np.float64)
+    m = np.max(z, axis=-1, keepdims=True)
+    if not np.all(np.isfinite(m)) or np.any(np.isnan(z)):
+        raise ValueError(&#x27;Each row needs a finite permitted logit; no NaNs&#x27;)
+    e = np.exp(z - m)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+def gelu(x):
+    &quot;&quot;&quot;Exact x*Phi(x), distinct from the book&#x27;s tanh approximation.&quot;&quot;&quot;
+    x = np.asarray(x, dtype=np.float64)
+    return x * .5 * (1 + np.vectorize(math.erf, otypes=[float])(x / math.sqrt(2)))
+
+
+def gelu_grad(x):
+    &quot;&quot;&quot;Derivative Phi(x)+x*phi(x), used by the FFN backward pass.&quot;&quot;&quot;
+    return .5 * (1 + np.vectorize(math.erf, otypes=[float])(x / math.sqrt(2))) + x * np.exp(-x*x/2) / math.sqrt(2*math.pi)
+
+
+def ln_forward(x, gamma, beta, eps=1e-5):
+    &quot;&quot;&quot;Population variance over model features, separately for every token.&quot;&quot;&quot;
+    if eps &lt; 0: raise ValueError(&#x27;epsilon must be nonnegative&#x27;)
+    c = x - x.mean(axis=-1, keepdims=True)
+    var = np.mean(c*c, axis=-1, keepdims=True)
+    if np.any(var + eps &lt;= 0): raise ValueError(&#x27;zero variance needs positive epsilon&#x27;)
+    inv = 1 / np.sqrt(var + eps)
+    u = c * inv
+    return u * gamma + beta, (u, inv, gamma)
+
+
+def ln_backward(g, cache):
+    &quot;&quot;&quot;Chain rule including feature-mean and variance dependencies.&quot;&quot;&quot;
+    u, inv, gamma = cache
+    v = g * gamma
+    dx = inv * (v - v.mean(axis=-1, keepdims=True) - u * np.mean(v*u, axis=-1, keepdims=True))
+    axes = tuple(range(g.ndim - 1))
+    return dx, np.sum(g*u, axis=axes), np.sum(g, axis=axes)
+
+
+def linear_grads(x, g):
+    &quot;&quot;&quot;Sum the outer products and bias contributions over batch and tokens.&quot;&quot;&quot;
+    return x.reshape(-1, x.shape[-1]).T @ g.reshape(-1, g.shape[-1]), g.sum(axis=(0, 1))
+
+
+def mha_forward(x, p, prefix, heads):
+    &quot;&quot;&quot;Project, split heads, scale scores, apply causal mask, mix, project.&quot;&quot;&quot;
+    b, n, d = x.shape
+    if not isinstance(heads, int) or heads &lt;= 0 or d % heads:
+        raise ValueError(&#x27;heads must be positive and divide model width&#x27;)
+    k = d // heads
+    q, key, val = [((x @ p[prefix+w]).reshape(b,n,heads,k).transpose(0,2,1,3)) for w in [&#x27;Wq&#x27;,&#x27;Wk&#x27;,&#x27;Wv&#x27;]]
+    allowed = np.tri(n, dtype=bool)
+    scores = q @ key.swapaxes(-1,-2) / math.sqrt(k)
+    a = softmax(np.where(allowed, scores, -np.inf))
+    per_head = a @ val
+    joined = per_head.transpose(0,2,1,3).reshape(b,n,d)
+    out = joined @ p[prefix+&#x27;Wo&#x27;]
+    return out, (x,q,key,val,a,joined,heads), {&#x27;Q&#x27;:q,&#x27;K&#x27;:key,&#x27;V&#x27;:val,&#x27;scaled_scores&#x27;:scores,&#x27;causal_weights&#x27;:a,&#x27;joined&#x27;:joined,&#x27;output&#x27;:out}
+
+
+def mha_backward(g, cache, p, prefix):
+    &quot;&quot;&quot;Backpropagate through AV, row softmax, scaled QK^T and all branches.&quot;&quot;&quot;
+    x,q,key,val,a,joined,heads = cache
+    b,n,d = x.shape; k = d//heads
+    grads = {prefix+&#x27;Wo&#x27;: linear_grads(joined, g)[0]}
+    go = (g @ p[prefix+&#x27;Wo&#x27;].T).reshape(b,n,heads,k).transpose(0,2,1,3)
+    ga = go @ val.swapaxes(-1,-2)
+    gv = a.swapaxes(-1,-2) @ go
+    gs = a * (ga - np.sum(ga*a, axis=-1, keepdims=True))
+    gq = gs @ key / math.sqrt(k)
+    gk = gs.swapaxes(-1,-2) @ q / math.sqrt(k)
+    dx = np.zeros_like(x)
+    for name,v in zip([&#x27;Wq&#x27;,&#x27;Wk&#x27;,&#x27;Wv&#x27;],[gq,gk,gv]):
+        v = v.transpose(0,2,1,3).reshape(b,n,d)
+        grads[prefix+name] = linear_grads(x,v)[0]
+        dx += v @ p[prefix+name].T
+    return dx, grads
+
+
+def block_forward(x, p, prefix, heads, eps=1e-5):
+    &quot;&quot;&quot;H=X+MHA(LN1(X)); Y=H+FFN(LN2(H)), with row-oriented FFN weights.&quot;&quot;&quot;
+    u,c1 = ln_forward(x,p[prefix+&#x27;g1&#x27;],p[prefix+&#x27;b1&#x27;],eps)
+    attention,ca,trace = mha_forward(u,p,prefix,heads)
+    h = x + attention
+    v,c2 = ln_forward(h,p[prefix+&#x27;g2&#x27;],p[prefix+&#x27;b2&#x27;],eps)
+    z = v @ p[prefix+&#x27;W1&#x27;] + p[prefix+&#x27;f1&#x27;]
+    a = gelu(z)
+    ffn = a @ p[prefix+&#x27;W2&#x27;] + p[prefix+&#x27;f2&#x27;]
+    y = h + ffn
+    cache = (u,c1,ca,h,v,c2,z,a)
+    return y,cache, {&#x27;ln1&#x27;:u,&#x27;attention&#x27;:trace,&#x27;first_residual&#x27;:h,&#x27;ln2&#x27;:v,&#x27;ffn_pre_activation&#x27;:z,&#x27;ffn_activation&#x27;:a,&#x27;ffn_output&#x27;:ffn,&#x27;output&#x27;:y}
+
+
+def block_backward(g, cache, p, prefix):
+    &quot;&quot;&quot;Accumulate the direct residual gradients before each normalization.&quot;&quot;&quot;
+    u,c1,ca,h,v,c2,z,a = cache
+    grads = {}
+    grads[prefix+&#x27;W2&#x27;],grads[prefix+&#x27;f2&#x27;] = linear_grads(a,g)
+    gz = (g @ p[prefix+&#x27;W2&#x27;].T) * gelu_grad(z)
+    grads[prefix+&#x27;W1&#x27;],grads[prefix+&#x27;f1&#x27;] = linear_grads(v,gz)
+    gh,grads[prefix+&#x27;g2&#x27;],grads[prefix+&#x27;b2&#x27;] = ln_backward(gz @ p[prefix+&#x27;W1&#x27;].T,c2)
+    gh += g
+    gu,ag = mha_backward(gh,ca,p,prefix); grads.update(ag)
+    dx,grads[prefix+&#x27;g1&#x27;],grads[prefix+&#x27;b1&#x27;] = ln_backward(gu,c1)
+    return dx + gh,grads
+
+
+def init_parameters(vocab=6, context=4, width=4, hidden=8, layers=2, seed=7):
+    &quot;&quot;&quot;Deterministic illustrative weights; no pretrained parameters or tokenizer.&quot;&quot;&quot;
+    if min(vocab,context,width,hidden,layers) &lt;= 0: raise ValueError(&#x27;positive sizes required&#x27;)
+    rng = np.random.default_rng(seed)
+    p = {&#x27;E&#x27;:rng.normal(0,.3,(vocab,width)), &#x27;P&#x27;:rng.normal(0,.05,(context,width)),
+         &#x27;gf&#x27;:np.ones(width),&#x27;bf&#x27;:np.zeros(width),&#x27;U&#x27;:rng.normal(0,.2,(width,vocab))}
+    for i in range(layers):
+        pre = f&#x27;L{i}.&#x27;
+        for name in [&#x27;Wq&#x27;,&#x27;Wk&#x27;,&#x27;Wv&#x27;,&#x27;Wo&#x27;]: p[pre+name] = rng.normal(0,.15,(width,width))
+        p[pre+&#x27;W1&#x27;] = rng.normal(0,.15,(width,hidden)); p[pre+&#x27;W2&#x27;] = rng.normal(0,.15,(hidden,width))
+        for name in [&#x27;g1&#x27;,&#x27;g2&#x27;]:p[pre+name] = np.ones(width)
+        for name in [&#x27;b1&#x27;,&#x27;b2&#x27;,&#x27;f2&#x27;]:p[pre+name] = np.zeros(width)
+        p[pre+&#x27;f1&#x27;] = np.zeros(hidden)
+    return p
+
+
+def forward(ids, p, layers=2, heads=2, eps=1e-5):
+    &quot;&quot;&quot;Token and position lookup, independent blocks, final norm, logits.&quot;&quot;&quot;
+    ids = np.asarray(ids)
+    if ids.ndim != 2 or 0 in ids.shape or not np.issubdtype(ids.dtype,np.integer):
+        raise ValueError(&#x27;nonempty integer token IDs of shape [B,T] required&#x27;)
+    if np.any(ids &lt; 0) or np.any(ids &gt;= len(p[&#x27;E&#x27;])):raise ValueError(&#x27;token ID outside vocabulary&#x27;)
+    n = ids.shape[1]
+    if n &gt; len(p[&#x27;P&#x27;]):raise ValueError(&#x27;sequence exceeds learned position table&#x27;)
+    x = p[&#x27;E&#x27;][ids] + p[&#x27;P&#x27;][:n]
+    traces = {&#x27;embedded_with_position&#x27;:x}; caches = []
+    for i in range(layers):
+        x,c,t = block_forward(x,p,f&#x27;L{i}.&#x27;,heads,eps);caches.append(c);traces[f&#x27;block_{i}&#x27;] = t
+    normalized,cf = ln_forward(x,p[&#x27;gf&#x27;],p[&#x27;bf&#x27;],eps)
+    logits = normalized @ p[&#x27;U&#x27;]
+    traces.update(final_normalized=normalized,logits=logits,probabilities=softmax(logits))
+    return logits,(ids,caches,normalized,cf),traces
+
+
+def loss_and_grad(ids, targets, p, layers=2, heads=2, eps=1e-5):
+    &quot;&quot;&quot;Mean next-token CE from stable logits, plus every analytic gradient.&quot;&quot;&quot;
+    logits,cache,trace = forward(ids,p,layers,heads,eps)
+    ids,caches,normalized,cf = cache
+    targets = np.asarray(targets)
+    if targets.shape != ids.shape or not np.issubdtype(targets.dtype,np.integer):raise ValueError(&#x27;integer targets must match IDs&#x27;)
+    if np.any(targets &lt; 0) or np.any(targets &gt;= logits.shape[-1]):raise ValueError(&#x27;target outside vocabulary&#x27;)
+    z = logits - logits.max(axis=-1,keepdims=True)
+    lp = z - np.log(np.exp(z).sum(axis=-1,keepdims=True))
+    b,n = targets.shape
+    loss = -lp[np.arange(b)[:,None],np.arange(n)[None,:],targets].mean()
+    dz = np.exp(lp)
+    dz[np.arange(b)[:,None],np.arange(n)[None,:],targets] -= 1
+    dz /= targets.size
+    grads = {&#x27;U&#x27;:linear_grads(normalized,dz)[0]}
+    dx,grads[&#x27;gf&#x27;],grads[&#x27;bf&#x27;] = ln_backward(dz @ p[&#x27;U&#x27;].T,cf)
+    for i in reversed(range(layers)):
+        dx,g = block_backward(dx,caches[i],p,f&#x27;L{i}.&#x27;);grads.update(g)
+    grads[&#x27;E&#x27;] = np.zeros_like(p[&#x27;E&#x27;]);np.add.at(grads[&#x27;E&#x27;],ids,dx)
+    grads[&#x27;P&#x27;] = np.zeros_like(p[&#x27;P&#x27;]);grads[&#x27;P&#x27;][:n] = dx.sum(axis=0)
+    assert set(grads) == set(p)
+    trace.update(loss=float(loss),input_gradient=dx,gradients=grads)
+    return float(loss),grads,trace
+
+
+def inherited_block(eps=0):
+    &quot;&quot;&quot;Reconstruct lesson 1.12 exactly (GELU unrounded; epsilon declared).&quot;&quot;&quot;
+    p = {}
+    for name in [&#x27;Wq&#x27;,&#x27;Wk&#x27;,&#x27;Wv&#x27;,&#x27;Wo&#x27;]:p[name] = np.eye(2)
+    for name in [&#x27;g1&#x27;,&#x27;g2&#x27;]:p[name] = np.ones(2)
+    for name in [&#x27;b1&#x27;,&#x27;b2&#x27;,&#x27;f2&#x27;]:p[name] = np.zeros(2)
+    p[&#x27;f1&#x27;] = np.zeros(4)
+    p[&#x27;W1&#x27;] = np.array([[1,0,1,-1],[0,1,1,1]],dtype=float)
+    p[&#x27;W2&#x27;] = np.array([[1,0],[0,1],[1,0],[0,1]],dtype=float)
+    return block_forward(np.array([[[1.,3.],[2.,4.]]]),p,&#x27;&#x27;,2,eps)[2]
+
+
+def jsonable(x):
+    &quot;&quot;&quot;Convert finite arrays and scalar outputs to portable JSON.&quot;&quot;&quot;
+    if isinstance(x,np.ndarray):return x.tolist()
+    if isinstance(x,dict):return {k:jsonable(v) for k,v in x.items()}
+    if isinstance(x,(list,tuple)):return [jsonable(v) for v in x]
+    if isinstance(x,np.generic):return x.item()
+    return x
+
+
+def demonstration():
+    &quot;&quot;&quot;Full trace plus five simultaneous SGD updates on one toy batch.&quot;&quot;&quot;
+    # The four-token sequence [0,1,0,2] gives shifted inputs and targets.
+    ids = np.array([[0,1,0]]);targets = np.array([[1,0,2]])
+    p = init_parameters()
+    loss,g,trace = loss_and_grad(ids,targets,p)
+    losses = [loss]
+    for _ in range(5):
+        p = {k:p[k]-.05*g[k] for k in p}
+        loss,g,_ = loss_and_grad(ids,targets,p);losses.append(loss)
+    return jsonable({&#x27;configuration&#x27;:{&#x27;dtype&#x27;:&#x27;float64&#x27;,&#x27;seed&#x27;:7,&#x27;B&#x27;:1,&#x27;T&#x27;:3,&#x27;d&#x27;:4,&#x27;heads&#x27;:2,&#x27;d_ff&#x27;:8,&#x27;layers&#x27;:2,&#x27;vocabulary&#x27;:6,&#x27;epsilon&#x27;:1e-5,&#x27;GELU&#x27;:&#x27;exact erf&#x27;,&#x27;dropout&#x27;:0,&#x27;output_weights&#x27;:&#x27;separate&#x27;},
+       &#x27;inputs&#x27;:ids,&#x27;targets&#x27;:targets,&#x27;trace_before_training&#x27;:trace,&#x27;sgd_learning_rate&#x27;:.05,&#x27;sgd_losses&#x27;:losses,
+       &#x27;inherited_block_epsilon_0&#x27;:inherited_block(0),&#x27;inherited_block_epsilon_1e_5&#x27;:inherited_block(1e-5)})
+
+
+if __name__ == &#x27;__main__&#x27;:
+    print(json.dumps(demonstration(),indent=2,allow_nan=False))
+</code></pre></details><p><a download="decoder.py" href="assets/8d5122146ce959f16e11.bin">Download decoder.py</a></p><details><summary>Inspect complete outputs and gradients</summary><pre><code>{
+  &quot;inherited_five_token_probabilities&quot;: [
+    0.04168587499114212,
+    0.11331395649183698,
+    0.8372831813099704,
+    0.005641569698892249,
+    0.0020754175081582225
+  ],
+  &quot;inherited_target_three_nll&quot;: 0.1775929367882905,
+  &quot;inherited_last_row_probabilities&quot;: [
+    0.19661193324148185,
+    0.534446645388523,
+    0.07232948812851327,
+    0.19661193324148185
+  ],
+  &quot;ffn_exact_output&quot;: [
+    0.6826894921370859,
+    -0.15865525393145707
+  ],
+  &quot;three_position_mean_nll&quot;: 0.8419095481027518,
+  &quot;master_four_position_mean_nll&quot;: 0.6577722899915204,
+  &quot;counts&quot;: {
+    &quot;embedding_50k_4096&quot;: 204800000,
+    &quot;ffn_768_3072_weights&quot;: 4718592,
+    &quot;ffn_768_3072_biases&quot;: 3840,
+    &quot;ffn_768_3072_total&quot;: 4722432,
+    &quot;ffn_512_2048&quot;: 2097152,
+    &quot;ffn_256_1024&quot;: 524288,
+    &quot;ffn_1024_4096&quot;: 8388608,
+    &quot;attention_768&quot;: 2359296,
+    &quot;block_768&quot;: 7077888,
+    &quot;stack_12&quot;: 84934656,
+    &quot;stack_24&quot;: 169869312,
+    &quot;stack_24_attention&quot;: 56623104,
+    &quot;stack_24_ffn&quot;: 113246208,
+    &quot;score_count&quot;: 134217728,
+    &quot;unembedding_768_50257&quot;: 38597376,
+    &quot;output_count&quot;: 402056,
+    &quot;output_bytes_float32&quot;: 1608224,
+    &quot;tying_saved_weights&quot;: 51200000,
+    &quot;logits_2048_50k&quot;: 102400000,
+    &quot;attention_2048&quot;: 4194304,
+    &quot;master_unembedding&quot;: 16384000,
+    &quot;master_logits_count&quot;: 65536000
+  },
+  &quot;demonstration&quot;: {
+    &quot;configuration&quot;: {
+      &quot;dtype&quot;: &quot;float64&quot;,
+      &quot;seed&quot;: 7,
+      &quot;B&quot;: 1,
+      &quot;T&quot;: 3,
+      &quot;d&quot;: 4,
+      &quot;heads&quot;: 2,
+      &quot;d_ff&quot;: 8,
+      &quot;layers&quot;: 2,
+      &quot;vocabulary&quot;: 6,
+      &quot;epsilon&quot;: 1e-05,
+      &quot;GELU&quot;: &quot;exact erf&quot;,
+      &quot;dropout&quot;: 0,
+      &quot;output_weights&quot;: &quot;separate&quot;
+    },
+    &quot;inputs&quot;: [
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    &quot;targets&quot;: [
+      [
+        1,
+        0,
+        2
+      ]
+    ],
+    &quot;trace_before_training&quot;: {
+      &quot;embedded_with_position&quot;: [
+        [
+          [
+            0.00820660033845603,
+            0.08027711402104325,
+            -0.20807934214969093,
+            -0.2941121964195141
+          ],
+          [
+            -0.13882628282157036,
+            -0.29182851719877334,
+            -0.058463707496038145,
+            0.3781769098646635
+          ],
+          [
+            -0.048556907895587205,
+            0.049181799281261,
+            -0.029196425439361337,
+            -0.3075542853937771
+          ]
+        ]
+      ],
+      &quot;block_0&quot;: {
+        &quot;ln1&quot;: [
+          [
+            [
+              0.7299187155949358,
+              1.201153517031019,
+              -0.6842721643355213,
+              -1.2468000682904334
+            ],
+            [
+              -0.4462998635654465,
+              -1.0609756518258797,
+              -0.12344883112183139,
+              1.6307243465131576
+            ],
+            [
+              0.2643867832970441,
+              0.9928195499976908,
+              0.4086777219395038,
+              -1.6658840552342387
+            ]
+          ]
+        ],
+        &quot;attention&quot;: {
+          &quot;Q&quot;: [
+            [
+              [
+                [
+                  -0.19315487692013417,
+                  -0.0857375100056542
+                ],
+                [
+                  0.1779533810100129,
+                  0.051243406699058455
+                ],
+                [
+                  -0.16670573083121704,
+                  -0.0399843588579754
+                ]
+              ],
+              [
+                [
+                  0.1327287263537419,
+                  -0.5892839271131293
+                ],
+                [
+                  -0.24759656018821158,
+                  0.6003220250703826
+                ],
+                [
+                  0.2715585299635055,
+                  -0.5897416606706802
+                ]
+              ]
+            ]
+          ],
+          &quot;K&quot;: [
+            [
+              [
+                [
+                  -0.13853871864312278,
+                  -0.49777637475209974
+                ],
+                [
+                  -0.04467741415391286,
+                  0.44289535279419806
+                ],
+                [
+                  0.11005829009310465,
+                  -0.40082617857703706
+                ]
+              ],
+              [
+                [
+                  0.0400162923319684,
+                  -0.2708516163971232
+                ],
+                [
+                  -0.022644172470668206,
+                  0.20900304938544362
+                ],
+                [
+                  0.012136385381363511,
+                  -0.1756531721448481
+                ]
+              ]
+            ]
+          ],
+          &quot;V&quot;: [
+            [
+              [
+                [
+                  -0.07783537434350968,
+                  -0.021630266519791448
+                ],
+                [
+                  0.10712604316175361,
+                  0.08119312871336504
+                ],
+                [
+                  -0.10344305880748397,
+                  -0.1070615833978516
+                ]
+              ],
+              [
+                [
+                  -0.3077373377421455,
+                  0.033764471723873694
+                ],
+                [
+                  0.2549333717663747,
+                  -0.10294514511631218
+                ],
+                [
+                  -0.20546127793461402,
+                  0.1538852845723794
+                ]
+              ]
+            ]
+          ],
+          &quot;scaled_scores&quot;: [
+            [
+              [
+                [
+                  0.04909975261625516,
+                  -0.02074869389627602,
+                  0.009268432553643405
+                ],
+                [
+                  -0.035469318025610874,
+                  0.010426268123281283,
+                  -0.0006749009340584717
+                ],
+                [
+                  0.030404507977408547,
+                  -0.007255556033034857,
+                  -0.0016408907267272533
+                ]
+              ],
+              [
+                [
+                  0.11661592002647471,
+                  -0.0892140149470257,
+                  0.07433137459748707
+                ],
+                [
+                  -0.12198022404234198,
+                  0.09268455384139541,
+                  -0.07668813124913582
+                ],
+                [
+                  0.12063188482181275,
+                  -0.09150458393358453,
+                  0.0755796262034509
+                ]
+              ]
+            ]
+          ],
+          &quot;causal_weights&quot;: [
+            [
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.4885281170945474,
+                  0.5114718829054525,
+                  0.0
+                ],
+                [
+                  0.34112195820972707,
+                  0.3285141784041504,
+                  0.3303638633861225
+                ]
+              ],
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.4465389427992816,
+                  0.5534610572007185,
+                  0.0
+                ],
+                [
+                  0.36168957532045576,
+                  0.2925541706841611,
+                  0.34575625399538323
+                ]
+              ]
+            ]
+          ],
+          &quot;joined&quot;: [
+            [
+              [
+                -0.07783537434350968,
+                -0.021630266519791448,
+                -0.3077373377421455,
+                0.033764471723873694
+              ],
+              [
+                0.01676719013276887,
+                0.030961009046842635,
+                0.0036789879983184183,
+                -0.04189897734200072
+              ],
+              [
+                -0.025532779807192398,
+                -0.016074743212045814,
+                -0.10776308764115203,
+                0.03530202542202353
+              ]
+            ]
+          ],
+          &quot;output&quot;: [
+            [
+              [
+                0.001372776092867309,
+                0.03282802812259599,
+                -0.00887128459620262,
+                0.1081910212476926
+              ],
+              [
+                0.005766962249401069,
+                -0.006790177382649785,
+                0.01791543683645312,
+                -0.00818022781506674
+              ],
+              [
+                -0.004102372102104186,
+                0.013846975384968827,
+                -0.011833149154344235,
+                0.040349383051456765
+              ]
+            ]
+          ]
+        },
+        &quot;first_residual&quot;: [
+          [
+            [
+              0.009579376431323339,
+              0.11310514214363923,
+              -0.21695062674589355,
+              -0.1859211751718215
+            ],
+            [
+              -0.1330593205721693,
+              -0.29861869458142315,
+              -0.04054827065958502,
+              0.3699966820495968
+            ],
+            [
+              -0.05265927999769139,
+              0.06302877466622983,
+              -0.04102957459370557,
+              -0.26720490234232036
+            ]
+          ]
+        ],
+        &quot;ln2&quot;: [
+          [
+            [
+              0.5817691204774237,
+              1.338154527948815,
+              -1.0733163317165406,
+              -0.846607316709698
+            ],
+            [
+              -0.4362947033235619,
+              -1.1082145928804767,
+              -0.06084018851859862,
+              1.6053494847226375
+            ],
+            [
+              0.18158821836246145,
+              1.144931222944918,
+              0.2784296371142148,
+              -1.6049490784215945
+            ]
+          ]
+        ],
+        &quot;ffn_pre_activation&quot;: [
+          [
+            [
+              0.00635820682640541,
+              0.21575547515219576,
+              -0.2606010212831771,
+              -0.06486163652632188,
+              0.2514951272183879,
+              -0.14276643747945889,
+              0.00047893662853551125,
+              0.10441426603372572
+            ],
+            [
+              -0.003980643304037621,
+              0.009586677661819877,
+              -0.019929297001050006,
+              0.040305584281160635,
+              -0.531969631376682,
+              -0.0035889989569556718,
+              0.3313981581700003,
+              -0.12113322753339228
+            ],
+            [
+              0.04986185440365153,
+              -0.08170964928382805,
+              0.09235808109871042,
+              -0.08048553057642083,
+              0.5644603280190048,
+              0.05970173228992547,
+              -0.40196992001051984,
+              0.05097952291962962
+            ]
+          ]
+        ],
+        &quot;ffn_activation&quot;: [
+          [
+            [
+              0.0031952312619429966,
+              0.1263055900036886,
+              -0.10351075197679933,
+              -0.030753631444869287,
+              0.15071709018699567,
+              -0.06327941345645957,
+              0.00023955982376188572,
+              0.05654864677472696
+            ],
+            [
+              -0.0019840002203858516,
+              0.004830002815675874,
+              -0.009806208338909118,
+              0.02080071444830498,
+              -0.15819367888115057,
+              -0.0017893607484992195,
+              0.20872387960454675,
+              -0.0547271146610081
+            ],
+            [
+              0.02592236846643081,
+              -0.03819426061399763,
+              0.049577192509627104,
+              -0.03766123631599164,
+              0.4029002411839441,
+              0.03127197059725452,
+              -0.13821859582092083,
+              0.026526128318992603
+            ]
+          ]
+        ],
+        &quot;ffn_output&quot;: [
+          [
+            [
+              0.03601629501206002,
+              -0.023685583650437176,
+              -0.026962699878348022,
+              0.02195561967840306
+            ],
+            [
+              -0.04094033356181152,
+              0.016382303479034382,
+              0.037043108593443085,
+              0.010895761293830351
+            ],
+            [
+              0.08327398657609705,
+              -0.02946142091939399,
+              0.00691950731055409,
+              -0.01340114524065356
+            ]
+          ]
+        ],
+        &quot;output&quot;: [
+          [
+            [
+              0.04559567144338336,
+              0.08941955849320206,
+              -0.24391332662424156,
+              -0.16396555549341843
+            ],
+            [
+              -0.17399965413398083,
+              -0.28223639110238874,
+              -0.0035051620661419383,
+              0.38089244334342715
+            ],
+            [
+              0.030614706578405662,
+              0.03356735374683584,
+              -0.03411006728315148,
+              -0.2806060475829739
+            ]
+          ]
+        ]
+      },
+      &quot;block_1&quot;: {
+        &quot;ln1&quot;: [
+          [
+            [
+              0.815651475992079,
+              1.1297233546720464,
+              -1.259167556251438,
+              -0.6862072744126876
+            ],
+            [
+              -0.6128621693212731,
+              -1.0428011939633022,
+              0.06437771872043865,
+              1.5912856445641366
+            ],
+            [
+              0.724207780832015,
+              0.7471393718964873,
+              0.22152596303703634,
+              -1.6928731157655388
+            ]
+          ]
+        ],
+        &quot;attention&quot;: {
+          &quot;Q&quot;: [
+            [
+              [
+                [
+                  0.30113593283122136,
+                  -0.17663274126285414
+                ],
+                [
+                  0.21760906514683784,
+                  0.23146014097803688
+                ],
+                [
+                  -0.32042343163146125,
+                  -0.2603376070795012
+                ]
+              ],
+              [
+                [
+                  0.013672789464429236,
+                  0.3611447128082199
+                ],
+                [
+                  -0.24712302435464684,
+                  -0.7034474638281838
+                ],
+                [
+                  0.31501268812725136,
+                  0.7125088706479571
+                ]
+              ]
+            ]
+          ],
+          &quot;K&quot;: [
+            [
+              [
+                [
+                  -0.11503087013131245,
+                  -0.38899780863203764
+                ],
+                [
+                  0.13987405902459615,
+                  0.19178513062391295
+                ],
+                [
+                  -0.061331182992710356,
+                  -0.09870200857158812
+                ]
+              ],
+              [
+                [
+                  0.3741179788204068,
+                  0.3440714634969896
+                ],
+                [
+                  -0.4400161202686653,
+                  0.021948727577949075
+                ],
+                [
+                  0.41644908398212166,
+                  -0.0825048868084455
+                ]
+              ]
+            ]
+          ],
+          &quot;V&quot;: [
+            [
+              [
+                [
+                  -0.335453146719809,
+                  -0.155471515712798
+                ],
+                [
+                  0.37728918018372565,
+                  0.08323755585300432
+                ],
+                [
+                  -0.3322676822423853,
+                  -0.021191609227466695
+                ]
+              ],
+              [
+                [
+                  -0.4689829048181791,
+                  0.1991055818576809
+                ],
+                [
+                  0.07658696552764666,
+                  -0.17655387965124233
+                ],
+                [
+                  -0.01471227814555007,
+                  0.16265011358719345
+                ]
+              ]
+            ]
+          ],
+          &quot;scaled_scores&quot;: [
+            [
+              [
+                [
+                  0.024091001393997283,
+                  0.005830499796557209,
+                  -0.0007318672989290569
+                ],
+                [
+                  -0.08136624538187233,
+                  0.052911723225715315,
+                  -0.025591468769015014
+                ],
+                [
+                  0.09767219639562577,
+                  -0.0669968175173995,
+                  0.0320657318332558
+                ]
+              ],
+              [
+                [
+                  0.09148181694163532,
+                  0.0013508703318119058,
+                  -0.017042817043364057
+                ],
+                [
+                  -0.23651969805951495,
+                  0.06597188723043289,
+                  -0.03173233869235986
+                ],
+                [
+                  0.25668391940340674,
+                  -0.08695433351670105,
+                  0.05119543724996169
+                ]
+              ]
+            ]
+          ],
+          &quot;causal_weights&quot;: [
+            [
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.46648085683243967,
+                  0.5335191431675604,
+                  0.0
+                ],
+                [
+                  0.35910849791126215,
+                  0.30458663171864025,
+                  0.33630487037009754
+                ]
+              ],
+              [
+                [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.4249485077226662,
+                  0.5750514922773338,
+                  0.0
+                ],
+                [
+                  0.39628523797925486,
+                  0.2810397158726841,
+                  0.32267504614806103
+                ]
+              ]
+            ]
+          ],
+          &quot;joined&quot;: [
+            [
+              [
+                -0.335453146719809,
+                -0.155471515712798,
+                -0.4689829048181791,
+                0.1991055818576809
+              ],
+              [
+                0.044808528829018014,
+                -0.028115656384687288,
+                -0.15525213673426047,
+                -0.016917952071125047
+              ],
+              [
+                -0.11729007486680684,
+                -0.03760493710002825,
+                -0.16907430804219195,
+                0.08176708362379888
+              ]
+            ]
+          ],
+          &quot;output&quot;: [
+            [
+              [
+                0.11844915457779424,
+                0.07558548283439302,
+                0.19836219593751275,
+                0.05643426873032502
+              ],
+              [
+                0.01086565847713991,
+                0.04585541961856659,
+                0.07823067215267412,
+                0.024557147114343137
+              ],
+              [
+                0.043644230490418184,
+                0.030920789390950637,
+                0.06965106394404265,
+                0.012892533141131883
+              ]
+            ]
+          ]
+        },
+        &quot;first_residual&quot;: [
+          [
+            [
+              0.1640448260211776,
+              0.16500504132759508,
+              -0.04555113068672881,
+              -0.10753128676309341
+            ],
+            [
+              -0.16313399565684092,
+              -0.23638097148382214,
+              0.0747255100865322,
+              0.4054495904577703
+            ],
+            [
+              0.07425893706882385,
+              0.06448814313778647,
+              0.035540996660891166,
+              -0.26771351444184205
+            ]
+          ]
+        ],
+        &quot;ln2&quot;: [
+          [
+            [
+              0.9796234821602305,
+              0.9874587694726706,
+              -0.730664334912094,
+              -1.2364179167208067
+            ],
+            [
+              -0.7319157652822574,
+              -1.0243920356543665,
+              0.21786079991961788,
+              1.538447001017006
+            ],
+            [
+              0.6882482562191341,
+              0.6193581116555449,
+              0.4152628129959215,
+              -1.7228691808706003
+            ]
+          ]
+        ],
+        &quot;ffn_pre_activation&quot;: [
+          [
+            [
+              -0.1924933392341631,
+              0.13852708191000032,
+              0.006465756168782528,
+              0.10264324170858218,
+              -0.4444737836883938,
+              0.32238634833877916,
+              0.053693000172141826,
+              -0.44135211664855345
+            ],
+            [
+              0.11159519996241175,
+              -0.29662421447633575,
+              0.022564945630492692,
+              -0.17812667130335416,
+              0.4776400858061283,
+              -0.07551076584213397,
+              -0.05263337308092054,
+              0.5306930278769547
+            ],
+            [
+              0.10558976739416273,
+              0.4330219262229023,
+              -0.0178826933759524,
+              0.1902406261557652,
+              -0.39757313169114766,
+              -0.17886086493147313,
+              0.07339464592344926,
+              -0.4997491179357732
+            ]
+          ]
+        ],
+        &quot;ffn_activation&quot;: [
+          [
+            [
+              -0.08155517227492935,
+              0.07689473000855046,
+              0.003249556150289096,
+              0.0555173623769402,
+              -0.14594298440817843,
+              0.20194925228615698,
+              0.027996073667959556,
+              -0.1454162764755996
+            ],
+            [
+              0.06075553042668917,
+              -0.113718815746086,
+              0.01148558772047417,
+              -0.07647187264984613,
+              0.32648935345407765,
+              -0.03548282345046474,
+              -0.02521201798890883,
+              0.37264428091142004
+            ],
+            [
+              0.05723451930353752,
+              0.289042386732487,
+              -0.00881377544732547,
+              0.10947201100086235,
+              -0.137350557730568,
+              -0.07673551003366229,
+              0.03884440706968516,
+              -0.15423550687493454
+            ]
+          ]
+        ],
+        &quot;ffn_output&quot;: [
+          [
+            [
+              0.06712366001601684,
+              -0.044657242869762664,
+              0.033944728859221104,
+              -0.01657162506208085
+            ],
+            [
+              -0.15529515117431184,
+              0.04609740104067235,
+              -0.04939869045645413,
+              0.06684959063025718
+            ],
+            [
+              0.11321851906687357,
+              0.02973352876905932,
+              0.021522404093025048,
+              -0.022613579639236946
+            ]
+          ]
+        ],
+        &quot;output&quot;: [
+          [
+            [
+              0.23116848603719442,
+              0.12034779845783242,
+              -0.011606401827507704,
+              -0.12410291182517426
+            ],
+            [
+              -0.31842914683115275,
+              -0.1902835704431498,
+              0.025326819630078067,
+              0.4722991810880275
+            ],
+            [
+              0.1874774561356974,
+              0.0942216719068458,
+              0.057063400753916214,
+              -0.290327094081079
+            ]
+          ]
+        ]
+      },
+      &quot;final_normalized&quot;: [
+        [
+          [
+            1.3222227226124603,
+            0.49538419425221036,
+            -0.48913249805536185,
+            -1.328474418809309
+          ],
+          [
+            -1.050264640831537,
+            -0.623894978984747,
+            0.09349013642360009,
+            1.5806694833926838
+          ],
+          [
+            0.9689572466657462,
+            0.453694712595042,
+            0.24838557156675448,
+            -1.6710375308275427
+          ]
+        ]
+      ],
+      &quot;logits&quot;: [
+        [
+          [
+            -0.2751411944641718,
+            0.1517964417224119,
+            -0.42301918385875364,
+            0.2746215480438066,
+            0.40754831437185884,
+            -0.277798704177674
+          ],
+          [
+            0.3257228332755362,
+            -0.23110720659539052,
+            0.398057742254059,
+            -0.3993016008929042,
+            -0.34154872391032526,
+            0.1117921157063654
+          ],
+          [
+            -0.3776768139553827,
+            0.2776500908410982,
+            -0.37288028893964925,
+            0.38503688876166514,
+            0.28665655364022063,
+            0.021270639586607243
+          ]
+        ]
+      ],
+      &quot;probabilities&quot;: [
+        [
+          [
+            0.12338862283447,
+            0.18910010784213305,
+            0.10642717201384934,
+            0.21381296815140022,
+            0.24420997746579845,
+            0.1230611516923488
+          ],
+          [
+            0.22457468336780237,
+            0.1286863794633563,
+            0.2414212242203684,
+            0.10876437912077015,
+            0.11523076386048522,
+            0.18132256996721768
+          ],
+          [
+            0.10517329833679016,
+            0.202539788728072,
+            0.1056789764726677,
+            0.22550067509599053,
+            0.20437219516429705,
+            0.15673506620218272
+          ]
+        ]
+      ],
+      &quot;loss&quot;: 1.8021249995943294,
+      &quot;input_gradient&quot;: [
+        [
+          [
+            -0.03904666725900979,
+            0.15586715861887135,
+            -0.17653538018018108,
+            0.059714888820319556
+          ],
+          [
+            -0.055498608765324475,
+            -0.0325286907118625,
+            0.1316111321176706,
+            -0.04358383264048363
+          ],
+          [
+            -0.01399398518770931,
+            0.062003438653141806,
+            -0.05032149193979651,
+            0.0023120384743638904
+          ]
+        ]
+      ],
+      &quot;gradients&quot;: {
+        &quot;U&quot;: [
+          [
+            0.3598191540223874,
+            -0.3370308737519678,
+            -0.3264648622657182,
+            0.12899249885624428,
+            0.1333017013322371,
+            0.04138238180681724
+          ],
+          [
+            0.1975417681629374,
+            -0.13003418149023327,
+            -0.16788262349791777,
+            0.046790159633392114,
+            0.04726948408853162,
+            0.006315393103289945
+          ],
+          [
+            -0.035574824711982735,
+            0.1529921194280404,
+            -0.08387430797106278,
+            -0.012801120171363445,
+            -0.019304997328713658,
+            -0.0014368692449177186
+          ],
+          [
+            -0.521786097473342,
+            0.31407293581416074,
+            0.5782217937346987,
+            -0.16298153831827297,
+            -0.16126618809205506,
+            -0.04626090566518948
+          ]
+        ],
+        &quot;gf&quot;: [
+          0.1090237659667661,
+          0.07679861146949984,
+          0.018599076558879657,
+          -0.14708839205769458
+        ],
+        &quot;bf&quot;: [
+          0.044859451350507173,
+          0.053098111552430535,
+          0.028683759701715435,
+          -0.08687989574941313
+        ],
+        &quot;L1.W2&quot;: [
+          [
+            -0.001390798691027081,
+            -0.01098369550934928,
+            0.02577391212434239,
+            -0.013399417923966041
+          ],
+          [
+            0.0002878027161599198,
+            0.04286730110085488,
+            -0.061233685271755656,
+            0.01807858145474083
+          ],
+          [
+            -0.0005006933925270668,
+            -0.0010318673720789487,
+            0.001955470208608058,
+            -0.00042290944400204115
+          ],
+          [
+            0.0009834574891327383,
+            0.02225446032931984,
+            -0.035426414469350444,
+            0.012188496650897855
+          ],
+          [
+            -0.009772482099032163,
+            -0.05419774198722381,
+            0.10361003558507113,
+            -0.03963981149881514
+          ],
+          [
+            -0.0023867186502415923,
+            0.0250317263880563,
+            -0.04850254043920212,
+            0.025857532701387437
+          ],
+          [
+            6.658962989365565e-05,
+            0.008965438250669472,
+            -0.014210022397388104,
+            0.0051779945168249734
+          ],
+          [
+            -0.011680383875225287,
+            -0.05859654284190988,
+            0.11300640056585462,
+            -0.042729473848719425
+          ]
+        ],
+        &quot;L1.f2&quot;: [
+          -0.07886198104117817,
+          0.16179698555433072,
+          -0.13961866775407483,
+          0.056683663240922236
+        ],
+        &quot;L1.W1&quot;: [
+          [
+            0.06124949316526566,
+            -0.0022881685215424765,
+            0.0025143118587515494,
+            0.0043419480108740005,
+            0.004636860932022771,
+            -0.0074497084894762375,
+            0.004234296535016685,
+            0.020737742340947912
+          ],
+          [
+            0.07045876264363436,
+            -0.0025310372092242463,
+            0.003302193676166129,
+            0.005321730451991787,
+            0.004162768733957087,
+            -0.007549886992114302,
+            0.004523440091320585,
+            0.025507558285740937
+          ],
+          [
+            -0.02475041871906691,
+            0.003328250296060366,
+            -0.0015233205251471555,
+            0.001072023418447986,
+            -0.0009703322498853936,
+            0.0011515645645349785,
+            -0.0026207386496125322,
+            -0.008823195969974227
+          ],
+          [
+            -0.10695783708983309,
+            0.0014909554347063562,
+            -0.004293185009770522,
+            -0.010735701881313774,
+            -0.007829297416094462,
+            0.013848030917055557,
+            -0.006136997976724737,
+            -0.03742210465671462
+          ]
+        ],
+        &quot;L1.f1&quot;: [
+          0.007687374036488406,
+          -0.001256063456863022,
+          -0.0020323537527643775,
+          -0.0018254535968416142,
+          0.0073762033756123516,
+          -0.006686323374693499,
+          0.0027285447821207695,
+          -0.0071064783934223046
+        ],
+        &quot;L1.g2&quot;: [
+          0.010465252419897111,
+          -0.016392756010220392,
+          -0.005957629668023887,
+          -0.010393530268547358
+        ],
+        &quot;L1.b2&quot;: [
+          0.0005049521531385718,
+          -0.0012490350037066397,
+          0.004848593935076768,
+          -0.0002232081840952658
+        ],
+        &quot;L1.Wo&quot;: [
+          [
+            -0.0095606653580072,
+            -0.038717814537911996,
+            0.08228947463074274,
+            -0.03401099473482353
+          ],
+          [
+            -0.0013905728020256823,
+            -0.015200286263644317,
+            0.029724457971099287,
+            -0.01313359890542929
+          ],
+          [
+            0.0011416957723312383,
+            -0.046709474910012205,
+            0.0815942815486898,
+            -0.03602650241100883
+          ],
+          [
+            0.004887552483056928,
+            0.023370256491826,
+            -0.04796253408370062,
+            0.019704725108817687
+          ]
+        ],
+        &quot;L1.Wq&quot;: [
+          [
+            0.00014404768780213253,
+            0.00028205764977555996,
+            -0.0014757220622960197,
+            -0.0007138012137459117
+          ],
+          [
+            0.00011366610711442815,
+            0.00021137420795084333,
+            -0.002498885098367316,
+            -0.0011227425670473094
+          ],
+          [
+            6.549824470442324e-05,
+            0.00013511801130853266,
+            0.00014759650774502463,
+            1.8659860902359633e-05
+          ],
+          [
+            -0.000323212039620984,
+            -0.0006285498690349361,
+            0.003827010652918311,
+            0.0018178839198908616
+          ]
+        ],
+        &quot;L1.Wk&quot;: [
+          [
+            0.0004081796993747961,
+            0.0003055665480295683,
+            -0.0010662325849893637,
+            -0.003014673051278887
+          ],
+          [
+            0.000591168016343691,
+            0.00044066221969759223,
+            -0.0016525967980641494,
+            -0.004655008147436569
+          ],
+          [
+            -0.00020848170300061058,
+            -0.0001452316723006076,
+            0.001165823276358517,
+            0.0031956207656878735
+          ],
+          [
+            -0.0007908660127178765,
+            -0.000600997095426553,
+            0.001553006106694996,
+            0.004474060433027582
+          ]
+        ],
+        &quot;L1.Wv&quot;: [
+          [
+            0.012587112925270082,
+            -0.008464574794004837,
+            0.05603433023466033,
+            0.026067102666703614
+          ],
+          [
+            0.01644257289033316,
+            -0.014640973972630032,
+            0.08252143177722411,
+            0.03890565362601801
+          ],
+          [
+            -0.017028065753289492,
+            0.008487127657124246,
+            -0.05770133261335584,
+            -0.022159425676407968
+          ],
+          [
+            -0.012001620062313756,
+            0.01461842110951062,
+            -0.08085442939852859,
+            -0.04281333061631365
+          ]
+        ],
+        &quot;L1.g1&quot;: [
+          -0.012083252944456621,
+          -0.0030888258237146094,
+          -0.014226116402446526,
+          0.006401482939392889
+        ],
+        &quot;L1.b1&quot;: [
+          -0.002308896329499745,
+          -0.003379167621761071,
+          0.006965081394142214,
+          0.0015322980138307964
+        ],
+        &quot;L0.W2&quot;: [
+          [
+            -0.00023848819083619325,
+            0.001907457038814041,
+            -0.0019684351194161607,
+            0.00029946627143830973
+          ],
+          [
+            -0.0003473269253184255,
+            0.013273157898655302,
+            -0.019716570098258186,
+            0.006790739124921317
+          ],
+          [
+            0.0003180703402500145,
+            -0.009629083620404526,
+            0.014584209997381678,
+            -0.005273196717227174
+          ],
+          [
+            -0.0002996371509127362,
+            -0.0067240548311800945,
+            0.00975038662948906,
+            -0.002726694647396224
+          ],
+          [
+            0.0012837618461708725,
+            0.04731384877094203,
+            -0.06481653149330069,
+            0.01621892087618775
+          ],
+          [
+            2.4683794661475034e-06,
+            -0.006005058353610719,
+            0.009420608472512521,
+            -0.0034180184983679572
+          ],
+          [
+            -0.007314311524077861,
+            -0.0161315023709836,
+            0.03328433160602074,
+            -0.009838517710959258
+          ],
+          [
+            0.0017668966918956686,
+            0.010676349367895684,
+            -0.018175372867657573,
+            0.00573212680786622
+          ]
+        ],
+        &quot;L0.f2&quot;: [
+          -0.059534234403320056,
+          0.1377707584751804,
+          -0.08875515713715257,
+          0.010518633065292143
+        ],
+        &quot;L0.W1&quot;: [
+          [
+            -0.022016833294635753,
+            0.024009156993763044,
+            0.008718857353323816,
+            0.006918758737558235,
+            -0.008819286331106574,
+            -0.011507022917991586,
+            -0.013697707020538194,
+            0.0174840760727919
+          ],
+          [
+            -0.05478632296589782,
+            0.0592616707588455,
+            0.023362730852280477,
+            0.0186143763072584,
+            -0.025915514470442328,
+            -0.030583527909899905,
+            -0.034051394619789295,
+            0.04317533744807735
+          ],
+          [
+            0.02076720728250439,
+            -0.027348834922385417,
+            -0.006463110634295956,
+            -0.006835701680783036,
+            0.01148318683822544,
+            0.009886998980843992,
+            0.011926623796324932,
+            -0.019517602957568325
+          ],
+          [
+            0.05603594897802919,
+            -0.05592199283022313,
+            -0.025618477571308338,
+            -0.0186974333640336,
+            0.023251613963323467,
+            0.0322035518470475,
+            0.03582247784400256,
+            -0.04114181056330093
+          ]
+        ],
+        &quot;L0.f1&quot;: [
+          -0.0028671071432645238,
+          0.012885777329667737,
+          0.0018680973759029511,
+          0.005763576966204465,
+          -0.020392085872381893,
+          -0.004954061226622257,
+          0.0006788700954431784,
+          0.008493558412331934
+        ],
+        &quot;L0.g2&quot;: [
+          0.011888399181993487,
+          -0.011833340067007833,
+          0.003628356795081317,
+          0.0018321244271840235
+        ],
+        &quot;L0.b2&quot;: [
+          0.005355623038594421,
+          -0.005361837532965559,
+          -0.0054327792643726475,
+          0.004021508081438223
+        ],
+        &quot;L0.Wo&quot;: [
+          [
+            -0.007406195636316175,
+            -0.0067705412497211966,
+            0.019062649348316803,
+            -0.004885912462279432
+          ],
+          [
+            -0.004008943455110244,
+            -0.0028420871109989705,
+            0.00923533518401269,
+            -0.002384304617903474
+          ],
+          [
+            -0.02477240194982244,
+            -0.02585717429949594,
+            0.06742680036764785,
+            -0.016797224118329485
+          ],
+          [
+            0.005840161362741438,
+            0.004806768358952599,
+            -0.014084168666116465,
+            0.0034372389444224253
+          ]
+        ],
+        &quot;L0.Wq&quot;: [
+          [
+            -2.7072289033867354e-05,
+            -0.00046747284698351184,
+            6.0068191830889615e-05,
+            -0.0004779865058539086
+          ],
+          [
+            -4.801464695296812e-05,
+            -0.0012178010214655387,
+            0.00015289385769194996,
+            -0.0012383944325780381
+          ],
+          [
+            7.565218478521191e-06,
+            -0.00022739166458092183,
+            2.591384760494086e-05,
+            -0.00022624670880919302
+          ],
+          [
+            6.75217175083143e-05,
+            0.0019126655330299722,
+            -0.00023887589712778045,
+            0.0019426276472411397
+          ]
+        ],
+        &quot;L0.Wk&quot;: [
+          [
+            -0.00023768617989579493,
+            -6.636817210282342e-05,
+            0.000699531457403574,
+            -0.001658073680795519
+          ],
+          [
+            -0.0004926087853360044,
+            -0.00013615192018223764,
+            0.0014526143915265205,
+            -0.0034217797236155666
+          ],
+          [
+            6.833957122038597e-05,
+            2.085370629413076e-05,
+            -0.0001975501271143923,
+            0.0004952489845514666
+          ],
+          [
+            0.0006619553940114133,
+            0.00018166638599093028,
+            -0.001954595721815702,
+            0.004584604419859618
+          ]
+        ],
+        &quot;L0.Wv&quot;: [
+          [
+            -0.014374920687261946,
+            -0.024425575992402387,
+            -0.012753103073475333,
+            0.04577839959760123
+          ],
+          [
+            -0.0268351230198895,
+            -0.04422577142056186,
+            -0.02311498912311804,
+            0.08358406858354502
+          ],
+          [
+            0.00830281168133484,
+            0.017416276527122607,
+            0.008660280206242273,
+            -0.03087350713723396
+          ],
+          [
+            0.0329072320258166,
+            0.05123507088584163,
+            0.0272078119903511,
+            -0.09848896104391229
+          ]
+        ],
+        &quot;L0.g1&quot;: [
+          -0.009205929444963911,
+          0.03557280327200998,
+          -0.004633544258579689,
+          -0.006525738758190151
+        ],
+        &quot;L0.b1&quot;: [
+          -0.01094734051664257,
+          0.01799920446400625,
+          0.006243049243340963,
+          0.0034254085933236836
+        ],
+        &quot;E&quot;: [
+          [
+            -0.0530406524467191,
+            0.21787059727201316,
+            -0.2268568721199776,
+            0.06202692729468345
+          ],
+          [
+            -0.055498608765324475,
+            -0.0325286907118625,
+            0.1316111321176706,
+            -0.04358383264048363
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        &quot;P&quot;: [
+          [
+            -0.03904666725900979,
+            0.15586715861887135,
+            -0.17653538018018108,
+            0.059714888820319556
+          ],
+          [
+            -0.055498608765324475,
+            -0.0325286907118625,
+            0.1316111321176706,
+            -0.04358383264048363
+          ],
+          [
+            -0.01399398518770931,
+            0.062003438653141806,
+            -0.05032149193979651,
+            0.0023120384743638904
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ]
+      }
+    },
+    &quot;sgd_learning_rate&quot;: 0.05,
+    &quot;sgd_losses&quot;: [
+      1.8021249995943294,
+      1.717049981110461,
+      1.6449880448468903,
+      1.5789640768543274,
+      1.517534476988107,
+      1.4599100871377801
+    ],
+    &quot;inherited_block_epsilon_0&quot;: {
+      &quot;ln1&quot;: [
+        [
+          [
+            -1.0,
+            1.0
+          ],
+          [
+            -1.0,
+            1.0
+          ]
+        ]
+      ],
+      &quot;attention&quot;: {
+        &quot;Q&quot;: [
+          [
+            [
+              [
+                -1.0
+              ],
+              [
+                -1.0
+              ]
+            ],
+            [
+              [
+                1.0
+              ],
+              [
+                1.0
+              ]
+            ]
+          ]
+        ],
+        &quot;K&quot;: [
+          [
+            [
+              [
+                -1.0
+              ],
+              [
+                -1.0
+              ]
+            ],
+            [
+              [
+                1.0
+              ],
+              [
+                1.0
+              ]
+            ]
+          ]
+        ],
+        &quot;V&quot;: [
+          [
+            [
+              [
+                -1.0
+              ],
+              [
+                -1.0
+              ]
+            ],
+            [
+              [
+                1.0
+              ],
+              [
+                1.0
+              ]
+            ]
+          ]
+        ],
+        &quot;scaled_scores&quot;: [
+          [
+            [
+              [
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                1.0
+              ]
+            ],
+            [
+              [
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                1.0
+              ]
+            ]
+          ]
+        ],
+        &quot;causal_weights&quot;: [
+          [
+            [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.5,
+                0.5
+              ]
+            ],
+            [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.5,
+                0.5
+              ]
+            ]
+          ]
+        ],
+        &quot;joined&quot;: [
+          [
+            [
+              -1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              1.0
+            ]
+          ]
+        ],
+        &quot;output&quot;: [
+          [
+            [
+              -1.0,
+              1.0
+            ],
+            [
+              -1.0,
+              1.0
+            ]
+          ]
+        ]
+      },
+      &quot;first_residual&quot;: [
+        [
+          [
+            0.0,
+            4.0
+          ],
+          [
+            1.0,
+            5.0
+          ]
+        ]
+      ],
+      &quot;ln2&quot;: [
+        [
+          [
+            -1.0,
+            1.0
+          ],
+          [
+            -1.0,
+            1.0
+          ]
+        ]
+      ],
+      &quot;ffn_pre_activation&quot;: [
+        [
+          [
+            -1.0,
+            1.0,
+            0.0,
+            2.0
+          ],
+          [
+            -1.0,
+            1.0,
+            0.0,
+            2.0
+          ]
+        ]
+      ],
+      &quot;ffn_activation&quot;: [
+        [
+          [
+            -0.15865525393145707,
+            0.8413447460685429,
+            0.0,
+            1.9544997361036416
+          ],
+          [
+            -0.15865525393145707,
+            0.8413447460685429,
+            0.0,
+            1.9544997361036416
+          ]
+        ]
+      ],
+      &quot;ffn_output&quot;: [
+        [
+          [
+            -0.15865525393145707,
+            2.7958444821721846
+          ],
+          [
+            -0.15865525393145707,
+            2.7958444821721846
+          ]
+        ]
+      ],
+      &quot;output&quot;: [
+        [
+          [
+            -0.15865525393145707,
+            6.795844482172185
+          ],
+          [
+            0.8413447460685429,
+            7.795844482172185
+          ]
+        ]
+      ]
+    },
+    &quot;inherited_block_epsilon_1e_5&quot;: {
+      &quot;ln1&quot;: [
+        [
+          [
+            -0.9999950000374997,
+            0.9999950000374997
+          ],
+          [
+            -0.9999950000374997,
+            0.9999950000374997
+          ]
+        ]
+      ],
+      &quot;attention&quot;: {
+        &quot;Q&quot;: [
+          [
+            [
+              [
+                -0.9999950000374997
+              ],
+              [
+                -0.9999950000374997
+              ]
+            ],
+            [
+              [
+                0.9999950000374997
+              ],
+              [
+                0.9999950000374997
+              ]
+            ]
+          ]
+        ],
+        &quot;K&quot;: [
+          [
+            [
+              [
+                -0.9999950000374997
+              ],
+              [
+                -0.9999950000374997
+              ]
+            ],
+            [
+              [
+                0.9999950000374997
+              ],
+              [
+                0.9999950000374997
+              ]
+            ]
+          ]
+        ],
+        &quot;V&quot;: [
+          [
+            [
+              [
+                -0.9999950000374997
+              ],
+              [
+                -0.9999950000374997
+              ]
+            ],
+            [
+              [
+                0.9999950000374997
+              ],
+              [
+                0.9999950000374997
+              ]
+            ]
+          ]
+        ],
+        &quot;scaled_scores&quot;: [
+          [
+            [
+              [
+                0.9999900000999992,
+                0.9999900000999992
+              ],
+              [
+                0.9999900000999992,
+                0.9999900000999992
+              ]
+            ],
+            [
+              [
+                0.9999900000999992,
+                0.9999900000999992
+              ],
+              [
+                0.9999900000999992,
+                0.9999900000999992
+              ]
+            ]
+          ]
+        ],
+        &quot;causal_weights&quot;: [
+          [
+            [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.5,
+                0.5
+              ]
+            ],
+            [
+              [
+                1.0,
+                0.0
+              ],
+              [
+                0.5,
+                0.5
+              ]
+            ]
+          ]
+        ],
+        &quot;joined&quot;: [
+          [
+            [
+              -0.9999950000374997,
+              0.9999950000374997
+            ],
+            [
+              -0.9999950000374997,
+              0.9999950000374997
+            ]
+          ]
+        ],
+        &quot;output&quot;: [
+          [
+            [
+              -0.9999950000374997,
+              0.9999950000374997
+            ],
+            [
+              -0.9999950000374997,
+              0.9999950000374997
+            ]
+          ]
+        ]
+      },
+      &quot;first_residual&quot;: [
+        [
+          [
+            4.999962500251698e-06,
+            3.9999950000375
+          ],
+          [
+            1.0000049999625003,
+            4.9999950000375
+          ]
+        ]
+      ],
+      &quot;ln2&quot;: [
+        [
+          [
+            -0.9999987499960938,
+            0.999998749996094
+          ],
+          [
+            -0.9999987499960938,
+            0.999998749996094
+          ]
+        ]
+      ],
+      &quot;ffn_pre_activation&quot;: [
+        [
+          [
+            -0.9999987499960938,
+            0.999998749996094,
+            1.1102230246251565e-16,
+            1.9999974999921877
+          ],
+          [
+            -0.9999987499960938,
+            0.999998749996094,
+            1.1102230246251565e-16,
+            1.9999974999921877
+          ]
+        ]
+      ],
+      &quot;ffn_activation&quot;: [
+        [
+          [
+            -0.1586553580759317,
+            0.8413433919201624,
+            5.551115123125783e-17,
+            1.9544970230153234
+          ],
+          [
+            -0.1586553580759317,
+            0.8413433919201624,
+            5.551115123125783e-17,
+            1.9544970230153234
+          ]
+        ]
+      ],
+      &quot;ffn_output&quot;: [
+        [
+          [
+            -0.15865535807593165,
+            2.7958404149354856
+          ],
+          [
+            -0.15865535807593165,
+            2.7958404149354856
+          ]
+        ]
+      ],
+      &quot;output&quot;: [
+        [
+          [
+            -0.1586503581134314,
+            6.795835414972986
+          ],
+          [
+            0.8413496418865686,
+            7.795835414972986
+          ]
+        ]
+      ]
+    }
+  }
+}</code></pre></details><h3 id="audit-transformer-checks">Independent checks</h3><details><summary>115 checks; zero failures</summary><table><thead><tr><th>Check</th><th>Reference</th><th>Status</th></tr></thead><tbody><tr><td>two_block_logits</td><td>independent scalar-loop decoder + Decimal row softmax</td><td>passed</td></tr><tr><td>two_block_probabilities</td><td>Decimal precision 60 on independently reconstructed logits</td><td>passed</td></tr><tr><td>two_block_mean_ce</td><td>negative log of independently reconstructed target probabilities</td><td>passed</td></tr><tr><td>end_to_end_gradient_E</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.W1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.W2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.Wk</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.Wo</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.Wq</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.Wv</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.b1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.b2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.f1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.f2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.g1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L0.g2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.W1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.W2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.Wk</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.Wo</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.Wq</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.Wv</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.b1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.b2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.f1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.f2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.g1</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_L1.g2</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_P</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_U</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_bf</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>end_to_end_gradient_gf</td><td>central finite differences of mean CE, step=1e-5; every tensor entry</td><td>passed</td></tr><tr><td>unused_embedding_row</td><td>IDs exclude row 2; separate output head cannot update this embedding row</td><td>passed</td></tr><tr><td>unused_position_row</td><td>context length is 3; fourth position not looked up</td><td>passed</td></tr><tr><td>future_token_invariance</td><td>two-block causal prefix invariant under future-token replacement</td><td>passed</td></tr><tr><td>layer_0_future_weights_zero</td><td>causal forbidden weights exactly zero</td><td>passed</td></tr><tr><td>layer_0_row_sum</td><td>per-head attention row normalization</td><td>passed</td></tr><tr><td>layer_1_future_weights_zero</td><td>causal forbidden weights exactly zero</td><td>passed</td></tr><tr><td>layer_1_row_sum</td><td>per-head attention row normalization</td><td>passed</td></tr><tr><td>layernorm_feature_axis</td><td>independent scalar population variance and affine transform</td><td>passed</td></tr><tr><td>constant_token_layernorm</td><td>zero centered vector; epsilon prevents zero division</td><td>passed</td></tr><tr><td>epsilon_changes_normalized_variance</td><td>normalized variance v/(v+epsilon), not exactly one</td><td>passed</td></tr><tr><td>gelu_exact_values</td><td>independent tabulated erf/Phi values</td><td>passed</td></tr><tr><td>gelu_derivative_-3.0</td><td>scalar central finite difference</td><td>passed</td></tr><tr><td>gelu_derivative_-1.0</td><td>scalar central finite difference</td><td>passed</td></tr><tr><td>gelu_derivative_0.0</td><td>scalar central finite difference</td><td>passed</td></tr><tr><td>gelu_derivative_0.7</td><td>scalar central finite difference</td><td>passed</td></tr><tr><td>gelu_derivative_2.0</td><td>scalar central finite difference</td><td>passed</td></tr><tr><td>inherited_ffn_column_row_equivalence</td><td>same contraction expressed with column and row vectors</td><td>passed</td></tr><tr><td>inherited_ffn_values</td><td>independent exact GELU constants</td><td>passed</td></tr><tr><td>inherited_complete_block_eps_0</td><td>independent scalar-loop complete block</td><td>passed</td></tr><tr><td>inherited_complete_block_eps_1e-05</td><td>independent scalar-loop complete block</td><td>passed</td></tr><tr><td>inherited_complete_block_unrounded</td><td>independent exact GELU values and residual sums</td><td>passed</td></tr><tr><td>inherited_embedding_lookup</td><td>direct book displayed rows, physical pages 119–121</td><td>passed</td></tr><tr><td>embedding_one_hot_equivalence</td><td>one-hot row selection identity</td><td>passed</td></tr><tr><td>qkv_tiny_raw_scores</td><td>scalar dot products: [1,2] dot [1,0] and [0,1]</td><td>passed</td></tr><tr><td>qkv_tiny_weighted_values</td><td>Decimal normalized scores and independently declared content values</td><td>passed</td></tr><tr><td>book_rounded_scores_to_weights</td><td>book physical page 174, rounded printed inputs and outputs</td><td>passed</td></tr><tr><td>inherited_unembedding</td><td>independent explicit integer dot products</td><td>passed</td></tr><tr><td>inherited_five_token_softmax</td><td>Decimal precision 60</td><td>passed</td></tr><tr><td>inherited_target_three_nll</td><td>independent Decimal logits log-sum-exp</td><td>passed</td></tr><tr><td>inherited_last_row_corrected</td><td>Decimal precision 60; equal logits must have equal probabilities</td><td>passed</td></tr><tr><td>equal_logits_equal_probability</td><td>softmax ratio exp(zi-zj)=1</td><td>passed</td></tr><tr><td>stable_extreme_logits</td><td>softmax shift invariance + Decimal precision 60</td><td>passed</td></tr><tr><td>stable_masked_softmax</td><td>one permitted key</td><td>passed</td></tr><tr><td>master_small_unembedding</td><td>explicit integer dot products</td><td>passed</td></tr><tr><td>master_target_probability_nll</td><td>Decimal precision 60</td><td>passed</td></tr><tr><td>three_position_mean</td><td>Decimal precision 60 independent mean NLL</td><td>passed</td></tr><tr><td>master_four_position_mean</td><td>Decimal precision 60 independent mean NLL</td><td>passed</td></tr><tr><td>embedding_50k_4096</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_768_3072_weights</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_768_3072_biases</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_768_3072_total</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_512_2048</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_256_1024</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>ffn_1024_4096</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>attention_768</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>block_768</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>stack_12</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>stack_24</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>stack_24_attention</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>stack_24_ffn</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>score_count</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>unembedding_768_50257</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>output_count</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>output_bytes_float32</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>tying_saved_weights</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>logits_2048_50k</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>attention_2048</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>master_unembedding</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>master_logits_count</td><td>exact integer arithmetic against independently recorded answer</td><td>passed</td></tr><tr><td>block_exam_shape_0</td><td>declared axis contract</td><td>passed</td></tr><tr><td>block_exam_shape_1</td><td>declared axis contract</td><td>passed</td></tr><tr><td>block_exam_shape_2</td><td>declared axis contract</td><td>passed</td></tr><tr><td>block_exam_shape_3</td><td>declared axis contract</td><td>passed</td></tr><tr><td>block_exam_shape_4</td><td>declared axis contract</td><td>passed</td></tr><tr><td>master_exam_shape_0</td><td>declared axis contract</td><td>passed</td></tr><tr><td>master_exam_shape_1</td><td>declared axis contract</td><td>passed</td></tr><tr><td>master_exam_shape_2</td><td>declared axis contract</td><td>passed</td></tr><tr><td>master_exam_shape_3</td><td>declared axis contract</td><td>passed</td></tr><tr><td>master_exam_shape_4</td><td>declared axis contract</td><td>passed</td></tr><tr><td>toy_sgd_each_step_decreases</td><td>five actual simultaneous updates; scoped to this fixture</td><td>passed</td></tr><tr><td>negative_token_id</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>token_above_vocabulary</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>noninteger_ids</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>empty_sequence</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>context_overflow</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>invalid_head_split</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>zero_heads</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>target_shape_mismatch</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>target_outside_vocabulary</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>all_masked_softmax</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>nan_softmax</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>negative_epsilon</td><td>declared boundary must raise ValueError</td><td>passed</td></tr><tr><td>zero_variance_zero_epsilon</td><td>declared boundary must raise ValueError</td><td>passed</td></tr></tbody></table></details><h3 id="v3-heading-audit-transformer-review-5">Completion status</h3><p>Six foundation and five transformer inherited lessons now have scoped mathematical/numerical reviews. Other lessons and slide claims still require the same five-dimensional audit. Existing search, progress controls and previous evidence remain available. This continuation does not convert inventories, syntax checks, example counts or toy training into a full-course completeness claim.</p><p>Unresolved gates include sentence-level source attributions, concept-by-concept application sufficiency beyond the declared fixtures, remaining inherited lessons, dependency-backed original code, real-browser/mobile/accessibility/print review and research/data provenance. The earlier 40–80 active-hour workload estimate remains provisional and has not been calibrated to every remaining concept.</p></section>

@@ -1,0 +1,88 @@
+"""Independent Decimal scalar sums, finite differences, KKT and exact arithmetic."""
+import json,math
+from pathlib import Path
+from decimal import Decimal,localcontext
+import numpy as np
+import companion as c
+checks=[]
+def check(id,method,test,value=None):
+    ok=bool(test);checks.append({'check_id':id,'method':method,'status':'passed' if ok else 'failed','value':value})
+def close(a,b):return np.allclose(a,b,rtol=2e-8,atol=2e-8)
+def dsoft(z,t):
+    with localcontext() as ctx:
+        ctx.prec=55;v=[(Decimal(str(x))/Decimal(str(t))).exp() for x in z];s=sum(v)
+        return [x/s for x in v]
+# exact educational counts and storage
+for id,given,expected in [('P31-basic',(4096,4096,8,1,1),65536),('P31-app',(2048,2048,4,1,1),16384),('P32-basic',(512,1024,4,1,1),6144),('P33-basic',(16,4,2,1,1),40),('P33-app',(4096,4096,8,32,4),8388608),('P34-count',(2048,4096,16,1,1),98304)]:check(id,'explicit integer factor-entry count',c.lora_count(*given)==expected,expected)
+check('P31-storage','decimal bytes arithmetic',7_000_000_000*2==14_000_000_000 and 10_000_000*2==20_000_000)
+x=np.array([[1.,2.]]);w=np.eye(2);a=np.array([[1.],[2.]]);b=np.array([[.2,.1]])
+check('P32-app','hand-expanded four scalar matrix sums',close(c.lora_forward(x,w,a,b,2),[[3,3]]),[3,3])
+check('P34-merge','distributivity checked separate and merged paths',close(c.lora_forward(x,w,a,b,2),x@(w+2*a@b)))
+w=np.array([[1.],[1.]]);a=np.array([[.5],[1.]]);b=np.zeros((1,1));target=np.array([[5.]])
+l,ga,gb=c.lora_grad(x,w,a,b,target,2)
+check('P34-basic','hand chain rule first step',close(ga,[[0],[0]]) and close(gb,[[-10]]) and l==2)
+b=b-.02*gb;l2,ga2,gb2=c.lora_grad(x,w,a,b,target,2)
+check('P34-app','hand SGD and second-step chain rule',close(b,[[.2]]) and close(ga2,[[-.4],[-.8]]) and l2==.5)
+for name,var in [('A',a),('B',b)]:
+ analytic=ga2 if name=='A' else gb2
+ for idx in np.ndindex(var.shape):
+  orig=var[idx];eps=1e-6;var[idx]=orig+eps;lp=c.lora_grad(x,w,a,b,target,2)[0];var[idx]=orig-eps;lm=c.lora_grad(x,w,a,b,target,2)[0];var[idx]=orig
+  check('P34-grad-'+name+str(idx),'central finite difference of loss',close((lp-lm)/(2*eps),analytic[idx]))
+q,d,delta=c.quantize([5.47,3.08,-7.59,0,-1.95,-4.57,10.8]);check('P35-basic','Decimal scale and nearest-grid codes',q.tolist()==[64,36,-89,0,-23,-54,127],{'codes':q.tolist(),'dequant':d.tolist()})
+qa,da,s,z=c.affine([5.47,3.08,-7.59,0,-1.95,-4.57,10.8]);check('P35-affine','endpoint scale and signed zero-point',close(s,255/18.39) and z==-23 and qa.tolist()==[53,20,-128,-23,-50,-86,127],{'s':s,'z':z,'codes':qa.tolist(),'dequant':da.tolist()})
+check('P35-app','exact fraction bits-per-parameter accounting',close(8/64+32/(64*256),.126953125),{'nested_overhead_bpp':.126953125,'saving_bpp':.373046875,'7B_decimal_GB':7e9*(4+.126953125)/8/1e9})
+check('P35-zero','all-zero no division-by-zero contract',close(c.quantize([0,0])[1],[0,0]))
+check('P36-basic','hand clipping reconstruction',close(c.quantize([1],8,5)[1][0],125/127),125/127)
+xcal=np.array([-.9,-.5,-.1,.1,.3,.8,1.]);best,scores=c.calibrated(xcal,[.5,.75,1.]);ind=[]
+for th in [.5,.75,1.]:
+ rec=[round(max(-th,min(th,float(x)))*7/th)*th/7 for x in xcal];ind.append(sum((float(x)-r)**2 for x,r in zip(xcal,rec))/len(rec))
+check('P36-calibration','independent scalar quantization/MSE enumeration',close([s[1] for s in scores],ind),{'best':best,'scores':scores})
+h=np.array([[2.,1.],[1.,2.]]);ww=np.array([.42,.3]);new,delta=c.compensate(ww,h,0,3/7)
+check('P36-app','Lagrange constrained KKT: fixed coordinate and zero free-coordinate derivative',close(new[0],3/7) and close((h@delta)[1],0),{'new_weights':new.tolist(),'error':float(delta@h@delta),'naive_error':float((ww-np.array([3/7,.3]))@h@(ww-np.array([3/7,.3])))})
+check('P36-slide','independent signed compensation arithmetic',close(.3-(-.0086/.1268)*(-.0504),.29658170347003154),.29658170347003154)
+check('P36-Hessian','finite-difference curvature distinction',close(2*h,np.array([[4,2],[2,4]])))
+qt,g=c.ternary([.1,.2,-.3,1,-.4]);check('P36B-basic','ties-to-even explicitly enumerated',qt.tolist()==[0,0,-1,1,-1],{'gamma':g,'codes':qt.tolist()})
+check('P36B-app','ternary selected additions',np.dot([1,0,-1,1,0],[4,7,3,9,2])==10,10)
+check('P36B-storage','block payload and metadata accounting',144*8/256==4.5 and close(math.log2(3),1.584962500721156))
+# Decimal KL and KD checks
+with localcontext() as ctx:
+ ctx.prec=55
+ p=list(map(Decimal,['.7','.2','.1']));q=list(map(Decimal,['.6','.3','.1']));kl=sum(pi*(pi/qi).ln() for pi,qi in zip(p,q))
+ check('P41-basic','55-digit Decimal forward KL',close(float(kl),.026812454328),float(kl))
+check('P41-app','hand response NLL product identity',close(-sum(map(math.log,[.8,.5,.25]))/3,math.log(10)/3),math.log(10)/3)
+for temp in [1,2,3,5,10]:
+ pp=c.softmax([5,3,1,-1],temp);ref=dsoft([5,3,1,-1],temp)
+ check('P42-T'+str(temp),'55-digit Decimal softmax',close(pp,list(map(float,ref))),pp.tolist())
+check('P42-basic','exact log-odds identity',close(c.softmax([5,1],2)[0]/c.softmax([5,1],2)[1],math.exp(2)))
+for temp in [1,3,10]:
+ res=c.kd([5,3,1,-1],[4,2.5,1.5,-.5],0,temp)
+ with localcontext() as ctx:
+  ctx.prec=55;p=dsoft([5,3,1,-1],temp);q=dsoft([4,2.5,1.5,-.5],temp);k=sum(pi*(pi/qi).ln() for pi,qi in zip(p,q));hard=-dsoft([4,2.5,1.5,-.5],1)[0].ln();loss=Decimal('.3')*hard+Decimal('.7')*Decimal(temp)**2*k
+ check('P43-app-T'+str(temp),'55-digit independent Decimal CE/KL/combined loss',close(res['loss'],float(loss)),res)
+ for i in range(4):
+  ss=[4.,2.5,1.5,-.5];eps=1e-5;ss[i]+=eps;lp=c.kd([5,3,1,-1],ss,0,temp)['loss'];ss[i]-=2*eps;lm=c.kd([5,3,1,-1],ss,0,temp)['loss']
+  check('P43-grad-'+str(temp)+'-'+str(i),'central finite difference of combined loss',close((lp-lm)/(2*eps),res['gradient'][i]))
+check('P43-basic','exact loss mixture arithmetic',close(.25*.4+.75*16*.03,.46),.46)
+z=np.array([4.,2.5,1.5,-.5]);v=np.array([5.,3.,1.,-1.]);limit=float(np.sum(((z-z.mean())-(v-v.mean()))**2)/(2*len(z)))
+res=c.kd(v,z,0,1000,0)
+check('P42-app','high-T scaled KL versus centered-logit quadratic limit',abs(res['soft']-limit)<.0004,{'scaled_KL_T1000':res['soft'],'limit':limit})
+check('P44-basic','exact retained candidates fraction',1200/(1000*4)==.3,.3)
+check('P44-app','integer sample-token product, expressly source-derived estimate',804745*5355==4309409475,4309409475)
+inputs,targets,start,answer=c.response_targets([0,1,2,0,1,2],3)
+check('P45-basic','explicit shifted target indexing',start==2 and answer==[0,1,2] and targets==[1,2,0,1,2])
+logits=[[0,0,0],[0,0,0],[2,1,0],[0,2,1],[1,0,2]]
+check('P45-app','independent response-position selected log-sum-exp',close(c.response_ce(logits,[0,1,2,0,1,2],3),math.log(math.exp(2)+math.exp(1)+1)-2),c.response_ce(logits,[0,1,2,0,1,2],3))
+check('P45-percentage','exact shifted target count, not original token count',close(20/99*100,20.2020202020))
+check('P46-basic','exact parameter ratio',close(671/1.5,447.3333333333333),671/1.5)
+check('P46-app','independent binomial complement under declared IID assumption',close(1-.6**4,.8704),.8704)
+check('P47-basic','provided rounded ratio versus exact underlying-softmax ratio distinguished',close(.138/.016,8.625),{'rounded_ratio':8.625,'actual_ratio':c.softmax([5,3,1,-1],3)[2]/c.softmax([5,3,1,-1],1)[2]})
+check('P47-app','exact combined-loss arithmetic',close(.25*.4+.75*9*.02,.235),.235)
+check('P48-basic','Decimal percentage-point difference',Decimal('72.6')-Decimal('47.0')==Decimal('25.6'),25.6)
+check('P48-app','relative score improvement distinct from points',close((72.6-47)/47*100,54.46808510638297),54.46808510638297)
+check('P49-basic','sequence truncation arithmetic',5000-2048==2952 and close(2952/5000*100,59.04),59.04)
+check('P49-app','explicit memory-budget candidate feasibility',7e9*2/1e9+2+2<=20 and 14e9*2/1e9+2+2>20,{'7B_total_GB':18,'14B_total_GB':32,'budget_GB':20})
+check('P49-quadratic','integer squared length ratio',close((42005/2048)**2,420.6705152988434),(42005/2048)**2)
+p=Path(__file__).parent
+payload={'passed':sum(x['status']=='passed' for x in checks),'failed':sum(x['status']=='failed' for x in checks),'checks':checks,'scope':'Educational CPU numerical mechanics independently checked. No pretrained LLM training, NF4/bitsandbytes backend, GGUF encoder, production GPTQ, QAT autograd, or BitNet kernel execution.'}
+(p/'evidence.json').write_text(json.dumps(payload,indent=2))
+print(json.dumps({'passed':payload['passed'],'failed':payload['failed'],'failed_checks':[x for x in checks if x['status']=='failed']},indent=2))

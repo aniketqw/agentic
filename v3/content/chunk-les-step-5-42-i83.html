@@ -1,0 +1,1505 @@
+<section class="chunk" id="chunk-les-step-5-42-i83" data-id="les-step-5-42-i83"><details class="audit-card" id="audit-full-chunk-les-step-5-42-i83" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-42-i83-1">Motivation</h4><p>Keep weight storage, active arithmetic and measured runtime separate while interpreting large MoE models.</p><h4 id="v3-heading-chunk-les-step-5-42-i83-2">Prerequisites</h4><ul><li>Two-layer FFN matrix shapes and parameter counts</li><li>Stable softmax, top-k, integer indices and gather/scatter accumulation</li><li>Expert parallelism, load/importance distinction and non-gradient feedback</li><li>GB versus GiB and measurement denominators</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-3">Notation and units</h4><ul><li>T=B×S flattened tokens, D model width, N routed experts, k selected per token</li><li>Row score matrix[T, N]; selected indices and gates[T, k]; final stream[T, D]</li><li>Book bias is a persistent nontrainable buffer; gate weights come from softmax selected biased logits</li><li>V3: si=sigmoid(x·ei); select by si+bi; normalize original si within selected set</li><li>671B/37B figures describe complete published model total/activated weights, not only one expert pool</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-4">Assumptions</h4><ul><li>Bias-free educational two-matrix GELU experts use2DHparameters; gated/SwiGLUuses3DH</li><li>Per-tokenk/N is routed expert activation fraction, notcomplete-model storage or latency ratio</li><li>The Transformer owns the residual unless a standalone MoE explicitly returns x+transform; neveraddit twice</li><li>Tie behavior and normalization must be explicit; expert choices are learned, not manual domain labels</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-5">Step-by-step derivation</h4><ol><li>Total weights671×10^9times2bytesgive1.342×10^12bytes=1342decimal GB; binary GiB is about1249.83. Quantization and sharding change placement/representation but not published parameter total.</li><li>37/671=5.514157974%activated per-token by reported count. Its reciprocal18.1351iscapacity/activated ratio with no implied18×latencyclaim.</li><li>Across multiple positions, the union of activated experts can be much larger than an individual token’sselection. Unused weights must remain available for future tokens.</li><li>Compute examples use2DH for book experts, or3DH for gated SwiGLU experts. Add always-active attention, norm/router/shared weights and account separately for embedding/output head conventions.</li><li>The book scaled experiment reports standard350iter/minversus428.6iter/min,14.29minversus11.67minandloss1.9854versus1.9451. Compute improvements using the baseline-denominator, then qualify hardware, seed, data and configuration.</li><li>Measured throughput incorporates communication, load balance and kernel utilization; an ideal routed parameter fraction alone cannot predict it.</li></ol><h4 id="v3-heading-chunk-les-step-5-42-i83-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-42-i83-7">Reported weight storage</h5><p>Given: 671Btotal,37Bactive;16-bitweights</p><ol><li>Total671B×2=1342GB.</li><li>Active37B×2=74GB would describe only active weights, not complete accessible model.</li><li>Active percent37/671×100=5.514157974%.</li></ol><p>Answer: 1342GB full weight bytes;5.514%per-token activated count</p><p>Verification: indic_mla_moe / moe.r1_weight_gb · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-42-i83-8">Scaled experiment throughput</h5><p>Given: 350.0→428.6iterations/min</p><ol><li>Gain78.6iter/min.</li><li>78.6/350×100=22.45714286%.</li></ol><p>Answer: 22.46%throughput increase in the reported experiment</p><p>Verification: indic_mla_moe / moe.throughput_gain · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-42-i83-9">Scaled experiment time and loss</h5><p>Given: 14.29→11.67min; loss1.9854→1.9451</p><ol><li>Time reduction2.62/14.29=18.33449965%.</li><li>Lossdrop.0403.</li><li>These metrics do not prove universal DeepSeek improvement.</li></ol><p>Answer: 18.33%timefall;.0403lossdrop</p><p>Verification: indic_mla_moe / moe.time_reduction · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-42-i83-10">Corrections and source qualifications</h4><ul><li>heading: 5.42.38; text: Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-11">Mastery answers and retained exercise context</h4><ol><li>Can37B active weights fit and delete other634B? No; future tokens may select them; weights need storage or access.</li><li>Is671/37a speedup ratio? No; itisacount-ratio, not a measured latency ratio.</li><li>Which denominator for throughput gain? Baseline throughput350.</li><li>Is1342GB exact total inference RAM? Itcounts16-bit weight bytes alone, excluding cache, activations, metadata/runtime.</li><li>Inherited exercise 5.42.35 Exam trap #1: Question A model has: 64 experts and: k=4. What fraction of experts are activated per token? Answer \frac4{64} = \boxed{6.25\%}. But do not answer: “Only 6.25% of the model parameters are stored.” That is false.</li><li>Inherited exercise 5.42.36 Exam trap #2: Question An MoE has 1000 tokens, 8 experts, Top-2 routing. What is ideal average expert load? \frac{1000\times2}{8} = \boxed{250}. Not: 1000/8=125. Why? Because each token produces: 2 expert assignments.</li><li>Inherited exercise 5.42.37 Exam trap #3: Question Why is softmax applied after Top-K? Because the architecture first determines: \boxed{\text{which experts}} and then normalizes the selected logits to determine: \boxed{\text{their relative contribution}} The source&#x27;s implementation performs exactly this ordering. (Source: Build a DeepSeek Model (From Scratch))</li><li>Inherited exercise 5.42.38 Exam trap #4: Question Why isn&#x27;t balancing implemented simply by changing the main loss? Because the DeepSeek-style auxiliary-loss-free method is specifically designed to avoid adding a competing balancing objective to the primary language-learning objective. Instead, it modifies router scores through the dynamic bias. (Source: Build a DeepSeek Model (From Scratch))</li><li>Inherited exercise 5.42.39 Exam trap #5: Question Why doesn&#x27;t fine-grained segmentation simply increase the model size? Because the source&#x27;s example changes: 16\times4096 into: 64\times1024 so: 16\times4096 = 64\times1024. The total expert capacity can therefore remain comparable while the number of specialists increases. (Source: Build a DeepSeek Model (From Scratch))</li><li>Inherited exercise 5.42.40 Five-level numerical bank: Level 1 — Top-K L=[1,3,2,5,4] with: k=2. Selected: \boxed{E_4, E_5}. Level 2 — Gate Selected logits: [5,4]. Then: g_4= \frac{e^5}{e^5+e^4} \approx \boxed{0.731} and: g_5\approx \boxed{0.269}. Level 3 — Load T=2000,\quad k=2,\quad N=16. Ideal: \frac{2000\times2}{16} = \boxed{250}. Level 4 — Parameter count N=64,\quad D=4096,\quad H=1024. Each expert: 2DH=8,388,608. All routed experts: 64(8,388,608) = \boxed{536,870,912}. Level 5 — Full mixed numerical Given: T=4096,\quad N=32,\quad k=4. Total assignments: 4096\times4 = \boxed{16,384}. Ideal load: 16,384/32 = \boxed{512}. Suppose: C_7=640. Violation: v_7= \frac{512-640}{512} = \boxed{-0.25}. With: \eta=0.02, bounded update: \Delta b_7 = 0.02\tanh(-0.25). Since: \tanh(-0.25)\approx-0.245, we obtain: \boxed{ \Delta b_7\approx-0.0049 }. Therefore: \boxed{b_7\text{ decreases}}.</li></ol><h4 id="v3-heading-chunk-les-step-5-42-i83-12">Edge cases and remaining gaps</h4><ul><li>All expert weights must remain available, possibly sharded/offloaded; unselected does not mean not stored</li><li>Dispatch, all-to-all communication, kernel batching and load imbalance can reduce ideal compute advantages</li><li>No real DeepSeek training, pretrained quality evaluation or distributed hardware benchmark was run</li><li>Reported activated parameter number needs the published counting convention; small-expert toy formula cannot derive all671B/37Bbyitself.</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-13">Connections and progression</h4><ul><li>Connects todense/MoEsizing, weight off loading, dispatch communication and full block integration.</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 20, 249, 250, 251, 417, 420, 422 · 671B/37B,16-bit weight memory and book scaled MoE experiment</li></ul><h4 id="v3-heading-chunk-les-step-5-42-i83-15">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (100)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.42 — DeepSeek-MoE: End-to-End Numerical Analysis, Active Parameters, Compute, and Why 671B ≠ 671B Active</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.1 The most important MoE distinction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.2 Why MoE is powerful</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.3 Active fraction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.4 But total memory does not shrink by 87.5%</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.5 DeepSeek-R1 numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.6 Active percentage</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.7 FP16 memory numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.8 What would 37B parameters occupy in FP16?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.9 Why can a different token activate different parameters?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.10 Sequence-level view</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.11 Token routing counts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.12 Ideal load</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.13 Bias update for this example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.14 Now let&#x27;s connect parameter count to compute</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.15 Active expert parameters</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.16 Fine-grained expert capacity</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Conventional</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Fine-grained</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.17 Activated capacity</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.18 Parameter memory vs active compute</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.19 Complexity — dense FFN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.20 Complexity — sparse MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.21 But there is a router cost</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.22 Why N can be large</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.23 Complete end-to-end numerical problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Step A — Router shape</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step B — Top-K</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step C — Ideal load</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step D — Suppose actual counts are</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step E — Violations</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step F — Direction of bias correction</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.24 What happens in the next batch?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.25 End-to-end pipeline as equations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Input</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Flatten</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Router</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Bias</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-K</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Gating</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Routed expert output</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Shared output</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Residual</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Load measurement</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Average</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Violation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Bias update</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.26 The source&#x27;s scaled experiment</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.27 Throughput improvement</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.28 Training-time reduction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.29 Validation-loss improvement</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.30 Why this matters architecturally</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.31 Systems interpretation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.32 Why All-to-All appears in distributed MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.33 Therefore, MoE efficiency has three layers</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.34 Very important interview distinction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.35 Exam trap #1</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Answer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.36 Exam trap #2</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.37 Exam trap #3</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.38 Exam trap #4</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.39 Exam trap #5</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.40 Five-level numerical bank</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Level 1 — Top-K</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 2 — Gate</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 3 — Load</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 4 — Parameter count</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 5 — Full mixed numerical</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.41 The complete reasoning chain</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Later solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.42.42 Final master diagram</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.42.43 What you now know</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-42-i83"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-42-i83" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-41-i82">← Previous lesson</a> · <a href="#chunk-les-step-5-44-i85">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-41-i82">Step 5.41 — Build the Complete DeepSeek-MoE Layer</a></p><p><strong>This lesson:</strong> Step 5.42 — DeepSeek-MoE: End-to-End Numerical Analysis, Active Parameters, Compute, and Why 671B ≠ 671B Active</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-42-i83"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-42-i83-16">Step 5.42 — DeepSeek-MoE: End-to-End Numerical Analysis, Active Parameters, Compute, and Why 671B ≠ 671B Active</h3>
+<p><em>Plan node: A2 · chat order #83</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We now have the complete DeepSeek-MoE mechanism. This step is about being able to <strong>calculate what actually happens</strong>, especially for exam numericals and system-design questions.</p>
+<p>The source gives a scaled-down experiment comparing a standard MoE with its DeepSeek-style implementation, and later uses the DeepSeek-R1 figures of <strong>671B total parameters and 37B active parameters per token</strong> to explain the deployment problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-17">5.42.1 The most important MoE distinction</h4>
+<p>There are three numbers you must keep separate:</p>
+<div class="math block">
+\boxed{\text{Total parameters}}
+</div>
+<div class="math block">
+\boxed{\text{Active parameters per token}}
+</div>
+<div class="math block">
+\boxed{\text{Parameters physically stored}}
+</div>
+<p>For a dense model:</p>
+<div class="math block">
+\text{total}\approx\text{active per token}.
+</div>
+<p>For MoE:</p>
+<div class="math block">
+\boxed{
+\text{total}\gg\text{active per token}
+}
+</div>
+<p>because only selected experts are used for each token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-18">5.42.2 Why MoE is powerful</h4>
+<p>Suppose we have:</p>
+<div class="math block">
+64
+</div>
+<p>routed experts.</p>
+<p>Each has:</p>
+<div class="math block">
+100M
+</div>
+<p>parameters.</p>
+<p>Then total routed-expert parameters are:</p>
+<div class="math block">
+64\times100M
+=
+\boxed{6.4B}.
+</div>
+<p>But if:</p>
+<div class="math block">
+k=8,
+</div>
+<p>only:</p>
+<div class="math block">
+8\times100M
+=
+\boxed{800M}
+</div>
+<p>routed-expert parameters participate for a token.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+6.4B\text{ total expert capacity}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+800M\text{ active expert parameters/token}
+}
+</div>
+<p>under this simplified equal-expert setup.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-19">5.42.3 Active fraction</h4>
+<p>If all experts have equal size, and only <span class="math inline">k</span> out of <span class="math inline">N</span> are selected:</p>
+<div class="math block">
+\boxed{
+\text{active fraction}
+\approx
+\frac{k}{N}
+}
+</div>
+<p>for the routed expert pool.</p>
+<p>Example:</p>
+<div class="math block">
+N=64,\qquad k=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{8}{64}
+=
+\boxed{12.5\%}.
+</div>
+<p>So approximately 12.5% of the routed-expert pool is active for each token.</p>
+<p>This is a mathematical consequence of the sparse Top-K design, not a source-stated universal percentage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-20">5.42.4 But total memory does not shrink by 87.5%</h4>
+<p>This is one of the most common conceptual mistakes.</p>
+<p>People often say:</p>
+<blockquote>
+<p>“Only 12.5% is active, so the model only needs 12.5% of its memory.”</p>
+</blockquote>
+<p>No.</p>
+<p>The full expert weights are still part of the model.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{MoE reduces per-token computation much more directly than total weight storage}
+}
+</div>
+<p>The source makes this explicit for DeepSeek-R1: 671B total parameters must be stored even though only 37B are activated per token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-21">5.42.5 DeepSeek-R1 numerical</h4>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{671B}
+</div>
+<p>total parameters.</p>
+<p>Active per token:</p>
+<div class="math block">
+\boxed{37B}.
+</div>
+<p>Compute the ratio:</p>
+<div class="math block">
+\frac{671}{37}
+\approx
+\boxed{18.14}.
+</div>
+<p>So the model has roughly:</p>
+<div class="math block">
+\boxed{18.1\times}
+</div>
+<p>as many total parameters as the number activated per token.</p>
+<p>This does <strong>not</strong> mean the model is 18× faster than a dense 671B model; the actual runtime also depends on architecture, communication, memory bandwidth, attention, routing, hardware, and other factors.</p>
+<p>The ratio simply quantifies total-vs-active parameter scale.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-22">5.42.6 Active percentage</h4>
+<div class="math block">
+\frac{37}{671}\times100
+</div>
+<div class="math block">
+\approx
+\boxed{5.51\%}.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{5.5\%}
+</div>
+<p>of the total parameter count is active per token, using the source's rounded figures.</p>
+<p>Again, this is not the same as saying only 5.5% of the model must be stored.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-23">5.42.7 FP16 memory numerical</h4>
+<p>The source gives:</p>
+<div class="math block">
+671B
+</div>
+<p>parameters and assumes FP16.</p>
+<p>FP16 uses:</p>
+<div class="math block">
+2\text{ bytes/parameter}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+671\times10^9\times2
+=
+1.342\times10^{12}\text{ bytes}.
+</div>
+<p>Using the source's decimal-style presentation:</p>
+<div class="math block">
+\boxed{1342\text{ GB}}.
+</div>
+<p>The source explicitly reports approximately 1342 GB. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So even though only:</p>
+<div class="math block">
+37B
+</div>
+<p>are active per token, the full model is still enormous in weight storage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-24">5.42.8 What would 37B parameters occupy in FP16?</h4>
+<p>This is a useful comparison.</p>
+<div class="math block">
+37B\times2
+=
+74B\text{ bytes}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{74\text{ GB}}
+</div>
+<p>under the same decimal convention.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+671B\text{ total}\rightarrow1342GB
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+37B\text{ active}\rightarrow74GB
+}
+</div>
+<p>under FP16 arithmetic.</p>
+<p>This does <strong>not</strong> mean the system can simply delete the remaining 634B parameters during inference, because future tokens may route to different experts.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-25">5.42.9 Why can a different token activate different parameters?</h4>
+<p>Token 1 might produce:</p>
+<div class="math block">
+TopK(T_1)=\{E_2,E_7,E_{15},\ldots\}
+</div>
+<p>while token 2 might produce:</p>
+<div class="math block">
+TopK(T_2)=\{E_1,E_4,E_{12},\ldots\}.
+</div>
+<p>So over a sequence:</p>
+<div class="math block">
+\boxed{
+\text{different tokens use different portions of the model}
+}.
+</div>
+<p>That is the essence of conditional computation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-26">5.42.10 Sequence-level view</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=8,\quad k=2.
+</div>
+<p>For five tokens:</p>
+<div class="math block">
+T_1\rightarrow\{E_1,E_2\}
+</div>
+<div class="math block">
+T_2\rightarrow\{E_3,E_4\}
+</div>
+<div class="math block">
+T_3\rightarrow\{E_1,E_4\}
+</div>
+<div class="math block">
+T_4\rightarrow\{E_5,E_6\}
+</div>
+<div class="math block">
+T_5\rightarrow\{E_2,E_7\}.
+</div>
+<p>The model activates only two experts <strong>per token</strong>, but across the sequence many experts may participate.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{per-token sparsity}
+\neq
+\text{sequence-wide sparsity over the same fixed experts}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-27">5.42.11 Token routing counts</h4>
+<p>For the example above:</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-28">Expert 1</h6>
+<p><span class="math inline">T_1,T_3</span></p>
+<div class="math block">
+C_1=2
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-29">Expert 2</h6>
+<p><span class="math inline">T_1,T_5</span></p>
+<div class="math block">
+C_2=2
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-30">Expert 3</h6>
+<p><span class="math inline">T_2</span></p>
+<div class="math block">
+C_3=1
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-31">Expert 4</h6>
+<p><span class="math inline">T_2,T_3</span></p>
+<div class="math block">
+C_4=2
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-32">Expert 5</h6>
+<p><span class="math inline">T_4</span></p>
+<div class="math block">
+C_5=1
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-33">Expert 6</h6>
+<p><span class="math inline">T_4</span></p>
+<div class="math block">
+C_6=1
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-34">Expert 7</h6>
+<p><span class="math inline">T_5</span></p>
+<div class="math block">
+C_7=1
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-35">Expert 8</h6>
+<div class="math block">
+C_8=0.
+</div>
+<p>Total assignments:</p>
+<div class="math block">
+2\times5
+=
+10.
+</div>
+<p>And:</p>
+<div class="math block">
+2+2+1+2+1+1+1+0
+=
+10.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-36">5.42.12 Ideal load</h4>
+<p>For:</p>
+<div class="math block">
+T=5,\quad k=2,\quad N=8,
+</div>
+<p>ideal average:</p>
+<div class="math block">
+\bar C=
+\frac{Tk}{N}
+=
+\frac{10}{8}
+=
+\boxed{1.25}.
+</div>
+<p>Actual:</p>
+<div class="math block">
+[2,2,1,2,1,1,1,0].
+</div>
+<p>You can immediately see:</p>
+<div class="math block">
+E_1,E_2,E_4
+</div>
+<p>are above the average, while:</p>
+<div class="math block">
+E_8
+</div>
+<p>is completely unused.</p>
+<p>This is why balancing is needed.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-37">5.42.13 Bias update for this example</h4>
+<p>Use:</p>
+<div class="math block">
+v_i=
+\frac{\bar C-C_i}
+{\bar C+\epsilon}.
+</div>
+<p>Ignoring the tiny <span class="math inline">\epsilon</span> for intuitive calculation:</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-38">Expert 1</h6>
+<div class="math block">
+v_1=
+\frac{1.25-2}{1.25}
+=
+\boxed{-0.6}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-39">Expert 8</h6>
+<div class="math block">
+v_8=
+\frac{1.25-0}{1.25}
+=
+\boxed{1}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+b_1\downarrow
+</div>
+<p>and:</p>
+<div class="math block">
+b_8\uparrow.
+</div>
+<p>The source uses this exact direction of correction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-40">5.42.14 Now let's connect parameter count to compute</h4>
+<p>Suppose an expert FFN has:</p>
+<div class="math block">
+D=4096
+</div>
+<p>and:</p>
+<div class="math block">
+H=1024.
+</div>
+<p>Ignoring biases, one expert has:</p>
+<div class="math block">
+2DH
+</div>
+<p>parameters.</p>
+<p>Therefore:</p>
+<div class="math block">
+2(4096)(1024)
+=
+\boxed{8,388,608}.
+</div>
+<p>With:</p>
+<div class="math block">
+64
+</div>
+<p>experts:</p>
+<div class="math block">
+64\times8,388,608
+=
+\boxed{536,870,912}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{536.9M}
+</div>
+<p>expert parameters exist in the routed pool.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-41">5.42.15 Active expert parameters</h4>
+<p>If:</p>
+<div class="math block">
+k=8,
+</div>
+<p>then:</p>
+<div class="math block">
+8\times8,388,608
+=
+\boxed{67,108,864}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{67.1M}{536.9M}
+=
+\boxed{12.5\%}.
+</div>
+<p>Exactly matching:</p>
+<div class="math block">
+\frac{k}{N}
+=
+\frac8{64}
+=
+12.5\%.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-42">5.42.16 Fine-grained expert capacity</h4>
+<p>Now compare:</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-43">Conventional</h6>
+<div class="math block">
+N=16,\quad H=4096.
+</div>
+<p>Aggregate hidden capacity:</p>
+<div class="math block">
+16\times4096
+=
+65,536.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-44">Fine-grained</h6>
+<div class="math block">
+N=64,\quad H=1024.
+</div>
+<p>Aggregate hidden capacity:</p>
+<div class="math block">
+64\times1024
+=
+65,536.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same aggregate expert capacity}
+}.
+</div>
+<p>This is the exact source example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-45">5.42.17 Activated capacity</h4>
+<p>Suppose conventional routing uses:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Then activated hidden capacity is:</p>
+<div class="math block">
+2\times4096
+=
+\boxed{8192}.
+</div>
+<p>Suppose fine-grained routing uses:</p>
+<div class="math block">
+k=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+8\times1024
+=
+\boxed{8192}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+kH
+}
+</div>
+<p>is preserved.</p>
+<p>This is the mathematical reason one can split experts more finely without necessarily increasing the per-token expert capacity.</p>
+<p>Again, this is a derived interpretation of the source's capacity-preserving example, not a claim that these exact <span class="math inline">k</span> values define a specific DeepSeek production configuration.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-46">5.42.18 Parameter memory vs active compute</h4>
+<p>This gives us a very important systems table:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total expert parameters</td>
+<td>All expert weights in the model</td>
+</tr>
+<tr>
+<td>Active expert parameters</td>
+<td>Experts selected for a particular token</td>
+</tr>
+<tr>
+<td>Expert load</td>
+<td>Number of token assignments to each expert</td>
+</tr>
+<tr>
+<td>Expert capacity</td>
+<td>Maximum tokens an expert can accept in a batch</td>
+</tr>
+</tbody>
+</table>
+<p>Do not mix these four.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-47">5.42.19 Complexity — dense FFN</h4>
+<p>This section is a mathematical inference from matrix multiplication cost.</p>
+<p>For:</p>
+<div class="math block">
+X\in\mathbb R^{T\times D}
+</div>
+<p>and:</p>
+<div class="math block">
+W_1\in\mathbb R^{D\times H},
+</div>
+<p>the first projection costs approximately:</p>
+<div class="math block">
+O(TDH)
+</div>
+<p>multiply-accumulate work.</p>
+<p>The second projection is also approximately:</p>
+<div class="math block">
+O(THD).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+O(TDH)
+}
+</div>
+<p>up to constant factors for the two projections.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-48">5.42.20 Complexity — sparse MoE</h4>
+<p>Suppose there are:</p>
+<div class="math block">
+N
+</div>
+<p>experts, each with the same hidden dimension <span class="math inline">H</span>, but only:</p>
+<div class="math block">
+k
+</div>
+<p>are activated.</p>
+<p>Ignoring routing and communication overhead, the expert computation becomes approximately:</p>
+<div class="math block">
+\boxed{
+O(TkDH)
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+O(TNDH).
+</div>
+<p>Thus the idealized expert-computation ratio is:</p>
+<div class="math block">
+\boxed{
+\frac{k}{N}
+}.
+</div>
+<p>This is an inference from the Top-K sparse structure; the source emphasizes the sparsity benefit conceptually rather than giving this asymptotic formula. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-49">5.42.21 But there is a router cost</h4>
+<p>The router itself computes:</p>
+<div class="math block">
+L=XW_R.
+</div>
+<p>If:</p>
+<div class="math block">
+X\in\mathbb R^{T\times D}
+</div>
+<p>and:</p>
+<div class="math block">
+W_R\in\mathbb R^{D\times N},
+</div>
+<p>then router computation is approximately:</p>
+<div class="math block">
+\boxed{
+O(TDN)
+}.
+</div>
+<p>So MoE is not:</p>
+<div class="math block">
+O(TkDH)
+</div>
+<p>and nothing else.</p>
+<p>More realistically, the conceptual cost is:</p>
+<div class="math block">
+\boxed{
+\text{router}
++
+\text{selected expert compute}
++
+\text{dispatch/communication}
+}.
+</div>
+<p>For large distributed systems, the communication component becomes particularly important; the source later identifies MoE All-to-All communication as a bottleneck motivating DualPipe. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-50">5.42.22 Why <span class="math inline">N</span> can be large</h4>
+<p>The router has to score all routed experts.</p>
+<p>So increasing:</p>
+<div class="math block">
+N
+</div>
+<p>increases router-side work:</p>
+<div class="math block">
+O(TDN).
+</div>
+<p>But expert computation only uses:</p>
+<div class="math block">
+k
+</div>
+<p>experts.</p>
+<p>Therefore there is a trade-off:</p>
+<div class="math block">
+\boxed{
+N\uparrow
+\Rightarrow
+\text{more routing choices / specialization}
+}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{
+\text{more router and dispatch complexity}
+}.
+</div>
+<p>This is why MoE engineering is not simply:</p>
+<blockquote>
+<p>“Use as many experts as possible.”</p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-51">5.42.23 Complete end-to-end numerical problem</h4>
+<p>Now let's solve a full one.</p>
+<p>Suppose:</p>
+<div class="math block">
+B=2
+</div>
+<div class="math block">
+S=4
+</div>
+<div class="math block">
+D=8
+</div>
+<div class="math block">
+N=4
+</div>
+<div class="math block">
+k=2.
+</div>
+<p>There are:</p>
+<div class="math block">
+T=BS=8
+</div>
+<p>tokens.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-52">Step A — Router shape</h5>
+<div class="math block">
+X_f\in\mathbb R^{8\times8}.
+</div>
+<p>Router:</p>
+<div class="math block">
+W_R\in\mathbb R^{8\times4}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+L=X_fW_R
+</div>
+<p>has:</p>
+<div class="math block">
+\boxed{8\times4}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-53">Step B — Top-K</h5>
+<p>Each of the 8 tokens selects 2 experts.</p>
+<p>Total assignments:</p>
+<div class="math block">
+8\times2
+=
+\boxed{16}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-54">Step C — Ideal load</h5>
+<div class="math block">
+16/4
+=
+\boxed{4}.
+</div>
+<p>So ideal expert load is:</p>
+<div class="math block">
+[4,4,4,4].
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-55">Step D — Suppose actual counts are</h5>
+<div class="math block">
+[6,2,5,3].
+</div>
+<p>Check:</p>
+<div class="math block">
+6+2+5+3
+=
+16.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+E_1,E_3\text{ are relatively overloaded}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E_2,E_4\text{ are relatively underloaded}.
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-56">Step E — Violations</h5>
+<div class="math block">
+v_i=
+\frac{4-C_i}{4}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+v_1=
+\frac{4-6}{4}
+=
+\boxed{-0.5}
+</div>
+<div class="math block">
+v_2=
+\frac{4-2}{4}
+=
+\boxed{0.5}
+</div>
+<div class="math block">
+v_3=
+\frac{4-5}{4}
+=
+\boxed{-0.25}
+</div>
+<div class="math block">
+v_4=
+\frac{4-3}{4}
+=
+\boxed{0.25}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+v=[-0.5,0.5,-0.25,0.25].
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-57">Step F — Direction of bias correction</h5>
+<div class="math block">
+\boxed{
+b_1\downarrow
+}
+</div>
+<div class="math block">
+\boxed{
+b_2\uparrow
+}
+</div>
+<div class="math block">
+\boxed{
+b_3\downarrow
+}
+</div>
+<div class="math block">
+\boxed{
+b_4\uparrow
+}.
+</div>
+<p>That is exactly the balancing feedback.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-58">5.42.24 What happens in the next batch?</h4>
+<p>Suppose before correction:</p>
+<div class="math block">
+L_t=[2.0,1.9,2.2,1.8].
+</div>
+<p>For a particular token.</p>
+<p>Suppose dynamic bias after the previous batch is:</p>
+<div class="math block">
+b=[-0.1,+0.1,-0.05,+0.05].
+</div>
+<p>Adjusted:</p>
+<div class="math block">
+L'=
+[1.9,2.0,2.15,1.85].
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<p>Before balancing, perhaps it was:</p>
+<div class="math block">
+E_3,E_1.
+</div>
+<p>So the bias has changed the routing decision itself.</p>
+<p>That is why DeepSeek modifies the logits <strong>before Top-K</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-59">5.42.25 End-to-end pipeline as equations</h4>
+<p>Now all the mathematics is connected:</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-60">Input</h6>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-61">Flatten</h6>
+<div class="math block">
+X_f\in\mathbb R^{BS\times D}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-62">Router</h6>
+<div class="math block">
+L=X_fW_R
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-63">Bias</h6>
+<div class="math block">
+L'=L+b
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-64">Top-K</h6>
+<div class="math block">
+I_t=TopK(L'_t,k)
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-65">Gating</h6>
+<div class="math block">
+g_{t,i}
+=
+\frac{e^{L'_{t,i}}}
+{\sum_{j\in I_t}e^{L'_{t,j}}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-66">Routed expert output</h6>
+<div class="math block">
+R_t
+=
+\sum_{i\in I_t}
+g_{t,i}E_i(x_t)
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-67">Shared output</h6>
+<div class="math block">
+S_t=
+\sum_jS_j(x_t)
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-68">Residual</h6>
+<div class="math block">
+Y_t=
+x_t+S_t+R_t
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-69">Load measurement</h6>
+<div class="math block">
+C_i=
+\#\{\text{tokens routed to }E_i\}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-70">Average</h6>
+<div class="math block">
+\bar C=
+\frac{Tk}{N}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-71">Violation</h6>
+<div class="math block">
+v_i=
+\frac{\bar C-C_i}
+{\bar C+\epsilon}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-72">Bias update</h6>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+
+\eta\tanh(v_i)
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-73">5.42.26 The source's scaled experiment</h4>
+<p>The book gives this comparison:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">Parameters</th>
+<th style="text-align:right">Training time</th>
+<th style="text-align:right">Throughput</th>
+<th style="text-align:right">Best validation loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Standard MoE</td>
+<td style="text-align:right">101.30M</td>
+<td style="text-align:right">14.29 min</td>
+<td style="text-align:right">350.0 iter/min</td>
+<td style="text-align:right">1.9854</td>
+</tr>
+<tr>
+<td>DeepSeek-MoE</td>
+<td style="text-align:right">101.28M</td>
+<td style="text-align:right">11.67 min</td>
+<td style="text-align:right">428.6 iter/min</td>
+<td style="text-align:right">1.9451</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice the parameter counts are deliberately almost identical:</p>
+<div class="math block">
+101.30M\approx101.28M.
+</div>
+<p>So the comparison is designed to avoid simply saying:</p>
+<blockquote>
+<p>“This model won because it has more parameters.”</p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-74">5.42.27 Throughput improvement</h4>
+<p>Using the reported values:</p>
+<div class="math block">
+\frac{428.6-350.0}{350.0}\times100
+</div>
+<div class="math block">
+\approx
+\boxed{22.46\%}.
+</div>
+<p>The source summarizes this as approximately:</p>
+<div class="math block">
+\boxed{22\%}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-75">5.42.28 Training-time reduction</h4>
+<p>Using:</p>
+<div class="math block">
+14.29\text{ min}
+</div>
+<p>versus:</p>
+<div class="math block">
+11.67\text{ min},
+</div>
+<p>reduction is:</p>
+<div class="math block">
+14.29-11.67
+=
+2.62\text{ min}.
+</div>
+<p>Percentage:</p>
+<div class="math block">
+\frac{2.62}{14.29}\times100
+\approx
+\boxed{18.3\%}.
+</div>
+<p>So in this scaled experiment, DeepSeek-MoE finished about:</p>
+<div class="math block">
+\boxed{18.3\%}
+</div>
+<p>faster.</p>
+<p>This percentage is our arithmetic from the source's reported numbers.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-76">5.42.29 Validation-loss improvement</h4>
+<div class="math block">
+1.9854-1.9451
+=
+\boxed{0.0403}.
+</div>
+<p>Relative reduction:</p>
+<div class="math block">
+\frac{0.0403}{1.9854}\times100
+\approx
+\boxed{2.03\%}.
+</div>
+<p>Again, this is simply arithmetic from the reported experiment.</p>
+<p>The important point is that the source reports both:</p>
+<div class="math block">
+\boxed{\text{better validation loss}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{higher throughput}}
+</div>
+<p>at nearly equal parameter count. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-77">5.42.30 Why this matters architecturally</h4>
+<p>The source attributes the key difference to load balancing:</p>
+<div class="math block">
+\boxed{
+\text{standard MoE}
+\rightarrow
+\text{auxiliary loss}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-MoE}
+\rightarrow
+\text{dynamic bias}
+}.
+</div>
+<p>The source says the standard system can still produce hotspot experts within individual batches, while the dynamic bias works more immediately at batch level. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-78">5.42.31 Systems interpretation</h4>
+<p>Suppose four experts have:</p>
+<div class="math block">
+[100,100,100,100]
+</div>
+<p>tokens.</p>
+<p>Perfect.</p>
+<p>Each expert gets:</p>
+<div class="math block">
+100
+</div>
+<p>units of work.</p>
+<p>Now suppose:</p>
+<div class="math block">
+[180,20,0,200].
+</div>
+<p>The total work is still:</p>
+<div class="math block">
+400.
+</div>
+<p>But the system is terrible.</p>
+<p>One worker processes:</p>
+<div class="math block">
+200,
+</div>
+<p>another:</p>
+<div class="math block">
+180,
+</div>
+<p>one:</p>
+<div class="math block">
+20,
+</div>
+<p>and one:</p>
+<div class="math block">
+0.
+</div>
+<p>This is why:</p>
+<div class="math block">
+\boxed{
+\text{balanced routing}
+}
+</div>
+<p>is not merely a machine-learning concern.</p>
+<p>It is also a:</p>
+<div class="math block">
+\boxed{
+\text{systems utilization problem}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-79">5.42.32 Why All-to-All appears in distributed MoE</h4>
+<p>Suppose:</p>
+<pre><code class="language-text">GPU 0 owns E1,E2
+GPU 1 owns E3,E4
+GPU 2 owns E5,E6
+GPU 3 owns E7,E8
+</code></pre>
+<p>A token on GPU 0 might be routed to:</p>
+<div class="math block">
+E_7.
+</div>
+<p>Therefore the token representation must move:</p>
+<div class="math block">
+GPU_0\rightarrow GPU_3.
+</div>
+<p>After computation, the result must return to the correct token location.</p>
+<p>So the architecture creates communication:</p>
+<div class="math block">
+\boxed{
+\text{token dispatch}
+\rightarrow
+\text{remote expert}
+\rightarrow
+\text{result combine}
+}
+</div>
+<p>This is the distributed-MoE challenge.</p>
+<p>The source later describes All-to-All communication as a major bottleneck and motivates DeepSeek's DualPipe scheduling to overlap communication with computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-80">5.42.33 Therefore, MoE efficiency has three layers</h4>
+<p>Think of it as:</p>
+<div class="math block">
+\boxed{
+\text{Algorithmic sparsity}
+}
+</div>
+<p>↓</p>
+<p>only <span class="math inline">k</span> experts.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Load balance}
+}
+</div>
+<p>↓</p>
+<p>those <span class="math inline">k</span>-expert assignments are distributed properly.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Distributed execution}
+}
+</div>
+<p>↓</p>
+<p>tokens must be moved efficiently between hardware.</p>
+<p>This is why a good MoE architecture is both:</p>
+<div class="math block">
+\boxed{\text{ML design}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{systems design}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-81">5.42.34 Very important interview distinction</h4>
+<p>Suppose someone says:</p>
+<blockquote>
+<p>“DeepSeek has 671B parameters but only 37B are used.”</p>
+</blockquote>
+<p>The technically better answer is:</p>
+<blockquote>
+<p>DeepSeek-R1 is an MoE model with roughly 671B total parameters and about 37B active parameters per token in the source's description. The inactive expert parameters remain part of the model and must remain available, while routing determines which subset participates for each token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<p>That answer demonstrates you understand:</p>
+<div class="math block">
+\boxed{
+\text{capacity vs conditional computation}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-82">5.42.35 Exam trap #1</h4>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-83">Question</h6>
+<p>A model has:</p>
+<div class="math block">
+64
+</div>
+<p>experts and:</p>
+<div class="math block">
+k=4.
+</div>
+<p>What fraction of experts are activated per token?</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-84">Answer</h6>
+<div class="math block">
+\frac4{64}
+=
+\boxed{6.25\%}.
+</div>
+<p>But <strong>do not</strong> answer:</p>
+<blockquote>
+<p>“Only 6.25% of the model parameters are stored.”</p>
+</blockquote>
+<p>That is false.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-85">5.42.36 Exam trap #2</h4>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-86">Question</h6>
+<p>An MoE has 1000 tokens, 8 experts, Top-2 routing. What is ideal average expert load?</p>
+<div class="math block">
+\frac{1000\times2}{8}
+=
+\boxed{250}.
+</div>
+<p>Not:</p>
+<div class="math block">
+1000/8=125.
+</div>
+<p>Why?</p>
+<p>Because each token produces:</p>
+<div class="math block">
+2
+</div>
+<p>expert assignments.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-87">5.42.37 Exam trap #3</h4>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-88">Question</h6>
+<p>Why is softmax applied after Top-K?</p>
+<p>Because the architecture first determines:</p>
+<div class="math block">
+\boxed{\text{which experts}}
+</div>
+<p>and then normalizes the selected logits to determine:</p>
+<div class="math block">
+\boxed{\text{their relative contribution}}
+</div>
+<p>The source's implementation performs exactly this ordering. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-42-i83-0" data-full-review="added"><p>Correction: Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</p><p><a href="#audit-full-chunk-les-step-5-42-i83">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-42-i83-89">5.42.38 Exam trap #4</h4>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-90">Question</h6>
+<p>Why isn't balancing implemented simply by changing the main loss?</p>
+<p>Because the DeepSeek-style auxiliary-loss-free method is specifically designed to avoid adding a competing balancing objective to the primary language-learning objective. Instead, it modifies router scores through the dynamic bias. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-91">5.42.39 Exam trap #5</h4>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-92">Question</h6>
+<p>Why doesn't fine-grained segmentation simply increase the model size?</p>
+<p>Because the source's example changes:</p>
+<div class="math block">
+16\times4096
+</div>
+<p>into:</p>
+<div class="math block">
+64\times1024
+</div>
+<p>so:</p>
+<div class="math block">
+16\times4096
+=
+64\times1024.
+</div>
+<p>The total expert capacity can therefore remain comparable while the number of specialists increases. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-93">5.42.40 Five-level numerical bank</h4>
+<h5 id="v3-heading-chunk-les-step-5-42-i83-94">Level 1 — Top-K</h5>
+<div class="math block">
+L=[1,3,2,5,4]
+</div>
+<p>with:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Selected:</p>
+<div class="math block">
+\boxed{E_4,E_5}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-95">Level 2 — Gate</h5>
+<p>Selected logits:</p>
+<div class="math block">
+[5,4].
+</div>
+<p>Then:</p>
+<div class="math block">
+g_4=
+\frac{e^5}{e^5+e^4}
+\approx
+\boxed{0.731}
+</div>
+<p>and:</p>
+<div class="math block">
+g_5\approx
+\boxed{0.269}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-96">Level 3 — Load</h5>
+<div class="math block">
+T=2000,\quad k=2,\quad N=16.
+</div>
+<p>Ideal:</p>
+<div class="math block">
+\frac{2000\times2}{16}
+=
+\boxed{250}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-97">Level 4 — Parameter count</h5>
+<div class="math block">
+N=64,\quad D=4096,\quad H=1024.
+</div>
+<p>Each expert:</p>
+<div class="math block">
+2DH=8,388,608.
+</div>
+<p>All routed experts:</p>
+<div class="math block">
+64(8,388,608)
+=
+\boxed{536,870,912}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-42-i83-98">Level 5 — Full mixed numerical</h5>
+<p>Given:</p>
+<div class="math block">
+T=4096,\quad
+N=32,\quad
+k=4.
+</div>
+<p>Total assignments:</p>
+<div class="math block">
+4096\times4
+=
+\boxed{16,384}.
+</div>
+<p>Ideal load:</p>
+<div class="math block">
+16,384/32
+=
+\boxed{512}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+C_7=640.
+</div>
+<p>Violation:</p>
+<div class="math block">
+v_7=
+\frac{512-640}{512}
+=
+\boxed{-0.25}.
+</div>
+<p>With:</p>
+<div class="math block">
+\eta=0.02,
+</div>
+<p>bounded update:</p>
+<div class="math block">
+\Delta b_7
+=
+0.02\tanh(-0.25).
+</div>
+<p>Since:</p>
+<div class="math block">
+\tanh(-0.25)\approx-0.245,
+</div>
+<p>we obtain:</p>
+<div class="math block">
+\boxed{
+\Delta b_7\approx-0.0049
+}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{b_7\text{ decreases}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-99">5.42.41 The complete reasoning chain</h4>
+<p>You should now be able to derive the architecture from the problem itself:</p>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-100">Problem</h6>
+<p>Dense FFN is expensive.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-101">Solution</h6>
+<p>Create many experts.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-102">Problem</h6>
+<p>Running all experts is still expensive.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-103">Solution</h6>
+<p>Top-K sparse routing.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-104">Problem</h6>
+<p>Router can collapse onto a few experts.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-105">Solution</h6>
+<p>Load balancing.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-106">Problem</h6>
+<p>Few experts become broad/generalist.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-107">Solution</h6>
+<p>Fine-grained expert segmentation.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-108">Problem</h6>
+<p>Common knowledge gets duplicated.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-109">Solution</h6>
+<p>Shared dense experts.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-110">Problem</h6>
+<p>Auxiliary balance loss competes with the learning objective.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-111">Solution</h6>
+<p>Auxiliary-loss-free dynamic bias.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-112">Problem</h6>
+<p>Distributed experts require communication.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-42-i83-113">Later solution</h6>
+<p>DualPipe-style computation/communication overlap.</p>
+<p>The source covers this progression from MoE fundamentals through balancing and DeepSeek's architectural innovations, with DualPipe introduced later in the training-pipeline chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-114">5.42.42 Final master diagram</h4>
+<pre><code class="language-text">                         Token x
+                            │
+            ┌───────────────┴────────────────┐
+            │                                │
+            ▼                                ▼
+      SHARED EXPERTS                     ROUTER
+      Dense path                         │
+            │                            ▼
+            │                     Router logits
+            │                            │
+            │                         + bias
+            │                            │
+            │                          Top-K
+            │                            │
+            │                         Softmax
+            │                            │
+            │                    Selected experts
+            │                            │
+            │                     Sparse dispatch
+            │                            │
+            │                    Expert computation
+            │                            │
+            │                     Weighted combine
+            │                            │
+            └───────────────┬────────────┘
+                            │
+                            ▼
+                    Shared + Routed
+                            │
+                            ▼
+                       + Residual
+                            │
+                            ▼
+                        MoE output
+                            │
+                            ▼
+                  measure expert loads
+                            │
+                            ▼
+                     update bias b
+                            │
+                            ▼
+                     next training step
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-42-i83-115">5.42.43 What you now know</h4>
+<p>At this point, the entire DeepSeek-MoE mechanism is no longer a collection of isolated terms.</p>
+<p>You can trace:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+W_R
+\rightarrow
+L
+\rightarrow
+L+b
+\rightarrow
+TopK
+\rightarrow
+softmax
+\rightarrow
+dispatch
+\rightarrow
+experts
+\rightarrow
+weighted\ sum
+\rightarrow
+shared+routed+residual
+}
+</div>
+<p>and separately:</p>
+<div class="math block">
+\boxed{
+\text{load}
+\rightarrow
+\text{violation}
+\rightarrow
+\text{bias update}
+\rightarrow
+\text{next routing decision}
+}.
+</div>
+<p>And at the architecture level:</p>
+<div class="math block">
+\boxed{
+\text{many small specialists}
++
+\text{few shared generalists}
++
+\text{sparse activation}
++
+\text{balanced routing}
+}
+</div>
+<p>is the DeepSeek-MoE design described in the source.</p>
+<hr />
+</section>

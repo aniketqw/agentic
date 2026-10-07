@@ -1,0 +1,809 @@
+<section class="chunk" id="chunk-les-step-1-3-i10" data-id="les-step-1-3-i10"><details class="audit-card" id="audit-full-chunk-les-step-1-3-i10" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-1">Motivation</h4><p>Supply position information that identical token embeddings alone cannot encode.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-2">Prerequisites</h4><ul><li>Embedding lookup</li><li>Addition and broadcasting</li><li>Sine/cosine and dot products</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-3">Notation and units</h4><ul><li>P[T,d] is a learned or fixed positional table</li><li>PE(pos,2i)=sin(pos/10000^(2i/d)); odd coordinate uses cos</li><li>R_pos is a pairwise rotation</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-4">Assumptions</h4><ul><li>Even d for the displayed paired sine/cosine toy</li><li>Position table broadcasts [1,T,d] across B</li><li>Adjacent-pair RoPE convention in companion; book uses split halves</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-5">Step-by-step derivation</h4><ol><li>Without position-dependent operations, unrestricted self-attention is permutation equivariant: permuting token rows permutes output rows. This is the precise symmetry, rather than claiming all decoder outputs are order-blind.</li><li>Learned absolute position adds P[t] to embedding E[id_t]; shape [T,d] or [1,T,d] broadcasts to [B,T,d], avoiding separate parameters per batch item.</li><li>For d=4, positions use frequencies 1 and .01. Position 1 is [.8414709848,.5403023059,.0099998333,.9999500004]; position 0 is [0,1,0,1].</li><li>For a frequency pair, sin((t+delta)w) and cos((t+delta)w) are a fixed linear rotation of sin(tw),cos(tw), by addition identities.</li><li>RoPE rotates Q and K, giving (R_m q)^T(R_n k)=q^T R_(n-m) k. Orthogonal rotations preserve each pair norm and make the dot product depend on relative displacement.</li><li>A lower-triangular mask controls eligibility. It is a position-dependent constraint and can reveal some ordering structure, but does not provide the same explicit feature representation as a positional encoding.</li></ol><h4 id="v3-heading-chunk-les-step-1-3-i10-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-3-i10-7">position_1_4</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Without position-dependent operations, unrestricted self-attention is permutation equivariant: permuting token rows permutes output rows. This is the precise symmetry, rather than claiming all decoder outputs are order-blind.</li><li>Learned absolute position adds P[t] to embedding E[id_t]; shape [T,d] or [1,T,d] broadcasts to [B,T,d], avoiding separate parameters per batch item.</li><li>For d=4, positions use frequencies 1 and .01. Position 1 is [.8414709848,.5403023059,.0099998333,.9999500004]; position 0 is [0,1,0,1].</li><li>For a frequency pair, sin((t+delta)w) and cos((t+delta)w) are a fixed linear rotation of sin(tw),cos(tw), by addition identities.</li><li>RoPE rotates Q and K, giving (R_m q)^T(R_n k)=q^T R_(n-m) k. Orthogonal rotations preserve each pair norm and make the dot product depend on relative displacement.</li><li>A lower-triangular mask controls eligibility. It is a position-dependent constraint and can reveal some ordering structure, but does not provide the same explicit feature representation as a positional encoding.</li></ol><p>Answer: 0.8414709848078965; 0.5403023058681398; 0.009999833334166664; 0.9999500004166653</p><p>Verification: foundations_decoding / position_1_4 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-3-i10-8">position_2_4</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Without position-dependent operations, unrestricted self-attention is permutation equivariant: permuting token rows permutes output rows. This is the precise symmetry, rather than claiming all decoder outputs are order-blind.</li><li>Learned absolute position adds P[t] to embedding E[id_t]; shape [T,d] or [1,T,d] broadcasts to [B,T,d], avoiding separate parameters per batch item.</li><li>For d=4, positions use frequencies 1 and .01. Position 1 is [.8414709848,.5403023059,.0099998333,.9999500004]; position 0 is [0,1,0,1].</li><li>For a frequency pair, sin((t+delta)w) and cos((t+delta)w) are a fixed linear rotation of sin(tw),cos(tw), by addition identities.</li><li>RoPE rotates Q and K, giving (R_m q)^T(R_n k)=q^T R_(n-m) k. Orthogonal rotations preserve each pair norm and make the dot product depend on relative displacement.</li><li>A lower-triangular mask controls eligibility. It is a position-dependent constraint and can reveal some ordering structure, but does not provide the same explicit feature representation as a positional encoding.</li></ol><p>Answer: 0.9092974268256817; -0.4161468365471424; 0.01999866669333308; 0.9998000066665778</p><p>Verification: foundations_decoding / position_2_4 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-3-i10-9">rope_relative</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Without position-dependent operations, unrestricted self-attention is permutation equivariant: permuting token rows permutes output rows. This is the precise symmetry, rather than claiming all decoder outputs are order-blind.</li><li>Learned absolute position adds P[t] to embedding E[id_t]; shape [T,d] or [1,T,d] broadcasts to [B,T,d], avoiding separate parameters per batch item.</li><li>For d=4, positions use frequencies 1 and .01. Position 1 is [.8414709848,.5403023059,.0099998333,.9999500004]; position 0 is [0,1,0,1].</li><li>For a frequency pair, sin((t+delta)w) and cos((t+delta)w) are a fixed linear rotation of sin(tw),cos(tw), by addition identities.</li><li>RoPE rotates Q and K, giving (R_m q)^T(R_n k)=q^T R_(n-m) k. Orthogonal rotations preserve each pair norm and make the dot product depend on relative displacement.</li><li>A lower-triangular mask controls eligibility. It is a position-dependent constraint and can reveal some ordering structure, but does not provide the same explicit feature representation as a positional encoding.</li></ol><p>Answer: 5.3120826452451295</p><p>Verification: foundations_decoding / rope_relative · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-1-3-i10-10">Corrections and source qualifications</h4><ul><li>heading: 1.3.17; text: Causal attention already has a position-dependent access pattern; lack of explicit positional embeddings does not make every causal decoder strictly permutation-equivariant. Position encoding and eligibility remain distinct.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-11">Mastery answers and retained exercise context</h4><ol><li>Q1: a basic embedding lookup uses token ID, not its position.</li><li>Q2: repeated tokens would enter with identical content vectors; positional structure must come from some other operation.</li><li>Q3: add the position vector for each token to its token embedding.</li><li>Q4: [128,768] or [1,128,768] broadcast over batch, or a compatible full [8,128,768] tensor.</li><li>Q5: absolute is an index, relative is a displacement between positions.</li><li>Q6: fixed multi-frequency patterns supply position-dependent features.</li><li>Q7: position-dependent rotations of Q/K yield relative-position dot products.</li><li>Q8: a mask blocks future sources; an encoding alters position features.</li><li>Q9: text → tokens → IDs → embedding lookup → add position (or apply RoPE after Q/K projection) → attention.</li></ol><h4 id="v3-heading-chunk-les-step-1-3-i10-12">Edge cases and remaining gaps</h4><ul><li>Learned tables cannot simply index beyond their trained/configured length.</li><li>Sinusoidal availability beyond training length is not a guarantee of good extrapolation.</li><li>RoPE pairing, frequency base, rotary width, offsets and scaling must match weights; equivalent layouts require consistent coordinate permutations.</li><li>Adding position preserves width but does not preserve the raw embedding as a separately recoverable vector.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-13">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-14">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 130, 131, 132, 282 · learned absolute position embedding construction</li><li>transformers-slides(1).pdf · physical PDF pages 6 · position addition and RoPE reference</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 368, 369, 370 · RoPE rotations, frequency implementation and layout conventions</li><li>Attention Is All You Need (arXiv:1706.03762v7) · physical PDF pages 6 · Section 3.5, sine/cosine positional encoding formulas and fixed-offset linear identity · https://arxiv.org/html/1706.03762v7#S3.SS5</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-15">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (33)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.3 — Position: How Does a Transformer Know Word Order?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.3.1 The Problem</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.2 Why Token Embeddings Alone Are Not Enough</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.3 The Simplest Solution: Add a Position Vector</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.4 Why Addition?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.5 Shape Mathematics</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Token embeddings</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Positional embeddings</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Final input</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.3.6 Absolute vs Relative Position</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Absolute positional information</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Relative positional information</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.3.7 Why Relative Position Can Be Attractive</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.8 Learned Absolute Positional Embeddings</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.9 Exact PyTorch Implementation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>1.3.10 But What Did the Original Transformer Do?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.11 Why Sine and Cosine?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.12 Small Numerical Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.13 The Beautiful Part of Sinusoidal Encoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.14 Learned Absolute vs Sinusoidal</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.15 RoPE — The Modern Direction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.16 Why This Is Different From Adding P</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Learned absolute position</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RoPE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.3.17 A Subtle but Important Point: Causal Mask ≠ Positional Encoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.18 Why Position Matters for Attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.19 The Full Input Representation Now</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.3.20 Connecting All Three Steps</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.1 — Language model</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 1.2 — Token representation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 1.3 — Position</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.3.21 The Next Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.3 Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-T16" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> T16 — RoPE rotations and relative position</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Represent positional differences directly in attention dot products while preserving vector length.</p><p><strong>Prerequisites:</strong> <a href="#audit-T03">Three projections: Q, K, and V</a>, <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-1-3-i10-16">Notation and assumptions</h4><p>Adjacent-pair convention, even head width d. For pair i use frequency base^(-2i/d); rotate Q and K at their absolute positions. Other pair layouts need explicit conversion.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-17">Derivation and mechanism</h4><ol><li>Construct a 2×2 orthogonal rotation for each pair.</li><li>Use angle position×frequency.</li><li>Because R(m)^T R(n)=R(n-m), a rotated dot product depends on relative displacement.</li></ol><div class="math block">R(\theta)=\begin{bmatrix}\cos\theta&amp;-\sin\theta\\\sin\theta&amp;\cos\theta\end{bmatrix}</div><div class="math block">(R(m)q)^\top R(n)k=q^\top R(n-m)k</div><h4 id="v3-heading-chunk-les-step-1-3-i10-18">Worked example</h4><p>At position2, [1,0,0,1] becomes [cos2,sin2,-sin.02,cos.02]≈[-.416147,.909297,-.019999,.999800]. Squared norm remains2. The checker verifies the relative-dot identity at two positions on both frequencies.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-19">Limitations</h4><ul><li>Do not rotate every pair at the same frequency.</li><li>Norm preservation does not prove unlimited-context accuracy. Odd rotary width is rejected.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-20">Connections to later concepts</h4><ul><li>A06 shows why position-dependent rotations must be separated from MLA content absorption.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-21">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 145, 147, 148, 149, 150, 151 · §3.11 rotations</li><li><a href="https://arxiv.org/html/2104.09864v5" rel="noopener noreferrer">§3.2.1–3.2.2</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-22">Executed code and evidence</h4><p>Functions: rope. Passed checks: RoPE-norm, RoPE-relative, RoPE-matrix, RoPE-odd-width</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-T07" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T07 — Position and the limits of permutation arguments</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T06">← Previous audit card</a> · <a href="#audit-T08">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-3-i10-23">Why this matters</h4><p>A repeated token ID retrieves the same token embedding. The model also needs a way to distinguish where tokens occur.</p><p><strong>Prerequisites:</strong> <a href="#audit-T02">Embedding lookup and one-hot equivalence</a>, <a href="#audit-T04">Scores to attention weights to output</a></p><h4 id="v3-heading-chunk-les-step-1-3-i10-24">Symbols, shapes and assumptions</h4><p>Absolute position embeddings have the same feature width as token embeddings and are added by position. Unmasked, position-free attention is permutation equivariant; a causal mask changes the symmetry.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-25">Derivation or mechanism</h4><ol><li>Without positional features, permute Q/K/V together.</li><li>Score rows and columns permute consistently; row softmax and value aggregation follow that permutation.</li><li>Add position features to distinguish repeated tokens at different positions; specify the chosen position scheme.</li></ol><div class="math block" data-tex="X_t=E[id_t,:]+P[t,:]">X_t=E[id_t,:]+P[t,:]</div><h4 id="v3-heading-chunk-les-step-1-3-i10-26">Worked numerical</h4><p>Two copies of token ID 2 initially share [1,1]. Adding position rows [0,0] and [0.1,0.2] would make them [1,1] and [1.1,1.2]. Separately, the checker permutes an unmasked attention fixture and confirms the output follows the same permutation.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-27">Edge cases and limits</h4><ul><li>The unmasked equivariance proof must not be applied unchanged to a fixed causal mask.</li><li>Learned absolute positions, sinusoidal encodings, and RoPE are distinct methods. Only the basic position mechanism is covered by this capsule; RoPE remains pending.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-28">Connections</h4><ul><li>The later MLA/RoPE package checks positional factorization.</li></ul><h4 id="v3-heading-chunk-les-step-1-3-i10-29">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 6 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 123, 124, 125, 129 · §2.8</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-3-i10-30">Executable companion and checking evidence</h4><p>Functions: <code>embedding</code>, <code>residual</code>, <code>attention</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T07-permutation, T07-position. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-3-i10"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-3-i10" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-2-i9">← Previous lesson</a> · <a href="#chunk-les-step-1-4-i11">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-2-i9">Step 1.2 — Tokens → Token IDs → Embeddings</a></p><p><strong>This lesson:</strong> Step 1.3 — Position: How Does a Transformer Know Word Order?</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-13">Understanding_Attention_Handbook_01</a>; <a href="#source-14">transformers-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-3-i10"></a></p>
+<h2>Step 1.3 — Position: How Does a Transformer Know Word Order?</h2>
+<p><em>Plan node: I1 · chat order #10</em></p>
+<p>We now have:</p>
+<div class="math block">
+\text{text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\text{token embeddings}
+</div>
+<p>At this point, however, there is a fundamental problem:</p>
+<blockquote>
+<p><strong>The token embedding tells us what the token is, but not where it occurs.</strong></p>
+</blockquote>
+<p>This is exactly the issue identified in the Transformer slides: self-attention by itself does not tell the model that token 3 comes after token 2, so position information must be injected. <em>(Source: transformers-slides)</em></p>
+<p>Raschka's Chapter 2.8 makes the same point: the same token ID always receives the same embedding regardless of where it occurs in the sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-31">1.3.1 The Problem</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+\text{A dog bites a man}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{A man bites a dog}
+</div>
+<p>The tokens are the same:</p>
+<pre><code class="language-text">A
+dog
+bites
+a
+man
+</code></pre>
+<p>versus</p>
+<pre><code class="language-text">A
+man
+bites
+a
+dog
+</code></pre>
+<p>but the <strong>order</strong> is different.</p>
+<p>And order changes the meaning.</p>
+<p>So the model needs two kinds of information:</p>
+<div class="math block">
+\boxed{\text{What token is this?}}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\text{Where is this token?}}
+</div>
+<p>The token embedding answers the first.</p>
+<p>Positional information answers the second.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-32">1.3.2 Why Token Embeddings Alone Are Not Enough</h3>
+<p>Suppose:</p>
+<div class="math block">
+E(\text{dog})=
+[0.2,0.7,-0.1,\ldots]
+</div>
+<p>Whenever token <code>&quot;dog&quot;</code> appears, the lookup table gives exactly this same vector.</p>
+<p>For example:</p>
+<pre><code class="language-text">Position 1: dog → [0.2, 0.7, -0.1, ...]
+Position 5: dog → [0.2, 0.7, -0.1, ...]
+</code></pre>
+<p>The embedding layer doesn't inherently know whether the dog is:</p>
+<ul>
+<li>first,</li>
+<li>third,</li>
+<li>fifth,</li>
+<li>tenth.</li>
+</ul>
+<p>Raschka explicitly illustrates this: the same token ID produces the same vector regardless of its position.</p>
+<p>So we need to add another signal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-33">1.3.3 The Simplest Solution: Add a Position Vector</h3>
+<p>Suppose the sequence length is:</p>
+<div class="math block">
+T=4
+</div>
+<p>and embedding dimension:</p>
+<div class="math block">
+d=3
+</div>
+<p>Our token embeddings might be:</p>
+<div class="math block">
+X_{\text{token}}
+=
+\begin{bmatrix}
+0.7&amp;0.1&amp;0.2\\
+0.4&amp;0.9&amp;0.3\\
+0.8&amp;0.2&amp;0.5\\
+0.1&amp;0.6&amp;0.7
+\end{bmatrix}
+</div>
+<p>Create a positional embedding matrix:</p>
+<div class="math block">
+P
+=
+\begin{bmatrix}
+0.1&amp;0.0&amp;0.2\\
+0.0&amp;0.2&amp;0.1\\
+0.2&amp;0.1&amp;0.0\\
+0.3&amp;0.0&amp;0.1
+\end{bmatrix}
+</div>
+<p>Then simply add:</p>
+<div class="math block">
+\boxed{
+X=X_{\text{token}}+P
+}
+</div>
+<p>giving:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+0.8&amp;0.1&amp;0.4\\
+0.4&amp;1.1&amp;0.4\\
+1.0&amp;0.3&amp;0.5\\
+0.4&amp;0.6&amp;0.8
+\end{bmatrix}
+</div>
+<p>Now the representation contains:</p>
+<div class="math block">
+\text{token information}+\text{position information}
+</div>
+<p>The Transformer slides give precisely this conceptual operation:</p>
+<div class="math block">
+\boxed{X\leftarrow X+P}
+</div>
+<p>where <span class="math inline">P</span> has the same shape as the token representation matrix. <em>(Source: transformers-slides)</em></p>
+<p>Raschka's implementation also uses addition of token and positional embeddings.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-34">1.3.4 Why Addition?</h3>
+<p>A natural question is:</p>
+<blockquote>
+<p>Why add instead of concatenate?</p>
+</blockquote>
+<p>We could theoretically do:</p>
+<div class="math block">
+[X_{\text{token}};P]
+</div>
+<p>which would give:</p>
+<div class="math block">
+d+d=2d
+</div>
+<p>dimensions.</p>
+<p>But then every following layer would need to process twice as many dimensions.</p>
+<p>Addition keeps:</p>
+<div class="math block">
+\boxed{\text{model width}=d}
+</div>
+<p>So the existing Transformer architecture can process the result without changing its width.</p>
+<p>The positional vector has the same dimension as the token embedding:</p>
+<div class="math block">
+P_t\in\mathbb R^d
+</div>
+<p>and therefore:</p>
+<div class="math block">
+X_t=E_t+P_t
+</div>
+<p>is also:</p>
+<div class="math block">
+X_t\in\mathbb R^d
+</div>
+<p>Raschka explicitly notes that positional vectors have the same dimensionality as token embeddings so they can be added directly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-35">1.3.5 Shape Mathematics</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=8
+</div>
+<div class="math block">
+T=128
+</div>
+<div class="math block">
+d=768
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-36">Token embeddings</h5>
+<div class="math block">
+X_{\text{token}}\in\mathbb R^{8\times128\times768}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-37">Positional embeddings</h5>
+<p>For absolute learned positional embeddings:</p>
+<div class="math block">
+P\in\mathbb R^{128\times768}
+</div>
+<p>PyTorch broadcasts <span class="math inline">P</span> across the batch:</p>
+<div class="math block">
+[8,128,768]
++
+[128,768]
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{[8,128,768]}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-38">Final input</h5>
+<div class="math block">
+\boxed{
+X=X_{\text{token}}+P
+\in\mathbb R^{8\times128\times768}
+}
+</div>
+<p>Raschka gives essentially this exact pattern with a batch of 8 sequences, 4 tokens per sequence, and 256-dimensional embeddings.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-39">1.3.6 Absolute vs Relative Position</h3>
+<p>Now we reach an important distinction.</p>
+<p>There are two broad approaches.</p>
+<h4 id="v3-heading-chunk-les-step-1-3-i10-40">Absolute positional information</h4>
+<p>Ask:</p>
+<blockquote>
+<p><strong>What is the exact position of this token?</strong></p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+0,1,2,3,4,\ldots
+</div>
+<p>Position 0 has one positional vector.</p>
+<p>Position 1 has another.</p>
+<p>Position 2 has another.</p>
+<p>So:</p>
+<div class="math block">
+P_0,P_1,P_2,\ldots
+</div>
+<p>Raschka describes this as assigning a unique embedding to each position and adding it to the token embedding.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-3-i10-41">Relative positional information</h4>
+<p>Instead of asking:</p>
+<blockquote>
+<p>&quot;What is your absolute position?&quot;</p>
+</blockquote>
+<p>we care about:</p>
+<blockquote>
+<p>&quot;How far are you from the other token?&quot;</p>
+</blockquote>
+<p>For example:</p>
+<pre><code class="language-text">The cat sat on the mat
+</code></pre>
+<p>When <code>&quot;mat&quot;</code> attends to <code>&quot;cat&quot;</code>:</p>
+<div class="math block">
+\text{distance}=4
+</div>
+<p>It may be more useful for the model to understand this relationship than to simply know:</p>
+<blockquote>
+<p><code>&quot;mat&quot;</code> is at position 6.</p>
+</blockquote>
+<p>Raschka explains relative positional approaches in terms of the distance between tokens.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-42">1.3.7 Why Relative Position Can Be Attractive</h3>
+<p>Imagine training sequences mostly have lengths around 100.</p>
+<p>An absolute-position scheme learns:</p>
+<div class="math block">
+P_0,\ldots,P_{99}
+</div>
+<p>But what if inference gives a sequence of length 500?</p>
+<p>Absolute position representations can become problematic depending on the implementation and training regime.</p>
+<p>Relative approaches can focus more naturally on relationships such as:</p>
+<div class="math block">
+j-i
+</div>
+<p>rather than exact positions.</p>
+<p>Raschka notes the potential advantage of relative position methods for generalizing to different sequence lengths.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-43">1.3.8 Learned Absolute Positional Embeddings</h3>
+<p>This is the simplest version to understand and the one implemented in Raschka's GPT-from-scratch chapter.</p>
+<p>We create:</p>
+<div class="math block">
+P\in\mathbb R^{T_{\max}\times d}
+</div>
+<p>and treat <span class="math inline">P</span> as a learnable parameter.</p>
+<p>For example:</p>
+<div class="math block">
+P=
+\begin{bmatrix}
+P_0\\
+P_1\\
+P_2\\
+\vdots\\
+P_{T_{\max}-1}
+\end{bmatrix}
+</div>
+<p>Each:</p>
+<div class="math block">
+P_i\in\mathbb R^d
+</div>
+<p>is learned during training.</p>
+<p>So:</p>
+<div class="math block">
+X_t=E(x_t)+P_t
+</div>
+<p>This means the same token gets different final initial representations depending on where it occurs.</p>
+<p>For <code>&quot;cat&quot;</code>:</p>
+<div class="math block">
+E(\text{cat})+P_2
+</div>
+<p>is different from:</p>
+<div class="math block">
+E(\text{cat})+P_8
+</div>
+<p>Raschka's PyTorch implementation creates a positional <code>Embedding</code> layer and uses:</p>
+<pre><code class="language-python">torch.arange(context_length)
+</code></pre>
+<p>to retrieve the position vectors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-44">1.3.9 Exact PyTorch Implementation</h3>
+<p>The core implementation is surprisingly small:</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+batch_size = 2
+seq_len = 5
+embedding_dim = 8
+
+# Token IDs
+input_ids = torch.tensor([
+    [1, 4, 7, 2, 9],
+    [3, 5, 8, 6, 0]
+])
+
+# Token embedding table
+token_embedding = nn.Embedding(
+    num_embeddings=10,
+    embedding_dim=embedding_dim
+)
+
+# Position embedding table
+position_embedding = nn.Embedding(
+    num_embeddings=seq_len,
+    embedding_dim=embedding_dim
+)
+
+# Token embeddings
+token_embeddings = token_embedding(input_ids)
+
+# Positions: [0, 1, 2, 3, 4]
+positions = torch.arange(seq_len)
+
+# Positional embeddings
+position_embeddings = position_embedding(positions)
+
+# Add token + position
+X = token_embeddings + position_embeddings
+
+print(&quot;Token IDs:          &quot;, input_ids.shape)
+print(&quot;Token embeddings:  &quot;, token_embeddings.shape)
+print(&quot;Position embeddings:&quot;, position_embeddings.shape)
+print(&quot;Final input X:      &quot;, X.shape)
+</code></pre>
+<p>Shapes:</p>
+<pre><code class="language-text">Token IDs
+[2, 5]
+
+Token embeddings
+[2, 5, 8]
+
+Positions
+[5]
+
+Position embeddings
+[5, 8]
+
+Final X
+[2, 5, 8]
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[ B,T]
+\rightarrow
+[B,T,d]
++
+[T,d]
+\rightarrow
+[B,T,d]
+}
+</div>
+<p>This follows the positional-embedding procedure shown in Raschka's implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-45">1.3.10 But What Did the Original Transformer Do?</h3>
+<p>Now an important historical distinction.</p>
+<p>The <strong>original Transformer</strong> used <strong>sinusoidal positional encodings</strong> rather than learned position vectors.</p>
+<p>The standard equations are:</p>
+<div class="math block">
+\boxed{
+PE_{(pos,2i)}
+=
+\sin
+\left(
+\frac{pos}{10000^{2i/d_{\text{model}}}}
+\right)
+}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{
+PE_{(pos,2i+1)}
+=
+\cos
+\left(
+\frac{pos}{10000^{2i/d_{\text{model}}}}
+\right)
+}
+</div>
+<p>Here:</p>
+<ul>
+<li><span class="math inline">pos</span> = token position</li>
+<li><span class="math inline">i</span> = dimension index</li>
+<li><span class="math inline">d_{\text{model}}</span> = model dimension</li>
+</ul>
+<p>Your DeepSeek book explains this construction as using smooth sine/cosine waves at different frequencies, replacing crude discrete position encodings with continuous signals. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-46">1.3.11 Why Sine and Cosine?</h3>
+<p>This formula looks scary:</p>
+<div class="math block">
+\sin\left(\frac{pos}{10000^{2i/d}}\right)
+</div>
+<p>but the underlying idea is simple.</p>
+<p>We want every position to generate a distinctive pattern.</p>
+<p>So imagine several waves:</p>
+<pre><code class="language-text">dimension 1:  ~~~~~ very fast
+dimension 2:  ~~~~  fast
+dimension 3:  ~~~   medium
+dimension 4:  ~~    slower
+dimension 5:  ~     very slow
+</code></pre>
+<p>Each dimension changes at a different frequency.</p>
+<p>Thus position 10 and position 11 produce slightly different patterns, while position 10 and position 100 produce much more different patterns.</p>
+<p>The DeepSeek book explains exactly this multi-frequency intuition. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-47">1.3.12 Small Numerical Example</h3>
+<p>Take:</p>
+<div class="math block">
+d_{\text{model}}=4
+</div>
+<p>and position:</p>
+<div class="math block">
+pos=1
+</div>
+<p>For dimension <span class="math inline">2i=0</span>:</p>
+<div class="math block">
+PE(1,0)
+=
+\sin(1)
+\approx0.8415
+</div>
+<p>For dimension <span class="math inline">2i+1=1</span>:</p>
+<div class="math block">
+PE(1,1)
+=
+\cos(1)
+\approx0.5403
+</div>
+<p>For the next pair, the denominator becomes larger:</p>
+<div class="math block">
+10000^{2/4}=100
+</div>
+<p>so:</p>
+<div class="math block">
+PE(1,2)=\sin(0.01)\approx0.0100
+</div>
+<div class="math block">
+PE(1,3)=\cos(0.01)\approx0.99995
+</div>
+<p>So approximately:</p>
+<div class="math block">
+PE_1
+=
+[0.8415,0.5403,0.0100,0.99995]
+</div>
+<p>Another position, say <span class="math inline">pos=2</span>, produces another vector:</p>
+<div class="math block">
+PE_2
+=
+[\sin2,\cos2,\sin0.02,\cos0.02]
+</div>
+<p>Hence the position is encoded as a pattern across dimensions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-48">1.3.13 The Beautiful Part of Sinusoidal Encoding</h3>
+<p>The low-frequency dimensions change slowly.</p>
+<p>The high-frequency dimensions change rapidly.</p>
+<p>So together they provide:</p>
+<div class="math block">
+\boxed{
+\text{fine positional information}
++
+\text{coarse positional information}
+}
+</div>
+<p>Think of it like having multiple clocks running at different speeds.</p>
+<p>One clock distinguishes nearby positions.</p>
+<p>Another captures broader location.</p>
+<p>Another changes even more slowly.</p>
+<p>The DeepSeek book's discussion specifically emphasizes this multi-frequency structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-49">1.3.14 Learned Absolute vs Sinusoidal</h3>
+<p>Now keep these distinct.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Position representation</th>
+<th>Learned?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Learned absolute</td>
+<td>One vector per position</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Sinusoidal</td>
+<td>Sine/cosine functions</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Relative methods</td>
+<td>Position relationships/distances</td>
+<td>Depends</td>
+</tr>
+<tr>
+<td>RoPE</td>
+<td>Rotates Q/K by position</td>
+<td>Learned projections + fixed rotational structure</td>
+</tr>
+</tbody>
+</table>
+<p>Raschka's book, in its GPT-from-scratch implementation, uses learned absolute positional embeddings.</p>
+<p>The original Transformer used sinusoidal encodings.</p>
+<p>Your Transformer slides then point out an important modern development:</p>
+<blockquote>
+<p><strong>RoPE (Rotary Position Embedding).</strong> <em>(Source: transformers-slides)</em></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-50">1.3.15 RoPE — The Modern Direction</h3>
+<p>We will study RoPE more deeply later, but you should understand the core idea now.</p>
+<p>Instead of doing:</p>
+<div class="math block">
+X=E+P
+</div>
+<p>RoPE modifies the <strong>query and key vectors</strong> according to their positions.</p>
+<p>For a simplified 2D pair:</p>
+<div class="math block">
+R_m(\theta)
+=
+\begin{bmatrix}
+\cos(m\theta)&amp;-\sin(m\theta)\\
+\sin(m\theta)&amp;\cos(m\theta)
+\end{bmatrix}
+</div>
+<p>Then:</p>
+<div class="math block">
+q_m=R_mq
+</div>
+<p>and:</p>
+<div class="math block">
+k_n=R_nk
+</div>
+<p>The important mathematical consequence is:</p>
+<div class="math block">
+q_m^Tk_n
+</div>
+<p>becomes dependent on the relative displacement:</p>
+<div class="math block">
+n-m
+</div>
+<p>The attention handbook in your source set derives this relationship explicitly. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So RoPE gives attention a way to incorporate positional relationships <strong>inside the Q/K interaction</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-51">1.3.16 Why This Is Different From Adding <span class="math inline">P</span></h3>
+<p>Compare:</p>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-52">Learned absolute position</h5>
+<div class="math block">
+\boxed{
+X_t=E_t+P_t
+}
+</div>
+<p>Position is injected into the representation.</p>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-53">RoPE</h5>
+<div class="math block">
+\boxed{
+Q_t\rightarrow R_tQ_t,\qquad
+K_t\rightarrow R_tK_t
+}
+</div>
+<p>Position is incorporated directly into the attention compatibility calculation.</p>
+<p>This distinction becomes extremely important when we study the actual attention equation.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-1-3-i10-0" data-full-review="added"><p>Correction: Causal attention already has a position-dependent access pattern; lack of explicit positional embeddings does not make every causal decoder strictly permutation-equivariant. Position encoding and eligibility remain distinct.</p><p><a href="#audit-full-chunk-les-step-1-3-i10">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-1-3-i10-54">1.3.17 A Subtle but Important Point: Causal Mask ≠ Positional Encoding</h3>
+<p>Do not confuse these.</p>
+<p>A causal mask says:</p>
+<blockquote>
+<p><strong>You are not allowed to look at future positions.</strong></p>
+</blockquote>
+<p>For example:</p>
+<pre><code class="language-text">position 4 can see:
+1 2 3 4
+
+but cannot see:
+5 6 7
+</code></pre>
+<p>That provides a <strong>directional constraint</strong>.</p>
+<p>But it does not fully tell the model:</p>
+<blockquote>
+<p>&quot;Token 4 is exactly four positions after token 0.&quot;</p>
+</blockquote>
+<p>The attention handbook explicitly distinguishes these: a causal mask imposes directional ordering constraints, but does not itself provide a rich representation of position or distance. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Causal mask} \neq \text{positional encoding}
+}
+</div>
+<p>This will save you from a very common interview mistake.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-55">1.3.18 Why Position Matters for Attention</h3>
+<p>We are now ready to connect position to what comes next.</p>
+<p>Without positional information:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+e_{\text{cat}}\\
+e_{\text{sat}}\\
+e_{\text{here}}
+\end{bmatrix}
+</div>
+<p>Self-attention computes interactions between these representations.</p>
+<p>But if you permute the rows, plain self-attention without position-dependent information treats the operation symmetrically with respect to that permutation: the outputs permute along with the inputs.</p>
+<p>The attention handbook describes this as <strong>permutation equivariance</strong>. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>That's the mathematical reason position must be injected.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-56">1.3.19 The Full Input Representation Now</h3>
+<p>Previously:</p>
+<div class="math block">
+x_t=E(x_t)
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+x_t=E(x_t)+P_t
+}
+</div>
+<p>or, for the complete sequence:</p>
+<div class="math block">
+\boxed{
+X=X_{\text{token}}+X_{\text{position}}
+}
+</div>
+<p>Therefore:</p>
+<pre><code class="language-text">token ID
+   ↓
+token embedding
+   +
+position information
+   ↓
+position-aware representation
+   ↓
+Transformer
+</code></pre>
+<p>This is the complete input to the attention mechanism in the learned-absolute-position formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-57">1.3.20 Connecting All Three Steps</h3>
+<p>We now have:</p>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-58">Step 1.1 — Language model</h5>
+<div class="math block">
+P(x_t\mid x_{&lt;t})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-59">Step 1.2 — Token representation</h5>
+<div class="math block">
+x_t
+\rightarrow
+\text{token ID}
+\rightarrow
+E(x_t)
+</div>
+<h5 id="v3-heading-chunk-les-step-1-3-i10-60">Step 1.3 — Position</h5>
+<div class="math block">
+E(x_t)
+\rightarrow
+E(x_t)+P_t
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{IDs}
+\rightarrow
+\text{token embeddings}
+\rightarrow
+\text{position-aware embeddings}
+\rightarrow
+\text{attention}
+}
+</div>
+<p>And <strong>now</strong> we can finally understand the heart of the Transformer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-61">1.3.21 The Next Question</h3>
+<p>Suppose we have:</p>
+<pre><code class="language-text">The animal didn't cross the road because it was tired.
+</code></pre>
+<p>When processing:</p>
+<blockquote>
+<p><code>it</code></p>
+</blockquote>
+<p>the model should probably look strongly at:</p>
+<blockquote>
+<p><code>animal</code></p>
+</blockquote>
+<p>rather than:</p>
+<blockquote>
+<p><code>road</code></p>
+</blockquote>
+<p>So we need a mechanism that answers:</p>
+<blockquote>
+<p><strong>For the current token, which other tokens are relevant, and by how much?</strong></p>
+</blockquote>
+<p>That mechanism is <strong>self-attention</strong>.</p>
+<p>And this is where our earlier mathematical concepts suddenly become useful:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q
+}
+</div>
+<div class="math block">
+\boxed{
+K=XW_K
+}
+</div>
+<div class="math block">
+\boxed{
+V=XW_V
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{
+S=QK^T
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+A=\operatorname{softmax}
+\left(
+\frac{S}{\sqrt{d_k}}
+\right)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+O=AV
+}
+</div>
+<p>We already saw these equations abstractly in the mathematical foundation. Now we are going to derive <strong>why every single one of them exists</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-3-i10-62">Step 1.3 Master Check</h3>
+<p>Before moving to self-attention, make sure these are clear:</p>
+<p><strong>Q1.</strong> Why does:</p>
+<div class="math block">
+E(\text{&quot;cat&quot;})
+</div>
+<p>remain the same whether <code>&quot;cat&quot;</code> occurs at position 1 or position 10?</p>
+<p><strong>Q2.</strong> Why is this a problem for a Transformer?</p>
+<p><strong>Q3.</strong> What does this equation mean?</p>
+<div class="math block">
+X=X_{\text{token}}+P
+</div>
+<p><strong>Q4.</strong> If:</p>
+<div class="math block">
+X_{\text{token}}\in\mathbb R^{8\times128\times768}
+</div>
+<p>what shape must the positional vectors have so they can be added?</p>
+<p><strong>Q5.</strong> Explain the difference between <strong>absolute</strong> and <strong>relative</strong> positional information.</p>
+<p><strong>Q6.</strong> What is the purpose of the sinusoidal encoding?</p>
+<p><strong>Q7.</strong> What is the key mathematical idea behind RoPE?</p>
+<p><strong>Q8.</strong> Why is:</p>
+<div class="math block">
+\text{causal mask}
+</div>
+<p>not the same thing as:</p>
+<div class="math block">
+\text{positional encoding}?
+</div>
+<p><strong>Q9.</strong> Complete the full pipeline:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+\text{attention}
+}
+</div>
+<hr />
+</section>

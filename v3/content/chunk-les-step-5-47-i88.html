@@ -1,0 +1,1581 @@
+<section class="chunk" id="chunk-les-step-5-47-i88" data-id="les-step-5-47-i88"><details class="audit-card" id="audit-full-chunk-les-step-5-47-i88" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-47-i88-1">Motivation</h4><p>Compose accumulation, data parallel replicas, layer partitions and expert placement without counting one mechanism twice.</p><h4 id="v3-heading-chunk-les-step-5-47-i88-2">Prerequisites</h4><ul><li>Mini-batch SGD and weighted means</li><li>GPU state versus activation memory</li><li>MoE top-k routing</li><li>Critical paths and collective communication</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-3">Notation and units</h4><ul><li>B_micro: sequences/replica; R: DP replicas; A: accumulation count</li><li>P: pipeline stages; M: microbatches; F/B: forward/backward chunk duration</li><li>T: tokens; k: top-k; d: representation width; s: bytes/element</li><li>N_experts: expert count; rho: remote assignment fraction</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Schedule formulas assume equal-duration stages and declared independent communication; traffic counts exclude unstated overhead.</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-5">Step-by-step derivation</h4><ol><li>Define B_micro as sequences per replica, R as data-parallel replicas, and A as accumulation microbatches per update. B_effective=B_micro*R*A; pipeline stage count is not another batch multiplier.</li><li>Tensor/model/expert parallel groups split one logical replica; DDP groups replicate corresponding partitions. GPU count bookkeeping depends on group overlap and framework topology.</li><li>Pipeline efficiency M/(M+P-1) assumes balanced stages, constant forward/backward times and a synchronous fixed weight version. Unequal stages, network stalls and optimizer barriers break the toy bound.</li><li>FP8 reduces selected payloads; ZeRO shards learning state; expert parallelism shards experts. Their combined memory and communication costs require measurement on the actual topology.</li></ol><h4 id="v3-heading-chunk-les-step-5-47-i88-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-47-i88-7">Whole-update bookkeeping</h5><p>Given: B_micro=4, A=8, R=4, S=2048</p><ol><li>Effectivebatch4*8*4=128 sequences.</li><li>Tokens 128*2048=262144beforepaddinglossmask.</li><li>Pipelinestagesdo not multiply this count.</li></ol><p>Answer: 128 sequences;262144 tokens</p><p>Verification: mtp_fp8_parallelism / DP-exam-tokens · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-47-i88-8">Cluster payload sanity</h5><p>Given: T=65536, k=8, d=4096, s=2</p><ol><li>Assignmentcount524288.</li><li>One representation 8192bytes.</li><li>Grossoneway524288*8192=4294967296 bytes.</li></ol><p>Answer: 4 GiB, approximately4.295 GB</p><p>Verification: mtp_fp8_parallelism / MOE-large-volume · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-47-i88-9">Pipeline utilization</h5><p>Given: P=8, M=64</p><ol><li>Computeutilization64/(64+7)=64/71.</li><li>Bubblefraction7/71.</li></ol><p>Answer: 90.14084507%utilization;9.85915493%bubble</p><p>Verification: mtp_fp8_parallelism / PIPE-exam-8-64 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-47-i88-10">Corrections and source qualifications</h4><ul><li>heading: 1F1B, DualPipe and DualPipeV; text: Scheduling qualification: GPipe and standard non-interleaved 1F1B share M/(M+P-1) ideal utilization for fixed equal-time stages and microbatches. 1F1B primarily lowers live activation storage; it does not automatically remove all fill/drain bubbles. DualPipe is bidirectional; DualPipeV is a separate folded single-stream variant. Two stages per rank and half as many ranks do not themselves guarantee equal wall time or half training cost.</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-11">Mastery answers and retained exercise context</h4><ol><li>question: 5.47.45 Exam master table; answer: Technique Core idea Main bottleneck solved New concern Gradient accumulation Small batches + delayed update Batch VRAM More sequential work Data parallelism Replicate model, split data Training throughput Full model on every GPU Pipeline parallelism Split layers Model memory Pipeline bubble 1F1B Interleave forward/backward Bubble + activation memory MoE communication remains Expert parallelism Split experts Expert memory All-to-All communication DualPipe Fine-grained overlap MoE communication / idle time Scheduling complexity + memory trade-off DualPipeV Folded V-shaped pipeline Hardware/scheduling efficiency ~2× parameter memory per GPU in source description (Source: Build a DeepSeek Model (From Scratch)) Schedule qualification: Scheduling qualification: GPipe and standard non-interleaved 1F1B share M/(M+P-1) ideal utilization for fixed equal-time stages and microbatches. 1F1B primarily lowers live activation storage; it does not automatically remove all fill/drain bubbles. DualPipe is bidirectional; DualPipeV is a separate folded single-stream variant. Two stages per rank and half as many ranks do not themselves guarantee equal wall time or half training cost.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.47.46 Exam numerical bank; answer: Define B_micro as sequences per replica, R as data-parallel replicas, and A as accumulation microbatches per update. B_effective=B_micro*R*A; pipeline stage count is not another batch multiplier. Tensor/model/expert parallel groups split one logical replica; DDP groups replicate corresponding partitions. GPU count bookkeeping depends on group overlap and framework topology. Pipeline efficiency M/(M+P-1) assumes balanced stages, constant forward/backward times and a synchronous fixed weight version. Unequal stages, network stalls and optimizer barriers break the toy bound. FP8 reduces selected payloads; ZeRO shards learning state; expert parallelism shards experts. Their combined memory and communication costs require measurement on the actual topology. Schedule qualification: Scheduling qualification: GPipe and standard non-interleaved 1F1B share M/(M+P-1) ideal utilization for fixed equal-time stages and microbatches. 1F1B primarily lowers live activation storage; it does not automatically remove all fill/drain bubbles. DualPipe is bidirectional; DualPipeV is a separate folded single-stream variant. Two stages per rank and half as many ranks do not themselves guarantee equal wall time or half training cost.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.47.47 A very important interview question; answer: Define B_micro as sequences per replica, R as data-parallel replicas, and A as accumulation microbatches per update. B_effective=B_micro*R*A; pipeline stage count is not another batch multiplier. Tensor/model/expert parallel groups split one logical replica; DDP groups replicate corresponding partitions. GPU count bookkeeping depends on group overlap and framework topology. Pipeline efficiency M/(M+P-1) assumes balanced stages, constant forward/backward times and a synchronous fixed weight version. Unequal stages, network stalls and optimizer barriers break the toy bound. FP8 reduces selected payloads; ZeRO shards learning state; expert parallelism shards experts. Their combined memory and communication costs require measurement on the actual topology. Schedule qualification: Scheduling qualification: GPipe and standard non-interleaved 1F1B share M/(M+P-1) ideal utilization for fixed equal-time stages and microbatches. 1F1B primarily lowers live activation storage; it does not automatically remove all fill/drain bubbles. DualPipe is bidirectional; DualPipeV is a separate folded single-stream variant. Two stages per rank and half as many ranks do not themselves guarantee equal wall time or half training cost.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.47.29 Why is this called V-shaped?; answer: A micro-batch moves: Stage0 \rightarrow Stage1 \rightarrow Stage2 \rightarrow Stage3 then: Stage4 on the same device. Then: Stage4 \rightarrow Stage5 \rightarrow Stage6 \rightarrow Stage7. So physically: \boxed{ \text{down} \rightarrow \text{turn} \rightarrow \text{up} } which forms a V. The source calls this: \boxed{\text{DualPipeV}} or: \boxed{\text{V-shape / cut-in-half schedule}}. (Source: Build a DeepSeek Model (From Scratch)) 5.47.30 Numerical — folded pipeline Suppose: N=16 stages. Source-style DualPipeV: N/2 = \boxed{8} physical GPUs. Each GPU holds: \boxed{2\text{ stages}}. Therefore parameter memory per GPU is approximately: \boxed{2\times} the one-stage-per-GPU arrangement. This is an explicit trade-off described by the source. (Source: Build a DeepSeek Model (From Scratch)) 5.47.31 Why accept 2× parameter memory? Because we are getting: \boxed{ \text{fewer physical GPUs} } and: \boxed{ \text{better utilization / communication hiding} }. The source describes this as a deliberate engineering trade-off rather than an unconditional improvement. (Source: Build a DeepSeek Model (From Scratch)) 5.47.32 The full stack now We can finally combine the technologies. TRAINING JOB │ ▼ GLOBAL DATA BATCH │ ▼ Gradient Accumulation │ ▼ M; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-47-i88-12">Edge cases and remaining gaps</h4><ul><li>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-13">Connections and progression</h4><ul><li>Accumulation objective → DDP normalization → global update invariant</li><li>MoE expert placement → all-to-all traffic → overlap opportunity</li><li>Pipeline activation residency → microbatch limits → achievable schedule utilization</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 361, 362, 363, 364, 365, 366 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>deepseek-ai/DualPipe official repository README · Bidirectional versus folded schedules; stage/device mapping; conditional bubble formula; custom overlap requirement. Read 2026-10-07. · https://github.com/deepseek-ai/DualPipe</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-15">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (85)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.47 — The Full DeepSeek Distributed-Training Stack</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.1 First: one GPU is not enough</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.2 The first distinction: split data or split model?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Data Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Model Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.3 Data Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.4 Why data parallelism speeds training</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.5 The data-parallel memory problem</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.6 Gradient accumulation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.7 Why gradient accumulation works</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.8 Numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.9 Important distinction</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.10 Now model parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.11 Pipeline Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.12 Why micro-batches are necessary</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.13 The pipeline idea</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.14 The problem: Pipeline Bubble</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.15 Bubble formula</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.16 Numerical: increase micro-batches</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>M=8</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>M=32</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>M=128</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.17 Why not just use enormous M?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.18 1F1B</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.19 Why 1F1B matters</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.20 So far the progression is</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.21 Expert Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.22 Why 1F1B is no longer enough</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.23 This is the central DeepSeek systems problem</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.24 DualPipe&#x27;s central idea</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.25 Numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.26 What exactly is overlapped?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.27 Why “fine-grained” matters</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.28 Pipeline folding</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.29 Why is this called V-shaped?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.30 Numerical — folded pipeline</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.31 Why accept 2× parameter memory?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.32 The full stack now</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.33 Very important: these techniques are complementary</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.34 A concrete 8-GPU mental model</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.35 Effective batch-size numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.36 Now add sequence length</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.37 MoE routing at cluster scale</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.38 Why balancing becomes increasingly important</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.39 Full pipeline-bubble numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.40 What if M=512?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.41 Full communication numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.42 Now combine communication and pipeline scheduling</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.43 What DualPipe does NOT mean</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.44 Full “problem → solution” evolution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Problem 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Problem 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Problem 3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Problem 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Problem 5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>New problem</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Remaining problem</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>DeepSeek solution</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.45 Exam master table</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.46 Exam numerical bank</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Numerical 1 — Gradient accumulation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Numerical 2 — Pipeline</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Numerical 3 — MoE routing</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Numerical 4 — Communication</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Numerical 5 — DualPipe overlap</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>Numerical 6 — DualPipeV</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.47 A very important interview question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>“Why not just use more GPUs?”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.47.48 The complete DeepSeek training architecture</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.49 The most important formulas from this step</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Effective batch</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pipeline efficiency</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>MoE assignments</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Ideal expert load</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Gross routed representation volume</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Dense expert computation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Routed MoE computation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Ideal overlap</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>DualPipeV physical-device relation in the source&#x27;s simplified description</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>5.47.50 Final mental model</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-A08" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A08 — ZeRO partitions different model-state components</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Reduce replicated optimizer, gradient and parameter state across data-parallel ranks.</p><p><strong>Prerequisites:</strong> <a href="#audit-A05">Gradient accumulation with unequal valid-token counts</a>, <a href="#audit-T19">Parameter accounting and tied weights</a></p><h4 id="v3-heading-chunk-les-step-5-47-i88-16">Notation and assumptions</h4><p>Ideal model-state accounting with2-byte parameters,2-byte gradients,12-byte optimizer/master state per parameter. Stage1 shards optimizer;stage2 also gradients;stage3 also parameters.</p><h4 id="v3-heading-chunk-les-step-5-47-i88-17">Derivation and mechanism</h4><ol><li>Record bytes by state category.</li><li>Divide only categories sharded by the selected stage by world size.</li><li>Add each rank storage; include activation/temporary communication memory separately.</li></ol><h4 id="v3-heading-chunk-les-step-5-47-i88-18">Worked example</h4><p>1000parameters,world4:stage0=16000bytes;stage1=7000;stage2=5500;stage3=4000. The12-byte optimizer assumption explicitly includes the chosen master/moment representation.</p><h4 id="v3-heading-chunk-les-step-5-47-i88-19">Limitations</h4><ul><li>Observed peak memory includes all-gather/reduce buffers and activations.</li><li>Optimizer choices, offload and mixed-precision implementations change the numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-20">Connections to later concepts</h4><ul><li>A09 distributes execution stages, whereas ZeRO partitions data-parallel model state; these mechanisms can be combined.</li></ul><h4 id="v3-heading-chunk-les-step-5-47-i88-21">Source support</h4><ul><li><a href="https://arxiv.org/abs/1910.02054" rel="noopener noreferrer">ZeRO stages and state partitioning</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-47-i88-22">Executed code and evidence</h4><p>Functions: zero_memory. Passed checks: ZeRO-stage0, ZeRO-stage1, ZeRO-stage2, ZeRO-stage3</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-47-i88"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-47-i88" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-46-i87">← Previous lesson</a> · <a href="#chunk-les-r101-1-i113">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-46-i87">Step 5.46 — Distributed MoE: Expert Parallelism, All-to-All Communication, Pipeline Bubbles, and DualPipe</a></p><p><strong>This lesson:</strong> Step 5.47 — The Full DeepSeek Distributed-Training Stack</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-47-i88"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-47-i88-23">Step 5.47 — The Full DeepSeek Distributed-Training Stack</h3>
+<p><em>Plan node: A5 · chat order #88</em></p>
+<p>We have now reached the point where the architecture itself is understood. The next question is:</p>
+<div class="math block">
+\boxed{\text{How do we train this enormous model efficiently across many GPUs?}}
+</div>
+<p>The source builds this progressively:</p>
+<div class="math block">
+\boxed{
+\text{Gradient Accumulation}
+\rightarrow
+\text{Data Parallelism}
+\rightarrow
+\text{Model/Pipeline Parallelism}
+\rightarrow
+\text{Expert Parallelism}
+\rightarrow
+\text{1F1B}
+\rightarrow
+\text{DualPipe}
+}
+</div>
+<p>The central lesson is that <strong>each optimization solves one bottleneck and often exposes another</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-24">5.47.1 First: one GPU is not enough</h4>
+<p>Our DeepSeek-style model contains:</p>
+<div class="math block">
+\boxed{\text{MLA}}
+</div>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<p>and potentially hundreds of billions of parameters.</p>
+<p>The source's DeepSeek-R1 example has:</p>
+<div class="math block">
+671B
+</div>
+<p>total parameters and:</p>
+<div class="math block">
+37B
+</div>
+<p>active per token. Yet the entire model weights still need to remain available. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we need multiple GPUs.</p>
+<p>But there are several ways to distribute the workload.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-25">5.47.2 The first distinction: split data or split model?</h4>
+<p>There are two fundamental approaches in the source:</p>
+<div class="math block">
+\boxed{\text{Data Parallelism}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Model Parallelism}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The difference is extremely simple:</p>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-26">Data Parallelism</h6>
+<p>Keep copies of the model, split the data.</p>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-27">Model Parallelism</h6>
+<p>Split the model itself across GPUs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-28">5.47.3 Data Parallelism</h4>
+<p>Suppose you have:</p>
+<div class="math block">
+4
+</div>
+<p>GPUs.</p>
+<p>Instead of processing one batch on one GPU:</p>
+<pre><code class="language-text">Batch
+  ↓
+GPU 0
+</code></pre>
+<p>we split the batch:</p>
+<pre><code class="language-text">             Batch
+          /    |    |    \
+         ↓     ↓    ↓     ↓
+       GPU0  GPU1  GPU2  GPU3
+</code></pre>
+<p>Each GPU owns a replica of the model.</p>
+<p>The source explicitly describes Data Parallelism this way: replicate the model and give each device a different shard of the batch. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-29">5.47.4 Why data parallelism speeds training</h4>
+<p>Suppose one GPU takes:</p>
+<div class="math block">
+100\text{ ms}
+</div>
+<p>to process:</p>
+<div class="math block">
+32
+</div>
+<p>examples.</p>
+<p>Four GPUs can process:</p>
+<div class="math block">
+4\times32=128
+</div>
+<p>examples approximately concurrently, subject to communication and scaling efficiency.</p>
+<p>So throughput can approach:</p>
+<div class="math block">
+\boxed{4\times}
+</div>
+<p>in the ideal case.</p>
+<p>But there is a major problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-30">5.47.5 The data-parallel memory problem</h4>
+<p>Every GPU has a full copy of:</p>
+<div class="math block">
+\boxed{\text{the model}}.
+</div>
+<p>If the model is:</p>
+<div class="math block">
+671B
+</div>
+<p>parameters, replicating it on every GPU is obviously impossible.</p>
+<p>The source explicitly says DDP does <strong>not</strong> solve the model-memory problem because every GPU contains the full model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{DDP solves throughput}
+}
+</div>
+<p>but not:</p>
+<div class="math block">
+\boxed{
+\text{model-too-large}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-31">5.47.6 Gradient accumulation</h4>
+<p>Before moving into model parallelism, the source introduces <strong>Gradient Accumulation</strong>.</p>
+<p>Suppose your desired effective batch is:</p>
+<div class="math block">
+B_{\text{eff}}=64
+</div>
+<p>but your GPU can only fit:</p>
+<div class="math block">
+B_{\text{physical}}=16.
+</div>
+<p>Then:</p>
+<div class="math block">
+N_{\text{acc}}
+=
+\frac{64}{16}
+=
+\boxed{4}.
+</div>
+<p>The source derives this relationship explicitly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-32">5.47.7 Why gradient accumulation works</h4>
+<p>For a batch of <span class="math inline">B</span> examples:</p>
+<div class="math block">
+g_{\text{batch}}
+=
+\frac1B
+\sum_{i=1}^{B}g_i.
+</div>
+<p>Instead of calculating all gradients at once, divide the batch into chunks.</p>
+<p>Suppose:</p>
+<div class="math block">
+g_1,g_2,g_3,g_4
+</div>
+<p>are the gradients for four mini-batches.</p>
+<p>Then accumulate:</p>
+<div class="math block">
+g_{\text{acc}}
+=
+g_1+g_2+g_3+g_4
+</div>
+<p>with appropriate normalization.</p>
+<p>Then perform one optimizer update.</p>
+<p>The source emphasizes that this lets a smaller physical batch simulate a larger effective batch without requiring all examples simultaneously in VRAM. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-33">5.47.8 Numerical</h4>
+<p>Physical batch:</p>
+<div class="math block">
+16
+</div>
+<p>Accumulation steps:</p>
+<div class="math block">
+4.
+</div>
+<p>Effective batch:</p>
+<div class="math block">
+16\times4
+=
+\boxed{64}.
+</div>
+<p>Another example:</p>
+<div class="math block">
+B_{\text{physical}}=8
+</div>
+<p>and:</p>
+<div class="math block">
+N_{\text{acc}}=16.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+B_{\text{effective}}=128.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-34">5.47.9 Important distinction</h4>
+<p>Gradient accumulation does <strong>not</strong> mean:</p>
+<div class="math block">
+\boxed{\text{the GPU suddenly has more VRAM}}.
+</div>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{process smaller pieces sequentially}
+}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{
+\text{process the entire effective batch simultaneously}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{memory}\downarrow
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{number of forward/backward iterations}\uparrow
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-35">5.47.10 Now model parallelism</h4>
+<p>Suppose the model itself is too large for one GPU.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{split the model}.
+}
+</div>
+<p>The source describes this as <strong>Model Parallelism</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Two major forms in the source's discussion are:</p>
+<div class="math block">
+\boxed{\text{Pipeline Parallelism}}
+</div>
+<p>and other forms such as tensor/model splitting.</p>
+<p>For the DeepSeek story, pipeline parallelism and expert parallelism are particularly important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-36">5.47.11 Pipeline Parallelism</h4>
+<p>Suppose there are:</p>
+<div class="math block">
+8
+</div>
+<p>Transformer stages.</p>
+<p>Split them across:</p>
+<div class="math block">
+8
+</div>
+<p>GPUs:</p>
+<pre><code class="language-text">GPU0 → Stage 0
+GPU1 → Stage 1
+GPU2 → Stage 2
+GPU3 → Stage 3
+GPU4 → Stage 4
+GPU5 → Stage 5
+GPU6 → Stage 6
+GPU7 → Stage 7
+</code></pre>
+<p>A batch enters GPU 0.</p>
+<p>Its activation flows:</p>
+<div class="math block">
+GPU_0
+\rightarrow
+GPU_1
+\rightarrow
+GPU_2
+\rightarrow\cdots\rightarrow
+GPU_7.
+</div>
+<p>The source compares this to an assembly line. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-37">5.47.12 Why micro-batches are necessary</h4>
+<p>Suppose the whole batch is treated as one unit.</p>
+<p>Then the pipeline becomes:</p>
+<pre><code class="language-text">GPU0: █████
+GPU1:      █████
+GPU2:           █████
+GPU3:                █████
+...
+</code></pre>
+<p>Most GPUs spend much of the time waiting.</p>
+<p>To keep the pipeline active, split the batch into:</p>
+<div class="math block">
+M
+</div>
+<p>micro-batches.</p>
+<p>Example:</p>
+<div class="math block">
+B=64
+</div>
+<p>could be split into:</p>
+<div class="math block">
+M=8
+</div>
+<p>micro-batches of:</p>
+<div class="math block">
+8
+</div>
+<p>samples each.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-38">5.47.13 The pipeline idea</h4>
+<p>Instead of:</p>
+<div class="math block">
+m_1
+</div>
+<p>moving through all 8 stages before:</p>
+<div class="math block">
+m_2
+</div>
+<p>starts, we pipeline them:</p>
+<pre><code class="language-text">Time →
+GPU0: m1 m2 m3 m4 m5 ...
+GPU1:    m1 m2 m3 m4 ...
+GPU2:       m1 m2 m3 ...
+GPU3:          m1 m2 ...
+...
+</code></pre>
+<p>This is what makes pipeline parallelism useful.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-39">5.47.14 The problem: Pipeline Bubble</h4>
+<p>At the beginning:</p>
+<div class="math block">
+GPU_0
+</div>
+<p>starts first.</p>
+<p>Other GPUs must wait.</p>
+<p>At the end:</p>
+<p>later GPUs finish before earlier GPUs have fully drained.</p>
+<p>This creates:</p>
+<div class="math block">
+\boxed{\text{Pipeline Bubble}}.
+</div>
+<p>The source defines this as idle time while stages wait for activations or gradients. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-40">5.47.15 Bubble formula</h4>
+<p>In the simplified equal-time model used by the source:</p>
+<div class="math block">
+\boxed{
+\eta_{\text{pipeline}}
+=
+\frac{M}{M+(P-1)}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">M</span> = number of micro-batches,</li>
+<li><span class="math inline">P</span> = number of pipeline stages.</li>
+</ul>
+<p>The source gives the example:</p>
+<div class="math block">
+M=8,\quad P=4.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\eta=
+\frac8{8+3}
+=
+\frac8{11}
+\approx
+\boxed{72.7\%}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-41">5.47.16 Numerical: increase micro-batches</h4>
+<p>Suppose:</p>
+<div class="math block">
+P=4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-42"><span class="math inline">M=8</span></h6>
+<div class="math block">
+\eta=
+\frac8{11}
+=
+72.7\%.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-43"><span class="math inline">M=32</span></h6>
+<div class="math block">
+\eta=
+\frac{32}{35}
+=
+\boxed{91.4\%}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-44"><span class="math inline">M=128</span></h6>
+<div class="math block">
+\eta=
+\frac{128}{131}
+=
+\boxed{97.7\%}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+M\uparrow
+\Rightarrow
+\text{bubble fraction}\downarrow.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-45">5.47.17 Why not just use enormous <span class="math inline">M</span>?</h4>
+<p>Because each forward pass creates activations needed by backward.</p>
+<p>The source explains that naive GPipe can require holding activations from many micro-batches, increasing memory usage. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+M\uparrow
+</div>
+<p>helps:</p>
+<div class="math block">
+\text{pipeline efficiency}
+</div>
+<p>but can hurt:</p>
+<div class="math block">
+\text{activation memory}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-46">5.47.18 1F1B</h4>
+<p>The source then introduces the <strong>1F1B schedule</strong>.</p>
+<p>The core principle:</p>
+<div class="math block">
+\boxed{
+\text{Don't run all forwards first.}
+}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{Forward one micro-batch, then backward another as soon as dependencies allow.}
+}
+</div>
+<p>The schedule has:</p>
+<div class="math block">
+\boxed{\text{warm-up}}
+</div>
+<div class="math block">
+\boxed{\text{steady state}}
+</div>
+<div class="math block">
+\boxed{\text{cool-down}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-47">5.47.19 Why 1F1B matters</h4>
+<p>Suppose GPU 2 finishes the forward pass of:</p>
+<div class="math block">
+m_3.
+</div>
+<p>Rather than waiting for:</p>
+<div class="math block">
+m_4,m_5,\ldots
+</div>
+<p>to finish their forwards, it can begin useful backward work once the necessary downstream gradients are available.</p>
+<p>Therefore the GPU spends less time holding unused activations.</p>
+<p>This makes 1F1B much more memory-efficient than naive GPipe. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-48">5.47.20 So far the progression is</h4>
+<div class="math block">
+\boxed{\text{Pipeline Parallelism}}
+</div>
+<p>solves:</p>
+<div class="math block">
+\text{model too large}.
+</div>
+<p>But creates:</p>
+<div class="math block">
+\boxed{\text{pipeline bubble}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{1F1B}}
+</div>
+<p>reduces the practical impact of that bubble and lowers activation-memory pressure.</p>
+<p>But then DeepSeek adds:</p>
+<div class="math block">
+\boxed{\text{MoE}}.
+</div>
+<p>And now we discover another bottleneck.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-49">5.47.21 Expert Parallelism</h4>
+<p>Remember our distributed experts:</p>
+<pre><code class="language-text">GPU0 → E1,E2
+GPU1 → E3,E4
+GPU2 → E5,E6
+GPU3 → E7,E8
+</code></pre>
+<p>A token may be on GPU 0 but select:</p>
+<div class="math block">
+E_7.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{token must move across GPUs}
+}.
+</div>
+<p>That is:</p>
+<div class="math block">
+\boxed{\text{Expert Parallelism + All-to-All communication}}.
+</div>
+<p>The source explicitly identifies distributed experts and this cross-GPU token exchange as the MoE scaling problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-50">5.47.22 Why 1F1B is no longer enough</h4>
+<p>Imagine:</p>
+<div class="math block">
+T_{\text{compute}}=8\text{ ms}
+</div>
+<p>and:</p>
+<div class="math block">
+T_{\text{All-to-All}}=10\text{ ms}.
+</div>
+<p>Suppose 1F1B schedules compute normally.</p>
+<p>A GPU can now spend:</p>
+<div class="math block">
+10\text{ ms}
+</div>
+<p>waiting for communication.</p>
+<p>So even though we solved the traditional pipeline bubble, we have reintroduced idle time through communication.</p>
+<p>The source explicitly states that MoE All-to-All communication can become more expensive than the pipeline bubble itself. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-51">5.47.23 This is the central DeepSeek systems problem</h4>
+<p>We now have:</p>
+<div class="math block">
+\boxed{
+\text{Pipeline bubble}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MoE communication}
+}.
+</div>
+<p>We need a schedule that handles both.</p>
+<p>This leads to:</p>
+<div class="math block">
+\boxed{\text{DualPipe}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-52">5.47.24 DualPipe's central idea</h4>
+<p>Suppose:</p>
+<div class="math block">
+A
+=
+\text{communication}.
+</div>
+<p>And:</p>
+<div class="math block">
+B
+=
+\text{computation}.
+</div>
+<p>Naive:</p>
+<div class="math block">
+A\rightarrow B.
+</div>
+<p>Time:</p>
+<div class="math block">
+T_A+T_B.
+</div>
+<p>DualPipe tries to arrange:</p>
+<div class="math block">
+\boxed{
+A\parallel B
+}
+</div>
+<p>for operations belonging to different micro-batches.</p>
+<p>Ideal time:</p>
+<div class="math block">
+\boxed{
+\max(T_A,T_B)
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+T_A+T_B.
+</div>
+<p>The source describes exactly this fine-grained overlap of communication-heavy and compute-heavy operations. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-53">5.47.25 Numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+T_{\text{comm}}=12\text{ ms}
+</div>
+<p>and:</p>
+<div class="math block">
+T_{\text{compute}}=8\text{ ms}.
+</div>
+<p>Sequential:</p>
+<div class="math block">
+12+8
+=
+\boxed{20\text{ ms}}.
+</div>
+<p>Ideal overlap:</p>
+<div class="math block">
+\max(12,8)
+=
+\boxed{12\text{ ms}}.
+</div>
+<p>Potential speedup:</p>
+<div class="math block">
+20/12
+=
+\boxed{1.67\times}.
+</div>
+<p>Potentially hidden communication:</p>
+<div class="math block">
+20-12
+=
+\boxed{8\text{ ms}}.
+</div>
+<p>This is an idealized calculation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-54">5.47.26 What exactly is overlapped?</h4>
+<p>The source says DualPipe breaks large operations into finer pieces such as:</p>
+<div class="math block">
+\boxed{\text{Attention}}
+</div>
+<div class="math block">
+\boxed{\text{MLP / Expert}}
+</div>
+<div class="math block">
+\boxed{\text{All-to-All}}
+</div>
+<p>and schedules them against one another. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the scheduler may conceptually arrange:</p>
+<pre><code class="language-text">Micro-batch 1 → All-to-All
+Micro-batch 2 → Expert compute
+Micro-batch 3 → Attention
+Micro-batch 4 → Backward
+</code></pre>
+<p>at overlapping times where dependencies permit.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-55">5.47.27 Why “fine-grained” matters</h4>
+<p>Suppose the scheduler only knows:</p>
+<div class="math block">
+\text{whole forward pass}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{whole backward pass}.
+</div>
+<p>It has relatively few opportunities to overlap communication.</p>
+<p>Instead, break the computation into:</p>
+<div class="math block">
+\text{Attention}
+\rightarrow
+\text{dispatch}
+\rightarrow
+\text{Expert}
+\rightarrow
+\text{combine}
+</div>
+<p>and backward components.</p>
+<p>Now the scheduler has much finer opportunities to place independent work in communication gaps.</p>
+<p>This is the source's main scheduling insight. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-56">5.47.28 Pipeline folding</h4>
+<p>DualPipe adds another idea:</p>
+<div class="math block">
+\boxed{\text{pipeline folding}}.
+</div>
+<p>Suppose there are:</p>
+<div class="math block">
+8
+</div>
+<p>stages.</p>
+<p>Normal:</p>
+<pre><code class="language-text">GPU0 → Stage 0
+GPU1 → Stage 1
+GPU2 → Stage 2
+GPU3 → Stage 3
+GPU4 → Stage 4
+GPU5 → Stage 5
+GPU6 → Stage 6
+GPU7 → Stage 7
+</code></pre>
+<p>Folded:</p>
+<pre><code class="language-text">GPU0 → Stage 0 + Stage 7
+GPU1 → Stage 1 + Stage 6
+GPU2 → Stage 2 + Stage 5
+GPU3 → Stage 3 + Stage 4
+</code></pre>
+<p>The source gives exactly this 8-stage/4-rank example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-57">5.47.29 Why is this called V-shaped?</h4>
+<p>A micro-batch moves:</p>
+<div class="math block">
+Stage0
+\rightarrow
+Stage1
+\rightarrow
+Stage2
+\rightarrow
+Stage3
+</div>
+<p>then:</p>
+<div class="math block">
+Stage4
+</div>
+<p>on the same device.</p>
+<p>Then:</p>
+<div class="math block">
+Stage4
+\rightarrow
+Stage5
+\rightarrow
+Stage6
+\rightarrow
+Stage7.
+</div>
+<p>So physically:</p>
+<div class="math block">
+\boxed{
+\text{down}
+\rightarrow
+\text{turn}
+\rightarrow
+\text{up}
+}
+</div>
+<p>which forms a V.</p>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{DualPipeV}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{V-shape / cut-in-half schedule}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-58">5.47.30 Numerical — folded pipeline</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=16
+</div>
+<p>stages.</p>
+<p>Source-style DualPipeV:</p>
+<div class="math block">
+N/2
+=
+\boxed{8}
+</div>
+<p>physical GPUs.</p>
+<p>Each GPU holds:</p>
+<div class="math block">
+\boxed{2\text{ stages}}.
+</div>
+<p>Therefore parameter memory per GPU is approximately:</p>
+<div class="math block">
+\boxed{2\times}
+</div>
+<p>the one-stage-per-GPU arrangement.</p>
+<p>This is an explicit trade-off described by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-59">5.47.31 Why accept 2× parameter memory?</h4>
+<p>Because we are getting:</p>
+<div class="math block">
+\boxed{
+\text{fewer physical GPUs}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{better utilization / communication hiding}
+}.
+</div>
+<p>The source describes this as a deliberate engineering trade-off rather than an unconditional improvement. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-60">5.47.32 The full stack now</h4>
+<p>We can finally combine the technologies.</p>
+<pre><code class="language-text">                    TRAINING JOB
+                         │
+                         ▼
+                GLOBAL DATA BATCH
+                         │
+                         ▼
+                Gradient Accumulation
+                         │
+                         ▼
+                   Micro-batches
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+          ▼                             ▼
+    Data Parallelism              Model Parallelism
+                                  │
+                        ┌─────────┴─────────┐
+                        │                   │
+                        ▼                   ▼
+                 Pipeline Parallel     Expert Parallel
+                        │                   │
+                        │              MoE experts
+                        │                   │
+                        │              All-to-All
+                        │                   │
+                        └─────────┬─────────┘
+                                  ▼
+                              1F1B
+                                  │
+                                  ▼
+                             DualPipe
+                                  │
+                                  ▼
+                  communication ↔ computation
+</code></pre>
+<p>This is the systems-level story developed by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-61">5.47.33 Very important: these techniques are complementary</h4>
+<p>Don't think:</p>
+<div class="math block">
+\text{Data Parallelism OR Pipeline Parallelism}.
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{Data Parallelism}
++
+\text{Model/Pipeline Parallelism}
++
+\text{Expert Parallelism}
+}
+</div>
+<p>can be combined.</p>
+<p>The source explicitly says modern LLM training uses complementary parallelism strategies to address both time and hardware constraints. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-62">5.47.34 A concrete 8-GPU mental model</h4>
+<p>Imagine:</p>
+<div class="math block">
+8
+</div>
+<p>GPUs.</p>
+<p>The model is split into:</p>
+<div class="math block">
+4
+</div>
+<p>pipeline stages.</p>
+<p>Each stage may span two GPUs or be further sharded, while experts are distributed separately.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{data}
+}
+</div>
+<p>is divided across replicas,</p>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{layers}
+}
+</div>
+<p>are distributed through pipeline parallelism,</p>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{experts}
+}
+</div>
+<p>are distributed through expert parallelism.</p>
+<p>This is a conceptual composition; actual production layouts depend on the particular parallelism dimensions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-63">5.47.35 Effective batch-size numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+B_{\text{micro}}=4
+</div>
+<p>samples per physical micro-batch.</p>
+<p>There are:</p>
+<div class="math block">
+8
+</div>
+<p>micro-batches per data-parallel step.</p>
+<p>And:</p>
+<div class="math block">
+4
+</div>
+<p>data-parallel replicas.</p>
+<p>Then the effective examples represented in one synchronized update can be conceptualized as:</p>
+<div class="math block">
+4\times8\times4
+=
+\boxed{128}.
+</div>
+<p>That combines:</p>
+<div class="math block">
+\boxed{
+\text{physical batch}
+\times
+\text{accumulation}
+\times
+\text{data-parallel replicas}
+}.
+</div>
+<p>This is a derived bookkeeping formula; exact framework semantics depend on what is called a “step.”</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-64">5.47.36 Now add sequence length</h4>
+<p>For an LLM, each example may have:</p>
+<div class="math block">
+S
+</div>
+<p>tokens.</p>
+<p>Suppose:</p>
+<div class="math block">
+128
+</div>
+<p>sequences and:</p>
+<div class="math block">
+S=2048.
+</div>
+<p>Then token count per effective batch is:</p>
+<div class="math block">
+128\times2048
+=
+\boxed{262,144\text{ tokens}}.
+</div>
+<p>This matters because MoE routing and attention both operate over tokens, while communication volume grows with routed token representations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-65">5.47.37 MoE routing at cluster scale</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=262,144
+</div>
+<p>tokens,</p>
+<div class="math block">
+k=8.
+</div>
+<p>Then total routed assignments:</p>
+<div class="math block">
+T k
+=
+262,144\times8
+</div>
+<div class="math block">
+=
+\boxed{2,097,152}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+N=128
+</div>
+<p>experts.</p>
+<p>Ideal assignment count per expert:</p>
+<div class="math block">
+2,097,152/128
+=
+\boxed{16,384}.
+</div>
+<p>That is the target around which load balancing tries to keep expert utilization.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-66">5.47.38 Why balancing becomes increasingly important</h4>
+<p>Suppose one expert receives:</p>
+<div class="math block">
+25,000
+</div>
+<p>assignments rather than:</p>
+<div class="math block">
+16,384.
+</div>
+<p>That means the GPU hosting that expert may process much more data.</p>
+<p>So at cluster scale:</p>
+<div class="math block">
+\boxed{
+\text{expert imbalance}
+\rightarrow
+\text{GPU imbalance}
+\rightarrow
+\text{communication imbalance}
+\rightarrow
+\text{throughput loss}
+}.
+</div>
+<p>This is why the source's load-balancing mechanism is not just an abstract ML regularizer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-67">5.47.39 Full pipeline-bubble numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+P=8
+</div>
+<p>pipeline stages.</p>
+<p>And:</p>
+<div class="math block">
+M=64
+</div>
+<p>micro-batches.</p>
+<p>Using the source's simplified formula:</p>
+<div class="math block">
+\eta=
+\frac{64}{64+7}
+=
+\frac{64}{71}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\eta\approx90.14\%
+}.
+</div>
+<p>Bubble fraction:</p>
+<div class="math block">
+1-\frac{64}{71}
+=
+\boxed{9.86\%}.
+</div>
+<p>So almost 10% of the theoretical schedule is bubble overhead under this simplified model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-68">5.47.40 What if <span class="math inline">M=512</span>?</h4>
+<div class="math block">
+\eta=
+\frac{512}{512+7}
+=
+\frac{512}{519}
+</div>
+<div class="math block">
+\approx
+\boxed{98.65\%}.
+</div>
+<p>Excellent theoretical utilization.</p>
+<p>But now activation-memory requirements and scheduling complexity become important.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{high theoretical utilization}
+\neq
+\text{automatically optimal real system}
+}.
+</div>
+<p>That is one of the source's most important practical lessons.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-69">5.47.41 Full communication numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=65,536
+</div>
+<p>tokens,</p>
+<div class="math block">
+k=8,
+</div>
+<div class="math block">
+D=4096,
+</div>
+<p>FP16.</p>
+<p>Gross routed representation volume:</p>
+<div class="math block">
+TkD(2).
+</div>
+<p>Calculate:</p>
+<div class="math block">
+65,536\times8
+=
+524,288.
+</div>
+<p>Each token representation:</p>
+<div class="math block">
+4096\times2
+=
+8192\text{ bytes}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+524,288\times8192
+=
+\boxed{4,294,967,296\text{ bytes}}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{4\text{ GB}}
+</div>
+<p>of gross routed-token representation data.</p>
+<p>Again, this is <strong>not automatically network traffic</strong>, because some assignments can be local and real implementations add protocol/padding/collective overhead.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-70">5.47.42 Now combine communication and pipeline scheduling</h4>
+<p>Imagine:</p>
+<div class="math block">
+T_{\text{attention}}=5\text{ ms}
+</div>
+<div class="math block">
+T_{\text{expert}}=8\text{ ms}
+</div>
+<div class="math block">
+T_{\text{All-to-All}}=10\text{ ms}
+</div>
+<div class="math block">
+T_{\text{backward}}=9\text{ ms}.
+</div>
+<p>A naive sequence might expose much of:</p>
+<div class="math block">
+5+10+8+9
+=
+\boxed{32\text{ ms}}.
+</div>
+<p>A well-overlapped schedule can potentially arrange portions of:</p>
+<div class="math block">
+10\text{ ms communication}
+</div>
+<p>alongside:</p>
+<div class="math block">
+8\text{ ms expert compute}
+</div>
+<p>and:</p>
+<div class="math block">
+9\text{ ms backward work}.
+</div>
+<p>The achievable result depends on resource contention and dependencies; it is not simply:</p>
+<div class="math block">
+\max(5,8,10,9)
+</div>
+<p>in a real system.</p>
+<p>But the optimization goal is to make as little communication as possible appear on the critical path.</p>
+<p>That is the source's meaning of DualPipe's “hiding” of communication. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-71">5.47.43 What DualPipe does NOT mean</h4>
+<p>It does not mean:</p>
+<div class="math block">
+\boxed{
+\text{communication becomes free}
+}
+</div>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{communication overlaps with useful work}
+}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\text{latency still exists},
+</div>
+<p>but its contribution to:</p>
+<div class="math block">
+\text{critical-path time}
+</div>
+<p>can be reduced.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-72">5.47.44 Full “problem → solution” evolution</h4>
+<p>This is the part I want you to memorize conceptually.</p>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-73">Problem 1</h6>
+<p>GPU cannot fit large batch.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-74">Solution</h6>
+<div class="math block">
+\boxed{\text{Gradient Accumulation}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-75">Problem 2</h6>
+<p>Training is too slow on one GPU.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-76">Solution</h6>
+<div class="math block">
+\boxed{\text{Data Parallelism}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-77">Problem 3</h6>
+<p>Model itself doesn't fit on one GPU.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-78">Solution</h6>
+<div class="math block">
+\boxed{\text{Model / Pipeline Parallelism}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-79">Problem 4</h6>
+<p>Pipeline GPUs wait for one another.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-80">Solution</h6>
+<div class="math block">
+\boxed{\text{Micro-batches + 1F1B}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-81">Problem 5</h6>
+<p>MoE experts are distributed across GPUs.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-82">New problem</h6>
+<div class="math block">
+\boxed{\text{All-to-All communication}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-83">Solution</h6>
+<div class="math block">
+\boxed{\text{Expert Parallelism + better scheduling}}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-47-i88-84">Remaining problem</h6>
+<p>Communication still causes GPU idle time.</p>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-85">DeepSeek solution</h6>
+<div class="math block">
+\boxed{\text{DualPipe}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{pipeline folding}
++
+\text{fine-grained computation/communication overlap}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-86">5.47.45 Exam master table</h4>
+<table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Core idea</th>
+<th>Main bottleneck solved</th>
+<th>New concern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gradient accumulation</td>
+<td>Small batches + delayed update</td>
+<td>Batch VRAM</td>
+<td>More sequential work</td>
+</tr>
+<tr>
+<td>Data parallelism</td>
+<td>Replicate model, split data</td>
+<td>Training throughput</td>
+<td>Full model on every GPU</td>
+</tr>
+<tr>
+<td>Pipeline parallelism</td>
+<td>Split layers</td>
+<td>Model memory</td>
+<td>Pipeline bubble</td>
+</tr>
+<tr>
+<td>1F1B</td>
+<td>Interleave forward/backward</td>
+<td>Bubble + activation memory</td>
+<td>MoE communication remains</td>
+</tr>
+<tr>
+<td>Expert parallelism</td>
+<td>Split experts</td>
+<td>Expert memory</td>
+<td>All-to-All communication</td>
+</tr>
+<tr>
+<td>DualPipe</td>
+<td>Fine-grained overlap</td>
+<td>MoE communication / idle time</td>
+<td>Scheduling complexity + memory trade-off</td>
+</tr>
+<tr>
+<td>DualPipeV</td>
+<td>Folded V-shaped pipeline</td>
+<td>Hardware/scheduling efficiency</td>
+<td>~2× parameter memory per GPU in source description</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-87">5.47.46 Exam numerical bank</h4>
+<h5 id="v3-heading-chunk-les-step-5-47-i88-88">Numerical 1 — Gradient accumulation</h5>
+<div class="math block">
+B_{\text{physical}}=8,
+\quad
+N_{\text{acc}}=16.
+</div>
+<div class="math block">
+\boxed{B_{\text{effective}}=128}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-47-i88-89">Numerical 2 — Pipeline</h5>
+<div class="math block">
+P=8,\quad M=32.
+</div>
+<div class="math block">
+\eta=
+\frac{32}{39}
+=
+\boxed{82.05\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-47-i88-90">Numerical 3 — MoE routing</h5>
+<div class="math block">
+T=4096,\quad k=4,\quad N=32.
+</div>
+<p>Assignments:</p>
+<div class="math block">
+\boxed{16,384}.
+</div>
+<p>Ideal load:</p>
+<div class="math block">
+\boxed{512/expert}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-47-i88-91">Numerical 4 — Communication</h5>
+<div class="math block">
+T=4096,\quad k=4,\quad D=2048,\quad s=2.
+</div>
+<p>Gross routed volume:</p>
+<div class="math block">
+4096\times4\times2048\times2
+=
+\boxed{67,108,864\text{ bytes}}
+</div>
+<p>approximately:</p>
+<div class="math block">
+\boxed{64\text{ MiB}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-47-i88-92">Numerical 5 — DualPipe overlap</h5>
+<div class="math block">
+T_C=15\text{ ms}
+</div>
+<div class="math block">
+T_{Comm}=9\text{ ms}.
+</div>
+<p>Sequential:</p>
+<div class="math block">
+24\text{ ms}.
+</div>
+<p>Ideal overlap:</p>
+<div class="math block">
+15\text{ ms}.
+</div>
+<p>Potential speedup:</p>
+<div class="math block">
+\boxed{1.6\times}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-47-i88-93">Numerical 6 — DualPipeV</h5>
+<div class="math block">
+N=24
+</div>
+<p>stages.</p>
+<p>Physical GPUs:</p>
+<div class="math block">
+24/2
+=
+\boxed{12}.
+</div>
+<p>Approximate parameter memory per GPU relative to one-stage-per-GPU layout:</p>
+<div class="math block">
+\boxed{2\times}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-94">5.47.47 A very important interview question</h4>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-95">“Why not just use more GPUs?”</h6>
+<p>Because simply adding GPUs doesn't guarantee linear speedup.</p>
+<p>You encounter:</p>
+<div class="math block">
+\boxed{
+\text{communication}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{synchronization}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{pipeline bubbles}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{load imbalance}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{memory constraints}.
+}
+</div>
+<p>The entire DeepSeek systems stack exists because the objective isn't merely:</p>
+<div class="math block">
+\boxed{\text{more GPUs}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{more useful work per GPU per unit time}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-96">5.47.48 The complete DeepSeek training architecture</h4>
+<p>We can now put the neural architecture and systems architecture together:</p>
+<pre><code class="language-text">                           DATA
+                            │
+                            ▼
+                  Tokenization / Batching
+                            │
+                            ▼
+                  Gradient Accumulation
+                            │
+                            ▼
+                    Effective Batch
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                       ▼
+        Data Parallelism          Model Parallelism
+                                        │
+                               ┌────────┴─────────┐
+                               │                  │
+                               ▼                  ▼
+                         Pipeline Parallel   Expert Parallel
+                               │                  │
+                               ▼                  ▼
+                         Transformer       MoE Expert Pool
+                         Stage 0...N             │
+                               │             Top-K routing
+                               │                  │
+                               │             All-to-All
+                               │                  │
+                               └──────────┬───────┘
+                                          ▼
+                                     DualPipe
+                                          │
+                        ┌─────────────────┴────────────────┐
+                        │                                  │
+                        ▼                                  ▼
+                 Compute work                        Communication
+                 Attention/MLP                       All-to-All
+                        │                                  │
+                        └────────────── OVERLAP ───────────┘
+                                          │
+                                          ▼
+                                    Backward pass
+                                          │
+                                          ▼
+                                   Weight update
+</code></pre>
+<p>The source's Chapter 6 explicitly positions this as the transition from individual DeepSeek components to the full large-scale training pipeline.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-97">5.47.49 The most important formulas from this step</h4>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-98">Effective batch</h6>
+<div class="math block">
+\boxed{
+B_{\text{eff}}
+=
+B_{\text{physical}}
+\times
+N_{\text{acc}}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-99">Pipeline efficiency</h6>
+<div class="math block">
+\boxed{
+\eta
+=
+\frac{M}{M+P-1}
+}
+</div>
+<p>under the source's simplified model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-100">MoE assignments</h6>
+<div class="math block">
+\boxed{
+A=Tk
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-101">Ideal expert load</h6>
+<div class="math block">
+\boxed{
+\bar C=\frac{Tk}{N}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-102">Gross routed representation volume</h6>
+<div class="math block">
+\boxed{
+V\approx TkDs
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-103">Dense expert computation</h6>
+<div class="math block">
+\boxed{
+\sim2DH
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-104">Routed MoE computation</h6>
+<div class="math block">
+\boxed{
+\sim2kDH_e
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-105">Ideal overlap</h6>
+<div class="math block">
+\boxed{
+T_{\text{overlap}}
+\approx
+\max(T_C,T_{Comm})
+}
+</div>
+<p>under perfect overlap.</p>
+<h6 id="v3-heading-chunk-les-step-5-47-i88-106">DualPipeV physical-device relation in the source's simplified description</h6>
+<div class="math block">
+\boxed{
+N_{\text{GPUs}}
+=
+\frac{N_{\text{stages}}}{2}
+}
+</div>
+<p>with approximately:</p>
+<div class="math block">
+\boxed{2\times}
+</div>
+<p>parameter memory per GPU. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-47-i88-107">5.47.50 Final mental model</h4>
+<p>The entire engineering journey is:</p>
+<div class="math block">
+\boxed{
+\text{One GPU}
+}
+</div>
+<p>↓</p>
+<p>too little memory / too slow.</p>
+<div class="math block">
+\boxed{\text{Gradient Accumulation}}
+</div>
+<p>↓</p>
+<p>larger effective batch.</p>
+<div class="math block">
+\boxed{\text{Data Parallelism}}
+</div>
+<p>↓</p>
+<p>more throughput.</p>
+<div class="math block">
+\boxed{\text{Pipeline Parallelism}}
+</div>
+<p>↓</p>
+<p>model can span GPUs.</p>
+<div class="math block">
+\boxed{\text{Micro-batches + 1F1B}}
+</div>
+<p>↓</p>
+<p>reduce pipeline idle time.</p>
+<div class="math block">
+\boxed{\text{MoE + Expert Parallelism}}
+</div>
+<p>↓</p>
+<p>massive parameter capacity with distributed experts.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{\text{All-to-All}}
+</div>
+<p>creates another bottleneck.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{\text{DualPipe}}
+</div>
+<p>uses:</p>
+<div class="math block">
+\boxed{
+\text{folded pipeline}
++
+\text{fine-grained compute/communication overlap}
+}
+</div>
+<p>to keep the hardware busy.</p>
+<p>That is the complete <strong>distributed-systems story behind training the DeepSeek-style architecture</strong> described by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

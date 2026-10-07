@@ -1,0 +1,745 @@
+<section class="chunk audit-hub" id="audit-continuation" data-continuation="added"><h2>Continuation: checked mechanisms and source reconciliation</h2><p>This continues the saved first checkpoint: 47 additional cards, 121 new independent checks, 8 source findings. Earlier 24 cards and 41 checks remain intact. Entire-course certification is still open; check counts are not evidence that every retained example has been verified.</p><h3 id="v3-heading-audit-continuation-1">Prerequisite reading route</h3><ol><li><a href="#audit-F01">Matrix multiplication and shape contracts</a></li><li><a href="#audit-F02">Transpose versus reshape</a></li><li><a href="#audit-F03">Stable softmax and log-softmax</a></li><li><a href="#audit-F04">Conditional sequence probability and log likelihood</a></li><li><a href="#audit-F05">Entropy, cross-entropy, KL, and support</a></li><li><a href="#audit-F06">Chain rule and scalar gradients</a></li><li><a href="#audit-F07">Expectation and population variance</a></li><li><a href="#audit-F08">Matrix gradients from a scalar loss</a></li><li><a href="#audit-F09">A gradient-descent step and its limits</a></li><li><a href="#audit-F10">Softmax Jacobian and the CE logit gradient</a></li><li><a href="#audit-T01">Shifted next-token targets and masked loss</a></li><li><a href="#audit-T02">Embedding lookup and one-hot equivalence</a></li><li><a href="#audit-T03">Three projections: Q, K, and V</a></li><li><a href="#audit-T04">Scores to attention weights to output</a></li><li><a href="#audit-T05">Causal masks and future-token isolation</a></li><li><a href="#audit-T06">Why scale by the square root of key width?</a></li><li><a href="#audit-T07">Position and the limits of permutation arguments</a></li><li><a href="#audit-T08">LayerNorm: variance, epsilon, and affine parameters</a></li><li><a href="#audit-T09">Residual updates and the identity gradient path</a></li><li><a href="#audit-T10">Positionwise MLP and GELU variants</a></li><li><a href="#audit-T11">Multiple heads: split, attend, concatenate, project</a></li><li><a href="#audit-T12">A complete pre-norm causal block</a></li><li><a href="#audit-T13">Unembedding and the vocabulary axis</a></li><li><a href="#audit-T14">Attention dropout is not another normalized probability row</a></li><li><a href="#audit-T15">BPE training versus BPE encoding</a></li><li><a href="#audit-T16">RoPE rotations and relative position</a></li><li><a href="#audit-T17">RMSNorm and epsilon</a></li><li><a href="#audit-T18">SwiGLU gate, up and down projections</a></li><li><a href="#audit-T19">Parameter accounting and tied weights</a></li><li><a href="#audit-D01">Greedy versus beam search</a></li><li><a href="#audit-D02">Beam length-score conventions</a></li><li><a href="#audit-D03">Top-k support and renormalization</a></li><li><a href="#audit-D04">Nucleus boundary and actual retained mass</a></li><li><a href="#audit-D05">Min-p is a relative probability cutoff</a></li><li><a href="#audit-D06">Locally typical ranking</a></li><li><a href="#audit-D07">Sign-aware repetition penalty</a></li><li><a href="#audit-D08">Contrastive-search candidate tradeoff</a></li><li><a href="#audit-D09">Mirostat feedback direction and units</a></li><li><a href="#audit-D10">Sampling order and inverse-CDF bins</a></li><li><a href="#audit-P01">LoRA orientation and the complete slide numerical</a></li><li><a href="#audit-P02">LoRA merge and initialization scope</a></li><li><a href="#audit-P03">LoRA trainable counts and whole-model scope</a></li><li><a href="#audit-Q01">Quantization scale units and rounding</a></li><li><a href="#audit-Q02">Affine zero-point and representability</a></li><li><a href="#audit-Q03">Normal, subnormal and special float values</a></li><li><a href="#audit-Q04">GPTQ constrained compensation</a></li><li><a href="#audit-K01">Classical KD temperature and mixed loss</a></li><li><a href="#audit-K02">Reverse KL gradient includes student sampling</a></li><li><a href="#audit-K03">Teacher-mixed proposals and importance support</a></li><li><a href="#audit-R01">Group advantages and standard-deviation conventions</a></li><li><a href="#audit-R02">Clipped surrogate and advantage sign</a></li><li><a href="#audit-R03">Exact KL versus sampled log-ratio and k3</a></li><li><a href="#audit-A01">KV cache MHA, GQA and MQA accounting</a></li><li><a href="#audit-A02">MoE top-k routing and selected normalization</a></li><li><a href="#audit-A03">Auxiliary balancing is variant-specific</a></li><li><a href="#audit-A04">MTP teacher forcing and target alignment</a></li><li><a href="#audit-A05">Gradient accumulation with unequal valid-token counts</a></li><li><a href="#audit-B01">Self-consistency voting needs answer canonicalization</a></li><li><a href="#audit-B02">Pass-at-k versus selected-answer accuracy</a></li><li><a href="#audit-I01">QA token-F1 and normalization contract</a></li><li><a href="#audit-A06">MLA content absorption: exact algebra and RoPE boundary</a></li><li><a href="#audit-A07">Speculative sampling acceptance and residual correction</a></li><li><a href="#audit-Q05">FP8 format variants and finite extrema</a></li><li><a href="#audit-Q06">BitNet reconstruction and scale units</a></li><li><a href="#audit-Q07">GGUF container versus quantized block overhead</a></li><li><a href="#audit-A08">ZeRO partitions different model-state components</a></li><li><a href="#audit-A09">Pipeline bubbles: a model, not a measured DualPipe result</a></li><li><a href="#audit-Q08">QLoRA frozen base, NF4 and nested scale metadata</a></li><li><a href="#audit-Q09">QAT forward quantization versus surrogate gradients</a></li><li><a href="#audit-Q10">Ternary1.58-bit terminology and physical storage</a></li><li><a href="#audit-R04">ReTool trajectories: tool outputs are observations</a></li></ol><h3 id="v3-heading-audit-continuation-2">Research/source findings</h3><table><thead><tr><th>ID</th><th>Finding</th><th>Status</th><th>Evidence location</th></tr></thead><tbody><tr><td>E01</td><td>MiniLLM ablation labels: correction against v4 Table4</td><td>primary_table_checked; correction_required</td><td><a href="https://arxiv.org/html/2306.08543v4">§3.4, Table4 Valid.R-L; compare supplied MiniLLM slide33</a></td></tr><tr><td>E02</td><td>R1-Zero accuracy and voting: preserve the version distinction</td><td>primary_v1_conflict_with_slide; alternative_version_unresolved</td><td><a href="https://arxiv.org/html/2501.12948v1">§2.2.2, Table2 and Figure2 caption; supplied R1 slide6</a></td></tr><tr><td>E03</td><td>IndicQA count inconsistency exists in the primary table</td><td>primary_table_and_arithmetic_checked; released_data_count_pending</td><td><a href="https://aclanthology.org/2023.acl-long.693.pdf">AppendixE, Table7, physicalPDFpage15; supplied IndicXTREME slide16</a></td></tr><tr><td>E04</td><td>ReTool ablation deltas and their limits</td><td>primary_table_checked; experiments_not_reproduced</td><td><a href="https://arxiv.org/html/2504.11536v1">§3,Table1; supplied ReTool slides10–11</a></td></tr><tr><td>E05</td><td>DeepSeek-V3 cost is not an R1 development-cost estimate</td><td>primary_table_scope_checked</td><td><a href="https://arxiv.org/html/2412.19437v2">Table1 and accompanying training-cost paragraph</a></td></tr><tr><td>E06</td><td>GRPO tutorial hyperparameters and reference refresh provenance</td><td>provided_book_claim_found; primary_confirmation_pending</td><td><a href="https://arxiv.org/html/2501.12948v1">Compare §2.2.1 with supplied reasoning book Chapter7 pp270–275 and RL slides24,27</a></td></tr><tr><td>E07</td><td>Nucleus probabilities divide by retained mass, not nominal cutoff</td><td>independently_checked_definition_qualification</td><td><a href="https://arxiv.org/abs/1904.09751">Nucleus sampling definition; supplied decoding slide15; independent Filter-top-p fixture</a></td></tr><tr><td>E08</td><td>QAT scale learning and wide-minimum intuition need qualifications</td><td>algorithm_family_qualification; concrete_backend_pending</td><td><a href="https://docs.pytorch.org/ao/stable/workflows/qat.html">Concrete torchao QAT workflow; compare supplied quantization slides44–47</a></td></tr></tbody></table><h3 id="audit-continuation-code">Complete CPU companion</h3><p>Run python3 course_mechanics.py; no external packages required. Independent checks use NumPy. GPU, full model training and benchmark replication are not performed by these deterministic mechanisms.</p><details><summary>Read companion with function docstrings</summary><pre><code class="language-python" data-filename="course_mechanics.py">&quot;&quot;&quot;Small deterministic CPU teaching mechanisms, not a production training system.
+
+Row-vector convention: x @ W. Each fixture declares its own algorithm variant.
+No external packages are needed to run this companion.
+&quot;&quot;&quot;
+import math
+import json
+from collections import Counter
+
+
+def softmax(z):
+    &quot;&quot;&quot;Finite logits -&gt; positive probabilities, using a stable common shift.&quot;&quot;&quot;
+    if not z or not all(math.isfinite(v) for v in z):
+        raise ValueError(&#x27;Need nonempty finite logits&#x27;)
+    m = max(z); e = [math.exp(v-m) for v in z]; total = sum(e)
+    return [v/total for v in e]
+
+
+def bpe_train(words, steps):
+    &quot;&quot;&quot;Toy character BPE, weighted words; lexical tie break, explicit end marker.
+
+    Not a byte-level GPT tokenizer. Returned merges are applied in learned order.
+    &quot;&quot;&quot;
+    seqs = {tuple(w)+(&#x27;&lt;/w&gt;&#x27;,): n for w,n in words.items()}; merges=[]
+    for _ in range(steps):
+        counts=Counter()
+        for seq,n in seqs.items():
+            for a,b in zip(seq,seq[1:]): counts[(a,b)]+=n
+        if not counts: break
+        pair=min(counts, key=lambda p:(-counts[p],p)); merges.append(pair)
+        updated={}
+        for seq,n in seqs.items():
+            merged=bpe_apply(seq,[pair]); updated[merged]=updated.get(merged,0)+n
+        seqs=updated
+    return {&#x27;merges&#x27;:merges,&#x27;segmented_words&#x27;:[(list(s),n) for s,n in seqs.items()]}
+
+
+def bpe_apply(tokens, merges):
+    &quot;&quot;&quot;Apply ranked adjacent pair merges without crossing the supplied sequence.&quot;&quot;&quot;
+    tokens=list(tokens)
+    for pair in merges:
+        out=[];i=0
+        while i&lt;len(tokens):
+            if i+1&lt;len(tokens) and tuple(tokens[i:i+2])==tuple(pair):
+                out.append(tokens[i]+tokens[i+1]);i+=2
+            else: out.append(tokens[i]);i+=1
+        tokens=out
+    return tuple(tokens)
+
+
+def rope(x, position, base=10000.):
+    &quot;&quot;&quot;Rotate adjacent coordinate pairs; even dimension, angle p*base^(-2i/d).&quot;&quot;&quot;
+    if len(x)%2 or len(x)==0 or base&lt;=0: raise ValueError(&#x27;Even positive width and base required&#x27;)
+    out=[]
+    for i in range(0,len(x),2):
+        a=position*base**(-i/len(x));c=math.cos(a);s=math.sin(a)
+        out.extend([x[i]*c-x[i+1]*s,x[i]*s+x[i+1]*c])
+    return out
+
+
+def rmsnorm(x, eps=1e-6, gain=None):
+    &quot;&quot;&quot;Normalize final feature vector by sqrt(mean(square)+eps); no centering.&quot;&quot;&quot;
+    if not x or eps&lt;0: raise ValueError(&#x27;Invalid vector/epsilon&#x27;)
+    gain=[1.]*len(x) if gain is None else gain
+    if len(gain)!=len(x): raise ValueError(&#x27;Gain shape mismatch&#x27;)
+    d=math.sqrt(sum(v*v for v in x)/len(x)+eps)
+    if d==0: raise ValueError(&#x27;Zero denominator&#x27;)
+    return [v*g/d for v,g in zip(x,gain)]
+
+
+def matmul(a,b):
+    &quot;&quot;&quot;Rectangular m*n times n*p -&gt; m*p.&quot;&quot;&quot;
+    if not a or not b or not a[0] or not b[0] or any(len(r)!=len(a[0]) for r in a) or any(len(r)!=len(b[0]) for r in b) or len(a[0])!=len(b):
+        raise ValueError(&#x27;Matrix shape mismatch&#x27;)
+    return [[sum(a[i][k]*b[k][j] for k in range(len(b))) for j in range(len(b[0]))] for i in range(len(a))]
+
+
+def swiglu(x,gate,up,down):
+    &quot;&quot;&quot;SwiGLU: SiLU(xW_gate) elementwise xW_up, then W_down; no biases.&quot;&quot;&quot;
+    g=matmul(x,gate);u=matmul(x,up)
+    if len(g[0])!=len(u[0]): raise ValueError(&#x27;Gate/up shape mismatch&#x27;)
+    def silu(v):
+        sig=1/(1+math.exp(-v)) if v&gt;=0 else math.exp(v)/(1+math.exp(v))
+        return v*sig
+    return matmul([[silu(a)*b for a,b in zip(ga,ua)] for ga,ua in zip(g,u)],down)
+
+
+def parameter_count(vocab,d,ffn,layers,tied=True,gated=False):
+    &quot;&quot;&quot;Bias-free MHA decoder, two per-block RMS gains and final gain; no learned positions.&quot;&quot;&quot;
+    if any(type(v)!=int or v&lt;=0 for v in [vocab,d,ffn,layers]): raise ValueError(&#x27;Positive integer dimensions&#x27;)
+    return vocab*d*(1 if tied else 2)+layers*(4*d*d+(3 if gated else 2)*d*ffn+2*d)+d
+
+
+def truncate(p, method, value):
+    &quot;&quot;&quot;Explicit deterministic support rules; includes boundary token for top-p/typical.&quot;&quot;&quot;
+    if not p or any(v&lt;0 or not math.isfinite(v) for v in p) or abs(sum(p)-1)&gt;1e-8: raise ValueError(&#x27;PMF required&#x27;)
+    order=sorted(range(len(p)),key=lambda i:(-p[i],i))
+    if method==&#x27;top-k&#x27;:
+        if type(value)!=int or not 1&lt;=value&lt;=len(p): raise ValueError(&#x27;Invalid k&#x27;)
+        keep=order[:value]
+    elif method in [&#x27;top-p&#x27;,&#x27;typical&#x27;]:
+        if not 0&lt;value&lt;=1: raise ValueError(&#x27;Mass must be in (0,1]&#x27;)
+        if method==&#x27;typical&#x27;:
+            h=-sum(v*math.log(v) for v in p if v)
+            order=sorted(range(len(p)),key=lambda i:(abs(-math.log(p[i])-h) if p[i]&gt;0 else math.inf,i))
+        keep=[];total=0
+        for i in order:
+            keep.append(i);total+=p[i]
+            if total&gt;=value-1e-15:break
+    elif method==&#x27;min-p&#x27;:
+        if not 0&lt;=value&lt;=1:raise ValueError(&#x27;Ratio must be in [0,1]&#x27;)
+        keep=[i for i in order if p[i]&gt;=value*max(p)]
+    else: raise ValueError(&#x27;Unknown filter&#x27;)
+    total=sum(p[i] for i in keep)
+    return {&#x27;kept_ids&#x27;:keep,&#x27;retained_mass&#x27;:total,&#x27;probabilities&#x27;:[p[i]/total if i in keep else 0 for i in range(len(p))]}
+
+
+def sample(p,u):
+    &quot;&quot;&quot;Inverse-CDF draw for supplied uniform variate 0&lt;=u&lt;1; half-open bins.&quot;&quot;&quot;
+    if not 0&lt;=u&lt;1 or any(v&lt;0 for v in p) or abs(sum(p)-1)&gt;1e-8:raise ValueError(&#x27;Invalid draw/PMF&#x27;)
+    total=0
+    for i,v in enumerate(p):
+        total+=v
+        if u&lt;total:return i
+    return len(p)-1
+
+
+def beam_fixture(width):
+    &quot;&quot;&quot;Exact supplied two-step beam example; fixed length, no EOS/length penalty.&quot;&quot;&quot;
+    first={&#x27;bright&#x27;:.5,&#x27;sunny&#x27;:.35,&#x27;cold&#x27;:.15}
+    nexts={&#x27;bright&#x27;:{&#x27;outside&#x27;:.5,&#x27;today&#x27;:.3,&#x27;again&#x27;:.2},&#x27;sunny&#x27;:{&#x27;outside&#x27;:.95,&#x27;today&#x27;:.03,&#x27;again&#x27;:.02},&#x27;cold&#x27;:{&#x27;outside&#x27;:.4,&#x27;today&#x27;:.4,&#x27;again&#x27;:.2}}
+    beams=sorted([(k,math.log(v)) for k,v in first.items()],key=lambda x:(-x[1],x[0]))[:width]
+    candidates=[(prefix+&#x27; &#x27;+k,score+math.log(v)) for prefix,score in beams for k,v in nexts[prefix].items()]
+    return [(s,math.exp(logp)) for s,logp in sorted(candidates,key=lambda x:(-x[1],x[0]))[:width]]
+
+
+def gnmt_score(logp,length,alpha):
+    &quot;&quot;&quot;Wu length-penalty variant, not the distinct length^alpha convention.&quot;&quot;&quot;
+    if length&lt;1:raise ValueError(&#x27;Positive length&#x27;)
+    return logp/(((5+length)/6)**alpha)
+
+
+def repetition(z,seen,penalty,sign_aware=True):
+    &quot;&quot;&quot;Unique-token penalty; negative seen logits multiplied in sign-aware variant.&quot;&quot;&quot;
+    if penalty&lt;=0:raise ValueError(&#x27;Positive penalty&#x27;)
+    return [v*penalty if sign_aware and v&lt;0 and i in seen else v/penalty if i in seen else v for i,v in enumerate(z)]
+
+
+def contrastive(p,similarity,alpha):
+    &quot;&quot;&quot;One contrastive-search candidate score; similarity is precomputed max cosine.&quot;&quot;&quot;
+    if len(p)!=len(similarity) or not 0&lt;=alpha&lt;=1:raise ValueError(&#x27;Invalid candidate data&#x27;)
+    scores=[(1-alpha)*a-alpha*b for a,b in zip(p,similarity)]
+    return {&#x27;scores&#x27;:scores,&#x27;selected&#x27;:max(range(len(scores)),key=lambda i:scores[i])}
+
+
+def mirostat_update(mu,surprise_bits,target_bits,eta):
+    &quot;&quot;&quot;Mirostat feedback update only; does not implement full adaptive sampler.&quot;&quot;&quot;
+    return mu-eta*(surprise_bits-target_bits)
+
+
+def lora(x,w,b,a,alpha):
+    &quot;&quot;&quot;Row-input orientation B:din*r, A:r*dout; frozen W plus alpha/r BA.&quot;&quot;&quot;
+    rank=len(a);delta=matmul(b,a);scale=alpha/rank
+    merged=[[v+scale*d for v,d in zip(row,dr)] for row,dr in zip(w,delta)]
+    base=matmul(x,w);branch=matmul(matmul(x,b),a)
+    return {&#x27;delta&#x27;:delta,&#x27;merged&#x27;:merged,&#x27;separate_output&#x27;:[[v+scale*d for v,d in zip(row,dr)] for row,dr in zip(base,branch)],&#x27;merged_output&#x27;:matmul(x,merged)}
+
+
+def affine_quantize(x,step,zero,qmin,qmax):
+    &quot;&quot;&quot;Dequantization step units; Python nearest-even rounding and explicit clipping.&quot;&quot;&quot;
+    if step&lt;=0 or qmin&gt;qmax or type(zero)!=int:raise ValueError(&#x27;Invalid quantizer&#x27;)
+    q=[max(qmin,min(qmax,round(v/step)+zero)) for v in x]
+    return {&#x27;codes&#x27;:q,&#x27;reconstructed&#x27;:[step*(v-zero) for v in q]}
+
+
+def float_decode(sign,exponent,mantissa,ebits,mbits):
+    &quot;&quot;&quot;IEEE-style binary field teaching decoder; not vendor FP8 E4M3FN.&quot;&quot;&quot;
+    bias=2**(ebits-1)-1
+    if sign not in [0,1] or not 0&lt;=exponent&lt;2**ebits or not 0&lt;=mantissa&lt;2**mbits:raise ValueError(&#x27;Invalid fields&#x27;)
+    if exponent==2**ebits-1:return math.copysign(math.inf,(-1)**sign) if mantissa==0 else math.nan
+    sig=mantissa/2**mbits if exponent==0 else 1+mantissa/2**mbits
+    return (-1)**sign*sig*2.**((1-bias) if exponent==0 else exponent-bias)
+
+
+def gptq_compensate(w,inverse_h,q,quantized):
+    &quot;&quot;&quot;One constrained quadratic compensation step on the current free coordinates.&quot;&quot;&quot;
+    error=w[q]-quantized;denom=inverse_h[q][q]
+    if denom&lt;=0:raise ValueError(&#x27;Positive diagonal required&#x27;)
+    return [v-error*inverse_h[j][q]/denom for j,v in enumerate(w)]
+
+
+def kl(p,q):
+    &quot;&quot;&quot;Exact categorical KL(p||q), natural logs, defined support behavior.&quot;&quot;&quot;
+    if len(p)!=len(q) or abs(sum(p)-1)&gt;1e-8 or abs(sum(q)-1)&gt;1e-8 or any(v&lt;0 for v in p+q):raise ValueError(&#x27;Normalized PMFs&#x27;)
+    if any(a&gt;0 and b==0 for a,b in zip(p,q)):return math.inf
+    return sum(a*math.log(a/b) for a,b in zip(p,q) if a)
+
+
+def reverse_kl_gradient(z,teacher):
+    &quot;&quot;&quot;Exact finite-support gradient wrt student logits; teacher fixed positive.&quot;&quot;&quot;
+    q=softmax(z)
+    if len(z)!=len(teacher) or any(p&lt;=0 or not math.isfinite(p) for p in teacher) or abs(sum(teacher)-1)&gt;1e-8:raise ValueError(&#x27;Matching positive teacher PMF&#x27;)
+    v=[math.log(a/b) for a,b in zip(q,teacher)];mean=sum(a*b for a,b in zip(q,v))
+    return [a*(b-mean) for a,b in zip(q,v)]
+
+
+def kd_loss(student,teacher,target,temperature,hard_weight):
+    &quot;&quot;&quot;Classical one-token KD variant: alpha hard CE +(1-alpha) T² forward KL.&quot;&quot;&quot;
+    if temperature&lt;=0 or not math.isfinite(temperature) or not 0&lt;=hard_weight&lt;=1 or len(student)!=len(teacher) or not 0&lt;=target&lt;len(student):raise ValueError(&#x27;Invalid KD configuration&#x27;)
+    p=softmax([v/temperature for v in teacher]);q=softmax([v/temperature for v in student])
+    hard=-math.log(softmax(student)[target]);soft=temperature**2*kl(p,q)
+    return {&#x27;hard_ce&#x27;:hard,&#x27;scaled_kl&#x27;:soft,&#x27;total&#x27;:hard_weight*hard+(1-hard_weight)*soft}
+
+
+def advantages(rewards,eps=1e-4,sample_std=False):
+    &quot;&quot;&quot;Group-standardized rewards; explicit population/sample denominator.&quot;&quot;&quot;
+    n=len(rewards)
+    if not n or eps&lt;0 or sample_std and n&lt;2:raise ValueError(&#x27;Insufficient rewards or invalid epsilon&#x27;)
+    mean=sum(rewards)/n;std=math.sqrt(sum((v-mean)**2 for v in rewards)/(n-1 if sample_std else n))
+    if std+eps==0:raise ValueError(&#x27;Zero spread requires positive epsilon or a separate skip rule&#x27;)
+    return {&#x27;mean&#x27;:mean,&#x27;std&#x27;:std,&#x27;advantages&#x27;:[(v-mean)/(std+eps) for v in rewards]}
+
+
+def clipped_surrogate(ratio,advantage,eps):
+    &quot;&quot;&quot;PPO/GRPO maximization surrogate; loss negates this, before reductions/KL.&quot;&quot;&quot;
+    clipped=min(1+eps,max(1-eps,ratio))
+    return min(ratio*advantage,clipped*advantage)
+
+
+def kl_sample(log_current,log_reference):
+    &quot;&quot;&quot;Per-sample log ratio and nonnegative k3 estimator, for declared current-policy draws.&quot;&quot;&quot;
+    d=log_reference-log_current
+    return {&#x27;log_ratio&#x27;:-d,&#x27;k3&#x27;:math.expm1(d)-d}
+
+
+def importance_expectation(target,proposal,values):
+    &quot;&quot;&quot;Exact finite sum under proposal with target/proposal weights; not self-normalized.&quot;&quot;&quot;
+    if len(target)!=len(proposal) or len(target)!=len(values):raise ValueError(&#x27;Shape mismatch&#x27;)
+    if any(v&lt;0 for v in target+proposal) or abs(sum(target)-1)&gt;1e-8 or abs(sum(proposal)-1)&gt;1e-8:raise ValueError(&#x27;Normalized PMFs required&#x27;)
+    if any(t&gt;0 and p&lt;=0 for t,p in zip(target,proposal)):raise ValueError(&#x27;Missing proposal support&#x27;)
+    return sum(p*(t/p)*v for t,p,v in zip(target,proposal,values) if p)
+
+
+def cache_bytes(batch,length,layers,kv_heads,head_dim,bytes_per_element):
+    &quot;&quot;&quot;K plus V storage only; excludes allocator, Q, weights, attention workspace.&quot;&quot;&quot;
+    return 2*batch*length*layers*kv_heads*head_dim*bytes_per_element
+
+
+def routed_output(x,expert_weights,logits,k,shared_weight=None):
+    &quot;&quot;&quot;Tiny linear experts, softmax scores, top-k selected-renormalized routing.&quot;&quot;&quot;
+    p=softmax(logits);selected=sorted(range(len(p)),key=lambda i:(-p[i],i))[:k]
+    mass=sum(p[i] for i in selected);weights=[p[i]/mass for i in selected]
+    outs=[matmul([x],expert_weights[i])[0] for i in selected]
+    y=[sum(a*v[j] for a,v in zip(weights,outs)) for j in range(len(x))]
+    if shared_weight is not None:y=[a+b for a,b in zip(y,matmul([x],shared_weight)[0])]
+    return {&#x27;selected&#x27;:selected,&#x27;weights&#x27;:weights,&#x27;output&#x27;:y}
+
+
+def balance_loss(assignments,router_probabilities,experts,coefficient=1.):
+    &quot;&quot;&quot;Switch-style top-1 auxiliary illustration, not every DeepSeek balancing variant.&quot;&quot;&quot;
+    n=len(assignments);f=[assignments.count(i)/n for i in range(experts)]
+    p=[sum(row[i] for row in router_probabilities)/n for i in range(experts)]
+    return coefficient*experts*sum(a*b for a,b in zip(f,p))
+
+
+def mtp_alignment(tokens,horizon):
+    &quot;&quot;&quot;Base=next token, depth k target=t+k+1; teacher-forced prefix extends to t+k.&quot;&quot;&quot;
+    if type(horizon)!=int or horizon&lt;0:raise ValueError(&#x27;Nonnegative integer depth&#x27;)
+    return [{&#x27;position&#x27;:t,&#x27;visible_through&#x27;:t+horizon,&#x27;target_position&#x27;:t+horizon+1,&#x27;target&#x27;:tokens[t+horizon+1]} for t in range(len(tokens)-horizon-1)]
+
+
+def weighted_gradient(grads,valid_tokens):
+    &quot;&quot;&quot;Aggregate per-microbatch token-mean gradients into a global valid-token mean.&quot;&quot;&quot;
+    total=sum(valid_tokens)
+    if total&lt;=0 or len(grads)!=len(valid_tokens):raise ValueError(&#x27;Invalid microbatches&#x27;)
+    return [sum(g[j]*n for g,n in zip(grads,valid_tokens))/total for j in range(len(grads[0]))]
+
+
+def majority(votes):
+    &quot;&quot;&quot;Count canonical answer strings, lexical tie break, no correctness guarantee.&quot;&quot;&quot;
+    counts=Counter(votes)
+    if not counts:raise ValueError(&#x27;No answers&#x27;)
+    return min(counts,key=lambda v:(-counts[v],v))
+
+
+def pass_at_k(n,c,k):
+    &quot;&quot;&quot;Unbiased combinatorial estimator given c successes among n sampled candidates.&quot;&quot;&quot;
+    if not 0&lt;=c&lt;=n or not 1&lt;=k&lt;=n:raise ValueError(&#x27;Invalid n,c,k&#x27;)
+    return 1-(math.comb(n-c,k)/math.comb(n,k) if n-c&gt;=k else 0.)
+
+
+def token_f1(prediction,gold):
+    &quot;&quot;&quot;Toy whitespace/multiset token F1; benchmark normalization is a separate contract.&quot;&quot;&quot;
+    p=Counter(prediction.split());g=Counter(gold.split());overlap=sum((p&amp;g).values())
+    if not sum(p.values()) or not sum(g.values()):return float(p==g)
+    precision=overlap/sum(p.values());recall=overlap/sum(g.values())
+    return 2*precision*recall/(precision+recall) if overlap else 0.
+
+
+def mla_content(query,latent,up_key,up_value):
+    &quot;&quot;&quot;Content-only absorption equivalence, one head, no RoPE or causal mask.&quot;&quot;&quot;
+    def transpose(x):return [list(r) for r in zip(*x)]
+    expanded_keys=matmul(latent,up_key)
+    expanded_values=matmul(latent,up_value)
+    scores=matmul(query,transpose(expanded_keys))
+    absorbed_scores=matmul(matmul(query,transpose(up_key)),transpose(latent))
+    weights=[softmax([v/math.sqrt(len(query[0])) for v in row]) for row in scores]
+    return {&#x27;expanded_scores&#x27;:scores,&#x27;absorbed_scores&#x27;:absorbed_scores,
+      &#x27;expanded_output&#x27;:matmul(weights,expanded_values),&#x27;absorbed_output&#x27;:matmul(matmul(weights,latent),up_value)}
+
+
+def speculative_distribution(target,proposal):
+    &quot;&quot;&quot;Exact one-step speculative rejection distribution on a categorical support.&quot;&quot;&quot;
+    if len(target)!=len(proposal) or any(v&lt;0 for v in target+proposal) or abs(sum(target)-1)&gt;1e-8 or abs(sum(proposal)-1)&gt;1e-8:raise ValueError(&#x27;Matching categorical PMFs&#x27;)
+    accepted=[min(p,q) for p,q in zip(target,proposal)];rejection=1-sum(accepted)
+    residual=[max(p-q,0) for p,q in zip(target,proposal)];mass=sum(residual)
+    corrected=[a+rejection*r/mass if mass&gt;0 else a for a,r in zip(accepted,residual)]
+    return {&#x27;accepted_mass&#x27;:sum(accepted),&#x27;residual&#x27;:residual,&#x27;final_distribution&#x27;:corrected}
+
+
+def fp8_finite_values(format_name):
+    &quot;&quot;&quot;Enumerate positive finite E4M3FN or IEEE-style E5M2 values; excludes NaN/inf.&quot;&quot;&quot;
+    if format_name==&#x27;E4M3FN&#x27;:e,m,bias=4,3,7
+    elif format_name==&#x27;E5M2&#x27;:e,m,bias=5,2,15
+    else:raise ValueError(&#x27;Unsupported explicit FP8 variant&#x27;)
+    values=[]
+    for exponent in range(2**e):
+        for mantissa in range(2**m):
+            if format_name==&#x27;E4M3FN&#x27; and exponent==15 and mantissa==7:continue
+            if format_name==&#x27;E5M2&#x27; and exponent==31:continue
+            v=(mantissa/2**m if exponent==0 else 1+mantissa/2**m)*2.**(1-bias if exponent==0 else exponent-bias)
+            values.append(v)
+    return sorted(set(values))
+
+
+def bitnet_reconstruct(integer_product,weight_scale,activation_absmax,activation_qmax):
+    &quot;&quot;&quot;Declared reciprocal-scale recovery: latent signed weight times integer activation.&quot;&quot;&quot;
+    return integer_product*weight_scale*activation_absmax/activation_qmax
+
+
+def storage_bits(weights,bits,metadata_bits_per_block,block_size):
+    &quot;&quot;&quot;Payload plus complete-block metadata; this fixture assumes exactly full blocks.&quot;&quot;&quot;
+    if weights%block_size:raise ValueError(&#x27;Full blocks required by this fixture&#x27;)
+    return weights*bits+(weights//block_size)*metadata_bits_per_block
+
+
+def zero_memory(parameters,world,stage,param_bytes=2,grad_bytes=2,optimizer_bytes=12):
+    &quot;&quot;&quot;Ideal per-rank model-state bytes, no activation/temporary buffers or offload.&quot;&quot;&quot;
+    if stage not in [0,1,2,3] or world&lt;1:raise ValueError(&#x27;Invalid stage/world&#x27;)
+    return parameters*((param_bytes/world if stage&gt;=3 else param_bytes)+(grad_bytes/world if stage&gt;=2 else grad_bytes)+(optimizer_bytes/world if stage&gt;=1 else optimizer_bytes))
+
+
+def pipeline_bubble(microbatches,stages):
+    &quot;&quot;&quot;Simplified balanced fill/drain model; not a DualPipe timing simulation.&quot;&quot;&quot;
+    return (stages-1)/(microbatches+stages-1)
+
+
+def masked_mean(values,mask):
+    &quot;&quot;&quot;Only positions with mask1 contribute; values need not be token losses.&quot;&quot;&quot;
+    if len(values)!=len(mask) or any(v not in [0,1] for v in mask) or sum(mask)==0:raise ValueError(&#x27;Nonempty binary mask&#x27;)
+    return sum(v*m for v,m in zip(values,mask))/sum(mask)
+
+
+def fake_quant_ste_gradient(w,target,step,qmin,qmax):
+    &quot;&quot;&quot;Chosen identity-inside/clamp-zero-outside STE on squared scalar reconstruction loss.&quot;&quot;&quot;
+    reconstructed=affine_quantize([w],step,0,qmin,qmax)[&#x27;reconstructed&#x27;][0]
+    surrogate=1 if qmin*step&lt;=w&lt;=qmax*step else 0
+    return 2*(reconstructed-target)*surrogate
+
+
+def ternary_weights(w):
+    &quot;&quot;&quot;Declared absmean-round-clip ternary toy, nearest-even ties; no training.&quot;&quot;&quot;
+    scale=sum(abs(v) for v in w)/len(w)
+    if scale==0:return {&#x27;scale&#x27;:0,&#x27;codes&#x27;:[0]*len(w),&#x27;reconstructed&#x27;:[0]*len(w)}
+    codes=[min(1,max(-1,round(v/scale))) for v in w]
+    return {&#x27;scale&#x27;:scale,&#x27;codes&#x27;:codes,&#x27;reconstructed&#x27;:[v*scale for v in codes]}
+
+
+def fixtures():
+    p=[.5,.3,.15,.05]
+    return {&#x27;bpe&#x27;:bpe_train({&#x27;low&#x27;:5,&#x27;lower&#x27;:2},3),&#x27;rope&#x27;:rope([1,0,0,1],2),
+      &#x27;rmsnorm&#x27;:rmsnorm([1,3],eps=0),
+      &#x27;swiglu&#x27;:swiglu([[1,2]],[[1,0],[0,1]],[[2,1],[0,1]],[[1,0],[0,1]]),
+      &#x27;parameters&#x27;:{&#x27;tied&#x27;:parameter_count(10,4,8,2),&#x27;untied&#x27;:parameter_count(10,4,8,2,False),&#x27;gated&#x27;:parameter_count(10,4,8,2,True,True)},
+      &#x27;filters&#x27;:{k:truncate(p,k,v) for k,v in [(&#x27;top-k&#x27;,2),(&#x27;top-p&#x27;,.75),(&#x27;min-p&#x27;,.4),(&#x27;typical&#x27;,.5)]},
+      &#x27;beam&#x27;:{&#x27;greedy&#x27;:beam_fixture(1),&#x27;beam2&#x27;:beam_fixture(2)},
+      &#x27;length&#x27;:{&#x27;short&#x27;:gnmt_score(2*math.log(.6),2,.6),&#x27;long&#x27;:gnmt_score(4*math.log(.75),4,.6)},
+      &#x27;repetition&#x27;:{&#x27;sign_aware&#x27;:repetition([2,-2,1],{0,1},2),&#x27;literal_division&#x27;:repetition([2,-2,1],{0,1},2,False)},
+      &#x27;contrastive&#x27;:contrastive([.6,.4],[.95,.1],.5),&#x27;mirostat&#x27;:mirostat_update(8,6,4,.1),
+      &#x27;lora&#x27;:lora([[1,1,1]],[[2,1],[0,1],[1,2]],[[1],[1],[0]],[[1,2]],2),
+      &#x27;quantization&#x27;:affine_quantize([-2,-.6,0,.6,2],.5,0,-3,3),
+      &#x27;gptq&#x27;:gptq_compensate([.42,.3],[[2,1],[1,1]],0,3/7),
+      &#x27;kd&#x27;:kd_loss([1,2],[2,1],1,2,.3),
+      &#x27;reverse_kl_gradient&#x27;:reverse_kl_gradient([.4,-.1,.8],[.7,.2,.1]),
+      &#x27;advantages&#x27;:{&#x27;population&#x27;:advantages([1,1,1,0],0),&#x27;sample&#x27;:advantages([1,1,1,0],0,True)},
+      &#x27;clipping&#x27;:[clipped_surrogate(1.5,2,.2),clipped_surrogate(.5,-2,.2),clipped_surrogate(1.5,-2,.2)],
+      &#x27;cache_bytes&#x27;:{&#x27;mha&#x27;:cache_bytes(1,1024,32,32,128,2),&#x27;gqa&#x27;:cache_bytes(1,1024,32,8,128,2),&#x27;mqa&#x27;:cache_bytes(1,1024,32,1,128,2)},
+      &#x27;mtp_alignment&#x27;:mtp_alignment([10,11,12,13,14],1),
+      &#x27;mla&#x27;:mla_content([[1,2],[3,4]],[[1,0],[0,1],[2,1]],[[1,2],[3,4]],[[2,0],[0,3]]),
+      &#x27;speculative&#x27;:speculative_distribution([.2,.8],[.7,.3]),
+      &#x27;zero_bytes&#x27;:{str(s):zero_memory(1000,4,s) for s in [0,1,2,3]}}
+
+
+if __name__==&#x27;__main__&#x27;:
+    print(json.dumps(fixtures(),indent=2))
+</code></pre></details><p><a download="course_mechanics.py" href="assets/c1f73066765882aa3551.bin">Download companion</a></p><h3 id="v3-heading-audit-continuation-4">Reproducible fixture outputs</h3><details><summary>View exact JSON outputs</summary><pre><code>{
+  &quot;bpe&quot;: {
+    &quot;merges&quot;: [
+      [
+        &quot;l&quot;,
+        &quot;o&quot;
+      ],
+      [
+        &quot;lo&quot;,
+        &quot;w&quot;
+      ],
+      [
+        &quot;low&quot;,
+        &quot;&lt;/w&gt;&quot;
+      ]
+    ],
+    &quot;segmented_words&quot;: [
+      [
+        [
+          &quot;low&lt;/w&gt;&quot;
+        ],
+        5
+      ],
+      [
+        [
+          &quot;low&quot;,
+          &quot;e&quot;,
+          &quot;r&quot;,
+          &quot;&lt;/w&gt;&quot;
+        ],
+        2
+      ]
+    ]
+  },
+  &quot;rope&quot;: [
+    -0.4161468365471424,
+    0.9092974268256817,
+    -0.01999866669333308,
+    0.9998000066665778
+  ],
+  &quot;rmsnorm&quot;: [
+    0.4472135954999579,
+    1.3416407864998738
+  ],
+  &quot;swiglu&quot;: [
+    [
+      1.4621171572600098,
+      5.284782467867294
+    ]
+  ],
+  &quot;parameters&quot;: {
+    &quot;tied&quot;: 316,
+    &quot;untied&quot;: 356,
+    &quot;gated&quot;: 380
+  },
+  &quot;filters&quot;: {
+    &quot;top-k&quot;: {
+      &quot;kept_ids&quot;: [
+        0,
+        1
+      ],
+      &quot;retained_mass&quot;: 0.8,
+      &quot;probabilities&quot;: [
+        0.625,
+        0.37499999999999994,
+        0,
+        0
+      ]
+    },
+    &quot;top-p&quot;: {
+      &quot;kept_ids&quot;: [
+        0,
+        1
+      ],
+      &quot;retained_mass&quot;: 0.8,
+      &quot;probabilities&quot;: [
+        0.625,
+        0.37499999999999994,
+        0,
+        0
+      ]
+    },
+    &quot;min-p&quot;: {
+      &quot;kept_ids&quot;: [
+        0,
+        1
+      ],
+      &quot;retained_mass&quot;: 0.8,
+      &quot;probabilities&quot;: [
+        0.625,
+        0.37499999999999994,
+        0,
+        0
+      ]
+    },
+    &quot;typical&quot;: {
+      &quot;kept_ids&quot;: [
+        1,
+        0
+      ],
+      &quot;retained_mass&quot;: 0.8,
+      &quot;probabilities&quot;: [
+        0.625,
+        0.37499999999999994,
+        0,
+        0
+      ]
+    }
+  },
+  &quot;beam&quot;: {
+    &quot;greedy&quot;: [
+      [
+        &quot;bright outside&quot;,
+        0.25
+      ]
+    ],
+    &quot;beam2&quot;: [
+      [
+        &quot;sunny outside&quot;,
+        0.3324999999999999
+      ],
+      [
+        &quot;bright outside&quot;,
+        0.25
+      ]
+    ]
+  },
+  &quot;length&quot;: {
+    &quot;short&quot;: -0.9313964877021854,
+    &quot;long&quot;: -0.9022316015119008
+  },
+  &quot;repetition&quot;: {
+    &quot;sign_aware&quot;: [
+      1.0,
+      -4,
+      1
+    ],
+    &quot;literal_division&quot;: [
+      1.0,
+      -1.0,
+      1
+    ]
+  },
+  &quot;contrastive&quot;: {
+    &quot;scores&quot;: [
+      -0.175,
+      0.15000000000000002
+    ],
+    &quot;selected&quot;: 1
+  },
+  &quot;mirostat&quot;: 7.8,
+  &quot;lora&quot;: {
+    &quot;delta&quot;: [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    &quot;merged&quot;: [
+      [
+        4.0,
+        5.0
+      ],
+      [
+        2.0,
+        5.0
+      ],
+      [
+        1.0,
+        2.0
+      ]
+    ],
+    &quot;separate_output&quot;: [
+      [
+        7.0,
+        12.0
+      ]
+    ],
+    &quot;merged_output&quot;: [
+      [
+        7.0,
+        12.0
+      ]
+    ]
+  },
+  &quot;quantization&quot;: {
+    &quot;codes&quot;: [
+      -3,
+      -1,
+      0,
+      1,
+      3
+    ],
+    &quot;reconstructed&quot;: [
+      -1.5,
+      -0.5,
+      0.0,
+      0.5,
+      1.5
+    ]
+  },
+  &quot;gptq&quot;: [
+    0.42857142857142855,
+    0.30428571428571427
+  ],
+  &quot;kd&quot;: {
+    &quot;hard_ce&quot;: 0.3132616875182228,
+    &quot;scaled_kl&quot;: 0.48983732480741826,
+    &quot;total&quot;: 0.4368646336206596
+  },
+  &quot;reverse_kl_gradient&quot;: [
+    -0.41211880234698905,
+    -0.10260263277019208,
+    0.514721435117181
+  ],
+  &quot;advantages&quot;: {
+    &quot;population&quot;: {
+      &quot;mean&quot;: 0.75,
+      &quot;std&quot;: 0.4330127018922193,
+      &quot;advantages&quot;: [
+        0.5773502691896258,
+        0.5773502691896258,
+        0.5773502691896258,
+        -1.7320508075688774
+      ]
+    },
+    &quot;sample&quot;: {
+      &quot;mean&quot;: 0.75,
+      &quot;std&quot;: 0.5,
+      &quot;advantages&quot;: [
+        0.5,
+        0.5,
+        0.5,
+        -1.5
+      ]
+    }
+  },
+  &quot;clipping&quot;: [
+    2.4,
+    -1.6,
+    -3.0
+  ],
+  &quot;cache_bytes&quot;: {
+    &quot;mha&quot;: 536870912,
+    &quot;gqa&quot;: 134217728,
+    &quot;mqa&quot;: 16777216
+  },
+  &quot;mtp_alignment&quot;: [
+    {
+      &quot;position&quot;: 0,
+      &quot;visible_through&quot;: 1,
+      &quot;target_position&quot;: 2,
+      &quot;target&quot;: 12
+    },
+    {
+      &quot;position&quot;: 1,
+      &quot;visible_through&quot;: 2,
+      &quot;target_position&quot;: 3,
+      &quot;target&quot;: 13
+    },
+    {
+      &quot;position&quot;: 2,
+      &quot;visible_through&quot;: 3,
+      &quot;target_position&quot;: 4,
+      &quot;target&quot;: 14
+    }
+  ],
+  &quot;mla&quot;: {
+    &quot;expanded_scores&quot;: [
+      [
+        5,
+        11,
+        21
+      ],
+      [
+        11,
+        25,
+        47
+      ]
+    ],
+    &quot;absorbed_scores&quot;: [
+      [
+        5,
+        11,
+        21
+      ],
+      [
+        11,
+        25,
+        47
+      ]
+    ],
+    &quot;expanded_output&quot;: [
+      [
+        3.996581233616862,
+        2.99996341811442
+      ],
+      [
+        3.9999992984894517,
+        2.9999999999735887
+      ]
+    ],
+    &quot;absorbed_output&quot;: [
+      [
+        3.996581233616862,
+        2.99996341811442
+      ],
+      [
+        3.9999992984894517,
+        2.9999999999735887
+      ]
+    ]
+  },
+  &quot;speculative&quot;: {
+    &quot;accepted_mass&quot;: 0.5,
+    &quot;residual&quot;: [
+      0,
+      0.5
+    ],
+    &quot;final_distribution&quot;: [
+      0.2,
+      0.8
+    ]
+  },
+  &quot;zero_bytes&quot;: {
+    &quot;0&quot;: 16000,
+    &quot;1&quot;: 7000.0,
+    &quot;2&quot;: 5500.0,
+    &quot;3&quot;: 4000.0
+  }
+}
+</code></pre></details><h3 id="audit-continuation-checks">Independent checks</h3><table><thead><tr><th>Check</th><th>Method</th><th>Result</th></tr></thead><tbody><tr><td>BPE-pair-rank</td><td>Manual weighted adjacent-pair counts and lexical tie convention</td><td>passed</td></tr><tr><td>BPE-encode</td><td>Apply learned merges by rank</td><td>passed</td></tr><tr><td>RoPE-norm</td><td>Orthogonal rotation invariant</td><td>passed</td></tr><tr><td>RoPE-relative</td><td>Relative dot-product identity on two frequencies</td><td>passed</td></tr><tr><td>RoPE-matrix</td><td>Independent NumPy 2D matrix products</td><td>passed</td></tr><tr><td>RoPE-odd-width</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>RMS-value</td><td>Explicit root mean square</td><td>passed</td></tr><tr><td>RMS-epsilon</td><td>Zero-vector with positive epsilon</td><td>passed</td></tr><tr><td>RMS-scale</td><td>Positive scale invariance at epsilon zero</td><td>passed</td></tr><tr><td>RMS-not-shift-invariant</td><td>Shift counterexample</td><td>passed</td></tr><tr><td>SwiGLU</td><td>Independent scalar gate/up products</td><td>passed</td></tr><tr><td>Params-tied</td><td>Explicit enumeration: 40+2*(64+64+8)+4</td><td>passed</td></tr><tr><td>Params-untied</td><td>Adds 10*4 unembedding weights</td><td>passed</td></tr><tr><td>Params-gated</td><td>Adds third d*ffn projection in each block</td><td>passed</td></tr><tr><td>Filter-top-k</td><td>Manually ranked support; typical distances from entropy</td><td>passed</td></tr><tr><td>Filter-normalization-top-k</td><td>Normalized retained support</td><td>passed</td></tr><tr><td>Filter-top-p</td><td>Manually ranked support; typical distances from entropy</td><td>passed</td></tr><tr><td>Filter-normalization-top-p</td><td>Normalized retained support</td><td>passed</td></tr><tr><td>Filter-min-p</td><td>Manually ranked support; typical distances from entropy</td><td>passed</td></tr><tr><td>Filter-normalization-min-p</td><td>Normalized retained support</td><td>passed</td></tr><tr><td>Filter-typical</td><td>Manually ranked support; typical distances from entropy</td><td>passed</td></tr><tr><td>Filter-normalization-typical</td><td>Normalized retained support</td><td>passed</td></tr><tr><td>Top-p-boundary</td><td>Boundary-reaching token included</td><td>passed</td></tr><tr><td>Top-k-invalid</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>Top-p-invalid</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>Sample-bins</td><td>Explicit inverse-CDF half-open intervals</td><td>passed</td></tr><tr><td>Beam-greedy</td><td>Slide p9: width-one path</td><td>passed</td></tr><tr><td>Beam-width-two</td><td>Slide p9: all six expansions ranked</td><td>passed</td></tr><tr><td>Beam-probability</td><td>0.35*0.95</td><td>passed</td></tr><tr><td>Beam-second</td><td>0.50*0.50</td><td>passed</td></tr><tr><td>Length-order</td><td>GNMT length-penalty reverses this fixture ordering</td><td>passed</td></tr><tr><td>Repetition-sign</td><td>Piecewise sign-aware penalty</td><td>passed</td></tr><tr><td>Repetition-literal-counterexample</td><td>Literal division raises negative seen logit</td><td>passed</td></tr><tr><td>Contrastive-selection</td><td>Scores -0.175 vs +0.15</td><td>passed</td></tr><tr><td>Mirostat-feedback</td><td>8-0.1*(6-4), bits throughout</td><td>passed</td></tr><tr><td>LoRA-slide-output</td><td>Provided PEFT slide p6 independently summed</td><td>passed</td></tr><tr><td>LoRA-merge</td><td>Separate versus merged invariance</td><td>passed</td></tr><tr><td>LoRA-Numpy</td><td>Independent NumPy matrix operations</td><td>passed</td></tr><tr><td>LoRA-count</td><td>Adapter parameter enumeration</td><td>passed</td></tr><tr><td>Quant-codes</td><td>Step .5, nearest-even rounding, saturation</td><td>passed</td></tr><tr><td>Quant-tie-even</td><td>Exact halfway cases, selected rounding convention</td><td>passed</td></tr><tr><td>Quant-zero</td><td>Zero-point code exactly reconstructs zero</td><td>passed</td></tr><tr><td>Quant-zero-step</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>Float-normal</td><td>IEEE-like E5M10 bias15, significand1.5</td><td>passed</td></tr><tr><td>Float-subnormal</td><td>No implicit leading one</td><td>passed</td></tr><tr><td>Float-fp16-range</td><td>Largest finite IEEE binary16 normal</td><td>passed</td></tr><tr><td>Float-inf</td><td>All-one exponent with zero mantissa</td><td>passed</td></tr><tr><td>GPTQ-fixed-coordinate</td><td>Constraint satisfied exactly</td><td>passed</td></tr><tr><td>GPTQ-kkt</td><td>Inverse-Hessian constrained optimum</td><td>passed</td></tr><tr><td>GPTQ-cost</td><td>Quadratic cost identity</td><td>passed</td></tr><tr><td>GPTQ-no-worse-fixture</td><td>Compare compensated versus naive fixed-coordinate cost</td><td>passed</td></tr><tr><td>ReverseKL-gradient</td><td>Central finite differences of exact categorical reverse KL</td><td>passed</td></tr><tr><td>ReverseKL-gradient-zero-sum</td><td>Logit common-shift invariance</td><td>passed</td></tr><tr><td>KL-support</td><td>Positive target outside candidate support</td><td>passed</td></tr><tr><td>KD-identical-teacher</td><td>Equal softened distributions have zero KL</td><td>passed</td></tr><tr><td>KD-hard-component</td><td>Hard-weight one recovers untempered target CE</td><td>passed</td></tr><tr><td>GRPO-population</td><td>Manual population variance3/16</td><td>passed</td></tr><tr><td>GRPO-sample</td><td>Sample variance1/4; shows convention difference</td><td>passed</td></tr><tr><td>GRPO-zero-group</td><td>Equal rewards, positive epsilon</td><td>passed</td></tr><tr><td>PPO-positive-clip</td><td>Minimum of3 and2.4</td><td>passed</td></tr><tr><td>PPO-negative-clip</td><td>Minimum of-1 and-1.6</td><td>passed</td></tr><tr><td>PPO-negative-large-ratio</td><td>Negative advantages retain harmful large-ratio penalty</td><td>passed</td></tr><tr><td>KL-sample-can-negative</td><td>Single chosen outcome log ratio need not be a divergence</td><td>passed</td></tr><tr><td>KL-k3-nonnegative</td><td>expm1(d)-d &gt;=0</td><td>passed</td></tr><tr><td>KL-k3-expectation</td><td>Exact current-policy categorical expectation with full support</td><td>passed</td></tr><tr><td>Importance-unbiased</td><td>Proposal expectation reconstructs target expectation</td><td>passed</td></tr><tr><td>Importance-support</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>KV-MHA</td><td>2*1*1024*32*32*128*2=512MiB</td><td>passed</td></tr><tr><td>KV-GQA</td><td>Eight KV heads gives128MiB</td><td>passed</td></tr><tr><td>KV-MQA</td><td>One KV head gives16MiB</td><td>passed</td></tr><tr><td>MoE-route</td><td>Top-two router probabilities</td><td>passed</td></tr><tr><td>MoE-renormalize</td><td>Selected mass.9</td><td>passed</td></tr><tr><td>MoE-weighted-output</td><td>Weighted identity and twice-identity experts</td><td>passed</td></tr><tr><td>Balance-uniform</td><td>Switch-style uniform reference</td><td>passed</td></tr><tr><td>Balance-collapse</td><td>Collapsed top-1 routes at coefficient1</td><td>passed</td></tr><tr><td>MTP-targets</td><td>Depth1 targets positiont+2</td><td>passed</td></tr><tr><td>MTP-causal-boundary</td><td>Teacher-forced visible endpoint precedes target</td><td>passed</td></tr><tr><td>Gradient-token-weight</td><td>Global token mean, not unweighted microbatch mean</td><td>passed</td></tr><tr><td>Vote-canonical</td><td>Frequency of canonical answers</td><td>passed</td></tr><tr><td>Pass-at-two</td><td>1-C(3,2)/C(4,2)</td><td>passed</td></tr><tr><td>QA-token-F1</td><td>Overlap2, precision2/3, recall1</td><td>passed</td></tr><tr><td>MLA-score-absorption</td><td>Associativity and transpose identity, declared content-only variant</td><td>passed</td></tr><tr><td>MLA-value-absorption</td><td>(A C)Uv versus A(C Uv)</td><td>passed</td></tr><tr><td>MLA-Numpy-score</td><td>Independent expanded NumPy reference</td><td>passed</td></tr><tr><td>Speculative-accept</td><td>Sum of coordinatewise minima</td><td>passed</td></tr><tr><td>Speculative-corrected</td><td>One-step rejection correction preserves target distribution</td><td>passed</td></tr><tr><td>Speculative-equal</td><td>Matching draft/target accepts all</td><td>passed</td></tr><tr><td>FP8-E4M3FN-max</td><td>Exponent15,mantissa6,bias7</td><td>passed</td></tr><tr><td>FP8-E4M3FN-minsub</td><td>Exponent0,mantissa1</td><td>passed</td></tr><tr><td>FP8-E5M2-max</td><td>Exponent30,mantissa3,bias15</td><td>passed</td></tr><tr><td>FP8-E5M2-minsub</td><td>Exponent0,mantissa1</td><td>passed</td></tr><tr><td>BitNet-recovery</td><td>Integer product multiplied by weight step and activation step</td><td>passed</td></tr><tr><td>Quant-block-overhead</td><td>1024 payload+128 metadata=4.5bits per weight</td><td>passed</td></tr><tr><td>ZeRO-stage0</td><td>2+2+12bytes per parameter</td><td>passed</td></tr><tr><td>ZeRO-stage1</td><td>2+2+12/4bytes per parameter</td><td>passed</td></tr><tr><td>ZeRO-stage2</td><td>2+2/4+12/4bytes per parameter</td><td>passed</td></tr><tr><td>ZeRO-stage3</td><td>(2+2+12)/4bytes per parameter</td><td>passed</td></tr><tr><td>Pipeline-balanced</td><td>Balanced fill/drain slot model</td><td>passed</td></tr><tr><td>Pipeline-more-microbatches</td><td>Ideal model bubble decreases with more microbatches</td><td>passed</td></tr><tr><td>IndicQA-total-mismatch</td><td>Primary Table7 reported total row arithmetic</td><td>passed</td></tr><tr><td>MiniLLM-ablation-deltas</td><td>Primary v4 Table4 correctly identified rows</td><td>passed</td></tr><tr><td>ReTool-deltas</td><td>Primary Table1 same-model score differences</td><td>passed</td></tr><tr><td>V3-GPU-cost</td><td>Primary Table1 GPU-hour quantities and assumed2USD/hour</td><td>passed</td></tr><tr><td>R1-v1-accuracy-delta</td><td>Version1 Table2 pass@1 difference, not differing slide setting</td><td>passed</td></tr><tr><td>Tool-output-mask</td><td>Tool observation excluded from generated-policy token mean</td><td>passed</td></tr><tr><td>Tool-mask-empty</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>QAT-STE</td><td>Declared surrogate derivative2*(.2-.5)</td><td>passed</td></tr><tr><td>QAT-true-local-derivative</td><td>Rounding forward map is locally constant away from boundary</td><td>passed</td></tr><tr><td>QAT-clipped-STE</td><td>Selected zero gradient outside unclipped interval</td><td>passed</td></tr><tr><td>Ternary-codes</td><td>Mean absolute scale.5; round/clip normalized values</td><td>passed</td></tr><tr><td>Ternary-symbol-entropy</td><td>Three equally possible symbols need log2(3)ideal bits</td><td>passed</td></tr><tr><td>Double-quant-metadata</td><td>One8-bit scale per64weights plus32-bit scale per256scale codes</td><td>passed</td></tr><tr><td>Double-quant-savings</td><td>Unquantized versus declared nested scale metadata</td><td>passed</td></tr><tr><td>KD-invalid-temperature</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>KD-invalid-weight</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>ReverseKL-shape</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>GRPO-zero-no-epsilon</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>GRPO-single-sample-std</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>MTP-negative-depth</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>Speculative-mismatched-support</td><td>Invalid-input rejection</td><td>passed</td></tr><tr><td>Speculative-unnormalized</td><td>Invalid-input rejection</td><td>passed</td></tr></tbody></table><p>The accompanying audit inventory records remaining inherited units and gaps. A mechanically detected heading or source reference is an inventory candidate, not a passed concept audit.</p></section>

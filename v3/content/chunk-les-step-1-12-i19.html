@@ -1,0 +1,1589 @@
+<section class="chunk" id="chunk-les-step-1-12-i19" data-id="les-step-1-12-i19"><details class="audit-card" id="audit-full-chunk-les-step-1-12-i19" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-1">Motivation</h4><p>Motivation: connect normalization, causal multi-head attention, FFN and the two residual additions in one reproducible calculation. Prerequisites: all component shapes and row/column orientation; population variance; exact GELU.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-2">Prerequisites</h4><ul><li>Read the prerequisite chain stated in the original lesson and this review motivation.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-3">Notation and units</h4><ul><li>H=X+\operatorname{MHA}(\operatorname{LN}_1(X)),\qquad Y=H+\operatorname{FFN}(\operatorname{LN}_2(H))</li><li>\widehat{x}=\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}},\qquad \mathrm{LN}(x)=\gamma\odot\widehat{x}+\beta</li><li>G_x=\frac{G\odot\gamma-\operatorname{mean}(G\odot\gamma)-\widehat{x}\operatorname{mean}((G\odot\gamma)\widehat{x})}{\sqrt{\sigma^2+\epsilon}}</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-4">Assumptions</h4><ul><li>The inherited 2-token, width-2 block sets normalization scale=1 and shift=0, uses identity Q/K/V/output projections and omits epsilon in the hand calculation. The new trace explicitly distinguishes epsilon=0 (valid for this nonconstant fixture) from epsilon=1e−5. Dropout is disabled in both traces.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-5">Step-by-step derivation</h4><ol><li>Start X=[[1,3],[2,4]]. With population variance and epsilon=0, both rows normalize to [−1,1]. Identity split projections give one scalar channel per head.</li><li>Both heads have scores [[1,1],[1,1]]. Causal weights are [[1,0],[0.5,0.5]]. Their values are constant across positions, so concatenated attention output is [[−1,1],[−1,1]]. Add X to obtain H=[[0,4],[1,5]].</li><li>LN2(H) again gives [−1,1] for both tokens. The declared FFN produces pre-activation [−1,1,0,2], exact GELU [−0.1586552539,0.8413447461,0,1.9544997361] and output [−0.1586552539,2.7958444822].</li><li>The final residual gives Y=[[-0.1586552539,6.7958444822],[0.8413447461,7.7958444822]]. These round to the inherited displayed output. The positive-epsilon trace differs slightly and is printed separately.</li><li>For B=16,T=128,d=768,h=12,d_ff=3072: split Q/K/V=[16,12,128,64], scores=[16,12,128,128], FFN hidden=[16,128,3072], block output=[16,128,768].</li><li>Projection-weight count per illustrated block: 4d²+2dd_ff=7,077,888 at d=768,d_ff=3072. It excludes biases and normalization. The B=8,h=16,T=1024 score tensor has 134,217,728 entries, an activation count rather than a parameter count.</li><li>Backward pass: add the identity residual gradient to the gradient through each branch. LayerNorm backward includes derivatives through feature mean and variance. The full decoder finite differences validate both blocks, including every normalization scale and shift.</li></ol><h4 id="v3-heading-chunk-les-step-1-12-i19-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-12-i19-7">Integrated decoder two_block_logits</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Start X=[[1,3],[2,4]]. With population variance and epsilon=0, both rows normalize to [−1,1]. Identity split projections give one scalar channel per head.</li><li>Both heads have scores [[1,1],[1,1]]. Causal weights are [[1,0],[0.5,0.5]]. Their values are constant across positions, so concatenated attention output is [[−1,1],[−1,1]]. Add X to obtain H=[[0,4],[1,5]].</li><li>LN2(H) again gives [−1,1] for both tokens. The declared FFN produces pre-activation [−1,1,0,2], exact GELU [−0.1586552539,0.8413447461,0,1.9544997361] and output [−0.1586552539,2.7958444822].</li><li>The final residual gives Y=[[-0.1586552539,6.7958444822],[0.8413447461,7.7958444822]]. These round to the inherited displayed output. The positive-epsilon trace differs slightly and is printed separately.</li><li>For B=16,T=128,d=768,h=12,d_ff=3072: split Q/K/V=[16,12,128,64], scores=[16,12,128,128], FFN hidden=[16,128,3072], block output=[16,128,768].</li><li>Projection-weight count per illustrated block: 4d²+2dd_ff=7,077,888 at d=768,d_ff=3072. It excludes biases and normalization. The B=8,h=16,T=1024 score tensor has 134,217,728 entries, an activation count rather than a parameter count.</li><li>Backward pass: add the identity residual gradient to the gradient through each branch. LayerNorm backward includes derivatives through feature mean and variance. The full decoder finite differences validate both blocks, including every normalization scale and shift.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_logits · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-12-i19-8">Integrated decoder two_block_mean_ce</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Start X=[[1,3],[2,4]]. With population variance and epsilon=0, both rows normalize to [−1,1]. Identity split projections give one scalar channel per head.</li><li>Both heads have scores [[1,1],[1,1]]. Causal weights are [[1,0],[0.5,0.5]]. Their values are constant across positions, so concatenated attention output is [[−1,1],[−1,1]]. Add X to obtain H=[[0,4],[1,5]].</li><li>LN2(H) again gives [−1,1] for both tokens. The declared FFN produces pre-activation [−1,1,0,2], exact GELU [−0.1586552539,0.8413447461,0,1.9544997361] and output [−0.1586552539,2.7958444822].</li><li>The final residual gives Y=[[-0.1586552539,6.7958444822],[0.8413447461,7.7958444822]]. These round to the inherited displayed output. The positive-epsilon trace differs slightly and is printed separately.</li><li>For B=16,T=128,d=768,h=12,d_ff=3072: split Q/K/V=[16,12,128,64], scores=[16,12,128,128], FFN hidden=[16,128,3072], block output=[16,128,768].</li><li>Projection-weight count per illustrated block: 4d²+2dd_ff=7,077,888 at d=768,d_ff=3072. It excludes biases and normalization. The B=8,h=16,T=1024 score tensor has 134,217,728 entries, an activation count rather than a parameter count.</li><li>Backward pass: add the identity residual gradient to the gradient through each branch. LayerNorm backward includes derivatives through feature mean and variance. The full decoder finite differences validate both blocks, including every normalization scale and shift.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_mean_ce · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-12-i19-9">Integrated decoder future_token_invariance</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Start X=[[1,3],[2,4]]. With population variance and epsilon=0, both rows normalize to [−1,1]. Identity split projections give one scalar channel per head.</li><li>Both heads have scores [[1,1],[1,1]]. Causal weights are [[1,0],[0.5,0.5]]. Their values are constant across positions, so concatenated attention output is [[−1,1],[−1,1]]. Add X to obtain H=[[0,4],[1,5]].</li><li>LN2(H) again gives [−1,1] for both tokens. The declared FFN produces pre-activation [−1,1,0,2], exact GELU [−0.1586552539,0.8413447461,0,1.9544997361] and output [−0.1586552539,2.7958444822].</li><li>The final residual gives Y=[[-0.1586552539,6.7958444822],[0.8413447461,7.7958444822]]. These round to the inherited displayed output. The positive-epsilon trace differs slightly and is printed separately.</li><li>For B=16,T=128,d=768,h=12,d_ff=3072: split Q/K/V=[16,12,128,64], scores=[16,12,128,128], FFN hidden=[16,128,3072], block output=[16,128,768].</li><li>Projection-weight count per illustrated block: 4d²+2dd_ff=7,077,888 at d=768,d_ff=3072. It excludes biases and normalization. The B=8,h=16,T=1024 score tensor has 134,217,728 entries, an activation count rather than a parameter count.</li><li>Backward pass: add the identity residual gradient to the gradient through each branch. LayerNorm backward includes derivatives through feature mean and variance. The full decoder finite differences validate both blocks, including every normalization scale and shift.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / future_token_invariance · reused earlier evidence; not counted again</p></div><h4 id="v3-heading-chunk-les-step-1-12-i19-10">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-11">Mastery answers and retained exercise context</h4><ol><li>Q1: H=X+MHA(LN1(X)); Y=H+FFN(LN2(H)).</li><li>Q2: The attention update must have the same [B,T,d] shape as the residual stream for the intended elementwise addition.</li><li>Q3: Expanded hidden width provides capacity for nonlinear feature transformations; its size is an architectural choice.</li><li>Q4: Add the causal mask to scaled query-key scores before row softmax.</li><li>Q5: The position-wise FFN does not directly mix token positions.</li><li>Q6: d_k=64; attention scores=[8,12,512,512].</li><li>Q7: 2×1024×4096=8,388,608 FFN weights.</li><li>Q8: Dense attention interactions grow by a factor of four at fixed widths and head count.</li><li>Q9: The output shape remains [B,T,d], so the next block accepts it directly.</li><li>Q10: MHA mixes permitted contextual information; FFN transforms each position; residuals add branch updates to the stream.</li></ol><h4 id="v3-heading-chunk-les-step-1-12-i19-12">Edge cases and remaining gaps</h4><ul><li>For epsilon&gt;0 and unit scale, normalized population variance is σ²/(σ²+epsilon), not exactly 1. Constant inputs normalize to beta when epsilon is positive; epsilon=0 is undefined for them.</li><li>The width-2 example has identical normalized rows and constant per-head values. It checks the assembly, but does not demonstrate discriminative attention; the new width-4 application uses distinct rows and independent blocks.</li><li>Residual addition requires compatible model feature dimensions. Broadcasting a singleton dimension may be syntactically allowed in a framework but can violate the intended architecture contract.</li><li>Doubling T multiplies the dense interaction term by approximately four; total layer cost also contains linear-in-T projection and FFN terms. Materialized score counts do not describe every efficient attention implementation.</li><li>Pre-LN is the architecture of this lesson and companion. Post-LN and RMSNorm variants require their own equations; the original transformer is not universally pre-LN.</li><li>The residual identity path supports gradient flow; it does not guarantee that all information is invertibly retained or that gradients never vanish/explode.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-13">Connections and progression</h4><ul><li>Use this block inside the independently parameterized stack. The original hand calculation and a nondegenerate batched training application now have separate reproducible traces.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-14">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 249, 250 · epsilon, affine LayerNorm and population-variance denominator</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 274, 275 · complete pre-LN block with two residual additions; dropout location</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-15">Executable code and explained functions</h4><p>transformer_review/examples/decoder.py</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (67)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.12 — Complete Transformer Block: One Forward Pass From Start to Finish</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.1 The Complete Block at a Glance</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.2 Why Is the Residual Added?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.3 The Important Pre-LN Order</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.4 Our Numerical Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.5 Input to the Block</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.6 Step A — First LayerNorm</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.7 Normalize Token 2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.8 Step B — Multi-Head Attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Head 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Head 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.9 Head 1 Projections</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.10 Head 1 Scores</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.11 Head 1 Causal Mask</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.12 Head 1 Softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.13 Head 2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.14 Concatenate the Two Heads</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.15 Step C — First Residual Addition</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.16 Notice What the Residual Did</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.17 Step D — Second LayerNorm</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Token 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.18 Step E — Feed-Forward Network</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.19 First FFN Projection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.20 Apply GELU</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.21 Second FFN Projection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.22 Step F — Second Residual Addition</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.23 We Just Ran an Entire Transformer Block</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Input</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>First normalization</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MHA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>First residual</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Second normalization</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>FFN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Second residual</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.24 The Most Important Pattern</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.25 Tensor Shape Tracking</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.26 Why This Shape Preservation Matters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.27 Why Does Attention Come Before the FFN?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.28 Numerical Exam Pattern #1 — Full Shape Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Solution</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.29 Numerical Exam Pattern #2 — Parameter Count of One Block</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.30 Numerical Exam Pattern #3 — Attention Complexity</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.31 Numerical Exam Pattern #4 — Residual Shape Requirement</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.32 Numerical Exam Pattern #5 — Number of Attention Scores</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.33 Important Distinction: Parameters vs Activations</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.34 What Happens to Information Through the Block?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.35 The Block as an Additive Update System</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.36 One Important Caveat About Our Numerical Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.37 The Complete Forward Pass We Can Now Write</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.12.38 Cumulative Numerical Strategy From Now On</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Level A — Direct numerical</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level B — Multi-stage numerical</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level C — Integrated exam numerical</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.12.39 Master Check — Complete Transformer Block</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-transformer-1-12" data-transformer-review="added"><summary>Verified reconstruction and answer key — Complete pre-LN block with unrounded outputs</summary><p>This addendum qualifies the retained original lesson. It distinguishes source-derived mechanisms, printed approximations, independently calculated teaching fixtures and remaining gaps.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-16">Motivation, prerequisites and notation</h4><p>Motivation: connect normalization, causal multi-head attention, FFN and the two residual additions in one reproducible calculation. Prerequisites: all component shapes and row/column orientation; population variance; exact GELU.</p><p>The inherited 2-token, width-2 block sets normalization scale=1 and shift=0, uses identity Q/K/V/output projections and omits epsilon in the hand calculation. The new trace explicitly distinguishes epsilon=0 (valid for this nonconstant fixture) from epsilon=1e−5. Dropout is disabled in both traces.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-17">Step-by-step derivation and numerical results</h4><ol><li>Start X=[[1,3],[2,4]]. With population variance and epsilon=0, both rows normalize to [−1,1]. Identity split projections give one scalar channel per head.</li><li>Both heads have scores [[1,1],[1,1]]. Causal weights are [[1,0],[0.5,0.5]]. Their values are constant across positions, so concatenated attention output is [[−1,1],[−1,1]]. Add X to obtain H=[[0,4],[1,5]].</li><li>LN2(H) again gives [−1,1] for both tokens. The declared FFN produces pre-activation [−1,1,0,2], exact GELU [−0.1586552539,0.8413447461,0,1.9544997361] and output [−0.1586552539,2.7958444822].</li><li>The final residual gives Y=[[-0.1586552539,6.7958444822],[0.8413447461,7.7958444822]]. These round to the inherited displayed output. The positive-epsilon trace differs slightly and is printed separately.</li><li>For B=16,T=128,d=768,h=12,d_ff=3072: split Q/K/V=[16,12,128,64], scores=[16,12,128,128], FFN hidden=[16,128,3072], block output=[16,128,768].</li><li>Projection-weight count per illustrated block: 4d²+2dd_ff=7,077,888 at d=768,d_ff=3072. It excludes biases and normalization. The B=8,h=16,T=1024 score tensor has 134,217,728 entries, an activation count rather than a parameter count.</li><li>Backward pass: add the identity residual gradient to the gradient through each branch. LayerNorm backward includes derivatives through feature mean and variance. The full decoder finite differences validate both blocks, including every normalization scale and shift.</li></ol><div class="math block">H=X+\operatorname{MHA}(\operatorname{LN}_1(X)),\qquad Y=H+\operatorname{FFN}(\operatorname{LN}_2(H))</div><div class="math block">\widehat{x}=\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}},\qquad \mathrm{LN}(x)=\gamma\odot\widehat{x}+\beta</div><div class="math block">G_x=\frac{G\odot\gamma-\operatorname{mean}(G\odot\gamma)-\widehat{x}\operatorname{mean}((G\odot\gamma)\widehat{x})}{\sqrt{\sigma^2+\epsilon}}</div><h4 id="v3-heading-chunk-les-step-1-12-i19-18">Edge cases and limits</h4><ul><li>For epsilon&gt;0 and unit scale, normalized population variance is σ²/(σ²+epsilon), not exactly 1. Constant inputs normalize to beta when epsilon is positive; epsilon=0 is undefined for them.</li><li>The width-2 example has identical normalized rows and constant per-head values. It checks the assembly, but does not demonstrate discriminative attention; the new width-4 application uses distinct rows and independent blocks.</li><li>Residual addition requires compatible model feature dimensions. Broadcasting a singleton dimension may be syntactically allowed in a framework but can violate the intended architecture contract.</li><li>Doubling T multiplies the dense interaction term by approximately four; total layer cost also contains linear-in-T projection and FFN terms. Materialized score counts do not describe every efficient attention implementation.</li><li>Pre-LN is the architecture of this lesson and companion. Post-LN and RMSNorm variants require their own equations; the original transformer is not universally pre-LN.</li><li>The residual identity path supports gradient flow; it does not guarantee that all information is invertibly retained or that gradients never vanish/explode.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-19">Complete inherited mastery answer key</h4><ol><li>Q1: H=X+MHA(LN1(X)); Y=H+FFN(LN2(H)).</li><li>Q2: The attention update must have the same [B,T,d] shape as the residual stream for the intended elementwise addition.</li><li>Q3: Expanded hidden width provides capacity for nonlinear feature transformations; its size is an architectural choice.</li><li>Q4: Add the causal mask to scaled query-key scores before row softmax.</li><li>Q5: The position-wise FFN does not directly mix token positions.</li><li>Q6: d_k=64; attention scores=[8,12,512,512].</li><li>Q7: 2×1024×4096=8,388,608 FFN weights.</li><li>Q8: Dense attention interactions grow by a factor of four at fixed widths and head count.</li><li>Q9: The output shape remains [B,T,d], so the next block accepts it directly.</li><li>Q10: MHA mixes permitted contextual information; FFN transforms each position; residuals add branch updates to the stream.</li></ol><h4 id="v3-heading-chunk-les-step-1-12-i19-20">Exact grounding</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 249, 250 · epsilon, affine LayerNorm and population-variance denominator</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 274, 275 · complete pre-LN block with two residual additions; dropout location</li></ul><p>Physical-page text and PDF identities are fingerprinted in source_locators.json and source_page_excerpts.json. These are selected supporting passages, not certification of every sentence or a pretrained-model result.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-21">Progression and executable application</h4><p>Use this block inside the independently parameterized stack. The original hand calculation and a nondegenerate batched training application now have separate reproducible traces.</p><p><a href="#audit-transformer-code">Complete CPU decoder, function explanations and outputs</a> · <a href="#audit-transformer-checks">Independent verification evidence</a></p></details><details class="audit-card" id="audit-T12" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T12 — A complete pre-norm causal block</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T11">← Previous audit card</a> · <a href="#audit-T13">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-12-i19-22">Why this matters</h4><p>A complete forward pass tests whether the separately understood components still obey shape and causal contracts when composed.</p><p><strong>Prerequisites:</strong> <a href="#audit-T05">Causal masks and future-token isolation</a>, <a href="#audit-T08">LayerNorm: variance, epsilon, and affine parameters</a>, <a href="#audit-T09">Residual updates and the identity gradient path</a>, <a href="#audit-T10">Positionwise MLP and GELU variants</a>, <a href="#audit-T11">Multiple heads: split, attend, concatenate, project</a></p><h4 id="v3-heading-chunk-les-step-1-12-i19-23">Symbols, shapes and assumptions</h4><p>This tiny block is pre-norm, with no biases or dropout. It is an illustrative NumPy-checked computation, not a pretrained model and not the post-norm layout of every Transformer.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-24">Derivation or mechanism</h4><ol><li>Normalize X, form Q/K/V, run causal attention, and project.</li><li>Add attention output to X, obtaining H.</li><li>Normalize H, run the positionwise MLP, and add its output to H.</li></ol><div class="math block" data-tex="H=X+\mathrm{MHA}(\mathrm{LN}(X)),\qquad Y=H+\mathrm{MLP}(\mathrm{LN}(H))">H=X+\mathrm{MHA}(\mathrm{LN}(X)),\qquad Y=H+\mathrm{MLP}(\mathrm{LN}(H))</div><h4 id="v3-heading-chunk-les-step-1-12-i19-25">Worked numerical</h4><p>The companion evaluates three width-2 tokens with one attention head, identity attention projections, and a width-3 MLP. A separate NumPy implementation reproduces the complete forward output. Replacing the last token with [99,18] leaves the first two outputs unchanged.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-26">Edge cases and limits</h4><ul><li>A matching forward result does not verify an entire training loop or every backward path.</li><li>Do not silently substitute pre-norm for post-norm when reproducing a source architecture.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-27">Connections</h4><ul><li>T13 maps final representations to vocabulary logits.</li><li>Later Mini-DeepSeek composition adds architecture-specific contracts.</li></ul><h4 id="v3-heading-chunk-les-step-1-12-i19-28">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 16, 17 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 271, 272, 273, 274, 275 · §4.5</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-12-i19-29">Executable companion and checking evidence</h4><p>Functions: <code>pre_norm_block</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T12-block. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-12-i19"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-12-i19" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-11-i18">← Previous lesson</a> · <a href="#chunk-les-step-1-13-i20">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-11-i18">Step 1.11 — Layer Normalization and RMSNorm</a></p><p><strong>This lesson:</strong> Step 1.12 — Complete Transformer Block: One Forward Pass From Start to Finish</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-14">transformers-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-12-i19"></a></p>
+<h2>Step 1.12 — Complete Transformer Block: One Forward Pass From Start to Finish</h2>
+<p><em>Plan node: I1 · chat order #19</em></p>
+<p>We now have all the individual pieces.</p>
+<p>Today we put them together and answer the most important architectural question:</p>
+<blockquote>
+<p><strong>What actually happens to a token representation as it passes through one Transformer block?</strong></p>
+</blockquote>
+<p>Your Transformer slides describe the complete decoder block as:</p>
+<div class="math block">
+\boxed{
+h=x+\operatorname{MHA}(\operatorname{norm}(x),\text{causal mask})
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{
+y=h+\operatorname{FFN}(\operatorname{norm}(h)).
+}
+</div>
+<p>The same source then says this block is stacked repeatedly to form the architecture. <em>(Source: transformers-slides)</em></p>
+<p>We will first understand the flow, then solve a <strong>complete numerical example</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-30">1.12.1 The Complete Block at a Glance</h3>
+<p>Starting from:</p>
+<div class="math block">
+X^{(l-1)}
+</div>
+<p>we do:</p>
+<div class="math block">
+\boxed{
+\text{Norm}
+\rightarrow
+\text{MHA}
+\rightarrow
+\text{Residual}
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{FFN}
+\rightarrow
+\text{Residual}
+}
+</div>
+<p>Mathematically:</p>
+<div class="math block">
+H=
+X+\operatorname{MHA}(\operatorname{Norm}(X))
+</div>
+<p>then:</p>
+<div class="math block">
+Y=
+H+\operatorname{FFN}(\operatorname{Norm}(H)).
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+Y=\operatorname{Block}(X)
+}
+</div>
+<p>So one block is simply a function:</p>
+<div class="math block">
+\boxed{
+X\rightarrow Y.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-31">1.12.2 Why Is the Residual Added?</h3>
+<p>Before the block, we have:</p>
+<div class="math block">
+X.
+</div>
+<p>Attention computes some modification:</p>
+<div class="math block">
+A(X).
+</div>
+<p>Instead of replacing <span class="math inline">X</span>, we do:</p>
+<div class="math block">
+\boxed{
+X+A(X)
+}
+</div>
+<p>Likewise for the FFN:</p>
+<div class="math block">
+\boxed{
+H+F(H).
+}
+</div>
+<p>This preserves a direct path for the existing representation.</p>
+<p>Your earlier Transformer source describes these shortcut/residual connections as helping provide a shorter path for gradient flow and making deep networks easier to optimize.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{new information}
++
+\text{existing information}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{new information replaces everything}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-32">1.12.3 The Important Pre-LN Order</h3>
+<p>Our version is:</p>
+<div class="math block">
+\boxed{
+H=X+\operatorname{MHA}(LN(X))
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+Y=H+\operatorname{FFN}(LN(H)).
+}
+</div>
+<p>Notice the order.</p>
+<p>It is <strong>not</strong>:</p>
+<div class="math block">
+LN(X+\operatorname{MHA}(X)).
+</div>
+<p>The normalization happens <strong>before</strong> the sublayer in the pre-LN formulation.</p>
+<p>Your cheatsheet explicitly uses this pre-LN form. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-33">1.12.4 Our Numerical Example</h3>
+<p>We will intentionally use tiny dimensions so every calculation remains understandable.</p>
+<p>Let:</p>
+<div class="math block">
+B=1
+</div>
+<p>one sequence,</p>
+<div class="math block">
+n=2
+</div>
+<p>two tokens,</p>
+<div class="math block">
+d=2
+</div>
+<p>model width,</p>
+<div class="math block">
+h=2
+</div>
+<p>attention heads.</p>
+<p>Therefore:</p>
+<div class="math block">
+d_k=d_v=\frac{d}{h}=1.
+</div>
+<p>And let:</p>
+<div class="math block">
+d_{ff}=4.
+</div>
+<p>So our architecture is:</p>
+<div class="math block">
+\boxed{
+2\rightarrow
+\underbrace{2\text{ heads}\times1}_{\text{MHA}}
+\rightarrow2
+\rightarrow
+4
+\rightarrow2
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-34">1.12.5 Input to the Block</h3>
+<p>Suppose:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}.
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+x_1=[1,3]
+</div>
+<p>and:</p>
+<div class="math block">
+x_2=[2,4].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb{R}^{2\times2}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-35">1.12.6 Step A — First LayerNorm</h3>
+<p>We need to normalize each token independently.</p>
+<p>For token 1:</p>
+<div class="math block">
+x_1=[1,3].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu_1=\frac{1+3}{2}=2.
+</div>
+<p>Variance:</p>
+<div class="math block">
+\sigma_1^2
+=
+\frac{(1-2)^2+(3-2)^2}{2}
+</div>
+<div class="math block">
+=
+\frac{1+1}{2}
+=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+LN(x_1)
+=
+\left[
+\frac{1-2}{1},
+\frac{3-2}{1}
+\right]
+</div>
+<div class="math block">
+=
+[-1,1]
+</div>
+<p>assuming:</p>
+<div class="math block">
+\gamma=[1,1],\qquad \beta=[0,0],
+</div>
+<p>and ignoring the tiny numerical effect of <span class="math inline">\epsilon</span>.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\hat{x}_1=[-1,1].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-36">1.12.7 Normalize Token 2</h3>
+<p>Token 2:</p>
+<div class="math block">
+x_2=[2,4].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu_2=\frac{2+4}{2}=3.
+</div>
+<p>Variance:</p>
+<div class="math block">
+\sigma_2^2
+=
+\frac{(2-3)^2+(4-3)^2}{2}
+</div>
+<div class="math block">
+=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+LN(x_2)
+=
+[-1,1].
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+LN(X)=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+}
+</div>
+<p>Notice something interesting:</p>
+<p>The two input tokens were:</p>
+<div class="math block">
+[1,3]
+</div>
+<p>and:</p>
+<div class="math block">
+[2,4].
+</div>
+<p>They differ by a constant offset:</p>
+<div class="math block">
+[2,4]=[1,3]+[1,1].
+</div>
+<p>LayerNorm removes that common offset, so both become:</p>
+<div class="math block">
+[-1,1].
+</div>
+<p>This is a useful numerical property to remember.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-37">1.12.8 Step B — Multi-Head Attention</h3>
+<p>We have:</p>
+<div class="math block">
+\hat X=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+</div>
+<p>We have two heads.</p>
+<p>Because:</p>
+<div class="math block">
+d=2,\quad h=2,
+</div>
+<p>each head has:</p>
+<div class="math block">
+d_k=d_v=1.
+</div>
+<p>To keep the arithmetic simple, choose:</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-38">Head 1</h5>
+<div class="math block">
+W_Q^{(1)}
+=
+\begin{bmatrix}
+1\\
+0
+\end{bmatrix},
+\qquad
+W_K^{(1)}
+=
+\begin{bmatrix}
+1\\
+0
+\end{bmatrix},
+\qquad
+W_V^{(1)}
+=
+\begin{bmatrix}
+1\\
+0
+\end{bmatrix}.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-39">Head 2</h5>
+<div class="math block">
+W_Q^{(2)}
+=
+\begin{bmatrix}
+0\\
+1
+\end{bmatrix},
+\qquad
+W_K^{(2)}
+=
+\begin{bmatrix}
+0\\
+1
+\end{bmatrix},
+\qquad
+W_V^{(2)}
+=
+\begin{bmatrix}
+0\\
+1
+\end{bmatrix}.
+</div>
+<p>Again, these are <strong>illustrative numerical weights</strong>, not a trained model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-40">1.12.9 Head 1 Projections</h3>
+<p>Calculate:</p>
+<div class="math block">
+Q_1=\hat XW_Q^{(1)}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Q_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+K_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+V_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-41">1.12.10 Head 1 Scores</h3>
+<p>Because:</p>
+<div class="math block">
+d_k=1,
+</div>
+<p>we have:</p>
+<div class="math block">
+\sqrt{d_k}=1.
+</div>
+<p>Therefore no numerical change occurs from scaling.</p>
+<p>Calculate:</p>
+<div class="math block">
+Q_1K_1^T.
+</div>
+<p>We get:</p>
+<div class="math block">
+\boxed{
+S_1=
+\begin{bmatrix}
+1&amp;1\\
+1&amp;1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-42">1.12.11 Head 1 Causal Mask</h3>
+<p>For two tokens:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0&amp;-\infty\\
+0&amp;0
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S_1+M=
+\begin{bmatrix}
+1&amp;-\infty\\
+1&amp;1
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-43">1.12.12 Head 1 Softmax</h3>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-44">Row 1</h5>
+<div class="math block">
+[1,-\infty]
+</div>
+<p>gives:</p>
+<div class="math block">
+[1,0].
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-45">Row 2</h5>
+<div class="math block">
+[1,1]
+</div>
+<p>gives:</p>
+<div class="math block">
+[0.5,0.5].
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+A_1=
+\begin{bmatrix}
+1&amp;0\\
+0.5&amp;0.5
+\end{bmatrix}.
+}
+</div>
+<p>Now multiply:</p>
+<div class="math block">
+O_1=A_1V_1.
+</div>
+<p>Since:</p>
+<div class="math block">
+V_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix},
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+O_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-46">1.12.13 Head 2</h3>
+<p>Now:</p>
+<div class="math block">
+Q_2=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}
+</div>
+<p>because we project onto the second feature.</p>
+<p>Likewise:</p>
+<div class="math block">
+K_2=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+V_2=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}.
+</div>
+<p>Scores:</p>
+<div class="math block">
+Q_2K_2^T
+=
+\begin{bmatrix}
+1&amp;1\\
+1&amp;1
+\end{bmatrix}.
+</div>
+<p>After masking:</p>
+<div class="math block">
+\begin{bmatrix}
+1&amp;-\infty\\
+1&amp;1
+\end{bmatrix}.
+</div>
+<p>Softmax:</p>
+<div class="math block">
+\boxed{
+A_2=
+\begin{bmatrix}
+1&amp;0\\
+0.5&amp;0.5
+\end{bmatrix}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+O_2=A_2V_2
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+O_2=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-47">1.12.14 Concatenate the Two Heads</h3>
+<p>We have:</p>
+<div class="math block">
+O_1=
+\begin{bmatrix}
+-1\\
+-1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+O_2=
+\begin{bmatrix}
+1\\
+1
+\end{bmatrix}.
+</div>
+<p>Concatenate:</p>
+<div class="math block">
+O_{\text{concat}}
+=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+O_{\text{concat}}\in\mathbb{R}^{2\times2}.
+}
+</div>
+<p>For simplicity choose:</p>
+<div class="math block">
+W_O=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+MHA(\hat X)
+=
+O_{\text{concat}}W_O
+</div>
+<p>and hence:</p>
+<div class="math block">
+\boxed{
+MHA(\hat X)=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-48">1.12.15 Step C — First Residual Addition</h3>
+<p>Now the most important operation:</p>
+<div class="math block">
+H
+=
+X+MHA(LN(X)).
+</div>
+<p>Recall:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+MHA=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+H=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}
++
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+H=
+\begin{bmatrix}
+0&amp;4\\
+1&amp;5
+\end{bmatrix}.
+}
+</div>
+<p>This is the output of the <strong>attention + residual</strong> stage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-49">1.12.16 Notice What the Residual Did</h3>
+<p>Without residual:</p>
+<div class="math block">
+H=MHA
+</div>
+<p>would be:</p>
+<div class="math block">
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+</div>
+<p>Instead we have:</p>
+<div class="math block">
+\begin{bmatrix}
+0&amp;4\\
+1&amp;5
+\end{bmatrix}.
+</div>
+<p>So the original representation remains part of the stream.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Residual stream}
+=
+\text{old representation}
++
+\text{new information}.
+}
+</div>
+<p>This additive residual-stream view is exactly how the Transformer slides frame the architecture. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-50">1.12.17 Step D — Second LayerNorm</h3>
+<p>Now:</p>
+<div class="math block">
+H=
+\begin{bmatrix}
+0&amp;4\\
+1&amp;5
+\end{bmatrix}.
+</div>
+<p>Normalize each token separately.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-51">Token 1</h5>
+<div class="math block">
+[0,4].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=\frac{0+4}{2}=2.
+</div>
+<p>Variance:</p>
+<div class="math block">
+\sigma^2
+=
+\frac{(0-2)^2+(4-2)^2}{2}
+</div>
+<div class="math block">
+=4.
+</div>
+<p>Standard deviation:</p>
+<div class="math block">
+\sigma=2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+LN([0,4])
+=
+[-1,1].
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-52">Token 2</h5>
+<div class="math block">
+[1,5].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=3.
+</div>
+<p>Variance:</p>
+<div class="math block">
+\sigma^2=4.
+</div>
+<p>Standard deviation:</p>
+<div class="math block">
+2.
+</div>
+<p>Thus:</p>
+<div class="math block">
+LN([1,5])=[-1,1].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+LN(H)=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-53">1.12.18 Step E — Feed-Forward Network</h3>
+<p>Now the FFN receives:</p>
+<div class="math block">
+[-1,1]
+</div>
+<p>for each token.</p>
+<p>We need:</p>
+<div class="math block">
+d=2
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W_1\in\mathbb{R}^{4\times2}
+</div>
+<p>and:</p>
+<div class="math block">
+W_2\in\mathbb{R}^{2\times4}.
+</div>
+<p>Let's use:</p>
+<div class="math block">
+W_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+b_1=
+\begin{bmatrix}
+0\\0\\0\\0
+\end{bmatrix}.
+</div>
+<p>For one normalized token:</p>
+<div class="math block">
+x=
+\begin{bmatrix}
+-1\\
+1
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-54">1.12.19 First FFN Projection</h3>
+<p>Calculate:</p>
+<div class="math block">
+z=W_1x.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+-1\\
+1
+\end{bmatrix}.
+</div>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+z=
+\begin{bmatrix}
+-1\\
+1\\
+0\\
+2
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-55">1.12.20 Apply GELU</h3>
+<p>We have:</p>
+<div class="math block">
+GELU(-1)\approx-0.1587
+</div>
+<div class="math block">
+GELU(1)\approx0.8413
+</div>
+<div class="math block">
+GELU(0)=0
+</div>
+<p>and approximately:</p>
+<div class="math block">
+GELU(2)\approx1.9545.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+a\approx
+\begin{bmatrix}
+-0.1587\\
+0.8413\\
+0\\
+1.9545
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-56">1.12.21 Second FFN Projection</h3>
+<p>Choose:</p>
+<div class="math block">
+W_2=
+\begin{bmatrix}
+1&amp;0&amp;1&amp;0\\
+0&amp;1&amp;0&amp;1
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+y=W_2a.
+</div>
+<p>First component:</p>
+<div class="math block">
+y_1=(-0.1587)+0
+</div>
+<div class="math block">
+\boxed{y_1=-0.1587}
+</div>
+<p>Second component:</p>
+<div class="math block">
+y_2=0.8413+1.9545
+</div>
+<div class="math block">
+\boxed{y_2=2.7958}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+FFN([-1,1])
+\approx
+[-0.1587,\;2.7958].
+}
+</div>
+<p>Since both tokens entering the FFN were identical in this deliberately simple example, both receive the same FFN output:</p>
+<div class="math block">
+FFN(LN(H))
+\approx
+\begin{bmatrix}
+-0.1587&amp;2.7958\\
+-0.1587&amp;2.7958
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-57">1.12.22 Step F — Second Residual Addition</h3>
+<p>Finally:</p>
+<div class="math block">
+Y=
+H+FFN(LN(H)).
+</div>
+<p>We had:</p>
+<div class="math block">
+H=
+\begin{bmatrix}
+0&amp;4\\
+1&amp;5
+\end{bmatrix}.
+</div>
+<p>Add:</p>
+<div class="math block">
+\begin{bmatrix}
+-0.1587&amp;2.7958\\
+-0.1587&amp;2.7958
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Y\approx
+\begin{bmatrix}
+-0.1587&amp;6.7958\\
+0.8413&amp;7.7958
+\end{bmatrix}.
+}
+</div>
+<p>That is the output of our complete Transformer block.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-58">1.12.23 We Just Ran an Entire Transformer Block</h3>
+<p>Let's compress the calculation.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-59">Input</h5>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-60">First normalization</h5>
+<div class="math block">
+LN(X)=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-61">MHA</h5>
+<div class="math block">
+MHA(LN(X))=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-62">First residual</h5>
+<div class="math block">
+H=
+\begin{bmatrix}
+0&amp;4\\
+1&amp;5
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-63">Second normalization</h5>
+<div class="math block">
+LN(H)=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-64">FFN</h5>
+<div class="math block">
+FFN(LN(H))
+\approx
+\begin{bmatrix}
+-0.1587&amp;2.7958\\
+-0.1587&amp;2.7958
+\end{bmatrix}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-65">Second residual</h5>
+<div class="math block">
+\boxed{
+Y\approx
+\begin{bmatrix}
+-0.1587&amp;6.7958\\
+0.8413&amp;7.7958
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-66">1.12.24 The Most Important Pattern</h3>
+<p>You should now be able to recognize:</p>
+<div class="math block">
+\boxed{
+X
+\overset{LN}{\longrightarrow}
+\overset{MHA}{\longrightarrow}
+\overset{+X}{\longrightarrow}
+H
+\overset{LN}{\longrightarrow}
+\overset{FFN}{\longrightarrow}
+\overset{+H}{\longrightarrow}
+Y
+}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+H=X+MHA(LN(X))
+}
+</div>
+<div class="math block">
+\boxed{
+Y=H+FFN(LN(H)).
+}
+</div>
+<p>That is the entire block.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-67">1.12.25 Tensor Shape Tracking</h3>
+<p>Now forget the actual values for a moment.</p>
+<p>For:</p>
+<div class="math block">
+B=1,\quad n=2,\quad d=2,\quad h=2,\quad d_{ff}=4.
+</div>
+<p>we have:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th style="text-align:right">Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">X</span></td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">LN(X)</span></td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>each head <span class="math inline">Q,K,V</span></td>
+<td style="text-align:right"><span class="math inline">1\times2\times1</span></td>
+</tr>
+<tr>
+<td>each head scores</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>each head output</td>
+<td style="text-align:right"><span class="math inline">1\times2\times1</span></td>
+</tr>
+<tr>
+<td>concatenated heads</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>MHA output</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>first residual</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>second LN</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>FFN hidden</td>
+<td style="text-align:right"><span class="math inline">1\times2\times4</span></td>
+</tr>
+<tr>
+<td>GELU</td>
+<td style="text-align:right"><span class="math inline">1\times2\times4</span></td>
+</tr>
+<tr>
+<td>FFN output</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+<tr>
+<td>second residual</td>
+<td style="text-align:right"><span class="math inline">1\times2\times2</span></td>
+</tr>
+</tbody>
+</table>
+<p>The block therefore satisfies:</p>
+<div class="math block">
+\boxed{
+B\times n\times d
+\rightarrow
+B\times n\times d.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-68">1.12.26 Why This Shape Preservation Matters</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+X^{(0)}
+\in
+\mathbb{R}^{B\times n\times d}.
+</div>
+<p>After block 1:</p>
+<div class="math block">
+X^{(1)}
+\in
+\mathbb{R}^{B\times n\times d}.
+</div>
+<p>So we can feed it directly into another identical structural block:</p>
+<div class="math block">
+X^{(2)}=\operatorname{Block}_2(X^{(1)}).
+</div>
+<p>Then:</p>
+<div class="math block">
+X^{(3)}=\operatorname{Block}_3(X^{(2)}).
+</div>
+<p>and so on.</p>
+<p>This is exactly why Raschka notes that keeping the FFN input and output dimensions equal makes stacking layers straightforward. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-69">1.12.27 Why Does Attention Come Before the FFN?</h3>
+<p>This is a very good architecture question.</p>
+<p>At the beginning of the block, each token has its current representation.</p>
+<p>Attention allows:</p>
+<div class="math block">
+x_i
+</div>
+<p>to receive information from other permitted positions:</p>
+<div class="math block">
+x_1,\ldots,x_i.
+</div>
+<p>So after attention, the token representation contains <strong>contextual information</strong>.</p>
+<p>Then the FFN applies nonlinear computation to that context-enriched representation.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Attention gathers context}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{FFN processes context}.
+}
+</div>
+<p>That is the basic division of labor described by the slides. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-70">1.12.28 Numerical Exam Pattern #1 — Full Shape Question</h3>
+<p>Suppose a Transformer has:</p>
+<div class="math block">
+B=16,\quad n=128,\quad d=768,\quad h=12.
+</div>
+<p>Find:</p>
+<div class="math block">
+d_k
+</div>
+<p>assuming equal head dimensions.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-71">Solution</h5>
+<div class="math block">
+d_k=\frac{d}{h}
+</div>
+<div class="math block">
+=\frac{768}{12}
+</div>
+<div class="math block">
+\boxed{64}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Q,K
+</div>
+<p>after head splitting have conceptual shape:</p>
+<div class="math block">
+\boxed{
+16\times12\times128\times64.
+}
+</div>
+<p>The attention score tensor has shape:</p>
+<div class="math block">
+\boxed{
+16\times12\times128\times128.
+}
+</div>
+<p>After concatenation:</p>
+<div class="math block">
+\boxed{
+16\times128\times768.
+}
+</div>
+<p>If:</p>
+<div class="math block">
+d_{ff}=4d,
+</div>
+<p>then:</p>
+<div class="math block">
+d_{ff}=3072.
+</div>
+<p>Therefore the FFN intermediate is:</p>
+<div class="math block">
+\boxed{
+16\times128\times3072.
+}
+</div>
+<p>And final block output:</p>
+<div class="math block">
+\boxed{
+16\times128\times768.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-72">1.12.29 Numerical Exam Pattern #2 — Parameter Count of One Block</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=768
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=3072.
+</div>
+<p>Ignoring biases and normalization parameters.</p>
+<p>The four major attention projections are approximately:</p>
+<div class="math block">
+W_Q,W_K,W_V,W_O
+</div>
+<p>each:</p>
+<div class="math block">
+768\times768.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+4d^2
+=
+4(768)^2
+=
+2,359,296.
+</div>
+<p>FFN weights:</p>
+<div class="math block">
+2dd_{ff}
+</div>
+<div class="math block">
+=
+2(768)(3072)
+</div>
+<div class="math block">
+=
+4,718,592.
+</div>
+<p>Total:</p>
+<div class="math block">
+2,359,296+4,718,592
+</div>
+<div class="math block">
+\boxed{
+7,077,888
+}
+</div>
+<p>parameters.</p>
+<p>This is the simplified projection-weight count for one block, excluding biases, normalization parameters, embeddings, output head, and architectural details not included in this calculation.</p>
+<p>The cheatsheet provides the underlying sanity checks <span class="math inline">4d^2</span> for attention projections and <span class="math inline">2dd_{ff}</span> for the FFN. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-73">1.12.30 Numerical Exam Pattern #3 — Attention Complexity</h3>
+<p>For full self-attention:</p>
+<div class="math block">
+QK^T
+</div>
+<p>is approximately:</p>
+<div class="math block">
+O(n^2d).
+</div>
+<p>The cheatsheet explicitly records:</p>
+<div class="math block">
+\boxed{
+\text{Attention cost}\approx O(n^2d).
+}
+</div>
+<p><em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<p>Suppose sequence length doubles:</p>
+<div class="math block">
+n\rightarrow2n.
+</div>
+<p>Then:</p>
+<div class="math block">
+n^2\rightarrow(2n)^2=4n^2.
+</div>
+<p>Therefore attention interaction computation grows by approximately:</p>
+<div class="math block">
+\boxed{4\times}.
+</div>
+<p>This is why sequence length becomes such a major issue in long-context inference.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-74">1.12.31 Numerical Exam Pattern #4 — Residual Shape Requirement</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb{R}^{32\times128\times1024}.
+</div>
+<p>MHA produces:</p>
+<div class="math block">
+32\times128\times1024.
+</div>
+<p>Can we do:</p>
+<div class="math block">
+X+MHA(X)?
+</div>
+<p>Yes.</p>
+<p>Because the shapes match exactly.</p>
+<p>Suppose instead MHA produced:</p>
+<div class="math block">
+32\times128\times512.
+</div>
+<p>Then:</p>
+<div class="math block">
+X+MHA(X)
+</div>
+<p>would not be a valid straightforward element-wise addition.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Residual branches must have compatible dimensions.}
+}
+</div>
+<p>This is one reason MHA returns to model width <span class="math inline">d</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-75">1.12.32 Numerical Exam Pattern #5 — Number of Attention Scores</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=8,\quad h=16,\quad n=1024.
+</div>
+<p>The number of score values is approximately:</p>
+<div class="math block">
+8\times16\times1024\times1024.
+</div>
+<p>Now:</p>
+<div class="math block">
+1024^2=1,048,576.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+8\times16\times1,048,576
+</div>
+<div class="math block">
+=128\times1,048,576
+</div>
+<div class="math block">
+\boxed{134,217,728}
+</div>
+<p>score values.</p>
+<p>This kind of numerical is especially important because it demonstrates why attention tensors can become very large.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-76">1.12.33 Important Distinction: Parameters vs Activations</h3>
+<p>That previous numerical:</p>
+<div class="math block">
+134,217,728
+</div>
+<p>is <strong>not</strong> the number of model parameters.</p>
+<p>It is the number of values in the attention-score tensor for that batch/head/sequence configuration.</p>
+<p>So always distinguish:</p>
+<div class="math block">
+\boxed{\text{parameter count}}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{\text{activation/tensor size}}.
+</div>
+<p>This distinction becomes extremely important later for:</p>
+<ul>
+<li>quantization,</li>
+<li>GPU memory,</li>
+<li>KV cache,</li>
+<li>inference optimization.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-77">1.12.34 What Happens to Information Through the Block?</h3>
+<p>Think of one token representation.</p>
+<p>Initially:</p>
+<div class="math block">
+x_t
+</div>
+<p>contains its current representation.</p>
+<p>After causal MHA:</p>
+<div class="math block">
+x_t
+\rightarrow
+\text{contextualized representation}.
+</div>
+<p>It can incorporate information from:</p>
+<div class="math block">
+x_1,\ldots,x_t.
+</div>
+<p>Then the FFN transforms that contextualized representation:</p>
+<div class="math block">
+\text{contextualized representation}
+\rightarrow
+\text{nonlinearly transformed representation}.
+</div>
+<p>The residual connections ensure that both the old stream and these updates remain available.</p>
+<p>Therefore a useful conceptual picture is:</p>
+<div class="math block">
+\boxed{
+\text{Residual stream}
++
+\text{attention update}
++
+\text{MLP update}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-78">1.12.35 The Block as an Additive Update System</h3>
+<p>The equation:</p>
+<div class="math block">
+Y
+=
+H+FFN(LN(H))
+</div>
+<p>where:</p>
+<div class="math block">
+H=X+MHA(LN(X))
+</div>
+<p>can be expanded:</p>
+<div class="math block">
+\boxed{
+Y
+=
+X+
+MHA(LN(X))
++
+FFN(LN(H)).
+}
+</div>
+<p>Notice the structure:</p>
+<div class="math block">
+\boxed{
+\text{new state}
+=
+\text{old state}
++
+\text{attention update}
++
+\text{MLP update}.
+}
+</div>
+<p>This is an extremely useful mental model for the residual stream.</p>
+<p>The Transformer slides describe both attention and MLP as writing additively into the shared residual stream. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-79">1.12.36 One Important Caveat About Our Numerical Example</h3>
+<p>Our example deliberately used:</p>
+<ul>
+<li>tiny dimensions,</li>
+<li>identity-like/simple projection matrices,</li>
+<li>one particular choice of <span class="math inline">W_O</span>,</li>
+<li><span class="math inline">\gamma=1,\beta=0</span>,</li>
+<li>approximate GELU values.</li>
+</ul>
+<p>Real trained Transformer blocks use large learned matrices, and actual architectures can differ in normalization type, positional mechanism, attention variant, biases, activation, etc.</p>
+<p>The <strong>architecture and equations</strong> are source-derived; the particular numerical weights are pedagogical.</p>
+<p>That distinction matters because we should not mistake a teaching example for a real pretrained model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-80">1.12.37 The Complete Forward Pass We Can Now Write</h3>
+<p>Starting from token representations:</p>
+<div class="math block">
+X^{(0)}
+=
+\operatorname{Embedding}(\text{tokens})
++
+\operatorname{Position}
+</div>
+<p>we can define one block:</p>
+<div class="math block">
+\boxed{
+H^{(l)}
+=
+X^{(l-1)}
++
+MHA
+\left(
+Norm(X^{(l-1)})
+\right)
+}
+</div>
+<p>with causal masking inside MHA.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+X^{(l)}
+=
+H^{(l)}
++
+FFN
+\left(
+Norm(H^{(l)})
+\right).
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+X^{(l)}
+=
+Block_l(X^{(l-1)}).
+}
+</div>
+<p>The cheatsheet uses this exact recursive stack notation. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-81">1.12.38 Cumulative Numerical Strategy From Now On</h3>
+<p>Since you specifically mentioned that the exam will contain numericals, we are now going to treat every Transformer step in three levels.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-82">Level A — Direct numerical</h5>
+<p>Example:</p>
+<div class="math block">
+d=768,\;h=12
+\Rightarrow d_k=64.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-83">Level B — Multi-stage numerical</h5>
+<p>Example:</p>
+<div class="math block">
+X
+\rightarrow Q
+\rightarrow K
+\rightarrow QK^T
+\rightarrow\text{mask}
+\rightarrow\text{softmax}
+\rightarrow AV.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-84">Level C — Integrated exam numerical</h5>
+<p>Example:</p>
+<div class="math block">
+B,n,d,h,d_{ff}
+</div>
+<p>followed by:</p>
+<ul>
+<li>head dimension,</li>
+<li>tensor shapes,</li>
+<li>attention score count,</li>
+<li>parameter count,</li>
+<li>FFN parameter count,</li>
+<li>memory estimate,</li>
+<li>block output shape,</li>
+<li>perhaps loss calculation.</li>
+</ul>
+<p>We will continue adding these cumulative questions as we progress.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-12-i19-85">1.12.39 Master Check — Complete Transformer Block</h3>
+<p>Before we move forward, these are now high-priority exam questions.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-86">Q1</h5>
+<p>Write the two equations defining our pre-LN Transformer block.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-87">Q2</h5>
+<p>Why must MHA return to model dimension <span class="math inline">d</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-88">Q3</h5>
+<p>Why is FFN's intermediate dimension <span class="math inline">d_{ff}</span> larger than <span class="math inline">d</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-89">Q4</h5>
+<p>Where exactly is the causal mask applied?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-90">Q5</h5>
+<p>Does the FFN mix information across different tokens?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-91">Q6</h5>
+<p>For:</p>
+<div class="math block">
+B=8,\;n=512,\;d=768,\;h=12,
+</div>
+<p>calculate:</p>
+<div class="math block">
+d_k
+</div>
+<p>and the attention score tensor shape.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-92">Q7</h5>
+<p>For:</p>
+<div class="math block">
+d=1024,\quad d_{ff}=4096,
+</div>
+<p>calculate the number of FFN weights ignoring biases.</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-93">Q8</h5>
+<p>If sequence length changes from:</p>
+<div class="math block">
+512\rightarrow1024,
+</div>
+<p>approximately how does full-attention score computation change?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-94">Q9</h5>
+<p>Why can we stack another Transformer block directly after this one?</p>
+<h5 id="v3-heading-chunk-les-step-1-12-i19-95">Q10</h5>
+<p>In one sentence, distinguish the roles of:</p>
+<div class="math block">
+\text{MHA},\quad \text{FFN},\quad \text{Residual}.
+</div>
+<hr />
+</section>

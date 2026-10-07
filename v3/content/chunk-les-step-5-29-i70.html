@@ -1,0 +1,1053 @@
+<section class="chunk" id="chunk-les-step-5-29-i70" data-id="les-step-5-29-i70"><details class="audit-card" id="audit-full-chunk-les-step-5-29-i70" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-29-i70-1">Motivation</h4><p>Define zero-shot transfer precisely enough that model selection cannot leak target-test information.</p><h4 id="v3-heading-chunk-les-step-5-29-i70-2">Prerequisites</h4><ul><li>Train/dev/test separation and task-specific fine-tuning</li><li>Tokenizer, vocabulary, multilingual pretraining</li><li>Accuracy, precision/recall and F1; distinguish points from relative percent</li><li>Hyperparameter search, checkpoints and language-family transfer</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-3">Notation and units</h4><ul><li>L is a language; task and language jointly define an evaluation set</li><li>Scores are on a declared 0..100 scale; score differences are points</li><li>Corpus tokens depend on the counting tokenizer and release; a token is not necessarily a word</li><li>theta(task, h) denotes a checkpoint for one task/hyperparameter configuration</li><li>h*=argmax English-dev score; target test is evaluated once after selection</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-4">Assumptions</h4><ul><li>All historical counts are attributed to the supplied release/paper, not presented as live 2026 leaderboard facts</li><li>Translated parallel examples share content and are not statistically independent across languages</li><li>Reported scores require fixed checkpoint, preprocessing, split, prompt and metric implementation</li><li>Zero-shot is relative to labeled task adaptation in the target language; target-language text can occur in multilingual pretraining</li><li>Train, dev, test examples must not overlap through translation or duplicate source content</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-5">Step-by-step derivation</h4><ol><li>For every model and task, fine-tune on English task training data; task-specific heads and losses differ. Search learning rate/weight decay using English development data only.</li><li>Freeze selected configuration and checkpoint before evaluating Indic test sets. Looking at Indic test scores to choose a checkpoint converts testing into optimization and inflates results.</li><li>Target-language development selection does not require target-language gradient updates, but it does use target-language supervised information for selection; report it as a different setting.</li><li>Hindi/Tamil in-family development selection is an empirical alternative, not strict English-only selection. Gold Hindi transfer uses genuine Hindi task labels; silver Hindi transfer uses translated English labels.</li><li>A model trained on English and Hindi but evaluated on Bengali can be zero-shot Bengali labeled-task transfer; it is not zero-shot Hindi and is not the same baseline as English-only fine-tuning.</li><li>Interpret reported Hindi gains as points on fixed tasks, not universal language superiority. Translation noise can hurt commonsense alternatives and answer-span alignment.</li></ol><h4 id="v3-heading-chunk-les-step-5-29-i70-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-29-i70-7">Transfer gain as points</h5><p>Given: Illustrative initial NER60, Intent70, Slot50; reported gains3.5,3.1,10.6</p><ol><li>Add task gains:63.5,73.1,60.6.</li><li>Do not call3.5 points a3.5% relative gain;3.5/60≈5.83%.</li></ol><p>Answer: NER63.5, Intent73.1, Slot60.6 for hypothetical baselines</p><p>Verification: indic_mla_moe / indic.transfer_points · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-29-i70-8">Preserving a strict test protocol</h5><p>Given: Configuration A English-dev85; B84; target-test A70 B75</p><ol><li>Select A from English-dev before test.</li><li>A target-test-based choice ofB is not permitted by the strict protocol.</li></ol><p>Answer: Choose A; report target score70 without selection on target test</p><p>Verification: indic_mla_moe / indic.selection_protocol · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-29-i70-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-10">Mastery answers and retained exercise context</h4><ol><li>Does zero-shot mean no training? No; English task fine-tuning and multilingual pretraining occur.</li><li>Can target-dev selection be called strict English-only zero-shot? No, even if no target gradient update occurs.</li><li>Gold versus silver? Genuine Hindi labels versus translated English task data; both must be separately labeled.</li><li>Inherited exercise 5.29.33 Exam-style numerical question: Suppose: \text{English transfer score}=65.0 and Hindi transfer gives: +10.6. Then: 65.0+10.6 = \boxed{75.6}. Relative improvement: \frac{10.6}{65.0}\times100 \approx \boxed{16.31\%}. Again, the +10.6 is source-derived for slot filling; 65.0 is hypothetical.</li><li>Inherited exercise 5.29.34 Another exam question: strict zero-shot: A student says: “The model was fine-tuned on English and Hindi before being evaluated on Bengali, so this is zero-shot Bengali.” Under the deck&#x27;s strict protocol, that statement is: \boxed{\text{incorrect}} because Hindi-language training data was used. Strict zero-shot requires: \boxed{ \text{no target Indic-language training data} } and the benchmark&#x27;s main protocol uses English training only. (Source: indicxtreme-slides)</li><li>Inherited exercise 5.29.35 Another exam question: model selection: Suppose there are three learning rates: 10^{-5},\;2\times10^{-5},\;5\times10^{-5}. Their English-dev accuracies are: 80,\;84,\;82. Choose: \boxed{2\times10^{-5}}. Then test this configuration on Hindi. Suppose Hindi accuracy is: 78. You must not go back and select the learning rate because another learning rate gave: 82 on Hindi test. That would contaminate the evaluation. This is exactly why model selection is restricted to English development data.</li></ol><h4 id="v3-heading-chunk-les-step-5-29-i70-11">Edge cases and remaining gaps</h4><ul><li>Human supervision does not imply exhaustive manual checking or error-free translations</li><li>An aggregate can hide task, dialect, resource tier and script gaps; report denominators and per-language results</li><li>Source benchmark results were inspected, not reproduced by running pretrained models</li><li>Using Hindi as a bridge cannot be assumed equally good for every script or language family.</li><li>Numerical starting scores in teaching examples are illustrative, not source table entries.</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-12">Connections and progression</h4><ul><li>Connects to benchmark leakage, multilingual prompting, translation noise and generalization.</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-13">Exact source support</h4><ul><li>indicxtreme-slides(1).pdf · physical PDF pages 22, 23, 24 · English-only grid selection, in-family dev variants and Hindi gold/silver transfer</li></ul><h4 id="v3-heading-chunk-les-step-5-29-i70-14">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (58)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.29 — IndicXTREME Zero-Shot Fine-Tuning Protocol</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.1 First understand the problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.2 What does “zero-shot” mean here?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.3 The exact pipeline</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Step 1 — Fine-tune on English</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.4 Step 2 — Select hyperparameters using English development data</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.5 Step 3 — Evaluate directly on Indic test sets</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.6 Why is this powerful?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.7 Why not train on Hindi too?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Setup A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Setup B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.8 The most important anti-leakage condition</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.9 Numerical example: why leakage matters</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Model A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Model B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.10 A subtle point: zero-shot does not mean zero training</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.11 Example: IndicSentiment</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.12 Example: IndicXNLI</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.13 Why task-specific hyperparameter tuning matters</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.14 Why is this fairer?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Task A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Task B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.15 But doesn&#x27;t hyperparameter tuning introduce target information?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.16 Full experimental pipeline</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.17 Now comes the interesting extension</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.18 What is an in-language dev set?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.19 What is an in-family dev set?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.20 Why might that work?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.21 Let&#x27;s inspect the reported table</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.22 What does this tell us?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.23 Why is Hindi particularly interesting?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.24 “Gold zero-shot”</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.25 “Silver zero-shot”</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.26 Reported Hindi transfer gains</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.27 Why might Hindi help?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.28 Gold vs silver transfer</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Gold zero-shot</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Silver zero-shot</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.29 Why would translation hurt COPA and QA?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.30 Numerical example — transfer improvement</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.31 A very important conceptual distinction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Strict IndicXTREME zero-shot</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Gold Hindi transfer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Silver Hindi transfer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.32 Why the benchmark starts with English</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.33 Exam-style numerical question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.34 Another exam question: strict zero-shot</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.35 Another exam question: model selection</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.36 Why this protocol is experimentally clean</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.37 But there is still a deeper question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.38 Complete conceptual picture</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.29.39 Exam-ready summary</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Strict IndicXTREME protocol</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Hyperparameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>In-family selection</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Hindi transfer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.29.40 Final mental model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-29-i70"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-29-i70" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-28-i69">← Previous lesson</a> · <a href="#chunk-les-step-5-30-i71">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-28-i69">Step 5.28 — IndicXTREME Benchmark Architecture</a></p><p><strong>This lesson:</strong> Step 5.29 — IndicXTREME Zero-Shot Fine-Tuning Protocol</p><p><strong>Source references:</strong> <a href="#source-3">indicxtreme-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-29-i70"></a></p>
+<h2>Step 5.29 — IndicXTREME Zero-Shot Fine-Tuning Protocol</h2>
+<p><em>Plan node: I10 · chat order #70</em></p>
+<p>Now we reach one of the <strong>most important experimental-design concepts</strong> in the IndicXTREME material.</p>
+<p>We already know:</p>
+<div class="math block">
+\boxed{\text{IndicXTREME has many Indic-language test sets}}
+</div>
+<p>But that alone does not tell us whether the benchmark is measuring:</p>
+<div class="math block">
+\boxed{\text{cross-lingual transfer}}
+</div>
+<p>or simply:</p>
+<div class="math block">
+\boxed{\text{ordinary supervised learning in each Indic language}}.
+</div>
+<p>The solution is the benchmark's <strong>zero-shot fine-tuning protocol</strong>. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-15">5.29.1 First understand the problem</h3>
+<p>Imagine a model is trained directly on Hindi data.</p>
+<p>Then we test it on Hindi.</p>
+<p>Suppose it gets:</p>
+<div class="math block">
+90\%.
+</div>
+<p>What have we learned?</p>
+<p>The model is good at Hindi.</p>
+<p>But we have <strong>not</strong> learned whether it can transfer knowledge from another language into Hindi.</p>
+<p>Now consider:</p>
+<div class="math block">
+\boxed{
+\text{English training}
+\rightarrow
+\text{Hindi testing}
+}
+</div>
+<p>If the model succeeds, that is evidence of:</p>
+<div class="math block">
+\boxed{
+\text{cross-lingual transfer}
+}.
+</div>
+<p>That is what IndicXTREME is designed to evaluate. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-16">5.29.2 What does “zero-shot” mean here?</h3>
+<p>It means the model receives <strong>no Indic-language training examples for the target benchmark task</strong>.</p>
+<p>The supplied slide is very explicit:</p>
+<div class="math block">
+\boxed{
+\text{Indic-language training data = none}
+}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{training data = English}
+}
+</div>
+<p>and the target evaluation is performed directly on Indic-language test data.</p>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-17">5.29.3 The exact pipeline</h3>
+<p>The deck gives three steps.</p>
+<h4 id="v3-heading-chunk-les-step-5-29-i70-18">Step 1 — Fine-tune on English</h4>
+<p>For each task:</p>
+<div class="math block">
+\boxed{
+\text{pretrained LM}
+\rightarrow
+\text{English task training data}
+}
+</div>
+<p>This is done independently for the task.</p>
+<p>For example:</p>
+<div class="math block">
+\text{English sentiment training}
+</div>
+<p>for IndicSentiment.</p>
+<p>Or:</p>
+<div class="math block">
+\text{English NLI training}
+</div>
+<p>for IndicXNLI.</p>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-19">5.29.4 Step 2 — Select hyperparameters using English development data</h3>
+<p>Suppose we test:</p>
+<div class="math block">
+\text{learning rate}\in
+\{10^{-5},2\times10^{-5},5\times10^{-5}\}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{weight decay}\in
+\{0,0.01\}.
+</div>
+<p>We evaluate candidate configurations on the:</p>
+<div class="math block">
+\boxed{\text{English development set}}
+</div>
+<p>and choose the best one.</p>
+<p>Crucially:</p>
+<div class="math block">
+\boxed{
+\text{Indic test data is not used for model selection}
+}
+</div>
+<p>according to the protocol. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-20">5.29.5 Step 3 — Evaluate directly on Indic test sets</h3>
+<p>After selecting the model/configuration:</p>
+<div class="math block">
+\boxed{
+\text{English-trained model}
+\rightarrow
+\text{Indic-language test set}
+}
+</div>
+<p>No Indic-language examples were used during the task training or model-selection process.</p>
+<p>So if we write:</p>
+<div class="math block">
+\theta^*
+=
+\arg\max_\theta
+\text{Score}_{EN-dev}(\theta),
+</div>
+<p>then evaluation is:</p>
+<div class="math block">
+\boxed{
+\text{Score}_{Indic-test}(\theta^*)
+}
+</div>
+<p>This equation is a conceptual formalization of the protocol; the source states the three-stage procedure rather than presenting this exact notation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-21">5.29.6 Why is this powerful?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{English training accuracy}=95\%
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Hindi test accuracy}=85\%.
+</div>
+<p>The model has transferred:</p>
+<div class="math block">
+\boxed{
+\text{task knowledge from English to Hindi}
+}.
+</div>
+<p>The benchmark is therefore asking:</p>
+<blockquote>
+<p>Does the multilingual pretrained representation allow knowledge learned in English to transfer into an Indic language?</p>
+</blockquote>
+<p>That is the fundamental scientific question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-22">5.29.7 Why not train on Hindi too?</h3>
+<p>Because then we would be measuring something different.</p>
+<p>Consider:</p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-23">Setup A</h5>
+<div class="math block">
+\text{English + Hindi training}
+\rightarrow
+\text{Hindi test}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-24">Setup B</h5>
+<div class="math block">
+\text{English training}
+\rightarrow
+\text{Hindi test}.
+</div>
+<p>Setup A measures:</p>
+<div class="math block">
+\boxed{
+\text{in-language supervised performance}
+}
+</div>
+<p>while Setup B measures:</p>
+<div class="math block">
+\boxed{
+\text{zero-shot cross-lingual transfer}
+}.
+</div>
+<p>IndicXTREME is specifically interested in Setup B. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-25">5.29.8 The most important anti-leakage condition</h3>
+<p>The deck states:</p>
+<div class="math block">
+\boxed{
+\text{no Indic data is seen during training or model selection}
+}
+</div>
+<p>This prevents a hidden source of information.</p>
+<p>Suppose the model is allowed to see 1000 Hindi development examples.</p>
+<p>Then choosing hyperparameters based on them could indirectly adapt the model to Hindi.</p>
+<p>The resulting performance would no longer represent a clean zero-shot evaluation.</p>
+<p>So the protocol creates:</p>
+<div class="math block">
+\boxed{
+\text{training language}
+\neq
+\text{evaluation language}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-26">5.29.9 Numerical example: why leakage matters</h3>
+<p>Imagine two configurations.</p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-27">Model A</h5>
+<p>English dev:</p>
+<div class="math block">
+82\%
+</div>
+<p>Hindi dev:</p>
+<div class="math block">
+77\%.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-28">Model B</h5>
+<p>English dev:</p>
+<div class="math block">
+80\%
+</div>
+<p>Hindi dev:</p>
+<div class="math block">
+85\%.
+</div>
+<p>If we select using English dev:</p>
+<div class="math block">
+\boxed{\text{Model A wins}}
+</div>
+<p>because:</p>
+<div class="math block">
+82&gt;80.
+</div>
+<p>If we select using Hindi dev:</p>
+<div class="math block">
+\boxed{\text{Model B wins}}
+</div>
+<p>because:</p>
+<div class="math block">
+85&gt;77.
+</div>
+<p>Thus using Hindi development data changes model selection.</p>
+<p>That would introduce target-language information into the process.</p>
+<p>The actual deck uses English development selection specifically to avoid that issue. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-29">5.29.10 A subtle point: zero-shot does not mean zero training</h3>
+<p>This is a common exam trap.</p>
+<p>Zero-shot here does <strong>not</strong> mean:</p>
+<div class="math block">
+\boxed{\text{the model receives no fine-tuning}}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{the model is fine-tuned}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{not on the target Indic language}
+}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{zero-shot target-language transfer}
+}
+</div>
+<p>is more precise.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-30">5.29.11 Example: IndicSentiment</h3>
+<p>Suppose the English training set contains:</p>
+<div class="math block">
+100,000
+</div>
+<p>English reviews.</p>
+<p>We fine-tune the multilingual model using those reviews.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{NO Hindi reviews}}
+</div>
+<p>are used for training.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{\text{Hindi reviews}}
+</div>
+<p>are used only for evaluation.</p>
+<p>If the model gets:</p>
+<div class="math block">
+88\%
+</div>
+<p>on Hindi, that result is evidence of transfer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-31">5.29.12 Example: IndicXNLI</h3>
+<p>English training:</p>
+<div class="math block">
+\text{Premise + Hypothesis}
+\rightarrow
+\text{English NLI labels}
+</div>
+<p>Then Hindi test:</p>
+<div class="math block">
+\text{Hindi Premise + Hypothesis}
+\rightarrow
+\text{prediction}.
+</div>
+<p>The model has to carry the NLI capability across languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-32">5.29.13 Why task-specific hyperparameter tuning matters</h3>
+<p>The deck makes another methodological point.</p>
+<p>Many earlier approaches reused one fixed hyperparameter configuration across tasks.</p>
+<p>IndicXTREME instead performs a:</p>
+<div class="math block">
+\boxed{
+\text{task-specific grid search}
+}
+</div>
+<p>for:</p>
+<div class="math block">
+\boxed{
+\text{learning rate}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{weight decay}
+}.
+</div>
+<p>This is done for every model and task. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-33">5.29.14 Why is this fairer?</h3>
+<p>Suppose:</p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-34">Task A</h5>
+<p>works best with:</p>
+<div class="math block">
+LR=10^{-5}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-35">Task B</h5>
+<p>works best with:</p>
+<div class="math block">
+LR=5\times10^{-5}.
+</div>
+<p>If we force both to use:</p>
+<div class="math block">
+LR=10^{-5},
+</div>
+<p>Task B may be artificially weakened.</p>
+<p>Then we'd be measuring:</p>
+<div class="math block">
+\boxed{
+\text{quality under a poor hyperparameter choice}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{quality of the underlying model}
+}.
+</div>
+<p>So task-specific tuning makes the comparison more informative.</p>
+<p>The source explicitly motivates this as part of fair comparison. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-36">5.29.15 But doesn't hyperparameter tuning introduce target information?</h3>
+<p>The benchmark avoids that by selecting configurations on:</p>
+<div class="math block">
+\boxed{\text{English development data}}
+</div>
+<p>rather than the target Indic test data.</p>
+<p>So the target language remains hidden from model selection.</p>
+<p>This is a crucial experimental-design principle.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-37">5.29.16 Full experimental pipeline</h3>
+<p>Keep this picture in your head:</p>
+<pre><code class="language-text">                 Multilingual pretrained LM
+                           │
+                           ▼
+                 English task training
+                           │
+                           ▼
+                  English development
+                           │
+                     hyperparameter
+                       selection
+                           │
+                           ▼
+                    Final model θ*
+                           │
+                           ▼
+          ┌────────────────┼─────────────────┐
+          ▼                ▼                 ▼
+       Hindi test       Tamil test       Bengali test
+          │                │                 │
+          ▼                ▼                 ▼
+      zero-shot         zero-shot         zero-shot
+      transfer          transfer          transfer
+</code></pre>
+<p>No Indic-language training data enters before evaluation. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-38">5.29.17 Now comes the interesting extension</h3>
+<p>The researchers ask:</p>
+<blockquote>
+<p>Does using an in-language development set help model selection?</p>
+</blockquote>
+<p>At first, the benchmark says:</p>
+<div class="math block">
+\boxed{\text{English dev}}
+</div>
+<p>is used.</p>
+<p>But they investigate alternatives.</p>
+<p>This produces an important distinction:</p>
+<div class="math block">
+\boxed{
+\text{in-language}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{in-family}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{English}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-39">5.29.18 What is an in-language dev set?</h3>
+<p>Suppose we're evaluating:</p>
+<div class="math block">
+\boxed{\text{Bengali}}.
+</div>
+<p>An in-language dev set is:</p>
+<div class="math block">
+\boxed{\text{Bengali development data}}.
+</div>
+<p>This gives direct feedback about the target language.</p>
+<p>But using it changes the strict zero-shot protocol because the target language now influences model selection.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-40">5.29.19 What is an in-family dev set?</h3>
+<p>This is a very interesting intermediate idea.</p>
+<p>The deck uses:</p>
+<div class="math block">
+\boxed{\text{Hindi}}
+</div>
+<p>as a representative language for:</p>
+<div class="math block">
+\boxed{\text{Indo-European}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Tamil}}
+</div>
+<p>as a representative language for:</p>
+<div class="math block">
+\boxed{\text{Dravidian}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>So instead of having Bengali-specific dev data, one can potentially select using a related language.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Hindi dev}
+\rightarrow
+\text{select for other Indo-European languages}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Tamil dev}
+\rightarrow
+\text{select for other Dravidian languages}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-41">5.29.20 Why might that work?</h3>
+<p>Suppose two languages share some useful linguistic structure.</p>
+<p>Then a model configuration that works well on:</p>
+<div class="math block">
+L_1
+</div>
+<p>may also work reasonably well on:</p>
+<div class="math block">
+L_2
+</div>
+<p>within the same family.</p>
+<p>This can provide a compromise:</p>
+<div class="math block">
+\boxed{
+\text{better than English-only selection}
+}
+</div>
+<p>without needing a separate development set for every target language.</p>
+<p>The source reports that these in-family dev sets perform on par with true in-language dev sets and clearly ahead of English-only selection. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-42">5.29.21 Let's inspect the reported table</h3>
+<p>The slide compares:</p>
+<ul>
+<li>English development selection,</li>
+<li>in-language development selection,</li>
+<li>in-family development selection.</li>
+</ul>
+<p>The table shows that for the reported tasks, in-family selection tends to be close to actual in-language selection and better than English-only selection. <em>(Source: indicxtreme-slides)</em></p>
+<p>For example, on <strong>IndicSentiment</strong>, the table reports approximately:</p>
+<div class="math block">
+\text{mBERT: }72.9
+</div>
+<p>for in-language and:</p>
+<div class="math block">
+72.9
+</div>
+<p>for in-family, compared with a smaller English-dev-selected result.</p>
+<p>For IndicBERT, the reported numbers similarly show in-family selection tracking in-language performance closely. <em>(Source: indicxtreme-slides)</em></p>
+<p>We should interpret the pattern rather than memorize every table cell.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-43">5.29.22 What does this tell us?</h3>
+<p>There appears to be a useful hierarchy:</p>
+<div class="math block">
+\boxed{
+\text{English dev}
+&lt;
+\text{related-language dev}
+\approx
+\text{target-language dev}
+}
+</div>
+<p>for the reported experiments.</p>
+<p>The key lesson is:</p>
+<div class="math block">
+\boxed{
+\text{language-aware model selection can matter}
+}
+</div>
+<p>even when actual target-language training remains absent.</p>
+<p>The precise numerical gains are task/model dependent; the deck's broad conclusion is the important point. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-44">5.29.23 Why is Hindi particularly interesting?</h3>
+<p>Now the deck goes one step further.</p>
+<p>It asks:</p>
+<blockquote>
+<p>What happens if Hindi itself becomes the transfer language?</p>
+</blockquote>
+<p>The slide reports:</p>
+<div class="math block">
+\boxed{\text{Hindi is a better transfer language than English}}
+</div>
+<p>for the evaluated tasks. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a major observation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-45">5.29.24 “Gold zero-shot”</h3>
+<p>The deck defines:</p>
+<div class="math block">
+\boxed{\text{gold zero-shot}}
+</div>
+<p>as using real Hindi training data for the tasks.</p>
+<p>So instead of:</p>
+<div class="math block">
+\text{English training}
+\rightarrow
+\text{Indic test},
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+\text{Hindi training}
+\rightarrow
+\text{other Indic-language test}
+}.
+</div>
+<p>This is not strict zero-shot with respect to Hindi, because the model sees Hindi training data.</p>
+<p>It is better understood as <strong>cross-Indic transfer from Hindi</strong>.</p>
+<p>The slide explicitly uses the term “gold zero-shot” for this setup. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-46">5.29.25 “Silver zero-shot”</h3>
+<p>The deck also constructs:</p>
+<div class="math block">
+\boxed{\text{silver zero-shot}}
+</div>
+<p>by machine-translating the English training set into Hindi.</p>
+<p>So:</p>
+<div class="math block">
+\text{English training}
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+\text{machine-translated Hindi training}
+}
+</div>
+<p>and then the model transfers from Hindi to the other Indic languages.</p>
+<p>This provides:</p>
+<div class="math block">
+\boxed{
+\text{Hindi-language supervision without manually creating Hindi data}
+}
+</div>
+<p>although translation errors can be introduced.</p>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-47">5.29.26 Reported Hindi transfer gains</h3>
+<p>The deck reports that switching the transfer language from English to Hindi in the evaluated setup lifts:</p>
+<div class="math block">
+\boxed{\text{NER by }+3.5}
+</div>
+<div class="math block">
+\boxed{\text{Intent by }+3.1}
+</div>
+<div class="math block">
+\boxed{\text{Slot-filling by }+10.6}
+</div>
+<p>percentage points. <em>(Source: indicxtreme-slides)</em></p>
+<p>These are source-derived results.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-48">5.29.27 Why might Hindi help?</h3>
+<p>The deck's result supports the idea that:</p>
+<div class="math block">
+\boxed{
+\text{English is not necessarily the optimal transfer language for Indic targets}
+}
+</div>
+<p>because Hindi may share more useful linguistic properties with other Indic languages than English does.</p>
+<p>We should be careful, though:</p>
+<div class="math block">
+\boxed{
+\text{Hindi}
+\neq
+\text{equally close to every Indic language}
+}
+</div>
+<p>and the source does not establish a universal rule that Hindi must always be the best transfer language.</p>
+<p>The conclusion is specific to the experiments reported.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-49">5.29.28 Gold vs silver transfer</h3>
+<p>Here is the distinction:</p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-50">Gold zero-shot</h5>
+<div class="math block">
+\boxed{
+\text{real Hindi task training data}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-51">Silver zero-shot</h5>
+<div class="math block">
+\boxed{
+\text{machine-translated Hindi task training data}
+}
+</div>
+<p>The silver approach is cheaper/easier to construct, but introduces translation errors.</p>
+<p>The deck reports that silver transfer helps:</p>
+<div class="math block">
+\boxed{
+\text{sentiment}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{XNLI}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{paraphrase}
+}
+</div>
+<p>similarly, but hurts:</p>
+<div class="math block">
+\boxed{
+\text{IndicCOPA}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{IndicQA}
+}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-52">5.29.29 Why would translation hurt COPA and QA?</h3>
+<p>The source explicitly attributes this to the sensitivity of these tasks to small translation errors. <em>(Source: indicxtreme-slides)</em></p>
+<p>This makes intuitive sense.</p>
+<p>For causal reasoning:</p>
+<div class="math block">
+\boxed{
+\text{one subtle wording change}
+}
+</div>
+<p>can alter which cause is plausible.</p>
+<p>For QA:</p>
+<div class="math block">
+\boxed{
+\text{small translation error}
+}
+</div>
+<p>can change:</p>
+<div class="math block">
+\text{answer span}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{question/context relationship}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{translation noise}
+\rightarrow
+\text{task-dependent degradation}
+}
+</div>
+<p>is the important lesson.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-53">5.29.30 Numerical example — transfer improvement</h3>
+<p>Suppose a baseline NER score is:</p>
+<div class="math block">
+70.0.
+</div>
+<p>The reported Hindi-transfer improvement is:</p>
+<div class="math block">
++3.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+70.0+3.5
+=
+\boxed{73.5}.
+</div>
+<p>For slot filling, suppose:</p>
+<div class="math block">
+60.0
+</div>
+<p>baseline.</p>
+<p>Then:</p>
+<div class="math block">
+60.0+10.6
+=
+\boxed{70.6}.
+</div>
+<p>These are illustrative starting scores; the actual source provides the gains, not these hypothetical baselines. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-54">5.29.31 A very important conceptual distinction</h3>
+<p>Don't confuse these three experiments.</p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-55">Strict IndicXTREME zero-shot</h5>
+<div class="math block">
+\boxed{
+\text{English train}
+\rightarrow
+\text{Indic test}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-56">Gold Hindi transfer</h5>
+<div class="math block">
+\boxed{
+\text{Hindi train}
+\rightarrow
+\text{other Indic test}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-57">Silver Hindi transfer</h5>
+<div class="math block">
+\boxed{
+\text{machine-translated Hindi train}
+\rightarrow
+\text{other Indic test}
+}
+</div>
+<p>All are evaluating transfer, but they answer different scientific questions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-58">5.29.32 Why the benchmark starts with English</h3>
+<p>Because English is the conventional high-resource transfer language.</p>
+<p>So the baseline question is:</p>
+<div class="math block">
+\boxed{
+\text{Can multilingual pretraining transfer task knowledge from English into Indic languages?}
+}
+</div>
+<p>Then the Hindi experiments ask a deeper question:</p>
+<div class="math block">
+\boxed{
+\text{Would a linguistically closer Indic transfer language work better?}
+}
+</div>
+<p>That is a much more sophisticated benchmark study.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-59">5.29.33 Exam-style numerical question</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{English transfer score}=65.0
+</div>
+<p>and Hindi transfer gives:</p>
+<div class="math block">
++10.6.
+</div>
+<p>Then:</p>
+<div class="math block">
+65.0+10.6
+=
+\boxed{75.6}.
+</div>
+<p>Relative improvement:</p>
+<div class="math block">
+\frac{10.6}{65.0}\times100
+\approx
+\boxed{16.31\%}.
+</div>
+<p>Again, the <span class="math inline">+10.6</span> is source-derived for slot filling; 65.0 is hypothetical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-60">5.29.34 Another exam question: strict zero-shot</h3>
+<p>A student says:</p>
+<blockquote>
+<p>“The model was fine-tuned on English and Hindi before being evaluated on Bengali, so this is zero-shot Bengali.”</p>
+</blockquote>
+<p>Under the deck's strict protocol, that statement is:</p>
+<div class="math block">
+\boxed{\text{incorrect}}
+</div>
+<p>because Hindi-language training data was used.</p>
+<p>Strict zero-shot requires:</p>
+<div class="math block">
+\boxed{
+\text{no target Indic-language training data}
+}
+</div>
+<p>and the benchmark's main protocol uses English training only. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-61">5.29.35 Another exam question: model selection</h3>
+<p>Suppose there are three learning rates:</p>
+<div class="math block">
+10^{-5},\;2\times10^{-5},\;5\times10^{-5}.
+</div>
+<p>Their English-dev accuracies are:</p>
+<div class="math block">
+80,\;84,\;82.
+</div>
+<p>Choose:</p>
+<div class="math block">
+\boxed{2\times10^{-5}}.
+</div>
+<p>Then test this configuration on Hindi.</p>
+<p>Suppose Hindi accuracy is:</p>
+<div class="math block">
+78.
+</div>
+<p>You must <strong>not</strong> go back and select the learning rate because another learning rate gave:</p>
+<div class="math block">
+82
+</div>
+<p>on Hindi test.</p>
+<p>That would contaminate the evaluation.</p>
+<p>This is exactly why model selection is restricted to English development data.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-62">5.29.36 Why this protocol is experimentally clean</h3>
+<p>The sequence:</p>
+<div class="math block">
+\boxed{
+\text{Train on English}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Choose using English dev}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Freeze the choice}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Test on Indic}
+}
+</div>
+<p>means the target-language test set is truly an unseen evaluation environment.</p>
+<p>This reduces the chance that the benchmark score is inflated by target-language adaptation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-63">5.29.37 But there is still a deeper question</h3>
+<p>Suppose English is a very different language from Hindi.</p>
+<p>Then perhaps:</p>
+<div class="math block">
+\boxed{
+\text{English transfer}
+}
+</div>
+<p>is simply a poor experimental baseline for Indic languages.</p>
+<p>The Hindi experiments investigate exactly that.</p>
+<p>If Hindi is a better transfer language, then the problem isn't necessarily:</p>
+<div class="math block">
+\text{multilingual model failure}.
+</div>
+<p>It may partially be:</p>
+<div class="math block">
+\boxed{
+\text{choice of source/transfer language}
+}.
+</div>
+<p>This is one of the most interesting implications of the deck's later analysis. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-64">5.29.38 Complete conceptual picture</h3>
+<p>We started with:</p>
+<div class="math block">
+\boxed{
+\text{English}
+\rightarrow
+\text{Indic}
+}
+</div>
+<p>and discovered that transfer is imperfect.</p>
+<p>Then we tested:</p>
+<div class="math block">
+\boxed{
+\text{in-language dev}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{in-family dev}
+}
+</div>
+<p>and found that in-family selection can approach in-language selection in the reported experiments. <em>(Source: indicxtreme-slides)</em></p>
+<p>Then we tested:</p>
+<div class="math block">
+\boxed{
+\text{Hindi}
+\rightarrow
+\text{other Indic}
+}
+</div>
+<p>and found substantial gains on some tasks. <em>(Source: indicxtreme-slides)</em></p>
+<p>So the experiment evolves from:</p>
+<div class="math block">
+\boxed{
+\text{Can English transfer?}
+}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{
+\text{Does language-aware model selection help?}
+}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{
+\text{Is a related Indic language a better transfer source?}
+}
+</div>
+<p>That is the logic of the entire section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-65">5.29.39 Exam-ready summary</h3>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-66">Strict IndicXTREME protocol</h5>
+<div class="math block">
+\boxed{
+\text{English train}
+\rightarrow
+\text{English dev for model selection}
+\rightarrow
+\text{Indic test}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-67">Why?</h5>
+<p>To measure:</p>
+<div class="math block">
+\boxed{
+\text{zero-shot cross-lingual transfer}
+}
+</div>
+<p>without Indic-language training or model selection contamination. <em>(Source: indicxtreme-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-68">Hyperparameters</h5>
+<p>Task-specific search over at least:</p>
+<div class="math block">
+\boxed{
+\text{learning rate + weight decay}
+}
+</div>
+<p>using English development data. <em>(Source: indicxtreme-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-69">In-family selection</h5>
+<div class="math block">
+\boxed{
+\text{Hindi for Indo-European}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Tamil for Dravidian}
+}
+</div>
+<p>performed close to in-language selection and ahead of English-only selection in the reported study. <em>(Source: indicxtreme-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-29-i70-70">Hindi transfer</h5>
+<p>Reported gains:</p>
+<div class="math block">
+\boxed{
+NER:+3.5
+}
+</div>
+<div class="math block">
+\boxed{
+Intent:+3.1
+}
+</div>
+<div class="math block">
+\boxed{
+SlotFill:+10.6
+}
+</div>
+<p>percentage points. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-29-i70-71">5.29.40 Final mental model</h3>
+<p>The most important equation from this whole section is:</p>
+<div class="math block">
+\boxed{
+\underbrace{
+\text{English supervision}
+}_{\text{task learning}}
+\rightarrow
+\underbrace{
+\text{Indic evaluation}
+}_{\text{language transfer}}
+}
+</div>
+<p>That lets us separate:</p>
+<div class="math block">
+\boxed{
+\text{“Does the model know the task?”}
+}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{
+\text{“Can the model transfer that knowledge across languages?”}
+}
+</div>
+<p>And the later Hindi experiment adds a third question:</p>
+<div class="math block">
+\boxed{
+\text{“Which language is the best source for cross-lingual transfer?”}
+}
+</div>
+<p>That is the central experimental logic of IndicXTREME's zero-shot section. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+</section>

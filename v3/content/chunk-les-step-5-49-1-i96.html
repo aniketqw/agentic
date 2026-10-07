@@ -1,0 +1,1513 @@
+<section class="chunk" id="chunk-les-step-5-49-1-i96" data-id="les-step-5-49-1-i96"><details class="audit-card" id="audit-full-chunk-les-step-5-49-1-i96" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-49-1-i96-1">Motivation</h4><p>Track compute operands, accumulation precision and stored learning state through forward and both backward GEMMs.</p><h4 id="v3-heading-chunk-les-step-5-49-1-i96-2">Prerequisites</h4><ul><li>Linear algebra and chain rule</li><li>Binary floating-point normal/subnormal encodings</li><li>Quantization scale convention</li><li>Tensor shape and loss normalization</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-3">Notation and units</h4><ul><li>X:[N, K], W:[K, O], Y=XW:[N, O] row convention</li><li>s_q: fmax/amax quantization multiplier; s_d:1/s_q reconstruction multiplier</li><li>Nc:128 reduction/group channels in cited design</li><li>G: dL/dY; dX=GW^T; dW=X^TG</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Finite saturating E4M3FN RTNE is simulated; tensor arithmetic uses NumPy higher precision.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-5">Step-by-step derivation</h4><ol><li>Adopt row contract X:[N, I], W:[I, O], Y=XW:[N, O]. Incoming G=dL/dY:[N, O].</li><li>Differentials dY=dX*W+X*dW imply dX=G*W.T and dW=X.T*G by the Frobenius inner product.</li><li>Quantize separate operands for each GEMM, preserve scale metadata and accumulate/dequantize partial products. Fprop/Dgrad/Wgrad names identify derivative destinations, not three independent models.</li><li>Update high-precision masterweights with gradients once per effective batch. Cast refreshed compute copies after the update; small updates may be lost if applied only to FP8 copies.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-1-i96-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-1-i96-7">Three GEMMs and update</h5><p>Given: X=[[1,2],[3,4]], W=[[.5,-1],[2,.25]], G=[[1,2],[-1,.5]], SGDlr=.1</p><ol><li>Forward[[4.5,-.5],[9.5,-2]].</li><li>Dgrad=[[-1.5,2.5],[-1,-1.875]]; Wgrad=[[-2,3.5],[-2,6]].</li><li>Masterupdate W-.1*dW=[[.7,-1.35],[2.2,-.35]]; central differences validate every dW entry.</li></ol><p>Answer: complete forward/backward/update matrices above</p><p>Verification: mtp_fp8_parallelism / LINEAR-update · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-1-i96-8">Actual optimizer-state storage</h5><p>Given: 1billionparameters; FP32 master+grad; BF16 moments</p><ol><li>Master 4GB+gradient 4GB.</li><li>Firstmoment2GB+secondmoment2GB.</li><li>Add 12 GB; compute-copy, activations and sharding excluded.</li></ol><p>Answer: 12 GB unsharded listed state, versus 16GB if both moments are FP32</p><p>Verification: mtp_fp8_parallelism / FP8-storage-state · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-49-1-i96-9">Corrections and source qualifications</h4><ul><li>heading: Quantization and dequantization scale convention; text: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.</li><li>heading: Optimizer-state precision; text: Actual DeepSeek-V3 precision qualification: the book presents a high-precision optimizer teaching pipeline. The V3 technical report §3.3.3 uses BF16 AdamW first/second moments, with FP32 master weights and accumulated gradients. Therefore “all optimizer states are FP32” is not an exact description of that production framework.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.49.1.9 A tiny numerical example; answer: Suppose: a=[1.2,\,1.3,\,1.4] and: b=[2.1,\,2.2,\,2.3]. The dot product is: 1.2(2.1)+1.3(2.2)+1.4(2.3). Calculate: 1.2(2.1)=2.52 1.3(2.2)=2.86 1.4(2.3)=3.22. Therefore: y=2.52+2.86+3.22 = \boxed{8.60}. Real large matrix multiplications may involve thousands of such terms. That is why the source places importance on using FP32 accumulation even though the products are computed in FP8. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.1.38 Exam numerical — memory savings; answer: A tensor contains: 1,000,000,000 values. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.1.39 Exam numerical — gradient update; answer: Given: W= \begin{bmatrix} 1.5&amp;2.0\\ 3.0&amp;4.5 \end{bmatrix} and: dW= \begin{bmatrix} 0.2&amp;-0.1\\ 0.3&amp;0.4 \end{bmatrix} with: \eta=0.05. Then: W_{\text{new}} = W-0.05dW. So: 0.05dW= \begin{bmatrix} 0.01&amp;-0.005\\ 0.015&amp;0.02 \end{bmatrix}. Therefore: \boxed{ W_{\text{new}} = \begin{bmatrix} 1.49&amp;2.005\\ 2.985&amp;4.48 \end{bmatrix}. } Again, conceptually this update happens on the high-precision master weights in the source&#x27;s framework. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.1.40 One very important exam distinction; answer: Do not say: \boxed{ \text{“DeepSeek stores everything in FP8.”} } The source explicitly contradicts that. Instead: \boxed{ \text{FP8 for bulk GEMM computation} } \boxed{ \text{BF16 for many activations/gradients and sensitive components} } \boxed{ \text{FP32 for accumulation, master weights, Wgrad, optimizer state, and updates}. } (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.1.43 The exam-level “why” for every precision choice; answer: Choice Why FP8 multiplication Speed + lower memory/data movement FP32 accumulation Reduce accumulation error BF16 activations More robust than FP8 for stored intermediate values FP32 master weights Preserve small parameter updates FP32 Wgrad Accurate parameter-learning signal FP32 optimizer states Stable accumulated optimization statistics Higher precision sensitive modules Prevent quantization-induced instability This summarizes the source&#x27;s mixed-precision reasoning. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Step 5.49.1 checkpoint; answer: You should now know these equations cold: \boxed{ y=Wx } \boxed{ \frac{\partial L}{\partial x} = \frac{\partial L}{\partial y}W^T } \boxed{ \frac{\partial L}{\partial W} = x^T\frac{\partial L}{\partial y} } \boxed{ W_{\text{new}} = W_{\text{old}} - \eta\frac{\partial L}{\partial W}. } And the precision map: \boxed{ \text{FP8 compute} \rightarrow \text{FP32 accumulation} \rightarrow \text{BF16 communication/storage} \rightarrow \text{FP32 learning state}. } One more source-specific point: the source says embeddings, final output head, MoE gating, normalization, and attention softmax/context calculations remain in higher precision rather than being pushed through the FP8 path. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Where is precision actually worth paying for?; answer: DeepSeek&#x27;s answer is roughly: \boxed{ \text{massive repeated GEMMs} \rightarrow \text{FP8} } while: \boxed{ \text{accumulation} \rightarrow \text{FP32} } and: \boxed{ \text{persistent learning state} \rightarrow \text{FP32} } and: \boxed{ \text{inter-layer activation/gradient storage} \rightarrow \text{BF16}. } That is much more intelligent than simply saying “use FP8.” 5.49.1.33 Sensitive components that remain higher precision The source goes one step further. It says certain Transformer components bypass FP8 and remain in higher precision such as BF16. The source specifically lists: \boxed{\text{Embedding modules}} \boxed{\text{Final output head}} \boxed{\text{MoE gating modules}} \boxed{\text{Normalization layers}} \boxed{\text{attention softmax/context-vector calculations}}. (Source: Build a DeepSeek Model (From Scratch)) This is extremely important. 5.49.1.34 Why keep the MoE gate higher precision? Recall our MoE routing: L=XW_R. Then: TopK(L) selects experts. A small numerical change around a ranking boundary could change which experts are selected. For example: L=[2.01,2.00,1.2]. Top-1: E_1. But an error could turn: 2.01\rightarrow1.99 and: 2.00\rightarrow2.00. Now: E_2 could be selected. So router calculations are sensitive to numerical perturbations. The source therefore lists MoE gating among components kept at higher precision. (Source: Build a DeepSeek Model (From Scratch)) 5.49.1.35 Why keep softmax higher precision? Attentio; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-1-i96-11">Edge cases and remaining gaps</h4><ul><li>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-12">Connections and progression</h4><ul><li>Local amax scales → range control → E4M3 significand precision</li><li>Group GEMMs → dequantization within reduction → safe accumulation</li><li>High-precision learning state → refreshed low-precision compute copies → communication/storage budget</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 293, 294, 295, 296, 297, 298, 299, 300 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · FP8 operand GEMMs; local tiles; 128-element promotion; BF16 moments versus FP32 master/grad. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S3.SS3</li><li>NVIDIA Transformer Engine FP8 Current Scaling documentation · E4M3 maximum 448 and E5M2 maximum 57344; cast-to-nearest-even; scale conventions. Read 2026-10-07. · https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html</li></ul><h4 id="v3-heading-chunk-les-step-5-49-1-i96-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (59)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.49.1 — DeepSeek Mixed-Precision Training: Fprop → Dgrad → Wgrad → Weight Update</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.1.1 First establish the mathematical layer</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.2 What are the three major matrix operations?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Forward</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Gradient with respect to input</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Gradient with respect to weight</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.3 Why is this important for FP8?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.4 Stage A — Forward propagation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.5 What happens to the weights?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.6 Why not store only FP8 weights?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.7 The forward GEMM</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.8 What does accumulation mean?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.9 A tiny numerical example</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.10 What happens to the output?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.11 Why this combination?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.12 Stage B — Dgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.13 Why do we need Dgrad?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.14 Precision in Dgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.15 Dgrad pipeline</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.16 Stage C — Wgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.17 Why does Wgrad need extra care?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.18 Precision in Wgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.19 Wgrad pipeline</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.20 Stage D — Weight update</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.21 Why is everything FP32 here?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.22 What happens after the update?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.23 The complete lifecycle</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.24 Now let&#x27;s use actual numbers</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.25 Suppose the incoming loss gradient is</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.26 Wgrad numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.27 Weight update numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.28 Why not update the FP8 weight directly?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.29 Source-specific precision map</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.1.30 Why are optimizer states also FP32?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.31 Why not store all activations in FP32?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.32 The deeper design principle</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.33 Sensitive components that remain higher precision</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.34 Why keep the MoE gate higher precision?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.35 Why keep softmax higher precision?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.36 Why keep normalization higher precision?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.37 The precision hierarchy</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.38 Exam numerical — memory savings</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP32</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>BF16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP8</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.39 Exam numerical — gradient update</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.40 One very important exam distinction</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.41 Another important distinction: computation vs storage</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>“What precision is this tensor stored in?”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>“What precision is used to compute with it?”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.42 Full lifecycle in equations</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Forward</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Backward — Dgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Backward — Wgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Update</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.43 The exam-level “why” for every precision choice</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1.44 Source-reported performance</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.1.45 Final mental picture</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Step 5.49.1 checkpoint</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-1-i96"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-1-i96" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-i95">← Previous lesson</a> · <a href="#chunk-les-step-5-49-2-i97">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-i95">Step 5.49 — FP8 Quantization</a></p><p><strong>This lesson:</strong> Step 5.49.1 — DeepSeek Mixed-Precision Training: Fprop → Dgrad → Wgrad → Weight Update</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-1-i96"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-1-i96-15">Step 5.49.1 — DeepSeek Mixed-Precision Training: Fprop → Dgrad → Wgrad → Weight Update</h3>
+<p><em>Plan node: A4 · chat order #96</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>Now we will open the entire <strong>Mixed Precision Framework</strong>.</p>
+<p>The most important thing to understand is that DeepSeek does <strong>not</strong> choose one precision and use it everywhere.</p>
+<p>Instead, for a linear layer</p>
+<div class="math block">
+\boxed{y=Wx}
+</div>
+<p>different versions of <span class="math inline">x</span>, <span class="math inline">W</span>, <span class="math inline">y</span>, and the gradients exist at different points in the computation.</p>
+<p>The source's four-stage flow is:</p>
+<div class="math block">
+\boxed{
+\text{Fprop}
+\rightarrow
+\text{Dgrad}
+\rightarrow
+\text{Wgrad}
+\rightarrow
+\text{Weight Update}
+}
+</div>
+<p>with FP8 used for the expensive GEMM operations and higher precision retained where numerical sensitivity is greater. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-16">5.49.1.1 First establish the mathematical layer</h4>
+<p>Consider:</p>
+<div class="math block">
+\boxed{
+y=Wx
+}
+</div>
+<p>where:</p>
+<div class="math block">
+x\in\mathbb R^{d_{in}}
+</div>
+<div class="math block">
+W\in\mathbb R^{d_{out}\times d_{in}}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+y\in\mathbb R^{d_{out}}.
+</div>
+<p>For a batch:</p>
+<div class="math block">
+X\in\mathbb R^{B\times d_{in}}
+</div>
+<p>and:</p>
+<div class="math block">
+W\in\mathbb R^{d_{out}\times d_{in}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=XW^T
+</div>
+<p>under the batch-row convention.</p>
+<p>The source explains its formulas using the equivalent conceptual linear-layer relation <span class="math inline">y=Wx</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-17">5.49.1.2 What are the three major matrix operations?</h4>
+<p>There are three large GEMMs in the training pass.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-18">Forward</h6>
+<div class="math block">
+\boxed{
+Y=WX
+}
+</div>
+<p>conceptually.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-19">Gradient with respect to input</h6>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}
+=
+\frac{\partial L}{\partial Y}W^T
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-20">Gradient with respect to weight</h6>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+X^T\frac{\partial L}{\partial Y}
+}
+</div>
+<p>The source explicitly gives the latter two formulas. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>These are often abbreviated as:</p>
+<div class="math block">
+\boxed{
+\text{Fprop},\quad
+\text{Dgrad},\quad
+\text{Wgrad}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-21">5.49.1.3 Why is this important for FP8?</h4>
+<p>Because each one is a <strong>huge matrix multiplication</strong>.</p>
+<p>DeepSeek wants:</p>
+<div class="math block">
+\boxed{
+FP8
+}
+</div>
+<p>for these expensive operations.</p>
+<p>But it does not want:</p>
+<div class="math block">
+\boxed{
+FP8
+}
+</div>
+<p>for everything surrounding them.</p>
+<p>So the design is:</p>
+<div class="math block">
+\boxed{
+\text{FP8 GEMM}
++
+\text{higher-precision accumulation/storage}.
+}
+</div>
+<p>The source calls this a mixed-precision framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-22">5.49.1.4 Stage A — Forward propagation</h4>
+<p>Start with an input activation:</p>
+<div class="math block">
+x.
+</div>
+<p>The source says activations are typically stored in:</p>
+<div class="math block">
+\boxed{BF16}.
+</div>
+<p>But for the actual multiplication, they are converted on the fly to:</p>
+<div class="math block">
+\boxed{FP8}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+x_{BF16}
+\longrightarrow
+x_{FP8}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-23">5.49.1.5 What happens to the weights?</h4>
+<p>The model maintains a higher-precision &quot;master&quot; weight copy:</p>
+<div class="math block">
+\boxed{
+W_{\text{master}}
+}
+</div>
+<p>in:</p>
+<div class="math block">
+\boxed{FP32}
+</div>
+<p>or, as the source allows in its description of the forward path, high precision such as BF16 for the main stored copy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For the multiplication, the weights are converted on the fly to:</p>
+<div class="math block">
+\boxed{FP8}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+W_{\text{master}}
+\rightarrow
+W_{FP8}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-24">5.49.1.6 Why not store only FP8 weights?</h4>
+<p>Because training needs accurate updates.</p>
+<p>Suppose the true weight is:</p>
+<div class="math block">
+W=0.12345678.
+</div>
+<p>An 8-bit representation cannot preserve as much information as FP32.</p>
+<p>If we repeatedly:</p>
+<ol>
+<li>quantize the weight,</li>
+<li>perform computation,</li>
+<li>update the quantized value,</li>
+<li>quantize again,</li>
+</ol>
+<p>small errors can accumulate.</p>
+<p>DeepSeek therefore maintains a higher-precision master copy for the actual optimizer update.</p>
+<p>The source explicitly describes the master weights as high precision and updated in FP32. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-25">5.49.1.7 The forward GEMM</h4>
+<p>Now perform:</p>
+<div class="math block">
+\boxed{
+Y_{FP8\times FP8}
+}
+</div>
+<p>using the FP8 versions.</p>
+<p>Conceptually:</p>
+<div class="math block">
+Y
+=
+W_{FP8}X_{FP8}.
+</div>
+<p>But here comes the key detail:</p>
+<div class="math block">
+\boxed{
+\text{the multiplication is FP8, but accumulation is FP32}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-26">5.49.1.8 What does accumulation mean?</h4>
+<p>Consider a single output:</p>
+<div class="math block">
+y_i
+=
+\sum_{j=1}^{d}W_{ij}x_j.
+</div>
+<p>Suppose there are:</p>
+<div class="math block">
+4096
+</div>
+<p>terms.</p>
+<p>The GPU performs many products:</p>
+<div class="math block">
+W_{i1}x_1,
+W_{i2}x_2,
+\ldots
+</div>
+<p>and then sums them.</p>
+<p>If every partial sum were kept in FP8, numerical error could compound.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{FP8 products}
+\rightarrow
+\text{FP32 partial sums}.
+}
+</div>
+<p>This is the first place where you should distinguish:</p>
+<div class="math block">
+\boxed{\text{multiplication precision}}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{\text{accumulation precision}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-27">5.49.1.9 A tiny numerical example</h4>
+<p>Suppose:</p>
+<div class="math block">
+a=[1.2,\,1.3,\,1.4]
+</div>
+<p>and:</p>
+<div class="math block">
+b=[2.1,\,2.2,\,2.3].
+</div>
+<p>The dot product is:</p>
+<div class="math block">
+1.2(2.1)+1.3(2.2)+1.4(2.3).
+</div>
+<p>Calculate:</p>
+<div class="math block">
+1.2(2.1)=2.52
+</div>
+<div class="math block">
+1.3(2.2)=2.86
+</div>
+<div class="math block">
+1.4(2.3)=3.22.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+y=2.52+2.86+3.22
+=
+\boxed{8.60}.
+</div>
+<p>Real large matrix multiplications may involve thousands of such terms.</p>
+<p>That is why the source places importance on using FP32 accumulation even though the products are computed in FP8. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-28">5.49.1.10 What happens to the output?</h4>
+<p>After FP32 accumulation:</p>
+<div class="math block">
+Y_{FP32}
+</div>
+<p>is converted to:</p>
+<div class="math block">
+\boxed{
+Y_{BF16}.
+}
+</div>
+<p>The source explicitly describes this conversion for storage in memory/inter-layer communication. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the entire forward path is:</p>
+<div class="math block">
+\boxed{
+x_{BF16}
+\rightarrow
+x_{FP8}
+}
+</div>
+<div class="math block">
+\boxed{
+W_{\text{master}}
+\rightarrow
+W_{FP8}
+}
+</div>
+<div class="math block">
+\boxed{
+FP8\times FP8
+\rightarrow
+FP32\text{ accumulation}
+}
+</div>
+<div class="math block">
+\boxed{
+Y_{FP32}
+\rightarrow
+Y_{BF16}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-29">5.49.1.11 Why this combination?</h4>
+<p>Because the source wants three things simultaneously:</p>
+<div class="math block">
+\boxed{
+\text{FP8}
+\rightarrow
+\text{fast computation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{FP32 accumulation}
+\rightarrow
+\text{numerical stability}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{BF16 storage}
+\rightarrow
+\text{reasonable memory usage}.
+}
+</div>
+<p>That is the essence of mixed precision in the forward path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-30">5.49.1.12 Stage B — Dgrad</h4>
+<p>Now the forward computation has produced a loss.</p>
+<p>During backpropagation, suppose the incoming gradient is:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial Y}.
+}
+</div>
+<p>We want:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}.
+}
+</div>
+<p>For:</p>
+<div class="math block">
+Y=WX,
+</div>
+<p>the source gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}
+=
+\frac{\partial L}{\partial Y}W^T.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-31">5.49.1.13 Why do we need Dgrad?</h4>
+<p>Because backpropagation must continue into the previous layer.</p>
+<p>Suppose:</p>
+<pre><code class="language-text">Layer 1
+   │
+   ▼
+Layer 2
+   │
+   ▼
+Layer 3
+   │
+   ▼
+Loss
+</code></pre>
+<p>When Layer 3 computes:</p>
+<div class="math block">
+\frac{\partial L}{\partial X_3},
+</div>
+<p>that becomes the incoming gradient used by the previous layer.</p>
+<p>Therefore Dgrad is how error information travels backward through the network.</p>
+<p>The source explicitly notes that <span class="math inline">dL/dx</span> is needed to continue backpropagation to the previous layer. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-32">5.49.1.14 Precision in Dgrad</h4>
+<p>The source says the incoming gradient is typically stored in:</p>
+<div class="math block">
+\boxed{BF16}.
+</div>
+<p>For computation, it is converted to:</p>
+<div class="math block">
+\boxed{FP8}.
+</div>
+<p>The weight matrix is likewise converted to:</p>
+<div class="math block">
+\boxed{FP8}
+</div>
+<p>for the GEMM.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+FP8\times FP8
+\rightarrow
+FP32\text{ accumulation}.
+}
+</div>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+dL/dX_{FP32}
+\rightarrow
+dL/dX_{BF16}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-33">5.49.1.15 Dgrad pipeline</h4>
+<p>Write this exactly:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial Y}_{BF16}
+\rightarrow
+FP8
+}
+</div>
+<div class="math block">
+\boxed{
+W_{\text{high precision}}
+\rightarrow
+FP8
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial Y}_{FP8}
+W_{FP8}^{T}
+\rightarrow
+FP32\text{ accumulation}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}
+\rightarrow BF16.
+}
+</div>
+<p>The source describes this as a symmetry with the forward computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-34">5.49.1.16 Stage C — Wgrad</h4>
+<p>Now we need the gradient of the weights.</p>
+<p>Again:</p>
+<div class="math block">
+Y=WX.
+</div>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+X^T
+\frac{\partial L}{\partial Y}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This gradient is especially important because:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+}
+</div>
+<p>is what tells the optimizer how to change the model's learned weights.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-35">5.49.1.17 Why does Wgrad need extra care?</h4>
+<p>Because this gradient directly determines the parameter update.</p>
+<p>Suppose:</p>
+<div class="math block">
+W_{\text{new}}
+=
+W_{\text{old}}
+-
+\eta
+\frac{\partial L}{\partial W}.
+</div>
+<p>If:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+</div>
+<p>is noisy or inaccurate, the parameter update becomes inaccurate.</p>
+<p>The source therefore emphasizes preserving this gradient at high precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-36">5.49.1.18 Precision in Wgrad</h4>
+<p>The source says:</p>
+<ul>
+<li>the input activation is available from the forward computation,</li>
+<li>the incoming gradient is converted from BF16 to FP8,</li>
+<li>the Wgrad computation uses FP8 operands,</li>
+<li>the resulting weight gradient is <strong>stored in FP32</strong>.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+X_{FP8}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial Y}_{FP8}
+}
+</div>
+<p>are used in the GEMM.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}_{FP32}
+}
+</div>
+<p>is retained at high precision.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-37">5.49.1.19 Wgrad pipeline</h4>
+<p>Conceptually:</p>
+<div class="math block">
+X_{FP8}
+</div>
+<p>times:</p>
+<div class="math block">
+\left(\frac{\partial L}{\partial Y}\right)_{FP8}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}_{FP32}.
+}
+</div>
+<p>This is the key precision distinction:</p>
+<div class="math block">
+\boxed{
+\text{Wgrad computation may use FP8, but the resulting weight gradient is preserved in FP32}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-38">5.49.1.20 Stage D — Weight update</h4>
+<p>Now we finally change the actual model parameters.</p>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+W_{\text{master,new}}
+=
+W_{\text{master,old}}
+-
+\text{learning rate}
+\cdot
+\frac{\partial L}{\partial W}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's denote:</p>
+<div class="math block">
+\eta=\text{learning rate}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+W_{\text{new}}
+=
+W_{\text{old}}
+-
+\eta
+\frac{\partial L}{\partial W}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-39">5.49.1.21 Why is everything FP32 here?</h4>
+<p>Because this is the point where the model's parameters permanently change.</p>
+<p>The source states that:</p>
+<ul>
+<li>master weights are FP32,</li>
+<li>weight gradients are FP32,</li>
+<li>optimizer states are FP32,</li>
+<li>update occurs entirely in FP32.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{FP32 master weights}
++
+\text{FP32 Wgrad}
++
+\text{FP32 optimizer state}
+\rightarrow
+\text{FP32 update}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-40">5.49.1.22 What happens after the update?</h4>
+<p>Suppose:</p>
+<div class="math block">
+W_{\text{master,new}}
+</div>
+<p>is now updated in FP32.</p>
+<p>For the next iteration, the source says these master weights are converted to the lower-precision form required for computation:</p>
+<div class="math block">
+\boxed{
+W_{\text{master,new}}
+\rightarrow
+W_{BF16}/W_{FP8}.
+}
+</div>
+<p>Then the cycle repeats.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{FP32 master}
+\rightarrow
+\text{FP8 compute}
+\rightarrow
+\text{FP32 gradient}
+\rightarrow
+\text{FP32 update}
+\rightarrow
+\text{FP8 next iteration}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-41">5.49.1.23 The complete lifecycle</h4>
+<p>Here is the entire thing:</p>
+<pre><code class="language-text">                 FP32 Master Weight
+                        │
+                        ▼
+                   convert to FP8
+                        │
+                        ▼
+BF16 Input ──► FP8 Input + FP8 Weight
+                        │
+                        ▼
+                 FP8 × FP8 GEMM
+                        │
+                        ▼
+                  FP32 Accumulation
+                        │
+                        ▼
+                     BF16 Output
+                        │
+                        ▼
+                       Loss
+                        │
+                        ▼
+                    Backprop
+                   /        \
+                  /          \
+               Dgrad        Wgrad
+                 │             │
+          FP8 computation  FP8 computation
+                 │             │
+          FP32 accumulate   FP32 result
+                 │             │
+               BF16        FP32 dW
+                                │
+                                ▼
+                         FP32 Optimizer
+                                │
+                                ▼
+                      FP32 Master Update
+</code></pre>
+<p>That is the mixed-precision training framework presented in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-42">5.49.1.24 Now let's use actual numbers</h4>
+<p>Take a tiny linear layer:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+2&amp;1\\
+3&amp;4
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+x=
+\begin{bmatrix}
+5\\
+6
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+y=Wx.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+y_1=2(5)+1(6)=16
+</div>
+<div class="math block">
+y_2=3(5)+4(6)=39.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+y=
+\begin{bmatrix}
+16\\
+39
+\end{bmatrix}.
+}
+</div>
+<p>This numerical example itself is ordinary linear algebra; the point is now to map its operations onto the mixed-precision pipeline.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-43">5.49.1.25 Suppose the incoming loss gradient is</h4>
+<div class="math block">
+\frac{\partial L}{\partial y}
+=
+\begin{bmatrix}
+0.1\\
+0.2
+\end{bmatrix}.
+</div>
+<p>Then Dgrad:</p>
+<div class="math block">
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial y}W^T.
+</div>
+<p>We have:</p>
+<div class="math block">
+W^T=
+\begin{bmatrix}
+2&amp;3\\
+1&amp;4
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\begin{bmatrix}
+0.1&amp;0.2
+\end{bmatrix}
+\begin{bmatrix}
+2&amp;3\\
+1&amp;4
+\end{bmatrix}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+\begin{bmatrix}
+0.4&amp;1.1
+\end{bmatrix}.
+}
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial x}
+=
+[0.4,1.1].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-44">5.49.1.26 Wgrad numerical</h4>
+<p>For one column-vector example, the gradient is conceptually:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+=
+\frac{\partial L}{\partial y}x^T.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\begin{bmatrix}
+0.1\\
+0.2
+\end{bmatrix}
+\begin{bmatrix}
+5&amp;6
+\end{bmatrix}.
+</div>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+\begin{bmatrix}
+0.5&amp;0.6\\
+1.0&amp;1.2
+\end{bmatrix}.
+}
+</div>
+<p>This corresponds to the source's Wgrad formula in equivalent column-vector notation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-45">5.49.1.27 Weight update numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+\eta=0.01.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_{\text{new}}
+=
+W_{\text{old}}
+-
+0.01
+\begin{bmatrix}
+0.5&amp;0.6\\
+1.0&amp;1.2
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W_{\text{new}}
+=
+\begin{bmatrix}
+2&amp;1\\
+3&amp;4
+\end{bmatrix}
+-
+\begin{bmatrix}
+0.005&amp;0.006\\
+0.010&amp;0.012
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W_{\text{new}}
+=
+\begin{bmatrix}
+1.995&amp;0.994\\
+2.990&amp;3.988
+\end{bmatrix}.
+}
+</div>
+<p>In DeepSeek's mixed-precision framework, this update is performed on the <strong>high-precision master weights</strong>, not on an FP8-only copy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-46">5.49.1.28 Why not update the FP8 weight directly?</h4>
+<p>Suppose the current master weight is:</p>
+<div class="math block">
+W_{\text{master}}=1.234567.
+</div>
+<p>After FP8 conversion you may get an approximation:</p>
+<div class="math block">
+W_{FP8}\approx1.23
+</div>
+<p>for illustration.</p>
+<p>Suppose the gradient is:</p>
+<div class="math block">
+dW=0.0017.
+</div>
+<p>The desired update is:</p>
+<div class="math block">
+1.234567-\eta(0.0017).
+</div>
+<p>If you repeatedly modify only the coarse FP8 representation, tiny updates can be lost.</p>
+<p>The master FP32 copy preserves these small changes.</p>
+<p>This is the conceptual reason behind master-weight storage, and the source explicitly ties the use of FP32 to stable learning and accurate updates. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-47">5.49.1.29 Source-specific precision map</h4>
+<p>The source's mixed-precision diagram can be summarized like this:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity / operation</th>
+<th>Precision described by source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stored input activations</td>
+<td>BF16</td>
+</tr>
+<tr>
+<td>Fprop input during GEMM</td>
+<td>FP8</td>
+</tr>
+<tr>
+<td>Stored/master weights</td>
+<td>FP32 or high precision</td>
+</tr>
+<tr>
+<td>Weight used by GEMM</td>
+<td>FP8</td>
+</tr>
+<tr>
+<td>Fprop accumulation</td>
+<td>FP32</td>
+</tr>
+<tr>
+<td>Output stored/inter-layer</td>
+<td>BF16</td>
+</tr>
+<tr>
+<td>Incoming gradient</td>
+<td>BF16</td>
+</tr>
+<tr>
+<td>Dgrad computation</td>
+<td>FP8 operands</td>
+</tr>
+<tr>
+<td>Dgrad accumulation</td>
+<td>FP32</td>
+</tr>
+<tr>
+<td>Dgrad result passed backward</td>
+<td>BF16</td>
+</tr>
+<tr>
+<td>Wgrad computation</td>
+<td>FP8 operands</td>
+</tr>
+<tr>
+<td>Wgrad storage</td>
+<td>FP32</td>
+</tr>
+<tr>
+<td>Master weights</td>
+<td>FP32</td>
+</tr>
+<tr>
+<td>Optimizer states</td>
+<td>FP32</td>
+</tr>
+<tr>
+<td>Weight update</td>
+<td>FP32</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-48">5.49.1.30 Why are optimizer states also FP32?</h4>
+<p>The source explicitly names optimizer states such as:</p>
+<div class="math block">
+\boxed{\text{momentum and variance in AdamW}}
+</div>
+<p>as being kept in FP32. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because these states accumulate information across many optimization steps.</p>
+<p>For an Adam-like optimizer, simplified state variables include:</p>
+<div class="math block">
+m_t
+</div>
+<p>and:</p>
+<div class="math block">
+v_t.
+</div>
+<p>They contain running statistics of gradients.</p>
+<p>If these were aggressively quantized, accumulated numerical errors could affect future updates.</p>
+<p>So the source's strategy is:</p>
+<div class="math block">
+\boxed{
+\text{persistent optimizer state}
+\rightarrow
+\text{FP32}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-49">5.49.1.31 Why not store all activations in FP32?</h4>
+<p>Because activations are enormous.</p>
+<p>Suppose:</p>
+<div class="math block">
+B=32,\quad S=4096,\quad d=4096.
+</div>
+<p>Then the number of activation values is:</p>
+<div class="math block">
+32\times4096\times4096.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+4096\times4096
+=
+16,777,216.
+</div>
+<p>Then:</p>
+<div class="math block">
+16,777,216\times32
+=
+536,870,912.
+</div>
+<p>So over:</p>
+<div class="math block">
+\boxed{536\text{ million values}}.
+</div>
+<p>At 4 bytes each:</p>
+<div class="math block">
+\approx2.147\text{ GB}
+</div>
+<p>for just one such activation tensor.</p>
+<p>Therefore using FP32 everywhere can be extremely expensive.</p>
+<p>This explains the motivation for BF16/FP8 storage and computation, although the numerical example is our derived illustration.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-50">5.49.1.32 The deeper design principle</h4>
+<p>The mixed-precision architecture answers:</p>
+<blockquote>
+<p><strong>Where is precision actually worth paying for?</strong></p>
+</blockquote>
+<p>DeepSeek's answer is roughly:</p>
+<div class="math block">
+\boxed{
+\text{massive repeated GEMMs}
+\rightarrow
+\text{FP8}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{accumulation}
+\rightarrow
+\text{FP32}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{persistent learning state}
+\rightarrow
+\text{FP32}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{inter-layer activation/gradient storage}
+\rightarrow
+\text{BF16}.
+}
+</div>
+<p>That is much more intelligent than simply saying “use FP8.”</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-51">5.49.1.33 Sensitive components that remain higher precision</h4>
+<p>The source goes one step further.</p>
+<p>It says certain Transformer components bypass FP8 and remain in higher precision such as BF16.</p>
+<p>The source specifically lists:</p>
+<div class="math block">
+\boxed{\text{Embedding modules}}
+</div>
+<div class="math block">
+\boxed{\text{Final output head}}
+</div>
+<div class="math block">
+\boxed{\text{MoE gating modules}}
+</div>
+<div class="math block">
+\boxed{\text{Normalization layers}}
+</div>
+<div class="math block">
+\boxed{\text{attention softmax/context-vector calculations}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is extremely important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-52">5.49.1.34 Why keep the MoE gate higher precision?</h4>
+<p>Recall our MoE routing:</p>
+<div class="math block">
+L=XW_R.
+</div>
+<p>Then:</p>
+<div class="math block">
+TopK(L)
+</div>
+<p>selects experts.</p>
+<p>A small numerical change around a ranking boundary could change which experts are selected.</p>
+<p>For example:</p>
+<div class="math block">
+L=[2.01,2.00,1.2].
+</div>
+<p>Top-1:</p>
+<div class="math block">
+E_1.
+</div>
+<p>But an error could turn:</p>
+<div class="math block">
+2.01\rightarrow1.99
+</div>
+<p>and:</p>
+<div class="math block">
+2.00\rightarrow2.00.
+</div>
+<p>Now:</p>
+<div class="math block">
+E_2
+</div>
+<p>could be selected.</p>
+<p>So router calculations are sensitive to numerical perturbations.</p>
+<p>The source therefore lists MoE gating among components kept at higher precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-53">5.49.1.35 Why keep softmax higher precision?</h4>
+<p>Attention uses:</p>
+<div class="math block">
+softmax(z_i)
+=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}.
+</div>
+<p>Exponentials can be numerically sensitive.</p>
+<p>Suppose logits are:</p>
+<div class="math block">
+[10,9,1].
+</div>
+<p>Small numerical errors in the logits can change the resulting probabilities.</p>
+<p>Therefore the source keeps attention's softmax and context-vector calculation out of the FP8 path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-54">5.49.1.36 Why keep normalization higher precision?</h4>
+<p>Consider RMSNorm:</p>
+<div class="math block">
+\frac{x}
+{\sqrt{\operatorname{mean}(x^2)+\epsilon}}.
+</div>
+<p>The normalization depends on aggregate statistics.</p>
+<p>Numerical errors in the denominator can affect every component of the normalized vector.</p>
+<p>So the source lists normalization layers among the higher-precision components. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-55">5.49.1.37 The precision hierarchy</h4>
+<p>A useful mental model is:</p>
+<div class="math block">
+\boxed{
+FP8
+=
+\text{fast arithmetic}
+}
+</div>
+<div class="math block">
+\boxed{
+BF16
+=
+\text{robust inter-layer representation}
+}
+</div>
+<div class="math block">
+\boxed{
+FP32
+=
+\text{high-fidelity accumulation and learning state}
+}
+</div>
+<p>This isn't saying these are mathematically interchangeable; they serve different roles.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-56">5.49.1.38 Exam numerical — memory savings</h4>
+<p>A tensor contains:</p>
+<div class="math block">
+1,000,000,000
+</div>
+<p>values.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-57">FP32</h6>
+<div class="math block">
+1\times10^9\times4
+=
+4\times10^9
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{4\text{ GB}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-58">BF16</h6>
+<div class="math block">
+1\times10^9\times2
+=
+2\text{ GB}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-59">FP8</h6>
+<div class="math block">
+1\times10^9\times1
+=
+1\text{ GB}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+FP32:4GB
+\rightarrow
+BF16:2GB
+\rightarrow
+FP8:1GB.
+}
+</div>
+<p>This is the raw storage effect of changing bit width.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-60">5.49.1.39 Exam numerical — gradient update</h4>
+<p>Given:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+1.5&amp;2.0\\
+3.0&amp;4.5
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+dW=
+\begin{bmatrix}
+0.2&amp;-0.1\\
+0.3&amp;0.4
+\end{bmatrix}
+</div>
+<p>with:</p>
+<div class="math block">
+\eta=0.05.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_{\text{new}}
+=
+W-0.05dW.
+</div>
+<p>So:</p>
+<div class="math block">
+0.05dW=
+\begin{bmatrix}
+0.01&amp;-0.005\\
+0.015&amp;0.02
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_{\text{new}}
+=
+\begin{bmatrix}
+1.49&amp;2.005\\
+2.985&amp;4.48
+\end{bmatrix}.
+}
+</div>
+<p>Again, conceptually this update happens on the high-precision master weights in the source's framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-61">5.49.1.40 One very important exam distinction</h4>
+<p>Do <strong>not</strong> say:</p>
+<div class="math block">
+\boxed{
+\text{“DeepSeek stores everything in FP8.”}
+}
+</div>
+<p>The source explicitly contradicts that.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{FP8 for bulk GEMM computation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{BF16 for many activations/gradients and sensitive components}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{FP32 for accumulation, master weights, Wgrad, optimizer state, and updates}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-62">5.49.1.41 Another important distinction: computation vs storage</h4>
+<p>These two questions are different:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-63">“What precision is this tensor stored in?”</h6>
+<p>versus:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-64">“What precision is used to compute with it?”</h6>
+<p>For example:</p>
+<div class="math block">
+\boxed{
+x\text{ stored in BF16}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+x\text{ converted to FP8 for GEMM}.
+}
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{
+W_{\text{master}}\text{ stored in FP32}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+W\text{ converted to FP8 for GEMM}.
+}
+</div>
+<p>This distinction is one of the most important things to understand about mixed precision.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-65">5.49.1.42 Full lifecycle in equations</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-66">Forward</h6>
+<div class="math block">
+x_{BF16}
+\xrightarrow{\text{quantize}}
+x_{FP8}
+</div>
+<div class="math block">
+W_{FP32}
+\xrightarrow{\text{quantize}}
+W_{FP8}
+</div>
+<div class="math block">
+Y_{FP32}
+=
+W_{FP8}X_{FP8}
+\quad
+\text{with FP32 accumulation}
+</div>
+<div class="math block">
+Y_{FP32}
+\rightarrow
+Y_{BF16}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-67">Backward — Dgrad</h6>
+<div class="math block">
+G_{BF16}
+\rightarrow
+G_{FP8}
+</div>
+<div class="math block">
+W
+\rightarrow
+W_{FP8}
+</div>
+<div class="math block">
+dX_{FP32}
+=
+G_{FP8}W_{FP8}^{T}
+</div>
+<p>then:</p>
+<div class="math block">
+dX_{FP32}\rightarrow dX_{BF16}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-68">Backward — Wgrad</h6>
+<div class="math block">
+X\rightarrow X_{FP8}
+</div>
+<div class="math block">
+G\rightarrow G_{FP8}
+</div>
+<div class="math block">
+dW_{FP32}
+=
+X_{FP8}^{T}G_{FP8}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-1-i96-69">Update</h6>
+<div class="math block">
+\boxed{
+W_{\text{master,new}}
+=
+W_{\text{master,old}}
+-
+\eta dW_{FP32}.
+}
+</div>
+<p>This is the full precision choreography described in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-70">5.49.1.43 The exam-level “why” for every precision choice</h4>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP8 multiplication</td>
+<td>Speed + lower memory/data movement</td>
+</tr>
+<tr>
+<td>FP32 accumulation</td>
+<td>Reduce accumulation error</td>
+</tr>
+<tr>
+<td>BF16 activations</td>
+<td>More robust than FP8 for stored intermediate values</td>
+</tr>
+<tr>
+<td>FP32 master weights</td>
+<td>Preserve small parameter updates</td>
+</tr>
+<tr>
+<td>FP32 Wgrad</td>
+<td>Accurate parameter-learning signal</td>
+</tr>
+<tr>
+<td>FP32 optimizer states</td>
+<td>Stable accumulated optimization statistics</td>
+</tr>
+<tr>
+<td>Higher precision sensitive modules</td>
+<td>Prevent quantization-induced instability</td>
+</tr>
+</tbody>
+</table>
+<p>This summarizes the source's mixed-precision reasoning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-71">5.49.1.44 Source-reported performance</h4>
+<p>The source states that using FP8 for the three major GEMMs:</p>
+<div class="math block">
+\boxed{
+Fprop,\quad Dgrad,\quad Wgrad
+}
+</div>
+<p>can provide <strong>up to a 2× speed improvement over BF16 operations</strong> in its described framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is a source-reported performance figure, not a universal guarantee.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-72">5.49.1.45 Final mental picture</h4>
+<p>Remember this:</p>
+<pre><code class="language-text">                TRAINING STEP
+                     │
+                     ▼
+               ┌───────────┐
+               │  FPROP    │
+               └─────┬─────┘
+                     │
+              FP8 × FP8
+                     │
+              FP32 accumulate
+                     │
+                   BF16
+                     │
+                   LOSS
+                     │
+                     ▼
+             ┌─────────────┐
+             │ BACKPROP    │
+             └──────┬──────┘
+                    / \
+                   /   \
+                  ▼     ▼
+               Dgrad   Wgrad
+                 │       │
+              FP8 GEMM  FP8 GEMM
+                 │       │
+              FP32     FP32 dW
+              accum.      │
+                 │        │
+               BF16       ▼
+                   \   FP32
+                    \ dW
+                     ▼
+                FP32 UPDATE
+                     │
+                     ▼
+              MASTER WEIGHT
+                     │
+                     ▼
+              next iteration
+</code></pre>
+<p>The source's major point is not merely “FP8 is smaller.”</p>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\textbf{Use the cheapest numerical format where errors are tolerable,}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\textbf{protect the parts of training where errors accumulate or become amplified.}
+}
+</div>
+<p>That is the essence of DeepSeek's <strong>Mixed Precision Framework</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-1-i96-73">Step 5.49.1 checkpoint</h4>
+<p>You should now know these equations cold:</p>
+<div class="math block">
+\boxed{
+y=Wx
+}
+</div>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial y}W^T
+}
+</div>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+x^T\frac{\partial L}{\partial y}
+}
+</div>
+<div class="math block">
+\boxed{
+W_{\text{new}}
+=
+W_{\text{old}}
+-
+\eta\frac{\partial L}{\partial W}.
+}
+</div>
+<p>And the precision map:</p>
+<div class="math block">
+\boxed{
+\text{FP8 compute}
+\rightarrow
+\text{FP32 accumulation}
+\rightarrow
+\text{BF16 communication/storage}
+\rightarrow
+\text{FP32 learning state}.
+}
+</div>
+<p>One more source-specific point: the source says embeddings, final output head, MoE gating, normalization, and attention softmax/context calculations remain in higher precision rather than being pushed through the FP8 path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

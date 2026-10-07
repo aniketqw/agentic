@@ -1,0 +1,1296 @@
+<section class="chunk" id="chunk-les-step-5-10-i51" data-id="les-step-5-10-i51"><details class="audit-card" id="audit-full-chunk-les-step-5-10-i51" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-10-i51-1">Motivation</h4><p>Original token-level GRPO objective: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-10-i51-2">Prerequisites</h4><ul><li>importance sampling</li><li>group normalization</li><li>masked reduction</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-5">Step-by-step derivation</h4><ol><li>For each prompt draw G old-policy responses; outcome reward produces one normalized advantage shared across that response tokens.</li><li>For each eligible token compute its conditional probability ratio; apply the min-based clipped surrogate using that token ratio.</li><li>Average tokens within response, then responses within group. Subtract beta times the forward-reference penalty in the maximized objective.</li><li>DeepSeekMath equation 3 is token-level. The R1 v1 displayed equation is written with whole-response probabilities; that display does not certify every implementation uses the same aggregation.</li><li>Sequence ratio equals the product of conditional token ratios, or exp(sum logratios). It differs from their arithmetic mean and from GSPO geometric mean.</li><li>K3 is a nonnegative sample penalty; distinguish its old-policy empirical surrogate from the ideal current-policy KL expectation.</li></ol><h4 id="v3-heading-chunk-les-step-5-10-i51-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-10-i51-7">Token and sequence ratios</h5><p>Given: r=[1.1,1.3,.7]</p><ol><li>Product1.1*1.3*.7.</li><li>WithA=1 andepsilon=.2, token contributions=[1.1,1.2,.7].</li><li>Average token contributions.</li></ol><p>Answer: Sequence ratio=1.001; token mean surrogate=1.0</p><p>Verification: rl_retool / token_sequence · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-10-i51-8">Long response compounding</h5><p>Given: 100tokens each ratio1.01</p><ol><li>Sum100log(1.01).</li><li>Exponentiate.</li></ol><p>Answer: 2.7048138294</p><p>Verification: rl_retool / long_ratio · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-10-i51-9">Corrections and source qualifications</h4><ul><li>heading: 5.10.23 Now the most important distinction: token-level vs sequence-level; text: The supplied slides and R1 v1 display whole-response notation, while DeepSeekMath equation3 uses token ratios. Treat this as a difference in the displayed mathematical formulation; it does not establish all released or later implementations compute a raw whole-sequence ratio.</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-10">Mastery answers and retained exercise context</h4><ol><li>N 1 r 1.25; N 2 clipped 1.2; N 3 sequence 1.056; N 4 tokenmean.9.</li><li>N 5 negativeadvantage withratio.6 reflectsprobabilitydecrease; epsilon.2 clips beneficialincentive. N 6 1.1^3=1.331; N 7 1.01^100=2.70481383.</li></ol><h4 id="v3-heading-chunk-les-step-5-10-i51-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-12">Connections and progression</h4><ul><li>Previous lesson builds Math corpus and RL lineage.</li><li>Next lesson develops Pass@K, voting and probability reshaping.</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-13">Exact source support</h4><ul><li>deepseekmath-slides(1).pdf · physical PDF pages 13, 14, 15, 16 · Token objective, response reduction, K3 and algorithm coefficients</li></ul><h4 id="v3-heading-chunk-les-step-5-10-i51-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (61)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.10 — The Actual DeepSeekMath GRPO Objective</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.1 Start from the big picture</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.2 The full objective</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.3 Now we decode the formula piece by piece</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Part 1 — G</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.4 Part 2 — o_i</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.5 Part 3 — Why divide by G?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.6 Part 4 — Why divide by |o_i|?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.7 Part 5 — The token probability ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.8 Example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.9 Three interpretations of the ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>r=1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>r&gt;1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>r&lt;1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.10 Part 6 — The advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.11 Why the product rA?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.12 A numerical example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.13 Why can&#x27;t we just use rA?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.14 Part 7 — Clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.15 Numerical example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.16 Why use \min?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.17 Positive-advantage case</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.18 Negative-advantage case</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.19 The three-policy distinction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Current policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Old policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Reference policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.20 Old vs Reference — an interview favorite</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.21 Part 8 — KL regularization</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.22 What happens when \beta changes?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Small \beta</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Large \beta</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.23 Now the most important distinction: token-level vs sequence-level</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>DeepSeekMath</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>DeepSeek-R1 formulation shown in the supplied slides</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.24 Where does the sequence probability come from?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.25 Why log probabilities are used in practice</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.26 Numerical demonstration: token-level vs sequence-level</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.27 Why this matters more for long responses</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.28 Exam numerical — ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.29 Exam numerical — clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.30 Exam numerical — sequence ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.31 Exam numerical — log-ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.32 Tensor shapes</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.33 One complete toy example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.34 What exactly changed between our earlier simplified code and this?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.35 Why did we learn the simplified version first?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.36 Another important connection: GRPO vs Online RFT</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.37 DeepSeekMath vs DeepSeek-R1 — memorize this table</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.38 And this explains later GRPO variants</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.39 The complete reasoning chain</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.40 Master formula map</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.10.41 Exam numerical bank</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N1 — Ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N2 — Clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N3 — Sequence ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N4 — Length-normalized surrogate</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N5 — Advantage direction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N6 — Token vs sequence ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N7 — Long sequence compounding</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>The one distinction you absolutely must remember</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-10-i51"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-10-i51" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-9-i50">← Previous lesson</a> · <a href="#chunk-les-step-5-11-i52">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-9-i50">Step 5.9 — DeepSeekMath: Where GRPO Came From</a></p><p><strong>This lesson:</strong> Step 5.10 — The Actual DeepSeekMath GRPO Objective</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-8">deepseekmath-slides</a>; <a href="#source-11">deepseek-r1-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-10-i51"></a></p>
+<h2>Step 5.10 — The Actual DeepSeekMath GRPO Objective</h2>
+<p><em>Plan node: I7 · chat order #51</em></p>
+<p>Now we go one level deeper.</p>
+<p>In the previous steps, we used a <strong>simplified sequence-level GRPO implementation</strong> to understand the mechanics. That was useful for learning, but it is important not to confuse it with the original DeepSeekMath formulation.</p>
+<p>The supplied DeepSeekMath slides make this distinction explicit:</p>
+<div class="math block">
+\boxed{\text{DeepSeekMath: token-level clipping}}
+</div>
+<p>whereas the later DeepSeek-R1 formulation shown in the supplied R1 slides uses:</p>
+<div class="math block">
+\boxed{\text{one sequence-level ratio for the whole response}}
+</div>
+<p><em>(Source: deepseekmath-slides; deepseek-r1-slides)</em></p>
+<p>This distinction is extremely important for exams and for understanding later GRPO variants.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-15">5.10.1 Start from the big picture</h3>
+<p>For one prompt <span class="math inline">q</span>:</p>
+<div class="math block">
+q
+</div>
+<p>the old/current policy generates <span class="math inline">G</span> responses:</p>
+<div class="math block">
+o_1,o_2,\ldots,o_G.
+</div>
+<p>Each response contains tokens:</p>
+<div class="math block">
+o_i=(o_{i,1},o_{i,2},\ldots,o_{i,|o_i|}).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{prompt}
+\rightarrow
+\text{multiple responses}
+\rightarrow
+\text{reward}
+\rightarrow
+\text{advantages}
+\rightarrow
+\text{policy update}
+}
+</div>
+<p>The original DeepSeekMath objective then performs the policy update <strong>at the token level</strong>. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-16">5.10.2 The full objective</h3>
+<p>The supplied slide gives the DeepSeekMath objective in the following structure:</p>
+<div class="math block">
+\boxed{
+J_{\mathrm{GRPO}}(\theta)
+=
+\mathbb E
+\left[
+\frac1G
+\sum_{i=1}^{G}
+\frac1{|o_i|}
+\sum_{t=1}^{|o_i|}
+\min
+\left(
+r_{i,t}(\theta)A_{i,t},
+\operatorname{clip}
+\left(r_{i,t}(\theta),1-\epsilon,1+\epsilon\right)
+A_{i,t}
+\right)
+-
+\beta D_{\mathrm{KL}}(\pi_\theta\|\pi_{\mathrm{ref}})
+\right]
+}
+</div>
+<p>where</p>
+<div class="math block">
+\boxed{
+r_{i,t}(\theta)
+=
+\frac{
+\pi_\theta(o_{i,t}\mid q,o_{i,&lt;t})
+}{
+\pi_{\theta_{\mathrm{old}}}(o_{i,t}\mid q,o_{i,&lt;t})
+}
+}
+</div>
+<p>and the advantage is derived from the rewards of the group.</p>
+<p>This is the key equation for this step. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-17">5.10.3 Now we decode the formula piece by piece</h3>
+<p>Do not try to memorize the entire equation at once.</p>
+<p>We will construct it.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-10-i51-18">Part 1 — <span class="math inline">G</span></h4>
+<div class="math block">
+G
+</div>
+<p>is the number of sampled responses for one prompt.</p>
+<p>Example:</p>
+<div class="math block">
+G=4.
+</div>
+<p>Then:</p>
+<div class="math block">
+o_1,o_2,o_3,o_4.
+</div>
+<p>The group comparison is what makes this <strong>Group Relative</strong> Policy Optimization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-19">5.10.4 Part 2 — <span class="math inline">o_i</span></h3>
+<p>For response <span class="math inline">i</span>:</p>
+<div class="math block">
+o_i=(o_{i,1},o_{i,2},\ldots,o_{i,T_i})
+</div>
+<p>where:</p>
+<div class="math block">
+T_i=|o_i|
+</div>
+<p>is its number of generated tokens.</p>
+<p>Example:</p>
+<pre><code class="language-text">Response 1 = [token1, token2, token3, token4]
+</code></pre>
+<p>then:</p>
+<div class="math block">
+|o_1|=4.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-20">5.10.5 Part 3 — Why divide by <span class="math inline">G</span>?</h3>
+<p>The objective averages across sampled responses:</p>
+<div class="math block">
+\frac1G\sum_{i=1}^{G}.
+</div>
+<p>Without this normalization, increasing group size would automatically increase the magnitude of the objective.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\frac1G
+}
+</div>
+<p>makes the contribution an average over the group.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-21">5.10.6 Part 4 — Why divide by <span class="math inline">|o_i|</span>?</h3>
+<p>Inside each response:</p>
+<div class="math block">
+\frac1{|o_i|}
+\sum_{t=1}^{|o_i|}.
+</div>
+<p>This means the token-level contributions are averaged over the response length.</p>
+<p>That matters because otherwise a longer response contains more terms in the sum and can contribute disproportionately.</p>
+<p>For example, imagine:</p>
+<div class="math block">
+|o_1|=10
+</div>
+<p>and:</p>
+<div class="math block">
+|o_2|=100.
+</div>
+<p>Without length normalization, the second response has ten times as many token-level terms.</p>
+<p>The original formulation explicitly includes:</p>
+<div class="math block">
+\boxed{\frac1{|o_i|}}
+</div>
+<p>to average the token contributions within each response. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-22">5.10.7 Part 5 — The token probability ratio</h3>
+<p>Now we reach the most important quantity:</p>
+<div class="math block">
+\boxed{
+r_{i,t}(\theta)
+=
+\frac{
+\pi_\theta(o_{i,t}\mid q,o_{i,&lt;t})
+}{
+\pi_{\theta_{\mathrm{old}}}(o_{i,t}\mid q,o_{i,&lt;t})
+}
+}
+</div>
+<p>Read this in English:</p>
+<blockquote>
+<p>How much more or less likely is the current policy to generate this particular token compared with the policy that generated the rollout?</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-23">5.10.8 Example</h3>
+<p>Suppose the old policy assigned:</p>
+<div class="math block">
+P_{\text{old}}=0.20
+</div>
+<p>to the sampled token.</p>
+<p>After updating the model, the current policy assigns:</p>
+<div class="math block">
+P_{\text{new}}=0.30.
+</div>
+<p>Then:</p>
+<div class="math block">
+r=
+\frac{0.30}{0.20}
+=
+1.5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{r=1.5}
+</div>
+<p>means the current model considers that sampled token:</p>
+<div class="math block">
+\boxed{50\%\text{ more likely}}
+</div>
+<p>than the old model did.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-24">5.10.9 Three interpretations of the ratio</h3>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-25"><span class="math inline">r=1</span></h5>
+<div class="math block">
+P_{\text{new}}=P_{\text{old}}
+</div>
+<p>No probability change.</p>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-26"><span class="math inline">r&gt;1</span></h5>
+<div class="math block">
+P_{\text{new}}&gt;P_{\text{old}}
+</div>
+<p>The current policy is increasing the probability.</p>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-27"><span class="math inline">r&lt;1</span></h5>
+<div class="math block">
+P_{\text{new}}&lt;P_{\text{old}}
+</div>
+<p>The current policy is decreasing the probability.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+r\text{ measures policy movement}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-28">5.10.10 Part 6 — The advantage</h3>
+<p>The ratio alone doesn't say whether we <strong>want</strong> the probability to increase or decrease.</p>
+<p>That comes from:</p>
+<div class="math block">
+\boxed{A_{i,t}}.
+</div>
+<p>The advantage answers:</p>
+<blockquote>
+<p>Was this sampled behavior better or worse relative to the other responses?</p>
+</blockquote>
+<p>For outcome-based reward, the same group-level reward signal can conceptually be applied across the generated tokens of a response.</p>
+<p>Suppose:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+\mu_R=0.5.
+</div>
+<p>The correct responses have:</p>
+<div class="math block">
+R_i-\mu_R&gt;0
+</div>
+<p>and wrong responses have:</p>
+<div class="math block">
+R_i-\mu_R&lt;0.
+</div>
+<p>After normalization:</p>
+<div class="math block">
+A&gt;0
+</div>
+<p>for stronger responses and:</p>
+<div class="math block">
+A&lt;0
+</div>
+<p>for weaker responses.</p>
+<p>The supplied GRPO material defines this group-relative signal from the within-group rewards. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-29">5.10.11 Why the product <span class="math inline">rA</span>?</h3>
+<p>This is the key RL intuition.</p>
+<p>We have:</p>
+<div class="math block">
+r\times A.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+A&gt;0.
+</div>
+<p>This means:</p>
+<blockquote>
+<p>We want to reinforce this action.</p>
+</blockquote>
+<p>So increasing its probability is desirable.</p>
+<p>If:</p>
+<div class="math block">
+r&gt;1,
+</div>
+<p>then:</p>
+<div class="math block">
+rA
+</div>
+<p>gets larger.</p>
+<p>That is good.</p>
+<hr />
+<p>Now suppose:</p>
+<div class="math block">
+A&lt;0.
+</div>
+<p>This means:</p>
+<blockquote>
+<p>We want to suppress this action.</p>
+</blockquote>
+<p>If:</p>
+<div class="math block">
+r&lt;1,
+</div>
+<p>the policy is reducing its probability.</p>
+<p>That is desirable.</p>
+<p>So the sign of <span class="math inline">A</span> tells the optimizer:</p>
+<div class="math block">
+\boxed{\text{up or down}}
+</div>
+<p>while <span class="math inline">r</span> tells it:</p>
+<div class="math block">
+\boxed{\text{how much the probability moved}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-30">5.10.12 A numerical example</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=0.8.
+</div>
+<p>And:</p>
+<div class="math block">
+r=1.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA
+=
+1.2(0.8)
+=
+0.96.
+</div>
+<p>A positive contribution.</p>
+<p>Now suppose:</p>
+<div class="math block">
+A=-0.8
+</div>
+<p>and:</p>
+<div class="math block">
+r=0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA
+=
+0.8(-0.8)
+=
+-0.64.
+</div>
+<p>The update is moving the probability downward for a negatively advantaged action.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-31">5.10.13 Why can't we just use <span class="math inline">rA</span>?</h3>
+<p>Because the model could move too aggressively.</p>
+<p>Suppose:</p>
+<div class="math block">
+A=1
+</div>
+<p>and:</p>
+<div class="math block">
+r=10.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA=10.
+</div>
+<p>The model has dramatically increased the probability of this sampled behavior in one update.</p>
+<p>Repeated aggressive changes can destabilize policy optimization.</p>
+<p>This is where clipping enters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-32">5.10.14 Part 7 — Clipping</h3>
+<p>The clipped ratio is:</p>
+<div class="math block">
+\boxed{
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+1-\epsilon=0.8
+</div>
+<p>and:</p>
+<div class="math block">
+1+\epsilon=1.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r&lt;0.8
+\Rightarrow
+0.8
+</div>
+<p>and:</p>
+<div class="math block">
+r&gt;1.2
+\Rightarrow
+1.2.
+</div>
+<p>So the allowed effective ratio range is:</p>
+<div class="math block">
+\boxed{[0.8,1.2]}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-33">5.10.15 Numerical example</h3>
+<p>Suppose the ratios are:</p>
+<div class="math block">
+[1.1,1.3,0.7,1.0].
+</div>
+<p>With:</p>
+<div class="math block">
+\epsilon=0.2
+</div>
+<p>the clipped ratios become:</p>
+<div class="math block">
+[1.1,1.2,0.8,1.0].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[1.1,1.3,0.7,1.0]
+\rightarrow
+[1.1,1.2,0.8,1.0]
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-34">5.10.16 Why use <span class="math inline">\min</span>?</h3>
+<p>The objective has:</p>
+<div class="math block">
+\min
+\left(
+rA,\,
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)A
+\right).
+</div>
+<p>This is inherited from the PPO-style clipped objective.</p>
+<p>The idea is:</p>
+<blockquote>
+<p>Don't allow the optimizer to obtain an arbitrarily large benefit from moving the policy too far in one update.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-35">5.10.17 Positive-advantage case</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=+1.
+</div>
+<p>and:</p>
+<div class="math block">
+r=1.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA=1.5.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2\times1=1.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\min(1.5,1.2)=1.2.
+</div>
+<p>So the objective does <strong>not</strong> give the model the full benefit of pushing that probability from 1.0 to 1.5.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-36">5.10.18 Negative-advantage case</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=-1
+</div>
+<p>and:</p>
+<div class="math block">
+r=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA=-0.5.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+0.8(-1)=-0.8.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\min(-0.5,-0.8)
+=
+-0.8.
+</div>
+<p>This case is subtle.</p>
+<p>Because the objective is being <strong>maximized</strong>, the clipped surrogate prevents exploiting an overly large probability reduction as an arbitrarily favorable update.</p>
+<p>When implementing it as a PyTorch minimization loss, the whole objective is negated.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-37">5.10.19 The three-policy distinction</h3>
+<p>You should now permanently separate these three models.</p>
+<h4 id="v3-heading-chunk-les-step-5-10-i51-38">Current policy</h4>
+<div class="math block">
+\boxed{\pi_\theta}
+</div>
+<p>This is the model being trained.</p>
+<p>It changes after optimizer steps.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-10-i51-39">Old policy</h4>
+<div class="math block">
+\boxed{\pi_{\theta_{\text{old}}}}
+</div>
+<p>This is the policy that generated the sampled responses.</p>
+<p>It provides the denominator:</p>
+<div class="math block">
+\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}.
+</div>
+<p>Its purpose is:</p>
+<div class="math block">
+\boxed{\text{control the size of the current update}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-10-i51-40">Reference policy</h4>
+<div class="math block">
+\boxed{\pi_{\text{ref}}}
+</div>
+<p>This is used for KL regularization.</p>
+<p>Its purpose is:</p>
+<div class="math block">
+\boxed{\text{prevent excessive long-term drift}}
+</div>
+<p>The supplied DeepSeekMath slide explicitly identifies the current policy, pre-update/old policy, and fixed reference policy as separate roles. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-41">5.10.20 Old vs Reference — an interview favorite</h3>
+<p>Think:</p>
+<pre><code class="language-text">OLD POLICY
+     │
+     │ ratio
+     ▼
+&quot;How far did I move from
+the policy that generated
+these samples?&quot;
+</code></pre>
+<p>while:</p>
+<pre><code class="language-text">REFERENCE POLICY
+     │
+     │ KL
+     ▼
+&quot;How far have I drifted
+from my long-term anchor?&quot;
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{old}=\text{short-term comparison}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{reference}=\text{long-term anchor}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-42">5.10.21 Part 8 — KL regularization</h3>
+<p>The objective subtracts:</p>
+<div class="math block">
+\boxed{
+\beta D_{\mathrm{KL}}(\pi_\theta\|\pi_{\mathrm{ref}})
+}
+</div>
+<p>from the reward-maximizing objective.</p>
+<p>The intuition is:</p>
+<div class="math block">
+\text{maximize task performance}
+-
+\text{penalty for excessive drift}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\beta}
+</div>
+<p>controls the strength of this constraint.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-43">5.10.22 What happens when <span class="math inline">\beta</span> changes?</h3>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-44">Small <span class="math inline">\beta</span></h5>
+<p>The model is allowed to move further from the reference.</p>
+<p>Potential benefit:</p>
+<div class="math block">
+\text{more freedom}
+</div>
+<p>Potential risk:</p>
+<div class="math block">
+\text{policy drift / instability}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-45">Large <span class="math inline">\beta</span></h5>
+<p>The model is strongly constrained.</p>
+<p>Potential benefit:</p>
+<div class="math block">
+\text{stability}
+</div>
+<p>Potential risk:</p>
+<div class="math block">
+\text{learning can become too weak}.
+</div>
+<p>The supplied material discusses exactly this tradeoff. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-10-i51-0" data-full-review="added"><p>Correction: The supplied slides and R1 v1 display whole-response notation, while DeepSeekMath equation3 uses token ratios. Treat this as a difference in the displayed mathematical formulation; it does not establish all released or later implementations compute a raw whole-sequence ratio.</p><p><a href="#audit-full-chunk-les-step-5-10-i51">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-10-i51-46">5.10.23 Now the most important distinction: token-level vs sequence-level</h3>
+<p>This is where the earlier lessons become connected.</p>
+<h4 id="v3-heading-chunk-les-step-5-10-i51-47">DeepSeekMath</h4>
+<p>For each token:</p>
+<div class="math block">
+\boxed{
+r_{i,t}
+=
+\frac{
+\pi_\theta(o_{i,t}|q,o_{i,&lt;t})
+}{
+\pi_{\text{old}}(o_{i,t}|q,o_{i,&lt;t})
+}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+r_{i,1},r_{i,2},r_{i,3},\ldots
+</div>
+<p>can all be different.</p>
+<p>The clipping happens independently at the token level. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-10-i51-48">DeepSeek-R1 formulation shown in the supplied slides</h4>
+<p>The R1 slide instead uses:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\frac{\pi_\theta(o_i|q)}
+{\pi_{\text{old}}(o_i|q)}
+}
+</div>
+<p>one ratio for the entire response.</p>
+<p>The slide explicitly calls this a change from DeepSeekMath's token-level formula to a <strong>sequence-level ratio</strong>. <em>(Source: deepseek-r1-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-49">5.10.24 Where does the sequence probability come from?</h3>
+<p>An autoregressive model factorizes a response probability as:</p>
+<div class="math block">
+\boxed{
+\pi(o_i|q)
+=
+\prod_{t=1}^{|o_i|}
+\pi(o_{i,t}|q,o_{i,&lt;t})
+}
+</div>
+<p>Therefore the sequence ratio becomes:</p>
+<div class="math block">
+\frac{\pi_\theta(o_i|q)}
+{\pi_{\text{old}}(o_i|q)}
+=
+\frac{
+\prod_t \pi_\theta(o_{i,t}|q,o_{i,&lt;t})
+}{
+\prod_t \pi_{\text{old}}(o_{i,t}|q,o_{i,&lt;t})
+}
+</div>
+<p>which is:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\prod_{t=1}^{|o_i|}
+r_{i,t}
+}
+</div>
+<p>This relation is mathematically extremely important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-50">5.10.25 Why log probabilities are used in practice</h3>
+<p>Products of many probabilities can become extremely tiny.</p>
+<p>Instead use:</p>
+<div class="math block">
+\log \pi(o_i|q)
+=
+\sum_t
+\log\pi(o_{i,t}|q,o_{i,&lt;t}).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\log r_i
+=
+\log\pi_\theta(o_i|q)
+-
+\log\pi_{\text{old}}(o_i|q).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\exp(
+\log\pi_\theta(o_i|q)
+-
+\log\pi_{\text{old}}(o_i|q)
+)
+}
+</div>
+<p>This connects directly to the log-probability implementation we already built.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-51">5.10.26 Numerical demonstration: token-level vs sequence-level</h3>
+<p>Suppose one response contains 3 tokens and the token ratios are:</p>
+<div class="math block">
+r_1=1.1,
+\quad
+r_2=1.3,
+\quad
+r_3=0.7.
+</div>
+<p>The sequence ratio is:</p>
+<div class="math block">
+r_{\text{seq}}
+=
+1.1\times1.3\times0.7.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+1.1\times1.3=1.43
+</div>
+<p>then:</p>
+<div class="math block">
+1.43\times0.7=1.001.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{r_{\text{seq}}\approx1.001}
+</div>
+<p>even though the individual token ratios include:</p>
+<div class="math block">
+1.3
+</div>
+<p>and:</p>
+<div class="math block">
+0.7.
+</div>
+<p>This is a fundamental difference.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-52">5.10.27 Why this matters more for long responses</h3>
+<p>Suppose every token moves by only:</p>
+<div class="math block">
+1.01.
+</div>
+<p>For 100 tokens:</p>
+<div class="math block">
+r_{\text{seq}}
+=
+1.01^{100}.
+</div>
+<p>Using the approximation:</p>
+<div class="math block">
+1.01^{100}\approx2.705.
+</div>
+<p>So tiny per-token movements can compound into a large sequence-level ratio.</p>
+<p>Likewise, if:</p>
+<div class="math block">
+r_t=0.99
+</div>
+<p>for 100 tokens:</p>
+<div class="math block">
+0.99^{100}\approx0.366.
+</div>
+<p>Thus sequence-level ratios are highly sensitive to accumulated token-level changes.</p>
+<p>This is one reason the distinction between sequence-level and token-level optimization matters enormously for long reasoning traces.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-53">5.10.28 Exam numerical — ratio</h3>
+<p>Old probability:</p>
+<div class="math block">
+0.25.
+</div>
+<p>Current probability:</p>
+<div class="math block">
+0.30.
+</div>
+<p>Then:</p>
+<div class="math block">
+r=\frac{0.30}{0.25}=1.2.
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{1.2}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-54">5.10.29 Exam numerical — clipping</h3>
+<p>Given:</p>
+<div class="math block">
+r=1.5,\qquad \epsilon=0.2.
+</div>
+<p>The clipping range is:</p>
+<div class="math block">
+[0.8,1.2].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\operatorname{clip}(1.5,0.8,1.2)=1.2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-55">5.10.30 Exam numerical — sequence ratio</h3>
+<p>Suppose:</p>
+<div class="math block">
+r_1=1.2,\quad r_2=0.9,\quad r_3=1.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_{\text{seq}}
+=
+1.2(0.9)(1.1).
+</div>
+<div class="math block">
+=1.188.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{r_{\text{seq}}=1.188}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-56">5.10.31 Exam numerical — log-ratio</h3>
+<p>Suppose:</p>
+<div class="math block">
+\log p_{\text{new}}=-5
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{old}}=-5.4.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log r
+=
+-5-(-5.4)
+=
+0.4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=e^{0.4}
+\approx1.492.
+</div>
+<p>So the current policy assigns approximately:</p>
+<div class="math block">
+\boxed{49.2\%}
+</div>
+<p>more probability to the sampled event.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-57">5.10.32 Tensor shapes</h3>
+<p>Suppose:</p>
+<ul>
+<li>batch size <span class="math inline">B=2</span>,</li>
+<li>group size <span class="math inline">G=4</span>,</li>
+<li>response length <span class="math inline">T=128</span>.</li>
+</ul>
+<p>Then token log-probabilities can be represented as:</p>
+<div class="math block">
+\boxed{
+[B,G,T]=[2,4,128].
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\text{logp}_{\text{new}}
+\in
+\mathbb R^{2\times4\times128}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\text{old\_logp},
+\text{ref\_logp}
+\in
+\mathbb R^{2\times4\times128}.
+</div>
+<p>The ratio:</p>
+<div class="math block">
+r=\exp(\text{new\_logp}-\text{old\_logp})
+</div>
+<p>therefore also has:</p>
+<div class="math block">
+\boxed{[2,4,128]}
+</div>
+<p>shape.</p>
+<p>For outcome-level reward, advantages might initially have:</p>
+<div class="math block">
+[B,G]=[2,4]
+</div>
+<p>and be expanded across the token dimension to:</p>
+<div class="math block">
+[2,4,128].
+</div>
+<p>This matches the structure of the token-level objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-58">5.10.33 One complete toy example</h3>
+<p>Let:</p>
+<div class="math block">
+G=4
+</div>
+<p>with rewards:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Suppose normalized advantages are approximately:</p>
+<div class="math block">
+A=[+0.866,+0.866,-0.866,-0.866].
+</div>
+<p>Now consider the first response with three token ratios:</p>
+<div class="math block">
+r=[1.1,1.3,0.9].
+</div>
+<p>Take:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Thus:</p>
+<div class="math block">
+r_{\text{clip}}
+=
+[1.1,1.2,0.9].
+</div>
+<p>For:</p>
+<div class="math block">
+A=0.866,
+</div>
+<p>the unclipped terms are:</p>
+<div class="math block">
+[1.1(0.866),1.3(0.866),0.9(0.866)]
+</div>
+<div class="math block">
+\approx
+[0.953,1.126,0.779].
+</div>
+<p>Clipped terms:</p>
+<div class="math block">
+[1.1(0.866),1.2(0.866),0.9(0.866)]
+</div>
+<div class="math block">
+\approx
+[0.953,1.039,0.779].
+</div>
+<p>Take the minimum token by token:</p>
+<div class="math block">
+\boxed{
+[0.953,1.039,0.779]
+}
+</div>
+<p>Then average over the three response tokens:</p>
+<div class="math block">
+\frac{0.953+1.039+0.779}{3}
+\approx0.924.
+</div>
+<p>That is the token-level surrogate contribution for this response before averaging over the group and applying the KL component.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-59">5.10.34 What exactly changed between our earlier simplified code and this?</h3>
+<p>Earlier we used essentially:</p>
+<div class="math block">
+L
+=
+-\frac1N
+\sum_i A_i\log p_i
+</div>
+<p>and later:</p>
+<div class="math block">
+\text{ratio}=\exp(\text{new logp}-\text{old logp})
+</div>
+<p>with clipping and KL.</p>
+<p>That was intentionally educational.</p>
+<p>The full DeepSeekMath-style expression adds:</p>
+<div class="math block">
+\boxed{
+\text{token-level ratio}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\frac1{|o_i|}
+\sum_t
+}
+</div>
+<p>inside each response.</p>
+<p>So the progression is:</p>
+<div class="math block">
+\boxed{
+\text{simple policy gradient}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{group-relative advantage}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{clipped importance ratio}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{KL reference constraint}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{full token-level GRPO}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-60">5.10.35 Why did we learn the simplified version first?</h3>
+<p>Because the full equation hides the idea under notation.</p>
+<p>The conceptual dependency is:</p>
+<div class="math block">
+\boxed{
+A
+\rightarrow
+r
+\rightarrow
+\text{clip}
+\rightarrow
+\text{KL}
+}
+</div>
+<p>Once you understand those four pieces independently, the full objective becomes straightforward.</p>
+<p>That is exactly the conceptual bridge between the chapter's introductory implementation and the original algorithm. The source itself notes that its simpler earlier implementation omitted parts of the full objective for pedagogical reasons. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-61">5.10.36 Another important connection: GRPO vs Online RFT</h3>
+<p>The supplied DeepSeekMath slides make a powerful observation.</p>
+<p>Online RFT and GRPO both:</p>
+<div class="math block">
+\boxed{\text{sample from the current policy}}
+</div>
+<p>but their learning coefficients differ.</p>
+<p>Online RFT essentially uses a binary correctness signal.</p>
+<p>GRPO uses the group-relative advantage:</p>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\mu_R}{\sigma_R+\epsilon}
+}
+</div>
+<p>so above-average responses receive stronger positive reinforcement and below-average responses receive negative reinforcement. <em>(Source: deepseekmath-slides)</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{same online data source}
+\neq
+\text{same learning rule}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-62">5.10.37 DeepSeekMath vs DeepSeek-R1 — memorize this table</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>DeepSeekMath</th>
+<th>DeepSeek-R1 formulation shown in supplied slides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Group sampling</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Group-relative advantage</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Old-policy ratio</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Clipping</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Reference KL</td>
+<td>Yes in original objective</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Ratio granularity</td>
+<td><strong>Token-level</strong></td>
+<td><strong>Sequence-level</strong></td>
+</tr>
+<tr>
+<td>Ratio</td>
+<td><span class="math inline">r_{i,t}</span></td>
+<td><span class="math inline">r_i</span></td>
+</tr>
+<tr>
+<td>Response probability</td>
+<td>Token conditional probability</td>
+<td>Whole-response probability</td>
+</tr>
+</tbody>
+</table>
+<p>The supplied slides explicitly identify the token-level/sequence-level difference. <em>(Source: deepseekmath-slides; deepseek-r1-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-63">5.10.38 And this explains later GRPO variants</h3>
+<p>The Chapter 7 material lists later modifications such as:</p>
+<div class="math block">
+\boxed{\text{DAPO}}
+</div>
+<p>with token-level loss,</p>
+<div class="math block">
+\boxed{\text{GSPO}}
+</div>
+<p>with sequence-level importance sampling/clipping,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{CISPO}}
+</div>
+<p>which clips importance weights directly. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So when you later see these names, don't treat them as random new algorithms.</p>
+<p>They are modifications of specific pieces of the GRPO machinery:</p>
+<pre><code class="language-text">GRPO
+ │
+ ├── advantage normalization
+ ├── importance ratio
+ ├── clipping
+ ├── KL
+ └── response/token aggregation
+        │
+        ├── DAPO
+        ├── Dr. GRPO
+        ├── GSPO
+        └── CISPO
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-64">5.10.39 The complete reasoning chain</h3>
+<p>Now you should be able to narrate the algorithm without looking at the formula:</p>
+<blockquote>
+<p>For each question, sample several responses from the old policy. Verify each response and obtain rewards. Compare those rewards within the group to produce relative advantages. For every generated token, compare the current policy probability with the old policy probability using an importance ratio. Clip that ratio so one update cannot move the policy too aggressively. Average the token contributions within each response and the responses within the group. Finally, use a KL penalty to discourage excessive drift from the reference policy.</p>
+</blockquote>
+<p>That is the DeepSeekMath GRPO objective in words. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-65">5.10.40 Master formula map</h3>
+<p>Keep this hierarchy in your notes:</p>
+<div class="math block">
+\boxed{
+A_i
+=
+\frac{R_i-\mu_R}{\sigma_R+\epsilon}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+r_{i,t}
+=
+\frac{\pi_\theta(o_{i,t}|q,o_{i,&lt;t})}
+{\pi_{\text{old}}(o_{i,t}|q,o_{i,&lt;t})}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\tilde r_{i,t}
+=
+\operatorname{clip}(r_{i,t},1-\epsilon,1+\epsilon)
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\min(r_{i,t}A_{i,t},\tilde r_{i,t}A_{i,t})
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac1{|o_i|}
+\sum_t(\cdot)
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac1G\sum_i(\cdot)
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+-\beta D_{\mathrm{KL}}(\pi_\theta\|\pi_{\mathrm{ref}})
+}
+</div>
+<p>and finally:</p>
+<div class="math block">
+\boxed{
+J_{\mathrm{GRPO}}
+=
+\text{clipped policy improvement}
+-
+\text{reference-policy drift penalty}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-66">5.10.41 Exam numerical bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-10-i51-67">N1 — Ratio</h5>
+<div class="math block">
+p_{\text{old}}=0.4,\quad p_{\text{new}}=0.5
+</div>
+<div class="math block">
+r=\boxed{1.25}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-68">N2 — Clipping</h5>
+<div class="math block">
+r=1.5,\quad\epsilon=0.2
+</div>
+<div class="math block">
+\boxed{r_{\text{clip}}=1.2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-69">N3 — Sequence ratio</h5>
+<div class="math block">
+r_1=1.1,\quad r_2=1.2,\quad r_3=0.8
+</div>
+<div class="math block">
+r_{\text{seq}}
+=
+1.1(1.2)(0.8)
+=
+\boxed{1.056}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-70">N4 — Length-normalized surrogate</h5>
+<p>Three token contributions:</p>
+<div class="math block">
+[0.6,0.9,1.2].
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{0.6+0.9+1.2}{3}
+=
+\boxed{0.9}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-71">N5 — Advantage direction</h5>
+<div class="math block">
+A=-0.7,\quad r=0.6.
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{\text{the response/token is being downweighted}}
+</div>
+<p>because it has negative advantage and the current probability is below the old probability.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-72">N6 — Token vs sequence ratio</h5>
+<p>Given:</p>
+<div class="math block">
+r_1=1.1,\;r_2=1.1,\;r_3=1.1.
+</div>
+<p>Sequence-level ratio:</p>
+<div class="math block">
+1.1^3=1.331.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{r_{\text{seq}}=1.331}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-10-i51-73">N7 — Long sequence compounding</h5>
+<p>If every token ratio is:</p>
+<div class="math block">
+1.01
+</div>
+<p>for 100 tokens:</p>
+<div class="math block">
+1.01^{100}\approx\boxed{2.705}.
+</div>
+<p>This demonstrates why sequence-level ratios can compound strongly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-10-i51-74">The one distinction you absolutely must remember</h3>
+<div class="math block">
+\boxed{
+\textbf{DeepSeekMath GRPO: token-level ratio}
+}
+</div>
+<div class="math block">
+\boxed{
+\textbf{DeepSeek-R1 formulation shown here: sequence-level ratio}
+}
+</div>
+<p>That single distinction will make the later discussion of <strong>DAPO, Dr. GRPO, GSPO, CISPO, and DeepSeek-R1</strong> much easier. <em>(Source: deepseekmath-slides; deepseek-r1-slides)</em></p>
+<hr />
+</section>

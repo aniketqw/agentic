@@ -1,0 +1,1483 @@
+<section class="chunk" id="chunk-les-step-2-2-i22" data-id="les-step-2-2-i22"><details class="audit-card" id="audit-full-chunk-les-step-2-2-i22" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-2-2-i22-1">Motivation</h4><p>Change sampling concentration without changing positive-temperature logit order.</p><h4 id="v3-heading-chunk-les-step-2-2-i22-2">Prerequisites</h4><ul><li>Softmax</li><li>Logit differences</li><li>Entropy</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-3">Notation and units</h4><ul><li>p_i(T)=exp(z_i/T)/sum exp(z_j/T)</li><li>T positive; T=0 is a separate greedy policy</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-4">Assumptions</h4><ul><li>Finite allowed logits</li><li>Uniform high-temperature limit is over allowed support</li><li>Equal maxima retain ties in the mathematical low-temperature limit</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-5">Step-by-step derivation</h4><ol><li>Divide logits by T before normalization; odds p_i/p_j=exp((z_i-z_j)/T). Lower T enlarges log-odds magnitude.</li><li>For [2,1,0], T=1 yields [.6652409558,.2447284711,.0900305732]; T=2 yields [.5064803911,.3071958857,.1863237232].</li><li>For [4,2,0], scaled logits at T=.5,1,2 are [8,4,0], [4,2,0], [2,1,0].</li><li>For finite logits, T→infinity makes exp differences approach one, giving uniform support. T→0+ concentrates on maximum logits, uniform across tied maxima rather than arbitrarily selecting one.</li><li>Let beta=1/T. H=ln Z-beta*E[z]; dH/dT=Var_p(z)/T³ &gt;=0. Thus entropy is nondecreasing with T for a fixed finite logit vector.</li><li>Stable softmax subtracts the maximum scaled logit. A greedy T=0 branch is not an evaluation of z/0.</li><li>If probabilities p at T=1 are given, temperature can equivalently use normalized p_i^(1/T). Applying softmax(p/T) is not that equivalence.</li></ol><h4 id="v3-heading-chunk-les-step-2-2-i22-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-2-i22-7">softmax_[2, 1, 0]_T1</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Divide logits by T before normalization; odds p_i/p_j=exp((z_i-z_j)/T). Lower T enlarges log-odds magnitude.</li><li>For [2,1,0], T=1 yields [.6652409558,.2447284711,.0900305732]; T=2 yields [.5064803911,.3071958857,.1863237232].</li><li>For [4,2,0], scaled logits at T=.5,1,2 are [8,4,0], [4,2,0], [2,1,0].</li><li>For finite logits, T→infinity makes exp differences approach one, giving uniform support. T→0+ concentrates on maximum logits, uniform across tied maxima rather than arbitrarily selecting one.</li><li>Let beta=1/T. H=ln Z-beta*E[z]; dH/dT=Var_p(z)/T³ &gt;=0. Thus entropy is nondecreasing with T for a fixed finite logit vector.</li><li>Stable softmax subtracts the maximum scaled logit. A greedy T=0 branch is not an evaluation of z/0.</li><li>If probabilities p at T=1 are given, temperature can equivalently use normalized p_i^(1/T). Applying softmax(p/T) is not that equivalence.</li></ol><p>Answer: 0.6652409557748218; 0.24472847105479764; 0.09003057317038046</p><p>Verification: foundations_decoding / softmax_[2, 1, 0]_T1 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-2-i22-8">softmax_[2, 1, 0]_T2</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Divide logits by T before normalization; odds p_i/p_j=exp((z_i-z_j)/T). Lower T enlarges log-odds magnitude.</li><li>For [2,1,0], T=1 yields [.6652409558,.2447284711,.0900305732]; T=2 yields [.5064803911,.3071958857,.1863237232].</li><li>For [4,2,0], scaled logits at T=.5,1,2 are [8,4,0], [4,2,0], [2,1,0].</li><li>For finite logits, T→infinity makes exp differences approach one, giving uniform support. T→0+ concentrates on maximum logits, uniform across tied maxima rather than arbitrarily selecting one.</li><li>Let beta=1/T. H=ln Z-beta*E[z]; dH/dT=Var_p(z)/T³ &gt;=0. Thus entropy is nondecreasing with T for a fixed finite logit vector.</li><li>Stable softmax subtracts the maximum scaled logit. A greedy T=0 branch is not an evaluation of z/0.</li><li>If probabilities p at T=1 are given, temperature can equivalently use normalized p_i^(1/T). Applying softmax(p/T) is not that equivalence.</li></ol><p>Answer: 0.506480391055654; 0.3071958857184984; 0.1863237232258476</p><p>Verification: foundations_decoding / softmax_[2, 1, 0]_T2 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-2-2-i22-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-10">Mastery answers and retained exercise context</h4><ol><li>Numerical 1: [.5]→[8,4,0]; [1]→[4,2,0]; [2]→[2,1,0].</li><li>Numerical 2: [.6652409558,.2447284711,.0900305732] versus [.5064803911,.3071958857,.1863237232].</li><li>Numerical 3: .5 is sharper.</li><li>Numerical 4: no; dividing by positive T preserves argmax, first token.</li><li>Numerical 5: uniform [.2,.2,.2,.2,.2] on finite allowed logits.</li><li>Numerical 6: [1,0,0] for the unique maximum.</li><li>Numerical 7: sampling is random because at least two tokens have positive mass.</li></ol><h4 id="v3-heading-chunk-les-step-2-2-i22-11">Edge cases and remaining gaps</h4><ul><li>Temperature alone introduces no randomness; sampling does.</li><li>Very large or tiny finite T can underflow/overflow in intermediates if scaling precedes a safe subtraction.</li><li>Ranking invariance does not guarantee same top-p membership, because cumulative probabilities change.</li><li>Practical temperature settings depend on model and task; source examples are not universal recommendations.</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-12">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-13">Exact source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 13 · temperature and sampling distribution</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 360, 361, 362, 363 · temperature examples</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 133, 135, 137, 138, 141, 142 · temperature transformation, multinomial sampling and explicit greedy branch</li></ul><h4 id="v3-heading-chunk-les-step-2-2-i22-14">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (78)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 2.2 — Temperature Scaling</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.1 Why Do We Need Temperature?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.2 The Temperature Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.3 Where Exactly Does Temperature Go?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.4 First Understand T=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.5 What Happens When T&lt;1?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.6 What Happens When T&gt;1?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.7 The Easiest Way to Remember It</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Low temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>High temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.8 Important Numerical Example From Your Slides</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.9 Case 1 — T=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.10 Case 2 — T=0.5</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.11 Case 3 — T=2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.12 Put the Three Cases Together</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.13 But Does Temperature Change the Ranking?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.14 This Gives Us a Powerful Exam Shortcut</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.15 Numerical Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.16 Then Why Does Temperature Affect Generation?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.17 Temperature Does Not Randomly Change the Ranking</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.18 Temperature T\rightarrow0</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.19 Never Literally Divide by Zero</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.20 Temperature T\rightarrow\infty</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.21 Exam Numerical — Extreme Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.22 Temperature and Entropy</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.23 Entropy for T=0.5</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.24 Entropy for T=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.25 Entropy for T=2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.26 Maximum Entropy</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.27 Why Does Dividing by T Do This?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>At T=0.5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>At T=2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.28 Two-Token Case Gives an Especially Clear Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.29 Numerical Two-Token Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>T=1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T=0.5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T=2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.30 Why Softmax Ordering Is Preserved</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.31 Temperature and Greedy Decoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.32 Temperature + Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.33 Numerical Sampling Probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.34 A Critical Distinction: Temperature vs Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.35 Numerical Combined Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.36 Order of Operations Matters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.37 Why Does Temperature Not Solve Repetition By Itself?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.38 Practical Temperature Ranges — Source Framing</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.39 Numerical Parameter Sensitivity</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.40 Exam Numerical — Find Scaled Logits</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.41 Exam Numerical — Compute Softmax After Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.42 Exam Numerical — Compare Two Temperatures</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.43 Exam Numerical — Does Temperature Change the Greedy Token?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.44 Exam Numerical — Entropy Direction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.45 A Very Important Mathematical Property: Translation Invariance</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.46 Numerical Stability With Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.47 Pseudocode</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>2.2.48 Temperature in One Mathematical Picture</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Low T</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T=1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>High T</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.49 Connection to Everything We Learned Earlier</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.50 Temperature vs Sampling — Final Distinction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.2.51 Master Numerical Set — Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Numerical 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical 7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.52 Exam Trap Checklist</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Trap 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.2.53 One-Sentence Understanding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-2-2-i22"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-2-2-i22" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-2-1-i21">← Previous lesson</a> · <a href="#chunk-les-step-2-3-i23">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-2-1-i21">Step 2.1 — Decoding: From a Probability Distribution to an Actual Token</a></p><p><strong>This lesson:</strong> Step 2.2 — Temperature Scaling</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-9">decoding-sampling-slides</a>; <a href="#source-15">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2</a>; <a href="#source-18">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</a>; <a href="#source-22">Building LLMs for Production</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-2-2-i22"></a></p>
+<h2>Step 2.2 — Temperature Scaling</h2>
+<p><em>Plan node: I2 · chat order #22</em></p>
+<p>We now know that the Transformer produces logits:</p>
+<div class="math block">
+z=[z_1,z_2,\ldots,z_V]
+</div>
+<p>and normally converts them to probabilities using:</p>
+<div class="math block">
+\boxed{
+p_i=\frac{e^{z_i}}{\sum_j e^{z_j}}
+}
+</div>
+<p>Then a decoder chooses or samples a token.</p>
+<p>Now we introduce one of the most important controls in LLM generation:</p>
+<div class="math block">
+\boxed{\text{Temperature }T}
+</div>
+<p>Your decoding slides define temperature as <strong>reshaping confidence before sampling</strong>: divide the logits by <span class="math inline">T</span> before softmax. They explicitly show that <span class="math inline">T&lt;1</span> sharpens the distribution and <span class="math inline">T&gt;1</span> flattens it, while the ranking of tokens stays unchanged. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-15">2.2.1 Why Do We Need Temperature?</h3>
+<p>Suppose the model gives:</p>
+<div class="math block">
+P=
+[0.90,0.05,0.03,0.02].
+</div>
+<p>The model is extremely confident.</p>
+<p>Sampling from this distribution will almost always choose the first token.</p>
+<p>Now suppose we want more variety.</p>
+<p>We could alter the model itself, but that is unnecessary.</p>
+<p>Instead, we can change the <strong>shape of its output distribution at decoding time</strong>.</p>
+<p>Temperature gives us that control.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Temperature does not retrain the model.}
+}
+</div>
+<p>It changes how sharply we interpret its logits during generation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-16">2.2.2 The Temperature Formula</h3>
+<p>Given logits:</p>
+<div class="math block">
+z_i,
+</div>
+<p>temperature modifies them as:</p>
+<div class="math block">
+\boxed{
+z_i'=\frac{z_i}{T}
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+q_i(T)=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<p>This is the core equation given in the master cheatsheet and the decoding slides. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2; decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-17">2.2.3 Where Exactly Does Temperature Go?</h3>
+<p>This order is critical:</p>
+<div class="math block">
+\boxed{
+\text{logits}
+\rightarrow
+\frac{\text{logits}}{T}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{probabilities}
+}
+</div>
+<p>Not:</p>
+<div class="math block">
+\text{softmax}
+\rightarrow
+\frac{\text{probabilities}}{T}.
+</div>
+<p>Temperature acts on the <strong>logits</strong>.</p>
+<p>Your production source describes the same sequence: logits are generated, temperature rescales the logits, and softmax then produces probabilities. <em>(Source: Building LLMs for Production)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-18">2.2.4 First Understand <span class="math inline">T=1</span></h3>
+<p>If:</p>
+<div class="math block">
+T=1,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{z_i}{1}=z_i.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+q_i(1)=softmax(z_i).
+}
+</div>
+<p>Temperature 1 means ordinary softmax.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-19">2.2.5 What Happens When <span class="math inline">T&lt;1</span>?</h3>
+<p>Suppose:</p>
+<div class="math block">
+T=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+z_i'=\frac{z_i}{0.5}=2z_i.
+</div>
+<p>So the differences between logits become <strong>larger</strong>.</p>
+<p>That makes the softmax more extreme.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+T&lt;1\Rightarrow\text{sharper distribution}.
+}
+</div>
+<p>The top token receives more probability.</p>
+<p>Lower-probability tokens receive less.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-20">2.2.6 What Happens When <span class="math inline">T&gt;1</span>?</h3>
+<p>Suppose:</p>
+<div class="math block">
+T=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+z_i'=\frac{z_i}{2}.
+</div>
+<p>So the differences between logits become smaller.</p>
+<p>Softmax becomes less confident.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+T&gt;1\Rightarrow\text{flatter distribution}.
+}
+</div>
+<p>More probability mass is spread over alternative tokens.</p>
+<p>This is exactly the behavior illustrated in your decoding slides. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-21">2.2.7 The Easiest Way to Remember It</h3>
+<p>Think of the logits as a set of hills.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-22">Low temperature</h5>
+<p>Divide by a number smaller than 1:</p>
+<div class="math block">
+\frac{z}{T}\quad(T&lt;1)
+</div>
+<p>makes the hills <strong>taller</strong>.</p>
+<p>Softmax becomes sharper.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-23">High temperature</h5>
+<p>Divide by a number larger than 1:</p>
+<div class="math block">
+\frac{z}{T}\quad(T&gt;1)
+</div>
+<p>makes the hills <strong>shorter</strong>.</p>
+<p>Softmax becomes flatter.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\downarrow\Rightarrow\text{confidence concentration}\uparrow
+}
+</div>
+<div class="math block">
+\boxed{
+T\uparrow\Rightarrow\text{distribution spread}\uparrow
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-24">2.2.8 Important Numerical Example From Your Slides</h3>
+<p>The slide uses the logits:</p>
+<div class="math block">
+\boxed{
+z=[3.0,\;0.5,\;0.3,\;0.0,\;-0.5,\;-1.5]
+}
+</div>
+<p>and compares:</p>
+<div class="math block">
+T=0.5,\quad T=1.0,\quad T=2.0.
+</div>
+<p>The resulting distributions are given in the slide. <em>(Source: decoding-sampling-slides)</em></p>
+<p>Let's derive them ourselves.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-25">2.2.9 Case 1 — <span class="math inline">T=1</span></h3>
+<p>Since:</p>
+<div class="math block">
+z/T=z,
+</div>
+<p>we calculate:</p>
+<div class="math block">
+softmax([3,0.5,0.3,0,-0.5,-1.5]).
+</div>
+<p>The probabilities are approximately:</p>
+<div class="math block">
+\boxed{
+[0.8062,\;0.0662,\;0.0542,\;0.0401,\;0.0243,\;0.0090]
+}
+</div>
+<p>This matches the slide. <em>(Source: decoding-sampling-slides)</em></p>
+<p>So the top token gets:</p>
+<div class="math block">
+80.62\%.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-26">2.2.10 Case 2 — <span class="math inline">T=0.5</span></h3>
+<p>Now divide every logit by:</p>
+<div class="math block">
+0.5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z'=
+[6,\;1,\;0.6,\;0,\;-1,\;-3].
+</div>
+<p>Now apply softmax.</p>
+<p>The result is approximately:</p>
+<div class="math block">
+\boxed{
+[0.9854,\;0.0066,\;0.0045,\;0.0024,\;0.0009,\;0.0001]
+}
+</div>
+<p>Again this matches your slide. <em>(Source: decoding-sampling-slides)</em></p>
+<p>The top token jumped from:</p>
+<div class="math block">
+0.8062
+</div>
+<p>to:</p>
+<div class="math block">
+0.9854.
+</div>
+<p>So lowering temperature dramatically concentrated the distribution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-27">2.2.11 Case 3 — <span class="math inline">T=2</span></h3>
+<p>Now:</p>
+<div class="math block">
+z'=
+[1.5,\;0.25,\;0.15,\;0,\;-0.25,\;-0.75].
+</div>
+<p>Softmax gives:</p>
+<div class="math block">
+\boxed{
+[0.4883,\;0.1399,\;0.1266,\;0.1089,\;0.0848,\;0.0515]
+}
+</div>
+<p>This also matches the slide. <em>(Source: decoding-sampling-slides)</em></p>
+<p>Now the top token has only:</p>
+<div class="math block">
+48.83\%.
+</div>
+<p>The distribution is much flatter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-28">2.2.12 Put the Three Cases Together</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Temperature</th>
+<th style="text-align:right">Probability of top token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right"><span class="math inline">T=0.5</span></td>
+<td style="text-align:right"><span class="math inline">0.9854</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=1.0</span></td>
+<td style="text-align:right"><span class="math inline">0.8062</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=2.0</span></td>
+<td style="text-align:right"><span class="math inline">0.4883</span></td>
+</tr>
+</tbody>
+</table>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\downarrow\Rightarrow p_{\max}\uparrow
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+T\uparrow\Rightarrow p_{\max}\downarrow.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-29">2.2.13 But Does Temperature Change the Ranking?</h3>
+<p>No.</p>
+<p>This is one of the most important facts.</p>
+<p>Suppose:</p>
+<div class="math block">
+z_1&gt;z_2&gt;z_3.
+</div>
+<p>For any:</p>
+<div class="math block">
+T&gt;0,
+</div>
+<p>dividing by <span class="math inline">T</span> preserves the ordering:</p>
+<div class="math block">
+\frac{z_1}{T}
+&gt;
+\frac{z_2}{T}
+&gt;
+\frac{z_3}{T}.
+</div>
+<p>Softmax is monotonic with respect to ranking.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\arg\max_i z_i
+=
+\arg\max_i q_i(T)
+}
+</div>
+<p>for positive <span class="math inline">T</span>.</p>
+<p>Your decoding slides explicitly state that temperature changes the sharpness of the distribution but <strong>never changes token ranking</strong>. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-30">2.2.14 This Gives Us a Powerful Exam Shortcut</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[5,2,1,-3].
+</div>
+<p>Ask:</p>
+<blockquote>
+<p>Which token remains the greedy choice for <span class="math inline">T=0.5,1,2,10</span>?</p>
+</blockquote>
+<p>Answer:</p>
+<p>Always token 1.</p>
+<p>Because:</p>
+<div class="math block">
+5&gt;2&gt;1&gt;-3.
+</div>
+<p>Temperature changes the probabilities, but not the order.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{temperature alone cannot change the argmax token}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-31">2.2.15 Numerical Exam Question</h3>
+<p>Given:</p>
+<div class="math block">
+z=[4,2,1].
+</div>
+<p>At:</p>
+<div class="math block">
+T=0.5,
+</div>
+<p>the scaled logits are:</p>
+<div class="math block">
+[8,4,2].
+</div>
+<p>At:</p>
+<div class="math block">
+T=2,
+</div>
+<p>they are:</p>
+<div class="math block">
+[2,1,0.5].
+</div>
+<p>In both cases the largest value is still the first component.</p>
+<p>Thus the greedy token remains:</p>
+<div class="math block">
+\boxed{1}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-32">2.2.16 Then Why Does Temperature Affect Generation?</h3>
+<p>Because most interesting generation is not purely greedy.</p>
+<p>Temperature is primarily useful before <strong>sampling</strong>.</p>
+<p>Suppose:</p>
+<div class="math block">
+q(T)=
+[0.5,0.3,0.2].
+</div>
+<p>Sampling means:</p>
+<div class="math block">
+y\sim q(T).
+</div>
+<p>Therefore the second and third tokens still have chances to be selected.</p>
+<p>At a lower <span class="math inline">T</span>:</p>
+<div class="math block">
+q(T)\approx[0.8,0.15,0.05],
+</div>
+<p>so the top token dominates.</p>
+<p>At a higher <span class="math inline">T</span>:</p>
+<div class="math block">
+q(T)\approx[0.4,0.35,0.25],
+</div>
+<p>so alternatives get more chance.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{temperature controls randomness/diversity through the distribution shape}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-33">2.2.17 Temperature Does Not Randomly Change the Ranking</h3>
+<p>This distinction matters.</p>
+<p>Temperature does <strong>not</strong> say:</p>
+<blockquote>
+<p>&quot;Sometimes token 4 becomes more likely than token 1.&quot;</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{temperature changes how far apart the probabilities are}.
+}
+</div>
+<p>Sampling is what introduces the actual randomness.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Temperature = distribution reshaping}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Sampling = stochastic token selection}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-34">2.2.18 Temperature <span class="math inline">T\rightarrow0</span></h3>
+<p>This is conceptually important.</p>
+<p>As:</p>
+<div class="math block">
+T\rightarrow0^+,
+</div>
+<p>the highest logit dominates more and more.</p>
+<p>Suppose:</p>
+<div class="math block">
+z_1&gt;z_2,\ldots,z_V.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{z_1}{T}
+</div>
+<p>becomes much larger relative to the others.</p>
+<p>Thus:</p>
+<div class="math block">
+q_1(T)\rightarrow1
+</div>
+<p>and:</p>
+<div class="math block">
+q_i(T)\rightarrow0,\quad i\neq1.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\to0^+
+\Rightarrow
+\text{distribution approaches one-hot at the argmax}.
+}
+</div>
+<p>The reasoning-model source uses temperature <span class="math inline">0.0</span> operationally as greedy decoding rather than literally performing division by zero. Its generation code explicitly branches:</p>
+<pre><code class="language-python">if temperature is None or temperature == 0.0:
+    next_token = torch.argmax(...)
+</code></pre>
+<p>and only divides by temperature for positive nonzero values. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is an important implementation detail.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-35">2.2.19 Never Literally Divide by Zero</h3>
+<p>The mathematical expression:</p>
+<div class="math block">
+z/T
+</div>
+<p>is undefined at:</p>
+<div class="math block">
+T=0.
+</div>
+<p>So in implementations:</p>
+<div class="math block">
+\boxed{
+T=0
+\rightarrow
+\text{greedy/argmax branch}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+z/0.
+</div>
+<p>Your reasoning-model source explicitly implements this behavior. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-36">2.2.20 Temperature <span class="math inline">T\rightarrow\infty</span></h3>
+<p>Now the opposite extreme.</p>
+<p>As:</p>
+<div class="math block">
+T\rightarrow\infty,
+</div>
+<p>we have:</p>
+<div class="math block">
+\frac{z_i}{T}\rightarrow0
+</div>
+<p>for every token.</p>
+<p>So:</p>
+<div class="math block">
+e^{z_i/T}\rightarrow e^0=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+q_i(T)
+\rightarrow
+\frac1V.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+T\to\infty
+\Rightarrow
+\text{uniform distribution}.
+}
+</div>
+<p>Every token becomes approximately equally likely.</p>
+<p>This is the mathematical extreme of &quot;maximum randomness&quot; under this transformation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-37">2.2.21 Exam Numerical — Extreme Temperature</h3>
+<p>Suppose vocabulary has:</p>
+<div class="math block">
+V=4
+</div>
+<p>and logits:</p>
+<div class="math block">
+[10,2,-3,0].
+</div>
+<p>As:</p>
+<div class="math block">
+T\to\infty,
+</div>
+<p>the distribution approaches:</p>
+<div class="math block">
+\boxed{
+[0.25,0.25,0.25,0.25].
+}
+</div>
+<p>As:</p>
+<div class="math block">
+T\to0^+,
+</div>
+<p>the distribution approaches:</p>
+<div class="math block">
+\boxed{
+[1,0,0,0].
+}
+</div>
+<p>This is an excellent conceptual numerical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-38">2.2.22 Temperature and Entropy</h3>
+<p>Now we connect temperature to a quantity we studied in the mathematical foundations:</p>
+<div class="math block">
+\boxed{\text{Entropy}}
+</div>
+<p>For a distribution:</p>
+<div class="math block">
+p,
+</div>
+<p>entropy is:</p>
+<div class="math block">
+\boxed{
+H(p)
+=
+-\sum_i p_i\ln p_i.
+}
+</div>
+<p>Higher entropy means the probability mass is more spread out.</p>
+<p>Lower entropy means it is more concentrated.</p>
+<p>Your temperature example gives us a direct demonstration.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-39">2.2.23 Entropy for <span class="math inline">T=0.5</span></h3>
+<p>For:</p>
+<div class="math block">
+p=
+[0.9854,0.0066,0.0045,\ldots],
+</div>
+<p>the entropy is approximately:</p>
+<div class="math block">
+\boxed{
+H\approx0.0939\text{ nats}.
+}
+</div>
+<p>Very low.</p>
+<p>The model is highly concentrated.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-40">2.2.24 Entropy for <span class="math inline">T=1</span></h3>
+<p>For:</p>
+<div class="math block">
+p=
+[0.8062,0.0662,0.0542,\ldots],
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+H\approx0.7731\text{ nats}.
+}
+</div>
+<p>Higher.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-41">2.2.25 Entropy for <span class="math inline">T=2</span></h3>
+<p>For:</p>
+<div class="math block">
+p=
+[0.4883,0.1399,0.1266,\ldots],
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+H\approx1.4903\text{ nats}.
+}
+</div>
+<p>Much higher.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\uparrow
+\Rightarrow
+H(p)\uparrow
+}
+</div>
+<p>for this example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-42">2.2.26 Maximum Entropy</h3>
+<p>For a vocabulary of:</p>
+<div class="math block">
+V
+</div>
+<p>tokens, the uniform distribution:</p>
+<div class="math block">
+p_i=\frac1V
+</div>
+<p>has entropy:</p>
+<div class="math block">
+\boxed{
+H_{\max}=\ln V.
+}
+</div>
+<p>Our example has:</p>
+<div class="math block">
+V=6.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+H_{\max}=\ln6\approx1.7918.
+</div>
+<p>Our values:</p>
+<div class="math block">
+T=0.5\rightarrow0.0939
+</div>
+<div class="math block">
+T=1\rightarrow0.7731
+</div>
+<div class="math block">
+T=2\rightarrow1.4903.
+</div>
+<p>And:</p>
+<div class="math block">
+1.4903&lt;1.7918.
+</div>
+<p>So the <span class="math inline">T=2</span> distribution is flatter, but it is not yet uniform.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-43">2.2.27 Why Does Dividing by <span class="math inline">T</span> Do This?</h3>
+<p>Let's take two logits:</p>
+<div class="math block">
+z_1=3
+</div>
+<p>and:</p>
+<div class="math block">
+z_2=1.
+</div>
+<p>Difference:</p>
+<div class="math block">
+\Delta=3-1=2.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-44">At <span class="math inline">T=0.5</span></h5>
+<div class="math block">
+\Delta'=\frac{2}{0.5}=4.
+</div>
+<p>The gap doubles.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-45">At <span class="math inline">T=2</span></h5>
+<div class="math block">
+\Delta'=\frac22=1.
+</div>
+<p>The gap halves.</p>
+<p>Thus temperature is simply rescaling the <strong>relative differences in logits</strong>.</p>
+<p>That's why softmax becomes sharper or flatter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-46">2.2.28 Two-Token Case Gives an Especially Clear Formula</h3>
+<p>Suppose we have two logits:</p>
+<div class="math block">
+z_1,z_2.
+</div>
+<p>The probability of token 1 is:</p>
+<div class="math block">
+q_1
+=
+\frac{e^{z_1/T}}
+{e^{z_1/T}+e^{z_2/T}}.
+</div>
+<p>Divide numerator and denominator by <span class="math inline">e^{z_2/T}</span>:</p>
+<div class="math block">
+q_1
+=
+\frac{
+e^{(z_1-z_2)/T}
+}{
+1+e^{(z_1-z_2)/T}
+}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+q_1
+=
+\sigma\left(\frac{z_1-z_2}{T}\right)
+}
+</div>
+<p>where <span class="math inline">\sigma</span> is the logistic sigmoid.</p>
+<p>This reveals something profound:</p>
+<div class="math block">
+\boxed{
+\text{Temperature acts on the relative logit gap}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-47">2.2.29 Numerical Two-Token Example</h3>
+<p>Take:</p>
+<div class="math block">
+z_1=2,\quad z_2=1.
+</div>
+<p>Difference:</p>
+<div class="math block">
+1.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-48"><span class="math inline">T=1</span></h5>
+<div class="math block">
+q_1
+=
+\frac{e^1}{1+e^1}
+</div>
+<div class="math block">
+\approx0.7311.
+</div>
+<p>So:</p>
+<div class="math block">
+q=[0.7311,0.2689].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-49"><span class="math inline">T=0.5</span></h5>
+<p>Difference becomes:</p>
+<div class="math block">
+\frac1{0.5}=2.
+</div>
+<p>So:</p>
+<div class="math block">
+q_1=
+\frac{e^2}{1+e^2}
+\approx0.8808.
+</div>
+<p>Thus:</p>
+<div class="math block">
+q=[0.8808,0.1192].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-50"><span class="math inline">T=2</span></h5>
+<p>Difference becomes:</p>
+<div class="math block">
+\frac12=0.5.
+</div>
+<p>So:</p>
+<div class="math block">
+q_1=
+\frac{e^{0.5}}{1+e^{0.5}}
+\approx0.6225.
+</div>
+<p>Thus:</p>
+<div class="math block">
+q=[0.6225,0.3775].
+</div>
+<p>This is temperature in its simplest mathematical form.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-51">2.2.30 Why Softmax Ordering Is Preserved</h3>
+<p>For:</p>
+<div class="math block">
+T&gt;0,
+</div>
+<p>if:</p>
+<div class="math block">
+z_i&gt;z_j,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{z_i}{T}&gt;\frac{z_j}{T}.
+</div>
+<p>Exponentiation is increasing:</p>
+<div class="math block">
+e^{z_i/T}&gt;e^{z_j/T}.
+</div>
+<p>And dividing by the common positive denominator preserves the ordering.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+z_i&gt;z_j
+\Rightarrow
+q_i(T)&gt;q_j(T).
+}
+</div>
+<p>So temperature changes <strong>confidence</strong>, not <strong>ranking</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-52">2.2.31 Temperature and Greedy Decoding</h3>
+<p>This leads to an important practical conclusion.</p>
+<p>If we use:</p>
+<div class="math block">
+\arg\max
+</div>
+<p>after temperature scaling, the selected token is unchanged for positive <span class="math inline">T</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Greedy + temperature}
+\approx
+\text{same argmax token}
+}
+</div>
+<p>provided no other filtering changes the candidate set.</p>
+<p>Temperature is mainly useful when we <strong>sample</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-53">2.2.32 Temperature + Sampling</h3>
+<p>The reasoning-model source gives the generation procedure:</p>
+<ol>
+<li>get logits,</li>
+<li>apply temperature,</li>
+<li>softmax,</li>
+<li>sample using the resulting probabilities.</li>
+</ol>
+<p>Its code uses:</p>
+<pre><code class="language-python">logits = scale_logits_by_temperature(out, temperature)
+probas = torch.softmax(logits, dim=-1)
+next_token = torch.multinomial(probas.cpu(), num_samples=1)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+y_t
+\sim
+q_\theta(\cdot\mid y_{&lt;t},x;T)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+q_i(T)
+=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-54">2.2.33 Numerical Sampling Probability</h3>
+<p>Suppose after temperature:</p>
+<div class="math block">
+P=[0.6,0.3,0.1].
+</div>
+<p>Over many independent sampling trials under the same distribution, approximately:</p>
+<ul>
+<li>60% choose token 1</li>
+<li>30% choose token 2</li>
+<li>10% choose token 3.</li>
+</ul>
+<p>This does <strong>not</strong> mean each batch of 10 trials will necessarily contain exactly:</p>
+<div class="math block">
+6,3,1.
+</div>
+<p>Sampling is random.</p>
+<p>The probabilities define the long-run frequencies.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-55">2.2.34 A Critical Distinction: Temperature vs Top-k</h3>
+<p>They do different things.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-56">Temperature</h5>
+<p>Changes the probabilities of all candidates:</p>
+<div class="math block">
+z_i\rightarrow z_i/T.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-57">Top-k</h5>
+<p>Changes the <strong>candidate set</strong> by removing all but the top <span class="math inline">k</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Temperature = reshape}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Top-k = filter}
+}
+</div>
+<p>They can also be combined.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-58">2.2.35 Numerical Combined Example</h3>
+<p>Suppose logits are:</p>
+<div class="math block">
+z=[4,3,1,0,-2].
+</div>
+<p>First use:</p>
+<div class="math block">
+T=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+z/T=[2,1,0.5,0,-1].
+</div>
+<p>Suppose we also use:</p>
+<div class="math block">
+k=3.
+</div>
+<p>Keep the top three original logits:</p>
+<div class="math block">
+4,3,1.
+</div>
+<p>Set:</p>
+<div class="math block">
+0,-2\rightarrow-\infty.
+</div>
+<p>Thus after temperature and filtering:</p>
+<div class="math block">
+[2,1,0.5,-\infty,-\infty].
+</div>
+<p>Softmax gives a probability distribution over only the top 3 tokens.</p>
+<p>This is the combined strategy we will formalize later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-59">2.2.36 Order of Operations Matters</h3>
+<p>For a combined temperature + top-k decoder, a common procedure is:</p>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+\text{top-k filtering}
+\rightarrow
+z/T
+\rightarrow
+softmax
+\rightarrow
+sample
+}
+</div>
+<p>Raschka's implementation filters logits using top-k first, then applies temperature, then softmax and samples. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>For this operation, top-k membership is unchanged by positive temperature anyway because temperature preserves ranking.</p>
+<p>So selecting the top <span class="math inline">k</span> before or after positive temperature gives the same retained set.</p>
+<p>But you should still follow the source's specified order when reproducing its implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-60">2.2.37 Why Does Temperature Not Solve Repetition By Itself?</h3>
+<p>Suppose the model repeatedly gives:</p>
+<div class="math block">
+P(\text{same token})=0.95.
+</div>
+<p>A higher temperature can spread the distribution somewhat.</p>
+<p>But temperature does not explicitly know:</p>
+<blockquote>
+<p>&quot;This token has already been repeated too often.&quot;</p>
+</blockquote>
+<p>So temperature is a general confidence/diversity control, not a dedicated repetition-control mechanism.</p>
+<p>Your decoding source notes that sampling can improve diversity and that maximization-based methods can exhibit repetition issues; the slide deck separately covers repetition penalties among other decoding controls. <em>(Source: decoding-sampling-slides)</em></p>
+<p>We'll treat repetition penalties separately rather than mixing them into temperature.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-61">2.2.38 Practical Temperature Ranges — Source Framing</h3>
+<p>Your reasoning-model source gives the following practical guidance:</p>
+<ul>
+<li><span class="math inline">T=0</span>: greedy</li>
+<li>approximately <span class="math inline">0.3</span>–<span class="math inline">0.8</span>: modest diversity</li>
+<li>much higher temperatures: broader exploration, potentially lower reliability</li>
+</ul>
+<p>This is <strong>source guidance</strong>, not a universal law. The right setting depends on the task and model. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Your decoding slides similarly emphasize that the choice depends on whether the task values one strong answer or diverse alternatives. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-62">2.2.39 Numerical Parameter Sensitivity</h3>
+<p>Consider:</p>
+<div class="math block">
+z=[3,0.5,0.3,0,-0.5,-1.5].
+</div>
+<p>Top probability:</p>
+<div class="math block">
+T=0.5:\quad0.9854
+</div>
+<div class="math block">
+T=1:\quad0.8062
+</div>
+<div class="math block">
+T=2:\quad0.4883.
+</div>
+<p>Now observe the second token:</p>
+<div class="math block">
+T=0.5:\quad0.0066
+</div>
+<div class="math block">
+T=1:\quad0.0662
+</div>
+<div class="math block">
+T=2:\quad0.1399.
+</div>
+<p>So when temperature increases:</p>
+<div class="math block">
+\boxed{
+\text{probability mass moves from the dominant token toward alternatives}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-63">2.2.40 Exam Numerical — Find Scaled Logits</h3>
+<p>Given:</p>
+<div class="math block">
+z=[6,3,0,-3]
+</div>
+<p>and:</p>
+<div class="math block">
+T=3.
+</div>
+<p>Then:</p>
+<div class="math block">
+z'=
+\left[
+\frac63,
+\frac33,
+\frac03,
+\frac{-3}{3}
+\right]
+</div>
+<div class="math block">
+\boxed{
+[2,1,0,-1].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-64">2.2.41 Exam Numerical — Compute Softmax After Temperature</h3>
+<p>Given:</p>
+<div class="math block">
+z=[2,1,0]
+</div>
+<p>and:</p>
+<div class="math block">
+T=2.
+</div>
+<p>First:</p>
+<div class="math block">
+z'=[1,0.5,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+e^1\approx2.7183
+</div>
+<div class="math block">
+e^{0.5}\approx1.6487
+</div>
+<div class="math block">
+e^0=1.
+</div>
+<p>Sum:</p>
+<div class="math block">
+2.7183+1.6487+1
+=
+5.367.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+p_1\approx\frac{2.7183}{5.367}
+\approx0.5065
+</div>
+<div class="math block">
+p_2\approx\frac{1.6487}{5.367}
+\approx0.3072
+</div>
+<div class="math block">
+p_3\approx\frac{1}{5.367}
+\approx0.1863.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+P\approx[0.5065,0.3072,0.1863].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-65">2.2.42 Exam Numerical — Compare Two Temperatures</h3>
+<p>Given:</p>
+<div class="math block">
+z=[4,2,0].
+</div>
+<p>Find which temperature is more deterministic:</p>
+<div class="math block">
+T=0.5
+</div>
+<p>or:</p>
+<div class="math block">
+T=2.
+</div>
+<p>At:</p>
+<div class="math block">
+T=0.5,
+</div>
+<p>scaled logits:</p>
+<div class="math block">
+[8,4,0].
+</div>
+<p>At:</p>
+<div class="math block">
+T=2,
+</div>
+<p>scaled logits:</p>
+<div class="math block">
+[2,1,0].
+</div>
+<p>The first has a much larger relative gap.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+T=0.5\text{ is more deterministic/sharper}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-66">2.2.43 Exam Numerical — Does Temperature Change the Greedy Token?</h3>
+<p>Given:</p>
+<div class="math block">
+z=[1.2,0.8,0.3].
+</div>
+<p>At:</p>
+<div class="math block">
+T=0.1,\;1,\;10,
+</div>
+<p>which token does greedy choose?</p>
+<p>Since:</p>
+<div class="math block">
+1.2&gt;0.8&gt;0.3,
+</div>
+<p>answer:</p>
+<div class="math block">
+\boxed{\text{token 1 for all positive temperatures}.}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-67">2.2.44 Exam Numerical — Entropy Direction</h3>
+<p>Suppose:</p>
+<div class="math block">
+T_1=0.5
+</div>
+<p>and:</p>
+<div class="math block">
+T_2=2.
+</div>
+<p>Which generally has higher entropy?</p>
+<div class="math block">
+\boxed{
+T_2=2.
+}
+</div>
+<p>Reason:</p>
+<div class="math block">
+T\uparrow
+\Rightarrow
+\text{distribution flattens}
+\Rightarrow
+\text{entropy generally increases}.
+</div>
+<p>For a particular example, we calculated:</p>
+<div class="math block">
+H_{0.5}\approx0.0939
+</div>
+<p>and:</p>
+<div class="math block">
+H_2\approx1.4903.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-68">2.2.45 A Very Important Mathematical Property: Translation Invariance</h3>
+<p>Softmax satisfies:</p>
+<div class="math block">
+softmax(z)=softmax(z+c)
+</div>
+<p>for the same constant <span class="math inline">c</span> added to every logit.</p>
+<p>With temperature:</p>
+<div class="math block">
+softmax(z/T)
+=
+softmax((z-c)/T)
+</div>
+<p>up to the equivalent common-shift transformation.</p>
+<p>This is why implementations can safely subtract:</p>
+<div class="math block">
+\max(z)
+</div>
+<p>before exponentiating for numerical stability.</p>
+<p>For example:</p>
+<div class="math block">
+z=[100,99,98]
+</div>
+<p>can be shifted to:</p>
+<div class="math block">
+[2,1,0]
+</div>
+<p>before softmax without changing the resulting probabilities.</p>
+<p>This is useful in numerical implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-69">2.2.46 Numerical Stability With Temperature</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[1000,999,998]
+</div>
+<p>and:</p>
+<div class="math block">
+T=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+z/T=[2000,1998,1996].
+</div>
+<p>Directly computing:</p>
+<div class="math block">
+e^{2000}
+</div>
+<p>will overflow in ordinary floating-point arithmetic.</p>
+<p>Instead subtract the maximum:</p>
+<div class="math block">
+[2000,1998,1996]-2000
+</div>
+<p>giving:</p>
+<div class="math block">
+[0,-2,-4].
+</div>
+<p>Then:</p>
+<div class="math block">
+softmax([0,-2,-4])
+</div>
+<p>is numerically safe and mathematically equivalent.</p>
+<p>This is a practical numerical detail that often appears in implementation questions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-70">2.2.47 Pseudocode</h3>
+<p>Temperature sampling is conceptually:</p>
+<pre><code class="language-python">logits = model(context)
+
+scaled_logits = logits / temperature
+
+probs = softmax(scaled_logits)
+
+next_token = sample(probs)
+</code></pre>
+<p>The reasoning-model source implements this exact logical flow. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>For:</p>
+<div class="math block">
+T=0,
+</div>
+<p>the implementation takes:</p>
+<pre><code class="language-python">next_token = torch.argmax(logits)
+</code></pre>
+<p>instead of dividing by zero. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-71">2.2.48 Temperature in One Mathematical Picture</h3>
+<p>Suppose:</p>
+<div class="math block">
+z_1&gt;z_2&gt;z_3.
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-72">Low <span class="math inline">T</span></h5>
+<div class="math block">
+\frac{z_1-z_2}{T}
+</div>
+<p>is large.</p>
+<p>Therefore:</p>
+<div class="math block">
+p_1\gg p_2\gg p_3.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-73"><span class="math inline">T=1</span></h5>
+<p>Normal confidence.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-74">High <span class="math inline">T</span></h5>
+<div class="math block">
+\frac{z_1-z_2}{T}
+</div>
+<p>is smaller.</p>
+<p>Therefore:</p>
+<div class="math block">
+p_1,p_2,p_3
+</div>
+<p>become more similar.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\text{ is essentially a scale parameter for logit differences}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-75">2.2.49 Connection to Everything We Learned Earlier</h3>
+<p>This topic is directly connected to our earlier softmax discussion.</p>
+<p>We learned:</p>
+<div class="math block">
+softmax(z)
+</div>
+<p>turns logits into probabilities.</p>
+<p>Now we modify it:</p>
+<div class="math block">
+\boxed{
+softmax(z/T).
+}
+</div>
+<p>We learned that logits are produced after:</p>
+<div class="math block">
+H\rightarrow W_U\rightarrow Z.
+</div>
+<p>Now:</p>
+<div class="math block">
+Z
+\rightarrow
+Z/T
+\rightarrow
+softmax.
+</div>
+<p>We learned greedy decoding:</p>
+<div class="math block">
+\arg\max z.
+</div>
+<p>Now we know:</p>
+<div class="math block">
+T&gt;0
+</div>
+<p>does not change that ranking.</p>
+<p>And we learned sampling:</p>
+<div class="math block">
+y_t\sim p.
+</div>
+<p>Now temperature gives us:</p>
+<div class="math block">
+\boxed{
+y_t\sim softmax(z/T).
+}
+</div>
+<p>Everything fits together.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-76">2.2.50 Temperature vs Sampling — Final Distinction</h3>
+<p>This is worth making completely explicit.</p>
+<p>Suppose:</p>
+<div class="math block">
+z=[3,2,1].
+</div>
+<p>Temperature produces a new probability distribution.</p>
+<p>It does <strong>not</strong> pick the token.</p>
+<p>Then sampling uses the distribution.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+z
+\overset{/T}{\longrightarrow}
+z'
+\overset{softmax}{\longrightarrow}
+p
+\overset{sample}{\longrightarrow}
+y_t.
+}
+</div>
+<p>Whereas greedy does:</p>
+<div class="math block">
+\boxed{
+z\overset{\arg\max}{\longrightarrow}y_t.
+}
+</div>
+<p>That is the clean distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-77">2.2.51 Master Numerical Set — Temperature</h3>
+<p>These are now part of our permanent numerical bank.</p>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-78">Numerical 1</h5>
+<p>Given:</p>
+<div class="math block">
+z=[4,2,0],
+</div>
+<p>find scaled logits for:</p>
+<div class="math block">
+T=0.5,\;1,\;2.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-79">Numerical 2</h5>
+<p>Given:</p>
+<div class="math block">
+z=[2,1,0],
+</div>
+<p>calculate softmax at:</p>
+<div class="math block">
+T=1
+</div>
+<p>and:</p>
+<div class="math block">
+T=2.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-80">Numerical 3</h5>
+<p>Given:</p>
+<div class="math block">
+z=[5,3,1],
+</div>
+<p>which temperature produces the sharper distribution?</p>
+<div class="math block">
+T=0.5
+\quad\text{or}\quad
+T=2.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-81">Numerical 4</h5>
+<p>Given:</p>
+<div class="math block">
+z=[10,7,4],
+</div>
+<p>does temperature change the greedy choice?</p>
+<p>Explain mathematically.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-82">Numerical 5</h5>
+<p>A vocabulary contains <span class="math inline">V=5</span> tokens. What distribution does temperature approach as:</p>
+<div class="math block">
+T\rightarrow\infty?
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+[0.2,0.2,0.2,0.2,0.2].
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-83">Numerical 6</h5>
+<p>For:</p>
+<div class="math block">
+z=[10,5,1],
+</div>
+<p>what happens as:</p>
+<div class="math block">
+T\rightarrow0^+?
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+[1,0,0]
+}
+</div>
+<p>in the limiting sense.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-84">Numerical 7</h5>
+<p>Given:</p>
+<div class="math block">
+P=[0.5,0.3,0.2],
+</div>
+<p>is sampling deterministic?</p>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<p>because more than one token has nonzero probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-85">2.2.52 Exam Trap Checklist</h3>
+<h5 id="v3-heading-chunk-les-step-2-2-i22-86">Trap 1</h5>
+<p>Thinking <span class="math inline">T=0</span> means literally calculate:</p>
+<div class="math block">
+z/0.
+</div>
+<p>Wrong.</p>
+<p>Implementation uses a greedy/argmax branch. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-87">Trap 2</h5>
+<p>Thinking higher <span class="math inline">T</span> changes token ranking.</p>
+<p>Wrong.</p>
+<p>For positive <span class="math inline">T</span>, ranking is preserved. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-88">Trap 3</h5>
+<p>Applying temperature after softmax.</p>
+<p>Wrong for the standard formulation.</p>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+z\rightarrow z/T\rightarrow softmax.
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-89">Trap 4</h5>
+<p>Thinking temperature itself creates randomness.</p>
+<p>Not by itself.</p>
+<p>Temperature changes the distribution; <strong>sampling</strong> introduces randomness.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-2-i22-90">Trap 5</h5>
+<p>Thinking lower temperature always gives a different greedy answer.</p>
+<p>No.</p>
+<p>It gives the same argmax unless another operation changes the candidate set.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-2-i22-91">2.2.53 One-Sentence Understanding</h3>
+<p>The deepest way to remember temperature is:</p>
+<div class="math block">
+\boxed{
+\text{Temperature rescales logit differences before softmax, controlling how concentrated or spread out the sampling distribution is without changing token ranking.}
+}
+</div>
+<hr />
+</section>

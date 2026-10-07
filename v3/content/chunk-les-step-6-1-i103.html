@@ -1,0 +1,1028 @@
+<section class="chunk" id="chunk-les-step-6-1-i103" data-id="les-step-6-1-i103"><details class="audit-card" id="audit-full-chunk-les-step-6-1-i103" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-6-1-i103-1">Motivation</h4><p>Convert a text corpus into reusable numerical training storage; preprocessing cost should not recur at every optimizer step.</p><h4 id="v3-heading-chunk-les-step-6-1-i103-2">Prerequisites</h4><ul><li>Integer indices versus embeddings</li><li>Document boundaries</li><li>Binary storage and held-out evaluation</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-3">Notation and units</h4><ul><li>N_s: number of documents</li><li>N_t: text tokens before EOT</li><li>V: vocabulary cardinality</li><li>EOT: document-ending token</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-4">Assumptions</h4><ul><li>GPT-2 vocabulary 50,257 is a source-specific mini-model choice</li><li>One EOT is appended per document</li><li>95/5 split is contiguous, before tokenization</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-5">Step-by-step derivation</h4><ol><li>Choose the held-out documents before packing so validation documents are never inserted into train.bin.</li><li>Encode each document independently; append its EOT even for an empty document if that is the declared corpus policy.</li><li>Concatenating lists creates one stream; its length is N_t+N_s. EOT marks a boundary but does not itself impose an attention mask.</li><li>Validate 0 &lt;= token &lt; V before casting. uint16 represents 0..65,535, so V &lt;= 65,536 is sufficient; vocabulary cardinality and maximum index differ by one.</li><li>Raw storage bytes equal 2*(N_t+N_s); decimal MB/GB and binary MiB/GiB must be named explicitly.</li><li>A memmap changes access to the saved stream, not the earlier encode_corpus allocation. The shown all_ids list and NumPy conversion can still require corpus-sized RAM.</li><li>Record tokenizer identity/version, EOT, dtype/endianness, token counts and split provenance with vocab_size; these extensions make a saved dataset reproducible.</li></ol><h4 id="v3-heading-chunk-les-step-6-1-i103-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-6-1-i103-7">EOT packing</h5><p>Given: Documents [10,20,30], [40,50]; EOT 99; V=100</p><ol><li>Append 99 to each document</li><li>Concatenate 4+3 IDs</li><li>Multiply 7 IDs by 2 bytes</li></ol><p>Answer: [10,20,30,99,40,50,99]; 14 bytes</p><p>Verification: mini_deepseek_integration / MD104-EOT · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-6-1-i103-8">Held-out split</h5><p>Given: 100,000 documents and VAL_RATIO=.05</p><ol><li>split_index=int(100000*.95)</li><li>Validation=100000-split_index</li></ol><p>Answer: 95,000 train; 5,000 validation</p><p>Verification: mini_deepseek_integration / MD104-SPLIT · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-6-1-i103-9">Corrections and source qualifications</h4><ul><li>heading: 6.1.22 Step 5: Why memmap?; text: Scope correction: memmap avoids eagerly reading the entire saved training file; encode_corpus still builds all_ids and a full NumPy array before writing. This preparation stage is not guaranteed bounded-memory.</li><li>heading: 6.1.17 Why store token IDs as uint16?; text: The exact safety contract is maximum ID &lt;=65,535, equivalent to vocabulary size &lt;=65,536 for zero-based dense IDs. Validate before casting, which can otherwise wrap.</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-10">Mastery answers and retained exercise context</h4><ol><li>The dataset is TinyStories, a laboratory-scale choice rather than the production V3 corpus.</li><li>GPT-2 BPE maps text to IDs in a 50,257-entry vocabulary.</li><li>The source uses the first 95% and last 5%, not a random split.</li><li>Store uint16 IDs plus EOT, not floating embeddings.</li><li>memmap supports demand access to windows; preparation can still allocate the full token list.</li></ol><h4 id="v3-heading-chunk-les-step-6-1-i103-11">Edge cases and remaining gaps</h4><ul><li>Contiguous splitting can retain temporal/order/domain bias; compare a documented randomized/document-group split when appropriate.</li><li>The encode-all preparation code is not a streaming tokenizer.</li><li>EOT alone permits windows crossing documents; declare whether this is intended.</li><li>Use uint32 for a tokenizer vocabulary exceeding the uint16 index range.</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-12">Connections and progression</h4><ul><li>Feeds batch(stream,starts,T)</li><li>Tokenizer vocabulary defines embedding and LM-head dimensions</li><li>Split provenance determines validity of later training/validation comparisons</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 321, 322, 323, 324 · Original lesson mechanisms and source-specific implementation; corrections separately identify derivations and implementation gaps.</li></ul><h4 id="v3-heading-chunk-les-step-6-1-i103-14">Executable code and explained functions</h4><p>file: companion.py; checker: check_companion.py; evidence: evidence.json; outputs: outputs.json; scope: Executed deterministic NumPy teaching reconstruction; original PyTorch and full training are separate.</p><p><a href="#audit-full-code-mini_deepseek_integration">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (47)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R100.1 / Step 6.1 — The Data Foundation of Mini-DeepSeek</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.1 What problem are we solving?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.2 Why does the data pipeline matter?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.3 Why TinyStories?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.4 Why not use the real DeepSeek tokenizer?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.5 What is a tokenizer actually doing?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.6 Why BPE?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.7 The source&#x27;s configuration</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.8 Why do we need a validation split?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.9 Numerical split example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.10 One subtle source-specific limitation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.11 Step 1: Load the raw dataset</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.12 Step 2: Initialize the tokenizer</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.13 Step 3: Encode each story</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.14 Why append an EOT token?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.15 Why not keep every story as a separate Python object during training?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.16 Tiny example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.17 Why store token IDs as uint16?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.18 Why does that save space?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>uint16</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>uint32</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.19 Important distinction: token IDs are not embeddings</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.20 Step 4: Why binary files?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.21 Why not save the token stream as JSON?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.22 Step 5: Why memmap?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.23 What is a memory-mapped file?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.24 The source&#x27;s implementation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.25 dtype=np.uint16</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.26 mode=&quot;w+&quot;</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.27 Why flush()?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.28 Step 6: Save metadata</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.29 The resulting directory</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.30 Complete data pipeline</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.31 Why the order matters</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.32 One end-to-end numerical example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.33 Why EOT changes the token count</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.34 Why this representation is ideal for the next stage</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.35 The deeper systems principle</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.36 What the source does NOT do here</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.37 Therefore our knowledge graph position is now</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.38 The five things you should remember</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>1. Dataset</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>2. Tokenizer</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>3. Split</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>4. Storage</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>5. Efficient access</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6.1.39 One final mental model</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-6-1-i103"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-6-1-i103" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r101-4-i116">← Previous lesson</a> · <a href="#chunk-les-step-6-1-1-i104">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Logits → Softmax → Next-Token Prediction</a>, <a href="#chunk-app-a1">A.1 — KV Cache and Multi-Head Latent Attention (MLA) [plan nodes D1, D2]</a>, <a href="#chunk-app-a2">A.2 — Mixture-of-Experts (MoE) [plan node D3]</a>, <a href="#chunk-app-a3">A.3 — Multi-Token Prediction (MTP) [plan node D4]</a></p><p><strong>This lesson:</strong> R100.1 / Step 6.1 — The Data Foundation of Mini-DeepSeek</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-6-1-i103"></a></p>
+<h3 id="v3-heading-chunk-les-step-6-1-i103-15">R100.1 / Step 6.1 — The Data Foundation of Mini-DeepSeek</h3>
+<p><em>Plan node: A6 · chat order #103</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We are now <strong>past FP8</strong> and entering the next node in the master graph:</p>
+<div class="math block">
+\boxed{
+\text{FP8 complete}
+\rightarrow
+\text{Complete Mini-DeepSeek System}
+}
+</div>
+<p>And the source is very explicit about the purpose of Chapter 6: this is where the previously developed ideas are assembled into a <strong>functional trainable system</strong>, beginning with the data pipeline. The chapter's four practical pieces are <code>prepare.py</code>, <code>model.py</code>, <code>train.py</code>, and <code>sample.py</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We will therefore <strong>not</strong> spend this response teaching Python syntax. We will understand the data architecture first.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-16">6.1.1 What problem are we solving?</h4>
+<p>Up to now, most of our work has been:</p>
+<div class="math block">
+\boxed{
+\text{“How should the model work?”}
+}
+</div>
+<p>Now the question becomes:</p>
+<div class="math block">
+\boxed{
+\text{“How do we feed real training data into it?”}
+}
+</div>
+<p>The source defines the data preparation pipeline as four operations:</p>
+<div class="math block">
+\boxed{
+\text{download}
+\rightarrow
+\text{split}
+\rightarrow
+\text{tokenize}
+\rightarrow
+\text{store efficiently}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-17">6.1.2 Why does the data pipeline matter?</h4>
+<p>A neural network does not train directly on raw text.</p>
+<p>We ultimately need:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\text{tensor batches}
+\rightarrow
+\text{model}.
+}
+</div>
+<p>So the data pipeline is the bridge between:</p>
+<div class="math block">
+\boxed{
+\text{human-readable corpus}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{numerical computation}.
+}
+</div>
+<p>This is why Chapter 6 starts with data rather than immediately constructing another attention layer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-18">6.1.3 Why TinyStories?</h4>
+<p>The source selects:</p>
+<div class="math block">
+\boxed{\text{TinyStories}}
+</div>
+<p>for the Mini-DeepSeek experiment.</p>
+<p>The reason given is very practical:</p>
+<ul>
+<li>it is simple and coherent English,</li>
+<li>it is large enough to learn meaningful language patterns,</li>
+<li>but it is still manageable on a single consumer GPU.</li>
+</ul>
+<p>The source describes TinyStories as a collection of short stories generated by GPT-3.5 and GPT-4 and hosted as <code>roneneldan/TinyStories</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the design goal is not:</p>
+<div class="math block">
+\boxed{\text{replicate DeepSeek-V3's real pretraining corpus}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{create a small laboratory in which the architecture can actually be trained}.}
+</div>
+<p>That distinction matters.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-19">6.1.4 Why not use the real DeepSeek tokenizer?</h4>
+<p>The source explicitly addresses this.</p>
+<p>DeepSeek's tokenizer has a vocabulary of:</p>
+<div class="math block">
+\boxed{\text{100k+ tokens}}
+</div>
+<p>and is designed for a much larger multilingual corpus.</p>
+<p>For this small English-only TinyStories experiment, the source chooses:</p>
+<div class="math block">
+\boxed{\text{GPT-2 tokenizer}}
+</div>
+<p>through <code>tiktoken</code>.</p>
+<p>Its vocabulary size is:</p>
+<div class="math block">
+\boxed{50,257}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So this is a <strong>simplification for the mini-model</strong>, not a claim that GPT-2's tokenizer is DeepSeek-V3's production tokenizer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-20">6.1.5 What is a tokenizer actually doing?</h4>
+<p>This connects back to our Transformer foundations.</p>
+<p>Take:</p>
+<pre><code class="language-text">The cat sat.
+</code></pre>
+<p>The tokenizer converts the text into discrete token IDs:</p>
+<div class="math block">
+[t_1,t_2,t_3,t_4,\ldots].
+</div>
+<p>For the GPT-2 BPE tokenizer, the exact tokenization depends on the text.</p>
+<p>What matters architecturally is:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+\text{integer IDs}.
+}
+</div>
+<p>Those IDs are what ultimately index the model's embedding matrix.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{tokenizer output}
+=
+\text{model input vocabulary indices}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-21">6.1.6 Why BPE?</h4>
+<p>The source says the selected tokenizer is the standard GPT-2 tokenizer and describes it as a Byte-Pair Encoding (BPE) tokenizer. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We already learned why subword tokenization is useful:</p>
+<p>A word need not have its own unique vocabulary entry.</p>
+<p>Instead, recurring pieces can be reused.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{large vocabulary of full words}
+\rightarrow
+\text{smaller reusable subword vocabulary}.
+}
+</div>
+<p>That lets an unknown or rare word be represented through pieces.</p>
+<p>For this response, the important point is simply:</p>
+<div class="math block">
+\boxed{
+\text{BPE turns text into integer token IDs that the model can process}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-22">6.1.7 The source's configuration</h4>
+<p>The source's <code>prepare.py</code> defines:</p>
+<pre><code class="language-python">DATASET_NAME = &quot;roneneldan/TinyStories&quot;
+TOKENIZER_NAME = &quot;gpt2&quot;
+OUTPUT_DIR = &quot;data/tinystories_tokenized&quot;
+VAL_RATIO = 0.05
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we have:</p>
+<div class="math block">
+\boxed{
+95\%\rightarrow\text{training}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+5\%\rightarrow\text{validation}.
+}
+</div>
+<p>because:</p>
+<div class="math block">
+VAL\_RATIO=0.05.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-23">6.1.8 Why do we need a validation split?</h4>
+<p>This is important conceptually.</p>
+<p>Suppose training loss keeps falling:</p>
+<div class="math block">
+L_{\text{train}}\downarrow.
+</div>
+<p>That does not automatically mean the model is learning patterns that generalize.</p>
+<p>We also want:</p>
+<div class="math block">
+L_{\text{val}}.
+</div>
+<p>The source explains that the validation split gives a measure of how well the model generalizes to unseen data. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{training set}
+\rightarrow
+\text{learn parameters}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{validation set}
+\rightarrow
+\text{measure generalization}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-24">6.1.9 Numerical split example</h4>
+<p>Suppose, purely as an example, the dataset contains:</p>
+<div class="math block">
+100,000
+</div>
+<p>stories.</p>
+<p>With:</p>
+<div class="math block">
+VAL\_RATIO=0.05,
+</div>
+<p>validation size is:</p>
+<div class="math block">
+100,000\times0.05
+=
+\boxed{5,000}.
+</div>
+<p>Training size:</p>
+<div class="math block">
+100,000-5,000
+=
+\boxed{95,000}.
+</div>
+<p>The source implements the split through:</p>
+<pre><code class="language-python">split_index = int(len(dataset) * (1 - VAL_RATIO))
+</code></pre>
+<p>then selects the first portion for training and the remainder for validation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-25">6.1.10 One subtle source-specific limitation</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">train_dataset = dataset.select(range(split_index))
+val_dataset = dataset.select(range(split_index, len(dataset)))
+</code></pre>
+<p>So it takes the first:</p>
+<div class="math block">
+95\%
+</div>
+<p>and the last:</p>
+<div class="math block">
+5\%.
+</div>
+<p>That is what the code actually does.</p>
+<p>Do not silently replace that with a randomized split and claim that the source did so.</p>
+<p>The source's implementation is the basis here. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-26">6.1.11 Step 1: Load the raw dataset</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">dataset = load_dataset(DATASET_NAME)['train']
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Hugging Face dataset}
+\rightarrow
+\text{Python dataset object}.
+}
+</div>
+<p>At this stage, we still have:</p>
+<div class="math block">
+\boxed{\text{raw text}}
+</div>
+<p>not token IDs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-27">6.1.12 Step 2: Initialize the tokenizer</h4>
+<p>The source then uses:</p>
+<pre><code class="language-python">enc = tiktoken.get_encoding(TOKENIZER_NAME)
+</code></pre>
+<p>With:</p>
+<pre><code class="language-python">TOKENIZER_NAME = &quot;gpt2&quot;
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">vocab_size = enc.n_vocab
+</code></pre>
+<p>which gives:</p>
+<div class="math block">
+\boxed{50,257}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why does the model need this?</p>
+<p>Because the embedding/output layers depend directly on:</p>
+<div class="math block">
+\boxed{V=\text{vocabulary size}}.
+</div>
+<p>For example:</p>
+<div class="math block">
+E\in\mathbb R^{V\times d}.
+</div>
+<p>So:</p>
+<div class="math block">
+V=50,257
+</div>
+<p>becomes a model architecture parameter.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-28">6.1.13 Step 3: Encode each story</h4>
+<p>The source defines:</p>
+<pre><code class="language-python">def encode_corpus(texts, enc):
+    all_ids = []
+    eot_token = enc.eot_token
+
+    for text in texts:
+        ids = enc.encode(text)
+        all_ids.extend(ids)
+        all_ids.append(eot_token)
+
+    return np.array(all_ids, dtype=np.uint16)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now there are two important ideas here:</p>
+<div class="math block">
+\boxed{\text{tokenization}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{document separation}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-29">6.1.14 Why append an EOT token?</h4>
+<p>Suppose two stories are:</p>
+<pre><code class="language-text">Story 1: The boy went home.
+Story 2: A dog ran outside.
+</code></pre>
+<p>If we simply concatenate their token IDs:</p>
+<div class="math block">
+[t_1,t_2,\ldots,t_n,\;
+u_1,u_2,\ldots,u_m],
+</div>
+<p>the model sees one continuous token stream.</p>
+<p>We need some indication that one document ended and another began.</p>
+<p>The source therefore appends:</p>
+<div class="math block">
+\boxed{
+&lt;|endoftext|&gt;
+}
+</div>
+<p>after each story. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Story 1
+   ↓
+tokens
+   ↓
+EOT
+   ↓
+Story 2
+   ↓
+tokens
+   ↓
+EOT
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-30">6.1.15 Why not keep every story as a separate Python object during training?</h4>
+<p>Because the source wants a simple continuous numerical stream.</p>
+<p>After encoding:</p>
+<div class="math block">
+\boxed{
+\text{many text examples}
+\rightarrow
+\text{one flat token stream}.
+}
+</div>
+<p>This makes the training-data storage and later random window extraction straightforward.</p>
+<p>The EOT markers preserve the document boundaries inside that stream. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-31">6.1.16 Tiny example</h4>
+<p>Suppose:</p>
+<pre><code class="language-text">Story 1 → [10, 20, 30]
+Story 2 → [40, 50]
+</code></pre>
+<p>and suppose EOT has ID:</p>
+<div class="math block">
+99.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+[10,20,30,99,40,50,99].
+}
+</div>
+<p>This is the token stream saved for later training.</p>
+<p>The specific ID <code>99</code> here is purely illustrative; the source uses <code>enc.eot_token</code>.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-6-1-i103-1" data-full-review="added"><p>Correction: The exact safety contract is maximum ID &lt;=65,535, equivalent to vocabulary size &lt;=65,536 for zero-based dense IDs. Validate before casting, which can otherwise wrap.</p><p><a href="#audit-full-chunk-les-step-6-1-i103">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-6-1-i103-32">6.1.17 Why store token IDs as uint16?</h4>
+<p>This is a very good systems question.</p>
+<p>The vocabulary is:</p>
+<div class="math block">
+V=50,257.
+</div>
+<p>A token ID therefore lies below:</p>
+<div class="math block">
+65,535.
+</div>
+<p>And the source notes:</p>
+<div class="math block">
+\boxed{
+65535=\text{maximum value representable by uint16}.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{uint16 is enough to store every token ID}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-33">6.1.18 Why does that save space?</h4>
+<p>Compare:</p>
+<div class="math block">
+\boxed{\text{uint16}=16\text{ bits}=2\text{ bytes}}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{\text{uint32}=32\text{ bits}=4\text{ bytes}}.
+</div>
+<p>For:</p>
+<div class="math block">
+1,000,000,000
+</div>
+<p>token IDs:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-34">uint16</h6>
+<div class="math block">
+1B\times2
+=
+\boxed{2\text{ GB}}
+</div>
+<p>raw storage.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-35">uint32</h6>
+<div class="math block">
+1B\times4
+=
+\boxed{4\text{ GB}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+2\text{ GB saved}
+}
+</div>
+<p>for that illustrative billion-token stream.</p>
+<p>That is exactly the kind of low-level data-engineering decision the source is making.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-36">6.1.19 Important distinction: token IDs are not embeddings</h4>
+<p>This is worth reinforcing.</p>
+<p>After tokenization:</p>
+<div class="math block">
+\boxed{
+t_i\in\mathbb Z
+}
+</div>
+<p>is just an integer ID.</p>
+<p>It is <strong>not</strong>:</p>
+<div class="math block">
+\boxed{
+h_i\in\mathbb R^d.
+}
+</div>
+<p>The transformation happens later:</p>
+<div class="math block">
+\boxed{
+t_i
+\overset{\text{embedding lookup}}{\longrightarrow}
+e_i\in\mathbb R^d.
+}
+</div>
+<p>So the dataset file should store IDs, not giant floating-point embedding vectors.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-37">6.1.20 Step 4: Why binary files?</h4>
+<p>The source saves:</p>
+<div class="math block">
+\boxed{
+train.bin
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+val.bin.
+}
+</div>
+<p>These are flat binary token files. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because training repeatedly needs numerical token IDs.</p>
+<p>There is no benefit in parsing raw text again every time the model asks for another training batch.</p>
+<p>So we perform:</p>
+<div class="math block">
+\boxed{
+\text{text processing once}
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+\text{reuse numerical data many times}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-38">6.1.21 Why not save the token stream as JSON?</h4>
+<p>JSON would look conceptually like:</p>
+<pre><code class="language-text">[10, 20, 30, 99, 40, 50, 99, ...]
+</code></pre>
+<p>but is verbose compared with packed binary integers.</p>
+<p>The source instead stores:</p>
+<div class="math block">
+\boxed{
+\text{raw uint16 binary data}.
+}
+</div>
+<p>This is much more suitable for very large sequential numeric arrays. The source explicitly calls the binary format an efficient representation for training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-6-1-i103-0" data-full-review="added"><p>Correction: Scope correction: memmap avoids eagerly reading the entire saved training file; encode_corpus still builds all_ids and a full NumPy array before writing. This preparation stage is not guaranteed bounded-memory.</p><p><a href="#audit-full-chunk-les-step-6-1-i103">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-6-1-i103-39">6.1.22 Step 5: Why memmap?</h4>
+<p>This is probably the most important <strong>systems concept</strong> in this response.</p>
+<p>Suppose the tokenized dataset contains:</p>
+<div class="math block">
+100\text{ GB}
+</div>
+<p>of token IDs.</p>
+<p>Your GPU cannot load all of that.</p>
+<p>Even your CPU RAM may not be enough.</p>
+<p>But at each training step you may need only:</p>
+<div class="math block">
+\boxed{\text{one small batch}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{store the complete dataset on disk}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{load only the portions needed}.
+}
+</div>
+<p>This is where:</p>
+<div class="math block">
+\boxed{\text{memory mapping}}
+</div>
+<p>comes in.</p>
+<p>The source explicitly explains that the operating system can treat the file as memory-like and load required portions as needed instead of reading the entire dataset into RAM. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-40">6.1.23 What is a memory-mapped file?</h4>
+<p>Conceptually:</p>
+<pre><code class="language-text">             TRAINING PROGRAM
+                    │
+                    ▼
+               memmap object
+                    │
+                    ▼
+          ┌───────────────────┐
+          │  train.bin on SSD │
+          └───────────────────┘
+              │    │    │
+              ▼    ▼    ▼
+             small regions
+             loaded when needed
+</code></pre>
+<p>Your code interacts with the file as an array.</p>
+<p>But the entire file does not need to be physically loaded into RAM at once.</p>
+<p>The operating system handles the underlying page loading. This is the source's stated reason for using memmap. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-41">6.1.24 The source's implementation</h4>
+<pre><code class="language-python">arr = np.memmap(
+    path,
+    dtype=np.uint16,
+    mode=&quot;w+&quot;,
+    shape=(tokens.size,)
+)
+
+arr[:] = tokens
+arr.flush()
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's decode it.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-42">6.1.25 <code>dtype=np.uint16</code></h4>
+<p>We already established why:</p>
+<div class="math block">
+\boxed{
+\text{token IDs fit inside uint16}.
+}
+</div>
+<p>Therefore each token occupies:</p>
+<div class="math block">
+\boxed{2\text{ bytes}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-43">6.1.26 <code>mode=&quot;w+&quot;</code></h4>
+<p>This means the mapped file is opened/created for writing in this preparation step.</p>
+<p>The source then fills it:</p>
+<pre><code class="language-python">arr[:] = tokens
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">arr.flush()
+</code></pre>
+<p>ensures the buffered data is written out.</p>
+<p>The conceptual flow is:</p>
+<div class="math block">
+\boxed{
+\text{NumPy token array}
+\rightarrow
+\text{memory-mapped binary file}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-44">6.1.27 Why <code>flush()</code>?</h4>
+<p>Imagine your program has written data through a mapped/buffered interface.</p>
+<p>You want to make sure those changes are pushed appropriately to the file.</p>
+<p>The source therefore calls:</p>
+<div class="math block">
+\boxed{
+arr.flush().
+}
+</div>
+<p>We don't need to turn this into an operating-systems lecture here; the purpose in this pipeline is simply:</p>
+<div class="math block">
+\boxed{
+\text{commit the written token data to the mapped file}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-45">6.1.28 Step 6: Save metadata</h4>
+<p>The source also creates:</p>
+<pre><code class="language-python">meta = {&quot;vocab_size&quot;: vocab_size}
+</code></pre>
+<p>and writes:</p>
+<div class="math block">
+\boxed{
+meta.json.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because the training script needs to know:</p>
+<div class="math block">
+\boxed{
+V=\text{vocabulary size}
+}
+</div>
+<p>when constructing the model.</p>
+<p>So instead of hardcoding that value again:</p>
+<div class="math block">
+\boxed{
+\text{data preparation writes metadata}
+\rightarrow
+\text{training reads metadata}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-46">6.1.29 The resulting directory</h4>
+<p>The source says the preparation script produces:</p>
+<pre><code class="language-text">data/tinystories_tokenized/
+├── train.bin
+├── val.bin
+└── meta.json
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Each file has a distinct responsibility:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>train.bin</code></td>
+<td>training token stream</td>
+</tr>
+<tr>
+<td><code>val.bin</code></td>
+<td>validation token stream</td>
+</tr>
+<tr>
+<td><code>meta.json</code></td>
+<td>model/data metadata such as vocabulary size</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-47">6.1.30 Complete data pipeline</h4>
+<p>We can now draw the whole thing:</p>
+<pre><code class="language-text">TinyStories
+    │
+    ▼
+Raw text
+    │
+    ▼
+Train / Validation split
+    │
+    ├─────────────► Train texts
+    │
+    └─────────────► Validation texts
+                       │
+                       ▼
+                 GPT-2 BPE tokenizer
+                       │
+                       ▼
+                  Integer token IDs
+                       │
+                       ▼
+                 append EOT markers
+                       │
+                       ▼
+                  flat token stream
+                       │
+                       ▼
+                    uint16
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+          train.bin          val.bin
+              │                 │
+              └────────┬────────┘
+                       ▼
+                    memmap
+                       │
+                       ▼
+                 training batches
+                       │
+                       ▼
+                 Mini-DeepSeek
+</code></pre>
+<p>This is the exact conceptual data foundation described in Section 6.1. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-48">6.1.31 Why the order matters</h4>
+<p>Notice the sequence:</p>
+<div class="math block">
+\boxed{
+\text{split before tokenization}.
+}
+</div>
+<p>The source does:</p>
+<ol>
+<li>load dataset,</li>
+<li>create train/validation split,</li>
+<li>tokenize each split,</li>
+<li>save each separately. <em>(Source: Build a DeepSeek Model (From Scratch))</em></li>
+</ol>
+<p>This means we maintain distinct:</p>
+<div class="math block">
+\boxed{
+\text{training corpus}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{validation corpus}.
+}
+</div>
+<p>That is a clean separation in the pipeline.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-49">6.1.32 One end-to-end numerical example</h4>
+<p>Suppose we have:</p>
+<div class="math block">
+10,000
+</div>
+<p>stories.</p>
+<p>With:</p>
+<div class="math block">
+VAL\_RATIO=0.05:
+</div>
+<p>training:</p>
+<div class="math block">
+10,000\times0.95
+=
+\boxed{9,500}.
+</div>
+<p>validation:</p>
+<div class="math block">
+10,000\times0.05
+=
+\boxed{500}.
+</div>
+<p>Suppose after tokenization the training set contains:</p>
+<div class="math block">
+5,000,000
+</div>
+<p>tokens including EOT markers.</p>
+<p>At uint16:</p>
+<div class="math block">
+5,000,000\times2
+=
+10,000,000
+</div>
+<p>bytes.</p>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{10\text{ MB}}
+</div>
+<p>of raw token storage.</p>
+<p>This is an illustrative calculation; the source does not specify this toy dataset size.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-50">6.1.33 Why EOT changes the token count</h4>
+<p>Suppose there are:</p>
+<div class="math block">
+N_{\text{stories}}
+</div>
+<p>stories.</p>
+<p>The pipeline adds one EOT token per story.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+N_{\text{final tokens}}
+=
+N_{\text{text tokens}}
++
+N_{\text{stories}}
+}
+</div>
+<p>assuming one EOT per story and no other filtering.</p>
+<p>That is a useful implementation-level formula derived directly from the source's encoding function. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-51">6.1.34 Why this representation is ideal for the next stage</h4>
+<p>Soon we need to train with blocks of:</p>
+<div class="math block">
+T
+</div>
+<p>tokens.</p>
+<p>For example, if:</p>
+<div class="math block">
+T=1024,
+</div>
+<p>we need to repeatedly extract windows:</p>
+<div class="math block">
+[t_i,t_{i+1},\ldots,t_{i+1023}]
+</div>
+<p>from the giant token stream.</p>
+<p>A flat binary array is ideal for this because arbitrary contiguous regions can be accessed efficiently.</p>
+<p>So the data structure is already being designed for the later training operation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-52">6.1.35 The deeper systems principle</h4>
+<p>This small chapter section teaches a general architecture pattern:</p>
+<div class="math block">
+\boxed{
+\text{expensive preprocessing once}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{cheap repeated access during training}.
+}
+</div>
+<p>Specifically:</p>
+<div class="math block">
+\text{raw text}
+\rightarrow
+\text{tokenization once}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\text{raw text}
+\rightarrow
+\text{retokenize every training step}.
+</div>
+<p>And:</p>
+<div class="math block">
+\text{entire dataset on disk}
+\rightarrow
+\text{memmap small windows}.
+</div>
+<p>Rather than:</p>
+<div class="math block">
+\text{entire dataset}
+\rightarrow
+\text{load into RAM}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-53">6.1.36 What the source does NOT do here</h4>
+<p>We should be precise.</p>
+<p>This section does <strong>not</strong> yet build:</p>
+<div class="math block">
+\boxed{\text{training batches}}
+</div>
+<p>in detail.</p>
+<p>It creates the storage foundation that later allows training to read batches efficiently.</p>
+<p>Nor does this section yet implement:</p>
+<div class="math block">
+\boxed{\text{MLA}}
+</div>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<div class="math block">
+\boxed{\text{MTP}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{FP8}}
+</div>
+<p>again.</p>
+<p>Those components are assembled in the next model-building section.</p>
+<p>The source explicitly says that after the data preparation is complete, it moves to <code>model.py</code>, where MLA, Decoupled RoPE, MoE and MTP are integrated. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-54">6.1.37 Therefore our knowledge graph position is now</h4>
+<pre><code class="language-text">D5  FP8
+ │
+ ▼
+R99  FP8 synthesis
+ │
+ ▼
+R100
+Data foundation
+ │
+ ├── TinyStories
+ ├── GPT-2 BPE
+ ├── Train/Val split
+ ├── EOT
+ ├── uint16
+ ├── train.bin / val.bin
+ ├── memmap
+ └── metadata
+ │
+ ▼
+NEXT
+Mini-DeepSeek model assembly
+</code></pre>
+<p>So the data branch is now grounded.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-55">6.1.38 The five things you should remember</h4>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-56">1. Dataset</h6>
+<div class="math block">
+\boxed{\text{TinyStories}}
+</div>
+<p>because this is a manageable single-GPU training corpus in the source.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-57">2. Tokenizer</h6>
+<div class="math block">
+\boxed{\text{GPT-2 BPE}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{V=50,257}.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-58">3. Split</h6>
+<div class="math block">
+\boxed{95\%/5\%}
+</div>
+<p>training/validation under:</p>
+<div class="math block">
+VAL\_RATIO=0.05.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-59">4. Storage</h6>
+<div class="math block">
+\boxed{\text{uint16 flat token stream}}
+</div>
+<p>with EOT separators.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-i103-60">5. Efficient access</h6>
+<div class="math block">
+\boxed{\text{memmap}}
+</div>
+<p>so training does not require loading the complete dataset into RAM.</p>
+<p>All five are directly from the source's Chapter 6.1 implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-i103-61">6.1.39 One final mental model</h4>
+<p>Think of the data pipeline as a manufacturing line:</p>
+<div class="math block">
+\boxed{
+\text{Stories}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Split}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Tokenize}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Add EOT}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Pack as uint16}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Write binary files}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Memory-map}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Feed training windows}
+}
+</div>
+<p>And only after this:</p>
+<div class="math block">
+\boxed{
+\text{Mini-DeepSeek model}
+}
+</div>
+<p>gets involved.</p>
+<hr />
+</section>

@@ -1,0 +1,765 @@
+<section class="chunk" id="chunk-les-step-5-48-i89" data-id="les-step-5-48-i89"><details class="audit-card" id="audit-full-chunk-les-step-5-48-i89" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-48-i89-1">Motivation</h4><p>Replace a one-step-only objective with supervised additional horizons while keeping a causal information boundary.</p><h4 id="v3-heading-chunk-les-step-5-48-i89-2">Prerequisites</h4><ul><li>Causal next-token likelihood</li><li>Embedding and output projections</li><li>Softmax cross entropy</li><li>Chain rule and sequence masking</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-3">Notation and units</h4><ul><li>S: total available tokens; T: input tokens when extra target supplied</li><li>k&gt;=1: additional prediction module; D: module count</li><li>d: hidden width; V: vocabulary size; lambda: auxiliary loss weight</li><li>h_i^k: representation at base position i and depth k</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Teacher-forced conditioning ends strictly before every scored target; attention/document masks preserve causality.</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-5">Step-by-step derivation</h4><ol><li>Main h_i^0 summarizes tokens through i and predicts t_(i+1). Independent-head MTP can supervise longer targets without giving those targets to the classifier.</li><li>DeepSeek uses chained modules instead: after conditioning on t_(i+k), the next target is t_(i+k+1). The deepest target lies one token beyond the last teacher-forced conditioning token.</li><li>For S total available tokens and D additional modules, count sum_{k=1}^D max(S-k-1,0); when D&lt;=S-2 this is D(S-1)-D(D+1)/2. Count main NTP separately.</li></ol><h4 id="v3-heading-chunk-les-step-5-48-i89-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-48-i89-7">Finite-sequence supervision</h5><p>Given: S=10; D=3 additional modules</p><ol><li>Depth lengths:8,7,6.</li><li>Additional targets:8+7+6=21.</li><li>Main targets:9; combined valid targets30.</li></ol><p>Answer: 21 additional targets;30 including main NTP</p><p>Verification: mtp_fp8_parallelism / MTP-count · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-48-i89-8">Weighted training objective</h5><p>Given: Main loss.6; depth means.4,.8,1; lambda=.1, D=3</p><ol><li>Auxiliary mean=(.4+.8+1)/3=.7333333333.</li><li>Multiply by.1 and add main.6.</li></ol><p>Answer: 0.6733333333 nats</p><p>Verification: mtp_fp8_parallelism / MTP-loss · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-48-i89-9">Corrections and source qualifications</h4><ul><li>heading: Target alignment throughout this lesson; text: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.48.4 MTP changes the question; answer: Instead of: \boxed{ x_t\rightarrow x_{t+1} } MTP asks: \boxed{ x_t \rightarrow x_{t+1}, x_{t+2},\ldots, x_{t+K} } where K is the prediction depth/horizon. For example, with: K=3 and current token: \text{is}, the model is trained to predict: \boxed{ \text{transforming},\text{the},\text{world} }. This exact style of example is used in the source. (Source: Build a DeepSeek Model (From Scratch)) Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.48.10 Concrete numerical example; answer: Suppose the model predicts three future tokens. For one training position: \mathcal L_1=0.20 \mathcal L_2=0.50 \mathcal L_3=0.80. Using a simple average: \mathcal L_{\text{MTP}} = \frac{0.20+0.50+0.80}{3}. Thus: \mathcal L_{\text{MTP}} = \frac{1.50}{3} = \boxed{0.50}. Compare that with ordinary next-token training, which would only use: \boxed{0.20}. The MTP setup is receiving training signal from all three prediction horizons. Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.48.16 One-token example; answer: Suppose: h^{(0)} = \text{hidden state for token }t. MTP module 1 transforms it: h^{(1)} = M_1(h^{(0)},\text{embedding information}) and predicts: x_{t+1}. Then: h^{(1)} \rightarrow M_2 produces: h^{(2)} and predicts: x_{t+2}. Then: h^{(2)} \rightarrow M_3 produces: h^{(3)} and predicts: x_{t+3}. Therefore: \boxed{ h^{(0)} \rightarrow h^{(1)} \rightarrow h^{(2)} \rightarrow h^{(3)} } while: \boxed{ h^{(1)}\rightarrow x_{t+1} } \boxed{ h^{(2)}\rightarrow x_{t+2} } \boxed{ h^{(3)}\rightarrow x_{t+3}. } Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.48.19 Exam numerical — identify the number of targets; answer: Suppose a sequence has: S=10 tokens and: K=3. For the token at position t=5, the MTP targets are: x_6,\; x_7,\; x_8. Thus: \boxed{3\text{ future targets}}. For position t=8, however, only: x_9, x_{10} exist in the sequence. Therefore: \boxed{ \text{MTP training must handle sequence boundaries.} } This is one reason implementation details matter. Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.48.22 What you should be able to answer now; answer: Main h_i^0 summarizes tokens through i and predicts t_(i+1). Independent-head MTP can supervise longer targets without giving those targets to the classifier. DeepSeek uses chained modules instead: after conditioning on t_(i+k), the next target is t_(i+k+1). The deepest target lies one token beyond the last teacher-forced conditioning token. For S total available tokens and D additional modules, count sum_{k=1}^D max(S-k-1,0); when D&lt;=S-2 this is D(S-1)-D(D+1)/2. Count main NTP separately. Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question 1; answer: What is the difference between NTP and MTP? \boxed{ NTP: x_t\rightarrow x_{t+1} } \boxed{ MTP: x_t\rightarrow x_{t+1},..., x_{t+K} } Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question 2; answer: Why does MTP densify the training signal? Because one position contributes losses for several future targets instead of only one. Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question 3; answer: What is special about DeepSeek&#x27;s implementation? \boxed{ \text{MTP modules are causally chained} } rather than being completely independent prediction heads. (Source: Build a DeepSeek Model (From Scratch)) Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question 4; answer: What does the later MTP module receive? \boxed{ \text{the refined hidden representation from the previous MTP stage} } Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question 5; answer: What is K? \boxed{ K=\text{future prediction depth/horizon} } Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Step 5.48 checkpoint; answer: At this point, the hierarchy is: \boxed{ \text{NTP} \rightarrow \text{MTP} \rightarrow \text{DeepSeek causal MTP} } and the central difference is: \boxed{ \text{one-step target} \quad\longrightarrow\quad \text{multi-step causal forecasting}. } Correction to any inherited target grid: Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Why train the model to predict only one future token when we already have information about many future tokens?; answer: The chapter explicitly presents MTP as a change from ordinary single next-token prediction to predicting a horizon of future tokens. (Source: Build a DeepSeek Model (From Scratch)) 5.48.1 First, understand ordinary next-token prediction Suppose our training sequence is: [\text{Artificial},\text{Intelligence},\text{is},\text{transforming},\text{the},\text{world}] The ordinary language-model objective is: \boxed{ x_t\rightarrow x_{t+1} } So the training pairs are conceptually: \text{Artificial}\rightarrow\text{Intelligence} \text{Intelligence}\rightarrow\text{is} \text{is}\rightarrow\text{transforming} \text{transforming}\rightarrow\text{the} \text{the}\rightarrow\text{world}. More generally: \boxed{ P(x_{t+1}\mid x_{\le t}) } is the probability distribution the model learns. 5.48.2 What does the Transformer actually produce? Let: X=[x_1, x_2,\ldots, x_S] be the token sequence. After passing through the shared Transformer trunk, we get hidden states: H= [h_1, h_2,\ldots, h_S]. If the hidden dimension is D, then: \boxed{ H\in\mathbb{R}^{S\times D} } for one sequence. For a batch: \boxed{ H\in\mathbb{R}^{B\times S\times D}. } The ordinary language model uses every hidden state to predict the immediately following token. So: h_t \rightarrow \text{logits for }x_{t+1}. If vocabulary size is V: W_U\in\mathbb{R}^{D\times V} and: z_t=h_tW_U. Therefore: z_t\in\mathbb{R}^{V}. Then: p_t=\operatorname{softmax}(z_t). This gives: P(x_{t+1}\mid x_{\le t}). Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: What is the difference between NTP and MTP?; answer: \boxed{ NTP: x_t\rightarrow x_{t+1} } \boxed{ MTP: x_t\rightarrow x_{t+1},..., x_{t+K} } Question 2 Why does MTP densify the training signal? Because one position contributes losses for several future targets instead of only one. Question 3 What is special about DeepSeek&#x27;s implementation? \boxed{ \text{MTP modules are causally chained} } rather than being completely independent prediction heads. (Source: Build a DeepSeek Model (From Scratch)) Question 4 What does the later MTP module receive? \boxed{ \text{the refined hidden representation from the previous MTP stage} } Question 5 What is K? \boxed{ K=\text{future prediction depth/horizon} } Step 5.48.23 The one diagram to remember Shared Transformer │ ▼ h^(0) for token t │ ▼ ┌──────────┐ │ MTP 1 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(1) predict x(t+1) │ ▼ ┌──────────┐ │ MTP 2 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(2) Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: Why does MTP densify the training signal?; answer: Because one position contributes losses for several future targets instead of only one. Question 3 What is special about DeepSeek&#x27;s implementation? \boxed{ \text{MTP modules are causally chained} } rather than being completely independent prediction heads. (Source: Build a DeepSeek Model (From Scratch)) Question 4 What does the later MTP module receive? \boxed{ \text{the refined hidden representation from the previous MTP stage} } Question 5 What is K? \boxed{ K=\text{future prediction depth/horizon} } Step 5.48.23 The one diagram to remember Shared Transformer │ ▼ h^(0) for token t │ ▼ ┌──────────┐ │ MTP 1 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(1) predict x(t+1) │ ▼ ┌──────────┐ │ MTP 2 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(2) predict x(t+2) │ ▼ ┌──────────┐ │ MTP 3 │ Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: What is special about DeepSeek&#x27;s implementation?; answer: \boxed{ \text{MTP modules are causally chained} } rather than being completely independent prediction heads. (Source: Build a DeepSeek Model (From Scratch)) Question 4 What does the later MTP module receive? \boxed{ \text{the refined hidden representation from the previous MTP stage} } Question 5 What is K? \boxed{ K=\text{future prediction depth/horizon} } Step 5.48.23 The one diagram to remember Shared Transformer │ ▼ h^(0) for token t │ ▼ ┌──────────┐ │ MTP 1 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(1) predict x(t+1) │ ▼ ┌──────────┐ │ MTP 2 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(2) predict x(t+2) │ ▼ ┌──────────┐ │ MTP 3 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: What does the later MTP module receive?; answer: \boxed{ \text{the refined hidden representation from the previous MTP stage} } Question 5 What is K? \boxed{ K=\text{future prediction depth/horizon} } Step 5.48.23 The one diagram to remember Shared Transformer │ ▼ h^(0) for token t │ ▼ ┌──────────┐ │ MTP 1 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(1) predict x(t+1) │ ▼ ┌──────────┐ │ MTP 2 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(2) predict x(t+2) │ ▼ ┌──────────┐ │ MTP 3 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(3) predict x(t+3) This is the conceptual architecture we will unpack mathematically next. (Source: Build a DeepSeek Model (From Scratch)) Step 5.48 checkpoint At Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: What is K?; answer: \boxed{ K=\text{future prediction depth/horizon} } Step 5.48.23 The one diagram to remember Shared Transformer │ ▼ h^(0) for token t │ ▼ ┌──────────┐ │ MTP 1 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(1) predict x(t+1) │ ▼ ┌──────────┐ │ MTP 2 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(2) predict x(t+2) │ ▼ ┌──────────┐ │ MTP 3 │ └────┬─────┘ │ ┌────────┴────────┐ │ │ ▼ ▼ h^(3) predict x(t+3) This is the conceptual architecture we will unpack mathematically next. (Source: Build a DeepSeek Model (From Scratch)) Step 5.48 checkpoint At this point, the hierarchy is: \boxed{ \text{NTP} \rightarrow \text{MTP} \rightarrow \text{DeepSeek ca Authoritative indexing correction: DeepSeek-V3 Eq.21 conditions module k on E(t_(i+k)); Eq.23 predicts t_(i+k+1), an additional future token beyond main NTP. Feeding E(t_(i+k)) while targeting t_(i+k) leaks the target. For a complete sequence of S available tokens, valid module length is max(S-k-1,0); with T inputs and an extra target token t_(T+1), the paper has T-k positions. These conventions are different data contracts, not contradictory formulas. Use targets[:, k+1:], embeddings(input_ids[:, k:-1]), and h_previous[:,: S-k-1]. Equal shapes alone do not establish causal correctness.; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-48-i89-11">Edge cases and remaining gaps</h4><ul><li>Full Transformer/MTP optimizer training and dataset ablations were not executed; scalar chain and alignment fixtures are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-12">Connections and progression</h4><ul><li>Next-token CE → auxiliary horizon supervision → causal chain backpropagation</li><li>Teacher forcing during training → sampled prior candidate conditioning in inference</li><li>MTP drafting → target-preserving speculative verification</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · Conditions at i+k; targets at i+k+1; additional-depth loss and shared module components. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S2.SS2</li></ul><h4 id="v3-heading-chunk-les-step-5-48-i89-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (32)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.48 — Multi-Token Prediction (MTP)</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.1 First, understand ordinary next-token prediction</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.2 What does the Transformer actually produce?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.3 The limitation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.4 MTP changes the question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.5 Think about what information the model receives</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.6 Why does this create a richer learning signal?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.7 Why is that important?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.8 A simple visualization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.9 The total MTP loss</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.10 Concrete numerical example</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.11 Another way to see the difference</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Standard objective</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>MTP conceptual objective</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.12 Tensor-shape numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.13 Original MTP idea vs DeepSeek&#x27;s version</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.14 This is the key insight of DeepSeek MTP</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.15 Why call it “causal”?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.16 One-token example</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.17 One subtle but critical point</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.18 Why MTP is useful for training</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Full Transformer/MTP optimizer training and dataset ablations were not executed; scalar chain and alignment fixtures are verified.</td></tr><tr><td>5.48.19 Exam numerical — identify the number of targets</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.20 Boundary intuition</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.21 The big picture so far</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.48.22 What you should be able to answer now</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question 3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question 5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Step 5.48.23 The one diagram to remember</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Step 5.48 checkpoint</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-48-i89"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-48-i89" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-43-i84">← Previous lesson</a> · <a href="#chunk-les-step-5-48-1a-i90">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-2-5-i25">Step 2.5 — Putting the Decoding Strategies Together</a></p><p><strong>This lesson:</strong> Step 5.48 — Multi-Token Prediction (MTP)</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-48-i89"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-48-i89-15">Step 5.48 — Multi-Token Prediction (MTP)</h3>
+<p><em>Plan node: A3 · chat order #89</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a> · <a href="#les-step-2-5-i25">Step 2.5 — Putting the Decoding Strategies Together</a></p>
+</blockquote>
+<p>We now move from <strong>how the DeepSeek model is computed and distributed</strong> to <strong>what the model is trained to predict</strong>.</p>
+<p>This distinction is important:</p>
+<div class="math block">
+\boxed{\text{MoE / MLA / DualPipe}}
+</div>
+<p>mainly determine <strong>how the model is built and executed</strong>.</p>
+<p>MTP changes the <strong>training objective</strong> itself.</p>
+<p>The source introduces MTP by first asking a very simple question:</p>
+<blockquote>
+<p>Why train the model to predict only one future token when we already have information about many future tokens?</p>
+</blockquote>
+<p>The chapter explicitly presents MTP as a change from ordinary single next-token prediction to predicting a horizon of future tokens. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-16">5.48.1 First, understand ordinary next-token prediction</h4>
+<p>Suppose our training sequence is:</p>
+<div class="math block">
+[\text{Artificial},\text{Intelligence},\text{is},\text{transforming},\text{the},\text{world}]
+</div>
+<p>The ordinary language-model objective is:</p>
+<div class="math block">
+\boxed{
+x_t\rightarrow x_{t+1}
+}
+</div>
+<p>So the training pairs are conceptually:</p>
+<div class="math block">
+\text{Artificial}\rightarrow\text{Intelligence}
+</div>
+<div class="math block">
+\text{Intelligence}\rightarrow\text{is}
+</div>
+<div class="math block">
+\text{is}\rightarrow\text{transforming}
+</div>
+<div class="math block">
+\text{transforming}\rightarrow\text{the}
+</div>
+<div class="math block">
+\text{the}\rightarrow\text{world}.
+</div>
+<p>More generally:</p>
+<div class="math block">
+\boxed{
+P(x_{t+1}\mid x_{\le t})
+}
+</div>
+<p>is the probability distribution the model learns.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-17">5.48.2 What does the Transformer actually produce?</h4>
+<p>Let:</p>
+<div class="math block">
+X=[x_1,x_2,\ldots,x_S]
+</div>
+<p>be the token sequence.</p>
+<p>After passing through the shared Transformer trunk, we get hidden states:</p>
+<div class="math block">
+H=
+[h_1,h_2,\ldots,h_S].
+</div>
+<p>If the hidden dimension is <span class="math inline">D</span>, then:</p>
+<div class="math block">
+\boxed{
+H\in\mathbb{R}^{S\times D}
+}
+</div>
+<p>for one sequence.</p>
+<p>For a batch:</p>
+<div class="math block">
+\boxed{
+H\in\mathbb{R}^{B\times S\times D}.
+}
+</div>
+<p>The ordinary language model uses every hidden state to predict the <strong>immediately following token</strong>.</p>
+<p>So:</p>
+<div class="math block">
+h_t
+\rightarrow
+\text{logits for }x_{t+1}.
+</div>
+<p>If vocabulary size is <span class="math inline">V</span>:</p>
+<div class="math block">
+W_U\in\mathbb{R}^{D\times V}
+</div>
+<p>and:</p>
+<div class="math block">
+z_t=h_tW_U.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z_t\in\mathbb{R}^{V}.
+</div>
+<p>Then:</p>
+<div class="math block">
+p_t=\operatorname{softmax}(z_t).
+</div>
+<p>This gives:</p>
+<div class="math block">
+P(x_{t+1}\mid x_{\le t}).
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-18">5.48.3 The limitation</h4>
+<p>Suppose the model sees:</p>
+<div class="math block">
+\text{Artificial Intelligence is}
+</div>
+<p>and the true continuation is:</p>
+<div class="math block">
+\text{transforming the world}.
+</div>
+<p>Standard next-token prediction asks only:</p>
+<div class="math block">
+\boxed{
+\text{What is the next token?}
+}
+</div>
+<p>so it primarily trains:</p>
+<div class="math block">
+\text{is}\rightarrow\text{transforming}.
+</div>
+<p>The source points out that the learning horizon is therefore only one step into the future at each position. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-19">5.48.4 MTP changes the question</h4>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{
+x_t\rightarrow x_{t+1}
+}
+</div>
+<p>MTP asks:</p>
+<div class="math block">
+\boxed{
+x_t
+\rightarrow
+x_{t+1},x_{t+2},\ldots,x_{t+K}
+}
+</div>
+<p>where <span class="math inline">K</span> is the prediction depth/horizon.</p>
+<p>For example, with:</p>
+<div class="math block">
+K=3
+</div>
+<p>and current token:</p>
+<div class="math block">
+\text{is},
+</div>
+<p>the model is trained to predict:</p>
+<div class="math block">
+\boxed{
+\text{transforming},\text{the},\text{world}
+}.
+</div>
+<p>This exact style of example is used in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-20">5.48.5 Think about what information the model receives</h4>
+<p>Suppose:</p>
+<pre><code class="language-text">Artificial  Intelligence  is  transforming  the  world
+     ↑            ↑       ↑
+</code></pre>
+<p>At position <span class="math inline">t=\text{&quot;is&quot;}</span>, standard NTP asks:</p>
+<pre><code class="language-text">&quot;is&quot; → transforming
+</code></pre>
+<p>MTP asks:</p>
+<pre><code class="language-text">&quot;is&quot; → transforming
+       → the
+       → world
+</code></pre>
+<p>So a single hidden representation is now associated with multiple future prediction tasks.</p>
+<p>That is the fundamental idea.</p>
+<div class="math block">
+\boxed{
+\text{One position}
+\rightarrow
+\text{multiple future targets}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-21">5.48.6 Why does this create a richer learning signal?</h4>
+<p>This is one of the source's four major advantages of MTP.</p>
+<p>Suppose the sequence is:</p>
+<div class="math block">
+1\rightarrow2\rightarrow3\rightarrow4\rightarrow5\rightarrow A\rightarrow B.
+</div>
+<p>The source uses a crucial transition:</p>
+<div class="math block">
+\boxed{5\rightarrow A}
+</div>
+<p>where the pattern suddenly changes from numbers to letters.</p>
+<p>Now consider training from token <span class="math inline">3</span>.</p>
+<p>With prediction depth:</p>
+<div class="math block">
+K=3,
+</div>
+<p>the targets are:</p>
+<div class="math block">
+4,5,A.
+</div>
+<p>From token <span class="math inline">4</span>:</p>
+<div class="math block">
+5,A,B.
+</div>
+<p>From token <span class="math inline">5</span>:</p>
+<div class="math block">
+A,B,C.
+</div>
+<p>Therefore the prediction error for <span class="math inline">A</span> appears multiple times in the overall training objective. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-22">5.48.7 Why is that important?</h4>
+<p>Because <span class="math inline">A</span> is not an ordinary transition.</p>
+<p>It is a:</p>
+<div class="math block">
+\boxed{\text{choice point}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{pattern-shifting token}}.
+</div>
+<p>MTP causes its consequences to influence several prediction positions.</p>
+<p>So the model gets stronger pressure to represent the information needed to anticipate that transition.</p>
+<p>The source interprets this as an implicit increase in the training importance of these critical choice points. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-23">5.48.8 A simple visualization</h4>
+<p>Ordinary next-token prediction:</p>
+<pre><code class="language-text">h_t
+ │
+ ▼
+x_(t+1)
+</code></pre>
+<p>MTP:</p>
+<pre><code class="language-text">             ┌──► x_(t+1)
+h_t ─────────┼──► x_(t+2)
+             └──► x_(t+3)
+</code></pre>
+<p>At this stage, this is the <strong>conceptual</strong> picture.</p>
+<p>Later we will see that DeepSeek does something more sophisticated than simply attaching three independent heads.</p>
+<p>That distinction is extremely important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-24">5.48.9 The total MTP loss</h4>
+<p>Suppose there are <span class="math inline">K</span> prediction depths.</p>
+<p>Let:</p>
+<div class="math block">
+\mathcal L_k
+</div>
+<p>be the cross-entropy loss for prediction depth <span class="math inline">k</span>.</p>
+<p>Then the natural multi-token objective is an aggregation of these losses.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\mathcal L_{\text{MTP}}
+=
+\frac{1}{K}
+\sum_{k=1}^{K}\mathcal L_k
+}
+</div>
+<p>when using a simple average.</p>
+<p>The exact implementation can specify its own weighting/scaling, so this equation should be understood as the basic conceptual form unless the source explicitly gives a different implementation formula.</p>
+<p>The key point is:</p>
+<div class="math block">
+\boxed{
+\text{one loss}
+\rightarrow
+\text{multiple future-token losses}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-25">5.48.10 Concrete numerical example</h4>
+<p>Suppose the model predicts three future tokens.</p>
+<p>For one training position:</p>
+<div class="math block">
+\mathcal L_1=0.20
+</div>
+<div class="math block">
+\mathcal L_2=0.50
+</div>
+<div class="math block">
+\mathcal L_3=0.80.
+</div>
+<p>Using a simple average:</p>
+<div class="math block">
+\mathcal L_{\text{MTP}}
+=
+\frac{0.20+0.50+0.80}{3}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\mathcal L_{\text{MTP}}
+=
+\frac{1.50}{3}
+=
+\boxed{0.50}.
+</div>
+<p>Compare that with ordinary next-token training, which would only use:</p>
+<div class="math block">
+\boxed{0.20}.
+</div>
+<p>The MTP setup is receiving training signal from all three prediction horizons.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-26">5.48.11 Another way to see the difference</h4>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-27">Standard objective</h6>
+<div class="math block">
+\boxed{
+\mathcal L_{\text{NTP}}
+=
+-\sum_t
+\log P(x_{t+1}\mid x_{\le t})
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-28">MTP conceptual objective</h6>
+<div class="math block">
+\boxed{
+\mathcal L_{\text{MTP}}
+=
+-\sum_t
+\sum_{k=1}^{K}
+w_k
+\log P(x_{t+k}\mid x_{\le t})
+}
+</div>
+<p>where:</p>
+<div class="math block">
+w_k
+</div>
+<p>controls how the losses from different horizons are weighted.</p>
+<p>This equation is useful for understanding the mechanism:</p>
+<ul>
+<li><span class="math inline">t</span>: starting position,</li>
+<li><span class="math inline">k</span>: how far into the future we predict,</li>
+<li><span class="math inline">x_{t+k}</span>: future target,</li>
+<li><span class="math inline">w_k</span>: loss weight,</li>
+<li><span class="math inline">K</span>: prediction horizon.</li>
+</ul>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-29">5.48.12 Tensor-shape numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=2
+</div>
+<div class="math block">
+S=8
+</div>
+<div class="math block">
+D=512
+</div>
+<div class="math block">
+V=50,000
+</div>
+<p>and:</p>
+<div class="math block">
+K=3.
+</div>
+<p>The shared Transformer produces:</p>
+<div class="math block">
+H\in\mathbb R^{2\times8\times512}.
+</div>
+<p>For a prediction head producing vocabulary logits, the output is conceptually:</p>
+<div class="math block">
+\boxed{
+2\times8\times50,000
+}
+</div>
+<p>for each prediction depth.</p>
+<p>With <span class="math inline">K=3</span> independent prediction outputs, that could be viewed conceptually as:</p>
+<div class="math block">
+3\times2\times8\times50,000.
+</div>
+<p>But be careful:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek does not simply implement MTP as three completely independent heads.}
+}
+</div>
+<p>That is where the next layer of the concept begins.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-30">5.48.13 Original MTP idea vs DeepSeek's version</h4>
+<p>The source makes an important comparison.</p>
+<p>The original Meta MTP approach explored <strong>independent output heads</strong>.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                  shared hidden state
+                         │
+             ┌───────────┼───────────┐
+             ▼           ▼           ▼
+           Head 1      Head 2      Head 3
+             │           │           │
+            t+1         t+2         t+3
+</code></pre>
+<p>The prediction at:</p>
+<div class="math block">
+t+2
+</div>
+<p>does not necessarily depend on what Head 1 predicted.</p>
+<p>DeepSeek changes this.</p>
+<p>Its MTP modules are:</p>
+<div class="math block">
+\boxed{\text{causally chained}}.
+</div>
+<p>The source explicitly emphasizes that the refined hidden state from one module becomes the input to the next. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-31">5.48.14 This is the key insight of DeepSeek MTP</h4>
+<p>Instead of:</p>
+<div class="math block">
+h_t
+\rightarrow
+\begin{cases}
+\text{prediction }t+1\\
+\text{prediction }t+2\\
+\text{prediction }t+3
+\end{cases}
+</div>
+<p>DeepSeek creates:</p>
+<div class="math block">
+h_t
+\rightarrow
+\boxed{\text{MTP}_1}
+\rightarrow
+h_t^{(1)}
+\rightarrow
+\boxed{\text{MTP}_2}
+\rightarrow
+h_t^{(2)}
+\rightarrow
+\boxed{\text{MTP}_3}.
+</div>
+<p>And each stage makes another future prediction.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{future prediction depth becomes a causal chain}
+}.
+</div>
+<p>The source calls this <strong>cascaded latent refinement</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-32">5.48.15 Why call it “causal”?</h4>
+<p>Because the later prediction is informed by the earlier stage.</p>
+<p>Conceptually:</p>
+<div class="math block">
+P(x_{t+2})
+</div>
+<p>is not produced independently of the first prediction stage.</p>
+<p>Instead the hidden representation has already been refined by the earlier MTP module.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{prediction at depth 2}
+\leftarrow
+\text{refined state from depth 1}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{prediction at depth 3}
+\leftarrow
+\text{refined state from depth 2}.
+}
+</div>
+<p>This is the structural distinction between simple multi-head prediction and DeepSeek's causal MTP design.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-33">5.48.16 One-token example</h4>
+<p>Suppose:</p>
+<div class="math block">
+h^{(0)}
+=
+\text{hidden state for token }t.
+</div>
+<p>MTP module 1 transforms it:</p>
+<div class="math block">
+h^{(1)}
+=
+M_1(h^{(0)},\text{embedding information})
+</div>
+<p>and predicts:</p>
+<div class="math block">
+x_{t+1}.
+</div>
+<p>Then:</p>
+<div class="math block">
+h^{(1)}
+\rightarrow M_2
+</div>
+<p>produces:</p>
+<div class="math block">
+h^{(2)}
+</div>
+<p>and predicts:</p>
+<div class="math block">
+x_{t+2}.
+</div>
+<p>Then:</p>
+<div class="math block">
+h^{(2)}
+\rightarrow M_3
+</div>
+<p>produces:</p>
+<div class="math block">
+h^{(3)}
+</div>
+<p>and predicts:</p>
+<div class="math block">
+x_{t+3}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+h^{(0)}
+\rightarrow
+h^{(1)}
+\rightarrow
+h^{(2)}
+\rightarrow
+h^{(3)}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+h^{(1)}\rightarrow x_{t+1}
+}
+</div>
+<div class="math block">
+\boxed{
+h^{(2)}\rightarrow x_{t+2}
+}
+</div>
+<div class="math block">
+\boxed{
+h^{(3)}\rightarrow x_{t+3}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-34">5.48.17 One subtle but critical point</h4>
+<p>The model isn't literally required to generate:</p>
+<div class="math block">
+x_{t+1}
+</div>
+<p>first as a discrete sampled token and then feed that sampled token into the next MTP module during training.</p>
+<p>Instead, the architecture uses hidden-state refinement.</p>
+<p>That distinction matters because:</p>
+<div class="math block">
+\boxed{
+\text{discrete sampled token}
+\neq
+\text{differentiable hidden representation}.
+}
+</div>
+<p>The source's description is centered on passing the <strong>refined hidden state</strong> from one MTP module to the next. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-35">5.48.18 Why MTP is useful for training</h4>
+<p>The source identifies four major advantages.</p>
+<p>We have just covered the first:</p>
+<div class="math block">
+\boxed{\text{1. Densification of training signals}}
+</div>
+<p>which leads into:</p>
+<div class="math block">
+\boxed{\text{2. Improved data efficiency}}.
+</div>
+<p>The source explains that each training example carries information about multiple future relationships, so the same data can provide a richer learning signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The remaining ideas are:</p>
+<div class="math block">
+\boxed{\text{3. Better handling of critical choice points / planning}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{4. Potential inference acceleration through speculative decoding}}.
+</div>
+<p>We will treat each carefully rather than collapsing them into one statement.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-36">5.48.19 Exam numerical — identify the number of targets</h4>
+<p>Suppose a sequence has:</p>
+<div class="math block">
+S=10
+</div>
+<p>tokens and:</p>
+<div class="math block">
+K=3.
+</div>
+<p>For the token at position <span class="math inline">t=5</span>, the MTP targets are:</p>
+<div class="math block">
+x_6,\;x_7,\;x_8.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{3\text{ future targets}}.
+</div>
+<p>For position <span class="math inline">t=8</span>, however, only:</p>
+<div class="math block">
+x_9,x_{10}
+</div>
+<p>exist in the sequence.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{MTP training must handle sequence boundaries.}
+}
+</div>
+<p>This is one reason implementation details matter.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-37">5.48.20 Boundary intuition</h4>
+<p>For:</p>
+<div class="math block">
+[x_1,x_2,x_3,x_4,x_5]
+</div>
+<p>and:</p>
+<div class="math block">
+K=3,
+</div>
+<p>the available targets are:</p>
+<pre><code class="language-text">Position 1 → x2, x3, x4
+Position 2 → x3, x4, x5
+Position 3 → x4, x5, ?
+Position 4 → x5, ?, ?
+Position 5 → ?, ?, ?
+</code></pre>
+<p>The <code>?</code> positions do not have valid future targets.</p>
+<p>So an implementation needs masking/valid-position handling when calculating the MTP loss.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-38">5.48.21 The big picture so far</h4>
+<p>Standard Transformer training:</p>
+<div class="math block">
+\boxed{
+H
+\rightarrow
+\text{one-step prediction}
+}
+</div>
+<p>MTP:</p>
+<div class="math block">
+\boxed{
+H
+\rightarrow
+\text{multiple future predictions}
+}
+</div>
+<p>DeepSeek MTP specifically:</p>
+<div class="math block">
+\boxed{
+h^{(0)}
+\rightarrow
+MTP_1
+\rightarrow
+h^{(1)}
+\rightarrow
+MTP_2
+\rightarrow
+h^{(2)}
+\rightarrow\cdots
+}
+</div>
+<p>with a shared final unembedding mechanism used for the predictions, as described later in the source's MTP walkthrough. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the conceptual chain is:</p>
+<div class="math block">
+\boxed{
+\text{More future targets}
+\rightarrow
+\text{denser gradients}
+\rightarrow
+\text{richer representations}
+\rightarrow
+\text{better long-range forecasting}
+}
+</div>
+<p>according to the source's framing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-39">5.48.22 What you should be able to answer now</h4>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-40">Question 1</h6>
+<p>What is the difference between NTP and MTP?</p>
+<div class="math block">
+\boxed{
+NTP:x_t\rightarrow x_{t+1}
+}
+</div>
+<div class="math block">
+\boxed{
+MTP:x_t\rightarrow x_{t+1},...,x_{t+K}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-41">Question 2</h6>
+<p>Why does MTP densify the training signal?</p>
+<p>Because one position contributes losses for several future targets instead of only one.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-42">Question 3</h6>
+<p>What is special about DeepSeek's implementation?</p>
+<div class="math block">
+\boxed{
+\text{MTP modules are causally chained}
+}
+</div>
+<p>rather than being completely independent prediction heads. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-43">Question 4</h6>
+<p>What does the later MTP module receive?</p>
+<div class="math block">
+\boxed{
+\text{the refined hidden representation from the previous MTP stage}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-i89-44">Question 5</h6>
+<p>What is <span class="math inline">K</span>?</p>
+<div class="math block">
+\boxed{
+K=\text{future prediction depth/horizon}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-i89-45">Step 5.48.23 The one diagram to remember</h4>
+<pre><code class="language-text">                    Shared Transformer
+                           │
+                           ▼
+                     h^(0) for token t
+                           │
+                           ▼
+                      ┌──────────┐
+                      │   MTP 1  │
+                      └────┬─────┘
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+                  ▼                 ▼
+             h^(1)             predict x(t+1)
+                  │
+                  ▼
+                      ┌──────────┐
+                      │   MTP 2  │
+                      └────┬─────┘
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+                  ▼                 ▼
+             h^(2)             predict x(t+2)
+                  │
+                  ▼
+                      ┌──────────┐
+                      │   MTP 3  │
+                      └────┬─────┘
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+                  ▼                 ▼
+             h^(3)             predict x(t+3)
+</code></pre>
+<p>This is the conceptual architecture we will unpack mathematically next. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-48-i89-46">Step 5.48 checkpoint</h5>
+<p>At this point, the hierarchy is:</p>
+<div class="math block">
+\boxed{
+\text{NTP}
+\rightarrow
+\text{MTP}
+\rightarrow
+\text{DeepSeek causal MTP}
+}
+</div>
+<p>and the central difference is:</p>
+<div class="math block">
+\boxed{
+\text{one-step target}
+\quad\longrightarrow\quad
+\text{multi-step causal forecasting}.
+}
+</div>
+<hr />
+</section>

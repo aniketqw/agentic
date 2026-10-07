@@ -1,0 +1,114 @@
+"""Independent root-bridge references; each aggregate test states its scope."""
+import json,hashlib,math,struct,sys
+from decimal import Decimal,localcontext
+from pathlib import Path
+import numpy as np
+import bridge_examples as B
+
+ROOT=Path(__file__).resolve().parent;checks=[]
+def test(name,actual,expected,method,atol=1e-10):
+    a=np.asarray(actual);b=np.asarray(expected)
+    ok=a.shape==b.shape and np.allclose(a,b,atol=atol,rtol=1e-9)
+    checks.append({'check_id':name,'method':method,'status':'passed' if ok else 'failed','entries_compared':int(a.size),'max_absolute_error':float(np.max(np.abs(a.astype(float)-b.astype(float)))) if a.shape==b.shape and a.size else None})
+    if not ok:print('FAILED',name,a,b,file=sys.stderr)
+def reject(name,call):
+    try:call()
+    except ValueError:ok=True
+    else:ok=False
+    checks.append({'check_id':name,'method':'declared invalid-input rejection','status':'passed' if ok else 'failed'})
+
+def run():
+    # Exhaustive comparison against an independent C-backed IEEE decoder.
+    mismatch=[]
+    for bits in range(65536):
+        actual=B.float16_decode(bits);ref=struct.unpack('>e',bits.to_bytes(2,'big'))[0]
+        if math.isnan(ref):ok=math.isnan(actual)
+        elif ref==0:ok=actual==0 and math.copysign(1,actual)==math.copysign(1,ref)
+        else:ok=actual==ref
+        if not ok:mismatch.append(bits)
+    test('fp16_all_65536_encodings',len(mismatch),0,'struct.unpack binary16 reference, including NaNs/infinities/signed zero',0)
+    test('fp16_pi',B.float16_decode((16<<10)|int('1001001000',2)),3.140625,'manual binary fraction sum',0)
+    test('fp16_subnormal_spacing',B.float16_decode(37)-B.float16_decode(36),2**-24,'subnormal integer lattice',0)
+    test('fp16_largest_finite',B.float16_decode(0x7bff),65504,'(2−2^-10)*2^15',0)
+    test('min_p_peaked',B.filter_distribution([.8,.07,.05,.04,.03,.01],.1,'min_p')[0],[0],'manual peak .8 cutoff .08',0)
+    test('min_p_flat',B.filter_distribution([.22,.2,.18,.16,.14,.1],.1,'min_p')[0],range(6),'manual cutoff .022',0)
+    test('min_p_tied_maxima',B.filter_distribution([.5,.5],1,'min_p')[1],[.5,.5],'equality retention; tied maxima',0)
+    test('typical_selection',B.filter_distribution([.5,.3,.15,.05],.5,'typical')[0],[1,0],'entropy/surprise ordering independently calculated',0)
+    test('typical_renormalize',B.filter_distribution([.5,.3,.15,.05],.5,'typical')[1],[.625,.375,0,0],'retained mass .8')
+    test('repetition_sign',B.repetition_penalty([2,-2,1],[0,1,1],2),[1,-4,1],'manual sign-aware suppression',0)
+    hidden=np.array([[.95,math.sqrt(1-.95**2)],[.1,math.sqrt(1-.1**2)]]);context=np.array([[1.,0.]])
+    choice,scores,cos=B.contrastive_candidate([.6,.4],hidden,context,.5)
+    test('contrastive_real_cosines',cos[:,0],[.95,.1],'scalar dot/norm reference')
+    test('contrastive_scores',scores,[-.175,.15],'(1−alpha)*p−alpha*cosine')
+    test('contrastive_choice',choice,1,'larger scalar score',0)
+    acc,real,qout=B.quantized_dot([10,-2],[4,5],.02,.05,.01)
+    test('integer_dot_accumulator',acc,30,'explicit 10*4+(−2)*5',0)
+    test('integer_dot_real_units',real,.03,'Decimal product of step units')
+    test('integer_dot_requantize',qout,3,'real/output step and nearest-even',0)
+    err,cost=B.compensate_fixed_coordinate([[1,.9],[.9,1]],0,.1)
+    test('gptq_compensation',err,[.1,-.09],'derivative gives e2=−H21*e1/H22')
+    test('gptq_compensated_cost',cost,.0019,'manual scalar quadratic')
+    _,before=B.compensate_fixed_coordinate([[100,0],[0,1]],0,.1)
+    test('gptq_source_error_reduction',(151.4-71.8)/151.4*100,52.57595772787319,'Decimal-compatible arithmetic from slide scores')
+    theta=np.array([.2,-.4,.9]);teacher=np.array([.56,.14,.09,.21]);loss,gradient,paths=B.sequence_reverse_kl(theta,teacher)
+    refg=[];h=1e-5
+    for i in range(3):
+        plus=theta.copy();minus=theta.copy();plus[i]+=h;minus[i]-=h
+        refg.append((B.sequence_reverse_kl(plus,teacher)[0]-B.sequence_reverse_kl(minus,teacher)[0])/(2*h))
+    test('two_token_full_reverse_kl_gradient',gradient,refg,'central finite differences of exact path distribution',1e-8)
+    with localcontext() as c:
+        c.prec=60;reference=sum(Decimal(str(q))*(Decimal(str(q))/Decimal(str(p))).ln() for q,p in zip(paths,teacher))
+    test('two_token_reverse_kl_value',loss,float(reference),'Decimal precision 60')
+    test('two_token_path_normalization',paths.sum(),1,'all four enumerated leaves')
+    test('sequence_kl_all_eight_updates_decrease',np.diff(B.demonstration()['sequence_reverse_kl_losses'])<0,[True]*8,'eight actual gradient steps on the declared full-support sequence model',0)
+    test('importance_exact',B.importance_expectation([.8,.2],[.5,.5],[2,-1])[0],1.4,'independent target expectation .8*2+.2*(−1)')
+    test('importance_weights',B.importance_expectation([.8,.2],[.5,.5],[2,-1])[1],[1.6,.4],'manual target/proposal ratios')
+    k3,expected,exact=B.expected_k3([.8,.2],[.5,.5])
+    test('k3_expected_value',expected,exact,'student-weighted full support enumeration')
+    test('k3_nonnegative',k3>=0,[True,True],'expm1(t)−t ≥0',0)
+    test('sample_log_ratio_can_be_negative',math.log(.2/.5)<0,True,'individual reference-more-likely outcome',0)
+    confidences=[.9]*10+[.7]*10;correct=[True]*8+[False]*2+[True]*5+[False]*5
+    calibration,bins=B.ece(confidences,correct,(0,.8,1))
+    test('ece_two_bins',calibration,.15,'.5*abs(.8−.9)+.5*abs(.5−.7)')
+    test('ece_bin_counts',[x['count'] for x in bins],[10,10],'explicit bin membership',0)
+    test('distinct4_corpus',B.distinct_n([['a','b','c','d','a'],['a','b','c','d']])[0],2/3,'three within-response 4-grams, two unique')
+    test('distinct4_empty_defined_missing',B.distinct_n([['a']])[0] is None,True,'zero denominator → no defined statistic',0)
+    vote,counts=B.canonical_vote(['1/2','.5','2/4','1/3','garbage'])
+    test('canonical_vote_equivalence',vote=='1/2',True,'Fraction canonical rational equivalence',0)
+    test('canonical_vote_counts',counts['1/2'],3,'three equivalent rational answers',0)
+    test('verifier_selection',B.verified_selection([41,42,43],lambda y:y*y==1764),42,'actual arithmetic verifier, no evaluation-label lookup',0)
+    test('verifier_abstains',B.verified_selection([41,43],lambda y:y*y==1764) is None,True,'no candidate satisfies the equation',0)
+    test('candidate_availability_independent',1-(1-.4)**4,.8704,'enumerated failure complement')
+    test('minillm_ablation_v4_drops',B.demonstration()['minillm_ablation_v4_validation_drops'],[10.,5.1,.4],'version-pinned Table4 row arithmetic')
+    test('deepseek_source_stage_deltas',B.demonstration()['source_stage_deltas'],[25.1,23.4,25.5,16.7],'same-metric point differences')
+    test('indicqa_source_discrepancy',18579-13283-5292,4,'exact integer reconciliation',0)
+    test('v3_reported_gpu_cost',(2664+119+5)*1000*2,5576000,'GPU-hours × stated dollar/hour; excludes research cost',0)
+    test('group_zero_variance',B.group_advantages([0,0,0,0]),[0,0,0,0],'zero centered numerator with positive epsilon',0)
+    test('group_population_normalization',B.group_advantages([1,1,0,0]),[1,1,-1,-1],'population mean.5,std.5',1e-7)
+    test('group_constant_bonus_cancels',B.group_advantages([3,3,3,3]),[0,0,0,0],'constant bonus cancels in centering',0)
+    test('future_only_endpoint',B.future_only_averages([-.2,-.6,-.4]),[-.5,-.4,0],'actual counts2,1,0; empty future assigned zero')
+    test('mirostat_feedback_high',B.mirostat_feedback(8,6,4,.1),7.8,'controller8−.1*(6−4)')
+    test('mirostat_feedback_low',B.mirostat_feedback(8,2,4,.1),8.2,'controller8−.1*(2−4)')
+    test('forward_kl_slide16',B.kl_divergence([.7,.25,.05],[.4,.4,.2]),.2049154261873674,'independent source vector scalar sum')
+    test('reverse_kl_slide16',B.kl_divergence([.4,.4,.2],[.7,.25,.05]),.2414140087481032,'independent reversed source vector scalar sum')
+    test('forward_kl_zero_support',math.isinf(B.kl_divergence([.5,.5],[1,0])),True,'positive target mass on model zero produces infinite KL',0)
+    for name,call in [
+      ('invalid_filter_mass',lambda:B.filter_distribution([.5,.5],0,'typical')),
+      ('invalid_probabilities',lambda:B.filter_distribution([.4,.4],.5,'min_p')),
+      ('invalid_repetition',lambda:B.repetition_penalty([1],[0],0)),
+      ('zero_cosine',lambda:B.contrastive_candidate([1],[[0,0]],[[1,0]])),
+      ('negative_float_bits',lambda:B.float16_decode(-1)),
+      ('bad_scale',lambda:B.quantized_dot([1],[1],0,1)),
+      ('singular_hessian',lambda:B.compensate_fixed_coordinate([[1,1],[1,1]],0,.1)),
+      ('teacher_zero_support',lambda:B.sequence_reverse_kl(theta,[1,0,0,0])),
+      ('importance_missing_support',lambda:B.importance_expectation([.8,.2],[1,0],[2,-1])),
+      ('k3_zero_reference',lambda:B.expected_k3([.5,.5],[1,0])),
+      ('no_valid_vote',lambda:B.canonical_vote(['garbage','1/0']))]:reject(name,call)
+    report={'passed':sum(x['status']=='passed' for x in checks),'failed':sum(x['status']=='failed' for x in checks),'checks':checks,
+       'scope':'CPU mathematical teaching fixtures, finite support/bit exhaustive checks. No full MiniLLM/GRPO/R1 training or production decoding benchmark execution.',
+       'companion_sha256':hashlib.sha256((ROOT/'bridge_examples.py').read_bytes()).hexdigest(),'fp16_encodings_compared':65536}
+    (ROOT/'evidence.json').write_text(json.dumps(report,indent=2)+'\n');(ROOT/'outputs.json').write_text(json.dumps(B.demonstration(),indent=2)+'\n')
+    print(json.dumps({k:v for k,v in report.items() if k!='checks'},indent=2))
+    if report['failed']:raise SystemExit(1)
+
+if __name__=='__main__':run()

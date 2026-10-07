@@ -1,0 +1,1072 @@
+<section class="chunk" id="chunk-les-step-1-7-i14" data-id="les-step-1-7-i14"><details class="audit-card" id="audit-full-chunk-les-step-1-7-i14" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-7-i14-1">Motivation</h4><p>Prevent future-target leakage while computing known training sequences in parallel.</p><h4 id="v3-heading-chunk-les-step-1-7-i14-2">Prerequisites</h4><ul><li>Scaled dot products</li><li>Softmax support</li><li>Shifted next-token targets</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-3">Notation and units</h4><ul><li>M_ij=0 if j&lt;=i else -infinity</li><li>i=query index, j=key index</li><li>Positions in displayed questions are 1-based unless otherwise stated</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-4">Assumptions</h4><ul><li>Each query has at least one allowed key</li><li>Diagonal input token is permitted because it predicts the following target</li><li>Padding mask is additional</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-5">Step-by-step derivation</h4><ol><li>Construct the triangular eligibility set {j: j&lt;=i}. Scores on future entries receive negative infinity before softmax.</li><li>Since exp(-infinity)=0, future entries contribute zero to numerator and normalizer; allowed keys alone sum to one.</li><li>Zeroing coefficients only after softmax loses total mass unless renormalized; setting forbidden raw scores to zero before softmax wrongly gives exp(0)=1.</li><li>For Q=K=[[1,0],[0,1],[1,1]], scores before scaling are [[1,0,1],[0,1,1],[1,1,2]]. Apply sqrt(2), mask, then compute row distributions.</li><li>With V=[[1,0],[0,2],[3,1]], row 1 output [1,0]; row 2 weights [.3302384507,.6697615493,0] give [.3302384507,1.3395230987]; row 3 coefficients [.2482550783,.2482550783,.5034898434] give [1.7587246087,1].</li><li>Changing a future token must leave earlier causal outputs invariant in every correctly masked block; the prior two-block decoder checks this experimentally.</li></ol><h4 id="v3-heading-chunk-les-step-1-7-i14-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-7-i14-7">causal_output</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Construct the triangular eligibility set {j: j&lt;=i}. Scores on future entries receive negative infinity before softmax.</li><li>Since exp(-infinity)=0, future entries contribute zero to numerator and normalizer; allowed keys alone sum to one.</li><li>Zeroing coefficients only after softmax loses total mass unless renormalized; setting forbidden raw scores to zero before softmax wrongly gives exp(0)=1.</li><li>For Q=K=[[1,0],[0,1],[1,1]], scores before scaling are [[1,0,1],[0,1,1],[1,1,2]]. Apply sqrt(2), mask, then compute row distributions.</li><li>With V=[[1,0],[0,2],[3,1]], row 1 output [1,0]; row 2 weights [.3302384507,.6697615493,0] give [.3302384507,1.3395230987]; row 3 coefficients [.2482550783,.2482550783,.5034898434] give [1.7587246087,1].</li><li>Changing a future token must leave earlier causal outputs invariant in every correctly masked block; the prior two-block decoder checks this experimentally.</li></ol><p>Answer: 1.0; 0.0; 0.3302384506733431; 1.3395230986533138; 1.7587246087113846; 1.0</p><p>Verification: foundations_decoding / causal_output · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-7-i14-8">causal_forbidden</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Construct the triangular eligibility set {j: j&lt;=i}. Scores on future entries receive negative infinity before softmax.</li><li>Since exp(-infinity)=0, future entries contribute zero to numerator and normalizer; allowed keys alone sum to one.</li><li>Zeroing coefficients only after softmax loses total mass unless renormalized; setting forbidden raw scores to zero before softmax wrongly gives exp(0)=1.</li><li>For Q=K=[[1,0],[0,1],[1,1]], scores before scaling are [[1,0,1],[0,1,1],[1,1,2]]. Apply sqrt(2), mask, then compute row distributions.</li><li>With V=[[1,0],[0,2],[3,1]], row 1 output [1,0]; row 2 weights [.3302384507,.6697615493,0] give [.3302384507,1.3395230987]; row 3 coefficients [.2482550783,.2482550783,.5034898434] give [1.7587246087,1].</li><li>Changing a future token must leave earlier causal outputs invariant in every correctly masked block; the prior two-block decoder checks this experimentally.</li></ol><p>Answer: 0.0; 0.0; 0.0</p><p>Verification: foundations_decoding / causal_forbidden · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-1-7-i14-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-10">Mastery answers and retained exercise context</h4><ol><li>Q1: rows [0,-inf,-inf,-inf,-inf]; [0,0,-inf,-inf,-inf]; [0,0,0,-inf,-inf]; [0,0,0,0,-inf]; [0,0,0,0,0].</li><li>Q2: these are future keys relative to the prediction context.</li><li>Q3: their exponential contributes no probability or denominator mass.</li><li>Q4: normalize only permitted keys.</li><li>Q5: current input predicts the following token; reading itself does not reveal that target.</li><li>Q6: keys 1,2,3,4 under 1-based numbering.</li><li>Q7: all known inputs compute simultaneously with future paths blocked.</li><li>Q8: unrestricted self-attention reads all inputs; causal reads prefixes.</li><li>Q9: position feature representation versus source eligibility.</li><li>Q10: QK^T/sqrt(d_k)+M.</li></ol><h4 id="v3-heading-chunk-les-step-1-7-i14-11">Edge cases and remaining gaps</h4><ul><li>All-masked rows have no normalized distribution; reject rather than hide NaNs.</li><li>A finite negative sentinel can be insufficient when scores are large, and numerical dtype influences underflow.</li><li>Cache query/key lengths can differ: align absolute positions instead of applying a naive square triangle.</li><li>The mask restricts access but does not enforce factual validity or remove PAD without a padding mask.</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-12">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-13">Exact source support</h4><ul><li>Understanding_Attention_Handbook_01.pdf · physical PDF pages 10, 11, 12, 13 · causal mask and worked attention mechanism</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 185, 186, 187, 188, 189, 190 · causal attention masking</li><li>transformers-slides(1).pdf · physical PDF pages 9, 10 · triangular mask and query/key row convention</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-14">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (75)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.7 — Causal Mask: How a Decoder Prevents Looking Into the Future</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.1 First Understand the Language-Model Objective</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Position t can see itself.</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.2 Imagine Four Tokens</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Query 1: &quot;The&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Query 2: &quot;cat&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Query 3: &quot;is&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Query 4: &quot;sleeping&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.3 Why Does the Matrix Look Lower Triangular?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.4 Why Use -\infty?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.5 The Complete Causal-Attention Equation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.6 Let&#x27;s Do the Entire Example Numerically</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.7 Scale It</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.8 Add the Causal Mask</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.9 Apply Softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.10 Now Multiply by V</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Output row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Output row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Output row 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.11 The Most Important Question: Why Can Training Still Be Parallel?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.12 Visualize Training</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.13 But Generation Is Different</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.14 Causal Mask Does NOT Make Generation Parallel</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.15 A Second Important Distinction: Causal Mask vs Positional Encoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Positional information</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Causal mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.16 Causal Mask vs Padding Mask</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Causal mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Padding mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.17 What Does the Mask Do to Computation?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.18 Why Mask Before Softmax?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.19 Why Can a Position Attend to Itself?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.20 Connect This to Teacher Forcing</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.21 The Matrix Makes the Whole Idea Obvious</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.22 Code Version</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>Line 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Line 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Line 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Final multiplication</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.23 One Crucial Implementation Detail</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>Boolean mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Additive mask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.7.24 The Deepest Conceptual Interpretation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.7.25 Full Decoder Attention Equation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>1.7.26 The Complete Conceptual Pipeline We Have Built</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Compare queries with keys</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Stabilize scale</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Block future</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Normalize</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Transfer information</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Return to residual stream</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 1.7 — Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-T05" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T05 — Causal masks and future-token isolation</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T04">← Previous audit card</a> · <a href="#audit-T06">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-7-i14-15">Why this matters</h4><p>Teacher forcing exposes the whole input window during training, so the architecture must block future-token information.</p><p><strong>Prerequisites:</strong> <a href="#audit-T01">Shifted next-token targets and masked loss</a>, <a href="#audit-T04">Scores to attention weights to output</a></p><h4 id="v3-heading-chunk-les-step-1-7-i14-16">Symbols, shapes and assumptions</h4><p>For square self-attention at position i, allow j≤i and add -∞ for j&gt;i. This is one alignment convention; cached rectangular attention needs explicit absolute-position alignment.</p><h4 id="v3-heading-chunk-les-step-1-7-i14-17">Derivation or mechanism</h4><ol><li>Mask future score entries before softmax.</li><li>The corresponding exponentials become zero.</li><li>After normalization, change a future input and verify earlier outputs remain identical.</li></ol><div class="math block" data-tex="M_{ij}=\begin{cases}0&amp;j\leq i\\-\infty&amp;j&gt;i\end{cases}">M_{ij}=\begin{cases}0&amp;j\leq i\\-\infty&amp;j&gt;i\end{cases}</div><h4 id="v3-heading-chunk-les-step-1-7-i14-18">Worked numerical</h4><p>The first token can attend only to itself, so its output in the slide fixture is exactly its value [2,-1,1]. Changing the last input to [99,-11,24] leaves the first two causal outputs unchanged. The checker repeats this test for a complete toy block.</p><h4 id="v3-heading-chunk-les-step-1-7-i14-19">Edge cases and limits</h4><ul><li>A loss mask alone does not prevent future inputs entering attention.</li><li>Multiplying logits by zero is not the same as masking with -∞.</li><li>Mask conventions differ across APIs; a Boolean mask must be interpreted using the selected function contract.</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-20">Connections</h4><ul><li>T12 checks block-level causality.</li><li>KV-cache alignment is a later, separate audit package.</li></ul><h4 id="v3-heading-chunk-les-step-1-7-i14-21">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 9, 10 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 186, 188, 192, 193 · §3.5</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-7-i14-22">Executable companion and checking evidence</h4><p>Functions: <code>attention</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T05-causality, T05-empty-mask. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-7-i14"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-7-i14" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-6-i13">← Previous lesson</a> · <a href="#chunk-les-step-1-8-i15">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-6-i13">Step 1.6 — Attention Scores → Why Divide by \sqrt{d_k}?</a></p><p><strong>This lesson:</strong> Step 1.7 — Causal Mask: How a Decoder Prevents Looking Into the Future</p><p><strong>Source references:</strong> <a href="#source-13">Understanding_Attention_Handbook_01</a>; <a href="#source-16">NLP_TRANSFORMER</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-7-i14"></a></p>
+<h2>Step 1.7 — Causal Mask: How a Decoder Prevents Looking Into the Future</h2>
+<p><em>Plan node: I1 · chat order #14</em></p>
+<p>We have reached the point where we have:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)V
+}
+</div>
+<p>That is scaled dot-product attention.</p>
+<p>But for a <strong>decoder-only language model</strong>, there is a serious problem.</p>
+<p>Suppose the sequence is:</p>
+<div class="math block">
+\text{The}\quad \text{cat}\quad \text{is}\quad \text{sleeping}
+</div>
+<p>When the model is supposed to learn:</p>
+<div class="math block">
+P(\text{sleeping}\mid \text{The cat is})
+</div>
+<p>the representation at <code>&quot;is&quot;</code> must not be allowed to use <code>&quot;sleeping&quot;</code>.</p>
+<p>Otherwise the model can simply see the answer.</p>
+<p>This is why we introduce the <strong>causal mask</strong>.</p>
+<p>Your attention handbook makes an important distinction:</p>
+<blockquote>
+<p><strong>Self-attention</strong> tells us where Q, K, V come from.
+<strong>Causal attention</strong> tells us which connections are allowed.</p>
+</blockquote>
+<p>So self-attention and causal attention are not synonyms. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-23">1.7.1 First Understand the Language-Model Objective</h3>
+<p>An autoregressive language model factorizes a sequence as:</p>
+<div class="math block">
+\boxed{
+p(x_1,\ldots,x_T)
+=
+\prod_{t=1}^{T}
+p(x_t\mid x_{&lt;t})
+}
+</div>
+<p>The important part is:</p>
+<div class="math block">
+\boxed{
+p(x_t\mid x_1,\ldots,x_{t-1})
+}
+</div>
+<p>The prediction at position <span class="math inline">t</span> may depend on:</p>
+<div class="math block">
+1,2,\ldots,t-1
+</div>
+<p>but not:</p>
+<div class="math block">
+t+1,t+2,\ldots,T.
+</div>
+<p>The handbook explicitly describes causal attention this way: query position <span class="math inline">t</span> can use keys/values from positions <span class="math inline">1,\ldots,t</span>, but not future positions. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>Notice the subtle point:</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-24">Position <span class="math inline">t</span> can see itself.</h5>
+<p>Therefore the allowed positions are:</p>
+<div class="math block">
+1,\ldots,t
+</div>
+<p>not only:</p>
+<div class="math block">
+1,\ldots,t-1.
+</div>
+<p>The &quot;future&quot; being prohibited is strictly:</p>
+<div class="math block">
+j&gt;t.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-25">1.7.2 Imagine Four Tokens</h3>
+<p>Take:</p>
+<div class="math block">
+x_1=\text{The}
+</div>
+<div class="math block">
+x_2=\text{cat}
+</div>
+<div class="math block">
+x_3=\text{is}
+</div>
+<div class="math block">
+x_4=\text{sleeping}
+</div>
+<p>We have four query positions.</p>
+<p>Ask:</p>
+<blockquote>
+<p>What keys may each query use?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-26">Query 1: <code>&quot;The&quot;</code></h5>
+<p>It can use:</p>
+<div class="math block">
+K_1
+</div>
+<p>but not:</p>
+<div class="math block">
+K_2,K_3,K_4.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-27">Query 2: <code>&quot;cat&quot;</code></h5>
+<p>It can use:</p>
+<div class="math block">
+K_1,K_2
+</div>
+<p>but not:</p>
+<div class="math block">
+K_3,K_4.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-28">Query 3: <code>&quot;is&quot;</code></h5>
+<p>It can use:</p>
+<div class="math block">
+K_1,K_2,K_3
+</div>
+<p>but not:</p>
+<div class="math block">
+K_4.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-29">Query 4: <code>&quot;sleeping&quot;</code></h5>
+<p>It can use:</p>
+<div class="math block">
+K_1,K_2,K_3,K_4.
+</div>
+<p>So the allowed pattern is:</p>
+<div class="math block">
+\boxed{
+\begin{bmatrix}
+✓&amp;×&amp;×&amp;×\\
+✓&amp;✓&amp;×&amp;×\\
+✓&amp;✓&amp;✓&amp;×\\
+✓&amp;✓&amp;✓&amp;✓
+\end{bmatrix}
+}
+</div>
+<p>This exact lower-triangular connectivity pattern is given in your attention handbook. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-30">1.7.3 Why Does the Matrix Look Lower Triangular?</h3>
+<p>Remember:</p>
+<div class="math block">
+S_{ij}
+=
+q_i^Tk_j.
+</div>
+<p>Here:</p>
+<ul>
+<li><span class="math inline">i</span> = query position</li>
+<li><span class="math inline">j</span> = key position</li>
+</ul>
+<p>Causality says:</p>
+<div class="math block">
+\boxed{
+j\leq i
+}
+</div>
+<p>is allowed.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+j&gt;i
+}
+</div>
+<p>is forbidden.</p>
+<p>So define the causal mask:</p>
+<div class="math block">
+\boxed{
+M_{ij}
+=
+\begin{cases}
+0,&amp;j\leq i\\
+-\infty,&amp;j&gt;i
+\end{cases}
+}
+</div>
+<p>Thus for four positions:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0&amp;-\infty&amp;-\infty&amp;-\infty\\
+0&amp;0&amp;-\infty&amp;-\infty\\
+0&amp;0&amp;0&amp;-\infty\\
+0&amp;0&amp;0&amp;0
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-31">1.7.4 Why Use <span class="math inline">-\infty</span>?</h3>
+<p>This is the beautiful trick.</p>
+<p>Recall softmax:</p>
+<div class="math block">
+\operatorname{softmax}(s_j)
+=
+\frac{e^{s_j}}
+{\sum_r e^{s_r}}.
+</div>
+<p>Now consider a forbidden score:</p>
+<div class="math block">
+s_j=-\infty.
+</div>
+<p>Then:</p>
+<div class="math block">
+e^{-\infty}=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{forbidden score}
+\rightarrow
+e^{-\infty}=0
+\rightarrow
+\text{attention weight }0
+}
+</div>
+<p>Your NLP with Transformers source explicitly uses exactly this mechanism: replace forbidden entries with negative infinity, and after softmax their attention weights become zero. <em>(Source: NLP_TRANSFORMER)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-32">1.7.5 The Complete Causal-Attention Equation</h3>
+<p>First calculate scaled scores:</p>
+<div class="math block">
+S=
+\frac{QK^T}{\sqrt{d_k}}.
+</div>
+<p>Then add the mask:</p>
+<div class="math block">
+\boxed{
+S_{\text{masked}}
+=
+\frac{QK^T}{\sqrt{d_k}}+M
+}
+</div>
+<p>Then softmax:</p>
+<div class="math block">
+\boxed{
+A=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)
+}
+</div>
+<p>Then aggregate values:</p>
+<div class="math block">
+\boxed{
+O=AV
+}
+</div>
+<p>Therefore causal self-attention is:</p>
+<div class="math block">
+\boxed{
+O=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)V
+}
+</div>
+<p>This is the same scaled-dot-product attention we already learned, with one additional constraint.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-33">1.7.6 Let's Do the Entire Example Numerically</h3>
+<p>The handbook provides this worked example:</p>
+<div class="math block">
+Q=K=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+V=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;2\\
+3&amp;1
+\end{bmatrix}.
+</div>
+<p>Here:</p>
+<div class="math block">
+d_k=2.
+</div>
+<p>First calculate:</p>
+<div class="math block">
+QK^T.
+</div>
+<p>Since:</p>
+<div class="math block">
+Q=K,
+</div>
+<p>we get:</p>
+<div class="math block">
+QK^T=
+\begin{bmatrix}
+1&amp;0&amp;1\\
+0&amp;1&amp;1\\
+1&amp;1&amp;2
+\end{bmatrix}.
+</div>
+<p>The source gives exactly this matrix. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-34">1.7.7 Scale It</h3>
+<p>Since:</p>
+<div class="math block">
+\sqrt{d_k}=\sqrt2,
+</div>
+<p>we divide by <span class="math inline">\sqrt2</span>:</p>
+<div class="math block">
+\frac{QK^T}{\sqrt2}
+\approx
+\begin{bmatrix}
+0.7071&amp;0&amp;0.7071\\
+0&amp;0.7071&amp;0.7071\\
+0.7071&amp;0.7071&amp;1.4142
+\end{bmatrix}.
+</div>
+<p>Again, this matches the handbook's example. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-35">1.7.8 Add the Causal Mask</h3>
+<p>Use:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0&amp;-\infty&amp;-\infty\\
+0&amp;0&amp;-\infty\\
+0&amp;0&amp;0
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+S_{\text{masked}}
+=
+\begin{bmatrix}
+0.7071&amp;-\infty&amp;-\infty\\
+0&amp;0.7071&amp;-\infty\\
+0.7071&amp;0.7071&amp;1.4142
+\end{bmatrix}.
+</div>
+<p>Now look row by row.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-36">Row 1</h5>
+<div class="math block">
+[0.7071,-\infty,-\infty]
+</div>
+<p>Position 1 can only attend to position 1.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-37">Row 2</h5>
+<div class="math block">
+[0,0.7071,-\infty]
+</div>
+<p>Position 2 can attend to positions 1 and 2.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-38">Row 3</h5>
+<div class="math block">
+[0.7071,0.7071,1.4142]
+</div>
+<p>Position 3 can attend to positions 1, 2 and 3.</p>
+<p>Exactly what causality requires.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-39">1.7.9 Apply Softmax</h3>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-40">Row 1</h5>
+<div class="math block">
+\operatorname{softmax}
+[0.7071,-\infty,-\infty]
+=
+[1,0,0].
+</div>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+e^{-\infty}=0.
+</div>
+<p>So:</p>
+<div class="math block">
+A_{11}
+=
+\frac{e^{0.7071}}
+{e^{0.7071}+0+0}
+=1.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-7-i14-41">Row 2</h5>
+<p>We have:</p>
+<div class="math block">
+[0,0.7071,-\infty].
+</div>
+<p>Softmax is approximately:</p>
+<div class="math block">
+[0.3302,0.6698,0].
+</div>
+<p>So position 2 gives weight only to the past and itself.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-7-i14-42">Row 3</h5>
+<p>We have:</p>
+<div class="math block">
+[0.7071,0.7071,1.4142].
+</div>
+<p>Softmax is approximately:</p>
+<div class="math block">
+[0.2654,0.2654,0.4692].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+A\approx
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.3302&amp;0.6698&amp;0\\
+0.2654&amp;0.2654&amp;0.4692
+\end{bmatrix}.
+</div>
+<p>The crucial property is:</p>
+<div class="math block">
+\boxed{
+A_{ij}=0\quad\text{for }j&gt;i
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-43">1.7.10 Now Multiply by <span class="math inline">V</span></h3>
+<p>Remember:</p>
+<div class="math block">
+V=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;2\\
+3&amp;1
+\end{bmatrix}.
+</div>
+<p>Compute:</p>
+<div class="math block">
+O=AV.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-44">Output row 1</h5>
+<div class="math block">
+o_1
+=
+1v_1+0v_2+0v_3
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+o_1=[1,0]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-45">Output row 2</h5>
+<div class="math block">
+o_2
+=
+0.3302v_1+0.6698v_2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+o_2
+=
+0.3302[1,0]
++
+0.6698[0,2]
+</div>
+<div class="math block">
+=
+[0.3302,1.3396].
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-46">Output row 3</h5>
+<div class="math block">
+o_3
+=
+0.2654v_1+0.2654v_2+0.4692v_3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+o_3
+=
+0.2654[1,0]
++
+0.2654[0,2]
++
+0.4692[3,1].
+</div>
+<p>First component:</p>
+<div class="math block">
+0.2654+0+1.4076
+=
+1.6730
+</div>
+<p>Second component:</p>
+<div class="math block">
+0+0.5308+0.4692
+=
+1.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+o_3\approx[1.673,1.0]
+}
+</div>
+<p>The handbook similarly emphasizes that after masking and softmax, <span class="math inline">AV</span> is where the actual information mixing occurs. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-47">1.7.11 The Most Important Question: Why Can Training Still Be Parallel?</h3>
+<p>This is one of the most important concepts in the entire decoder architecture.</p>
+<p>You might think:</p>
+<blockquote>
+<p>&quot;If token 4 must not know token 5, don't we have to run token 1, then token 2, then token 3, then token 4?&quot;</p>
+</blockquote>
+<p><strong>No.</strong></p>
+<p>During training, the complete sequence is already known.</p>
+<p>For example:</p>
+<pre><code class="language-text">The cat is sleeping
+</code></pre>
+<p>is already present.</p>
+<p>We can construct the entire score matrix at once:</p>
+<div class="math block">
+QK^T.
+</div>
+<p>Then the causal mask removes the illegal future connections.</p>
+<p>So all positions can be computed simultaneously in one large matrix operation.</p>
+<p>Your attention handbook explicitly states that a causal decoder can process many positions in parallel during training because the mask prevents each position from using future tokens. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-48">1.7.12 Visualize Training</h3>
+<p>Suppose:</p>
+<pre><code class="language-text">Input:
+The cat is sleeping
+</code></pre>
+<p>The model internally creates:</p>
+<pre><code class="language-text">Position 1 → can use: The
+Position 2 → can use: The cat
+Position 3 → can use: The cat is
+Position 4 → can use: The cat is sleeping
+</code></pre>
+<p>All four rows can be calculated <strong>at the same time</strong>.</p>
+<p>The mask simply determines which entries in the attention matrix are legal.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{known full sequence + causal mask}
+\rightarrow
+\text{parallel training}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-49">1.7.13 But Generation Is Different</h3>
+<p>Now suppose we are actually generating text.</p>
+<p>We have:</p>
+<pre><code class="language-text">The cat is
+</code></pre>
+<p>and want the next token.</p>
+<p>The token <code>&quot;sleeping&quot;</code> does not exist yet.</p>
+<p>So there is nothing to parallelize over for future generated tokens.</p>
+<p>The model generates:</p>
+<div class="math block">
+x_4
+</div>
+<p>then uses <span class="math inline">x_4</span> to generate:</p>
+<div class="math block">
+x_5
+</div>
+<p>then uses <span class="math inline">x_5</span> to generate:</p>
+<div class="math block">
+x_6
+</div>
+<p>and so on.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{training = parallel across known positions}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{generation = sequential across newly generated tokens}
+}
+</div>
+<p>This distinction is explicitly emphasized in your attention handbook. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-50">1.7.14 Causal Mask Does NOT Make Generation Parallel</h3>
+<p>This misconception is extremely common.</p>
+<p>The causal mask allows:</p>
+<div class="math block">
+\text{parallel training}
+</div>
+<p>because all target positions are known and future information is blocked.</p>
+<p>But it does <strong>not</strong> make autoregressive generation parallel.</p>
+<p>Why?</p>
+<p>Because during generation:</p>
+<div class="math block">
+x_{t+1}
+</div>
+<p>has not yet been generated when we need to predict it.</p>
+<p>Therefore:</p>
+<div class="math block">
+x_{t+2}
+</div>
+<p>cannot be predicted independently.</p>
+<p>The handbook explicitly warns about this distinction. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-51">1.7.15 A Second Important Distinction: Causal Mask vs Positional Encoding</h3>
+<p>We previously studied position.</p>
+<p>These two mechanisms do different things.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-52">Positional information</h5>
+<p>Answers:</p>
+<blockquote>
+<p><strong>Where is this token?</strong></p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+\text{token at position 5}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{token at position 10}.
+</div>
+<p>Modern decoder-only models often use RoPE. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-53">Causal mask</h5>
+<p>Answers:</p>
+<blockquote>
+<p><strong>Which positions is this token allowed to interact with?</strong></p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+\text{position 5 may access positions }1\ldots5
+</div>
+<p>but not:</p>
+<div class="math block">
+6,\ldots,T.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{position representation}
+\neq
+\text{causal constraint}
+}
+</div>
+<p>The handbook explicitly points this out: a causal mask introduces directional constraints but does not itself provide rich distance or absolute-position information. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-54">1.7.16 Causal Mask vs Padding Mask</h3>
+<p>Another distinction that becomes important later.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-55">Causal mask</h5>
+<p>Prevents:</p>
+<div class="math block">
+j&gt;i.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-56">Padding mask</h5>
+<p>Prevents attention to artificial padding tokens.</p>
+<p>For example:</p>
+<pre><code class="language-text">I like pizza &lt;PAD&gt; &lt;PAD&gt;
+</code></pre>
+<p>The PAD tokens should generally not contribute as normal sequence content.</p>
+<p>The handbook explicitly notes that masks are broader than causality: padding and structured masks can impose other connectivity constraints. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So &quot;mask&quot; is the broad concept.</p>
+<p>&quot;Causal mask&quot; is one particular mask.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-57">1.7.17 What Does the Mask Do to Computation?</h3>
+<p>The mask does <strong>not</strong> change:</p>
+<div class="math block">
+Q
+</div>
+<p>or:</p>
+<div class="math block">
+K
+</div>
+<p>or:</p>
+<div class="math block">
+V.
+</div>
+<p>It is applied to the <strong>scores</strong>:</p>
+<div class="math block">
+QK^T.
+</div>
+<p>The sequence is:</p>
+<div class="math block">
+Q,K,V
+</div>
+<p>↓</p>
+<div class="math block">
+QK^T
+</div>
+<p>↓</p>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{+\;M}
+</div>
+<p>↓</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>↓</p>
+<div class="math block">
+A
+</div>
+<p>↓</p>
+<div class="math block">
+AV.
+</div>
+<p>That is a very important architectural fact.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-58">1.7.18 Why Mask Before Softmax?</h3>
+<p>Suppose instead we calculated:</p>
+<div class="math block">
+A=\operatorname{softmax}(S)
+</div>
+<p>first and then tried to zero the future entries.</p>
+<p>Problem:</p>
+<p>The remaining entries would no longer automatically sum to 1.</p>
+<p>For example:</p>
+<div class="math block">
+[0.2,0.3,0.5]
+</div>
+<p>and suppose the last value is forbidden.</p>
+<p>Zeroing it gives:</p>
+<div class="math block">
+[0.2,0.3,0].
+</div>
+<p>Now:</p>
+<div class="math block">
+0.2+0.3+0=0.5.
+</div>
+<p>It is no longer a normalized distribution.</p>
+<p>By adding <span class="math inline">-\infty</span> <strong>before softmax</strong>, softmax itself redistributes all the weight among the permitted positions.</p>
+<p>That is why:</p>
+<div class="math block">
+\boxed{
+\text{mask before softmax}
+}
+</div>
+<p>is the clean solution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-59">1.7.19 Why Can a Position Attend to Itself?</h3>
+<p>You may have noticed the diagonal:</p>
+<div class="math block">
+(1,1),(2,2),(3,3),\ldots
+</div>
+<p>is allowed.</p>
+<p>That corresponds to:</p>
+<div class="math block">
+j=i.
+</div>
+<p>So the causal condition is:</p>
+<div class="math block">
+j\le i.
+</div>
+<p>not:</p>
+<div class="math block">
+j&lt;i.
+</div>
+<p>Why?</p>
+<p>Because the current token representation is part of the information available at that position.</p>
+<p>For next-token prediction, the model uses the representation at the current position to produce the distribution for the <strong>next</strong> token.</p>
+<p>Thus if the current input is:</p>
+<pre><code class="language-text">The cat is
+</code></pre>
+<p>the representation at <code>&quot;is&quot;</code> is used to predict:</p>
+<pre><code class="language-text">sleeping
+</code></pre>
+<p>So position 3 can use its own information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-60">1.7.20 Connect This to Teacher Forcing</h3>
+<p>During training, suppose the sequence is:</p>
+<div class="math block">
+x_1,x_2,x_3,x_4.
+</div>
+<p>We train the model to predict:</p>
+<div class="math block">
+x_2,x_3,x_4,x_5.
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+\text{input: }x_1\quad\rightarrow\quad\text{predict }x_2
+</div>
+<div class="math block">
+\text{input: }x_1,x_2\quad\rightarrow\quad\text{predict }x_3
+</div>
+<div class="math block">
+\text{input: }x_1,x_2,x_3\quad\rightarrow\quad\text{predict }x_4
+</div>
+<p>and so forth.</p>
+<p>The causal mask ensures that the representation used for each prediction cannot secretly access the answer token sitting later in the sequence.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{shifted targets + causal mask}
+}
+</div>
+<p>give us the autoregressive training setup.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-61">1.7.21 The Matrix Makes the Whole Idea Obvious</h3>
+<p>For sequence length 5:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+\color{black}{1}&amp;0&amp;0&amp;0&amp;0\\
+*&amp;*&amp;0&amp;0&amp;0\\
+*&amp;*&amp;*&amp;0&amp;0\\
+*&amp;*&amp;*&amp;*&amp;0\\
+*&amp;*&amp;*&amp;*&amp;*
+\end{bmatrix}
+</div>
+<p>where the <span class="math inline">*</span>'s are learned nonnegative weights whose row sums equal 1.</p>
+<p>So:</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-62">Row 1</h5>
+<p>Only position 1.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-63">Row 2</h5>
+<p>Positions 1–2.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-64">Row 3</h5>
+<p>Positions 1–3.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-65">Row 4</h5>
+<p>Positions 1–4.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-66">Row 5</h5>
+<p>Positions 1–5.</p>
+<p>This triangular structure is the mathematical representation of:</p>
+<div class="math block">
+\boxed{
+\text{no information from the future}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-67">1.7.22 Code Version</h3>
+<p>Your <code>NLP with Transformers</code> source gives the implementation pattern:</p>
+<pre><code class="language-python">def scaled_dot_product_attention(query, key, value, mask=None):
+    dim_k = query.size(-1)
+
+    scores = torch.bmm(
+        query,
+        key.transpose(1, 2)
+    ) / sqrt(dim_k)
+
+    if mask is not None:
+        scores = scores.masked_fill(
+            mask == 0,
+            float(&quot;-inf&quot;)
+        )
+
+    weights = F.softmax(scores, dim=-1)
+
+    return weights.bmm(value)
+</code></pre>
+<p><em>(Source: NLP_TRANSFORMER)</em></p>
+<p>Now understand every line:</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-68">Line 1</h5>
+<pre><code class="language-python">dim_k = query.size(-1)
+</code></pre>
+<p>gets:</p>
+<div class="math block">
+d_k.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-69">Line 2</h5>
+<pre><code class="language-python">query @ key.T
+</code></pre>
+<p>conceptually computes:</p>
+<div class="math block">
+QK^T.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-70">Line 3</h5>
+<pre><code class="language-python">/ sqrt(dim_k)
+</code></pre>
+<p>performs:</p>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-71">Mask</h5>
+<pre><code class="language-python">scores.masked_fill(mask == 0, -inf)
+</code></pre>
+<p>performs:</p>
+<div class="math block">
+S_{ij}\leftarrow-\infty
+</div>
+<p>for forbidden connections.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-72">Softmax</h5>
+<pre><code class="language-python">F.softmax(scores, dim=-1)
+</code></pre>
+<p>produces:</p>
+<div class="math block">
+A.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-73">Final multiplication</h5>
+<pre><code class="language-python">weights.bmm(value)
+</code></pre>
+<p>produces:</p>
+<div class="math block">
+AV.
+</div>
+<p>So the code is literally implementing the mathematics.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-74">1.7.23 One Crucial Implementation Detail</h3>
+<p>There are two common ways to describe a mask.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-75">Boolean mask</h5>
+<pre><code class="language-text">True  = allowed
+False = forbidden
+</code></pre>
+<p>or the opposite convention depending on API.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-76">Additive mask</h5>
+<p>Use:</p>
+<div class="math block">
+0
+</div>
+<p>for allowed entries and:</p>
+<div class="math block">
+-\infty
+</div>
+<p>for forbidden entries.</p>
+<p>Your source demonstrates the additive-<span class="math inline">-\infty</span> approach. <em>(Source: NLP_TRANSFORMER)</em></p>
+<p>Modern PyTorch APIs can support Boolean and additive floating-point masks, as noted in the attention handbook. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>The underlying mathematical objective is the same:</p>
+<div class="math block">
+\boxed{
+\text{forbidden connection gets zero attention}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-77">1.7.24 The Deepest Conceptual Interpretation</h3>
+<p>Without the mask, self-attention says:</p>
+<blockquote>
+<p>Every position can communicate with every other position.</p>
+</blockquote>
+<p>With the causal mask:</p>
+<blockquote>
+<p>Every position can communicate only with positions at or before itself.</p>
+</blockquote>
+<p>So the mask changes the attention connectivity graph from:</p>
+<pre><code class="language-text">everyone ↔ everyone
+</code></pre>
+<p>to:</p>
+<pre><code class="language-text">position t ← positions 1...t
+</code></pre>
+<p>This makes the Transformer compatible with:</p>
+<div class="math block">
+p(x_t\mid x_{&lt;t}).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{causal mask}
+\rightarrow
+\text{correct dependency structure}
+\rightarrow
+\text{autoregressive language modeling}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-78">1.7.25 Full Decoder Attention Equation</h3>
+<p>We now have the complete equation:</p>
+<div class="math block">
+\boxed{
+A=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+O=AV
+}
+</div>
+<p>or in one line:</p>
+<div class="math block">
+\boxed{
+O=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)V
+}
+</div>
+<p>Compare this with ordinary scaled dot-product attention:</p>
+<div class="math block">
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)V
+</div>
+<p>The <strong>only additional component</strong> is:</p>
+<div class="math block">
+\boxed{M}
+</div>
+<p>but that one component is what makes the attention <strong>causal</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-79">1.7.26 The Complete Conceptual Pipeline We Have Built</h3>
+<p>At this stage:</p>
+<div class="math block">
+\boxed{
+X
+}
+</div>
+<p>↓</p>
+<div class="math block">
+Q=XW_Q,\quad K=XW_K,\quad V=XW_V
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-80">Compare queries with keys</h5>
+<div class="math block">
+QK^T
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-81">Stabilize scale</h5>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-82">Block future</h5>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}+M
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-83">Normalize</h5>
+<div class="math block">
+A=
+\operatorname{softmax}(\cdot)
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-84">Transfer information</h5>
+<div class="math block">
+O=AV
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-85">Return to residual stream</h5>
+<div class="math block">
+X\leftarrow X+O
+</div>
+<p>And <strong>that</strong> is the attention sublayer of the decoder block.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-7-i14-86">Step 1.7 — Master Check</h3>
+<p>Before moving on, you should be able to answer these from first principles.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-87">Q1</h5>
+<p>For:</p>
+<div class="math block">
+T=5,
+</div>
+<p>write the <span class="math inline">5\times5</span> causal mask.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-88">Q2</h5>
+<p>Why is:</p>
+<div class="math block">
+M_{ij}=-\infty
+</div>
+<p>when:</p>
+<div class="math block">
+j&gt;i?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-89">Q3</h5>
+<p>Why does:</p>
+<div class="math block">
+e^{-\infty}=0
+</div>
+<p>solve the problem?</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-90">Q4</h5>
+<p>Why is masking performed <strong>before</strong> softmax?</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-91">Q5</h5>
+<p>Why is the diagonal allowed?</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-92">Q6</h5>
+<p>For position 4, exactly which keys can it attend to?</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-93">Q7</h5>
+<p>Explain why causal masking allows <strong>parallel training</strong> even though language generation is autoregressive.</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-94">Q8</h5>
+<p>What's the difference between:</p>
+<div class="math block">
+\text{self-attention}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{causal self-attention}?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-95">Q9</h5>
+<p>What's the difference between <strong>positional encoding</strong> and a <strong>causal mask</strong>?</p>
+<h5 id="v3-heading-chunk-les-step-1-7-i14-96">Q10</h5>
+<p>Complete the equation:</p>
+<div class="math block">
+O=
+\operatorname{softmax}
+\left(
+\boxed{\phantom{\frac{QK^T}{\sqrt{d_k}}+M}}
+\right)V.
+</div>
+<hr />
+</section>

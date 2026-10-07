@@ -1,0 +1,1920 @@
+<section class="chunk" id="chunk-les-step-5-41-i82" data-id="les-step-5-41-i82"><details class="audit-card" id="audit-full-chunk-les-step-5-41-i82" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-41-i82-1">Motivation</h4><p>Implement gather, execute, weight and scatter with correct repeated-token accumulation.</p><h4 id="v3-heading-chunk-les-step-5-41-i82-2">Prerequisites</h4><ul><li>Two-layer FFN matrix shapes and parameter counts</li><li>Stable softmax, top-k, integer indices and gather/scatter accumulation</li><li>Expert parallelism, load/importance distinction and non-gradient feedback</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-3">Notation and units</h4><ul><li>T=B×S flattened tokens, D model width, N routed experts, k selected per token</li><li>Row score matrix[T, N]; selected indices and gates[T, k]; final stream[T, D]</li><li>Book bias is a persistent nontrainable buffer; gate weights come from softmax selected biased logits</li><li>V3: si=sigmoid(x·ei); select by si+bi; normalize original si within selected set</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-4">Assumptions</h4><ul><li>Bias-free educational two-matrix GELU experts use2DHparameters; gated/SwiGLUuses3DH</li><li>Per-tokenk/N is routed expert activation fraction, notcomplete-model storage or latency ratio</li><li>The Transformer owns the residual unless a standalone MoE explicitly returns x+transform; neveraddit twice</li><li>Tie behavior and normalization must be explicit; expert choices are learned, not manual domain labels</li><li>Toycompanion useslinear illustrative experts for8-tokentrace; production experts are learned FFNs</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-5">Step-by-step derivation</h4><ol><li>Flatten[B, S, D]to[T, D], preserving token order; router dot product produces[T, N]. Shared path can operate directly on all leading dimensions.</li><li>Select[T, k]expert indices and gates. For experti, find(tokenrow, selectedslot)whereindices==i; both coordinates are needed to pick the correct gate.</li><li>Gather selected token rows, execute expert FFN once as batch, weight by the corresponding gate, andscatter-add into original token rows. Assignment duplicates across experts must add, not overwrite.</li><li>If expert i is unused, skip it and keep its contribution zero. Expert capacity padding is optional implementation overhead and must not be confused with actual tokens assigned.</li><li>Restore[B, S, D]. Sumshared+routed transforms; add residual once at the block boundary. Check output shape even if zero assignments go to a particular expert.</li><li>Collect Ci from indices actually used in the forward pass. Re-running router after optimizer updates can choose other experts; use collected assignments for consistent bias feedback.</li><li>Book logit-plus-bias→selected softmax is a pedagogical variant. V3selection only uses bias with sigmoid norm gates; retain clear mode flag in companion.</li></ol><h4 id="v3-heading-chunk-les-step-5-41-i82-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-41-i82-7">Full8-tokenloadtally</h5><p>Given: X and router from Step5.45; bias[0,.1,−.2,.2], k2</p><ol><li>Per-token expert sets:{4,1},{3,2},{3,4},{3,4},{3,2},{4,3},{3,2},{3,4}.</li><li>Countloads[1,3,7,5].</li><li>Checksum16=T8×k2.</li></ol><p>Answer: Loads[1,3,7,5]; allgatesrow-normalized</p><p>Verification: indic_mla_moe / moe.full_loads · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-41-i82-8">One weighted dispatch</h5><p>Given: Token1[1,0], selected E4, E1; adjusted logits2.2,1.0</p><ol><li>Stable gates softmax([2.2,1])=[.7685247835,.2314752165].</li><li>E4(x)=[1,1], E1(x)=[1,0].</li><li>Routed=[1,.7685247835].</li><li>Shared=.5x, residual=x.</li></ol><p>Answer: Final[2.5,.7685247835]</p><p>Verification: indic_mla_moe / moe.residual_token1 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-41-i82-9">Corrections and source qualifications</h4><ul><li>heading: 5.41.37; text: The book-style biased-logit softmax and tanh feedback are educational variants, not exact production V3. Also avoid recomputing feedback routing after router weights change; collect actual forward indices.</li><li>heading: 5.41.28; text: When wrapping this standalone MoE in a pre-norm Transformer, remove its internal x residual or remove outer addition; production-style block should add the residual once.</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-10">Mastery answers and retained exercise context</h4><ol><li>Why index_add? A token has multiple expert contributions which must accumulate at same token row.</li><li>What does nonzero return? Token row and expert-slot coordinates.</li><li>Should bias receive optimizer gradients? It is a separate persistent balancing buffer in these variants.</li><li>Why not recompute routes after optimizer step? Updated weights may change selections; feedback must reflect actual forward work.</li></ol><h4 id="v3-heading-chunk-les-step-5-41-i82-11">Edge cases and remaining gaps</h4><ul><li>All expert weights must remain available, possibly sharded/offloaded; unselected does not mean not stored</li><li>Dispatch, all-to-all communication, kernel batching and load imbalance can reduce ideal compute advantages</li><li>No real DeepSeek training, pretrained quality evaluation or distributed hardware benchmark was run</li><li>Python expert loops are educational; they are not an optimized distributed runtime.</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-12">Connections and progression</h4><ul><li>Connects to8-token full trace, parameter accounting and load feedback.</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 241, 242, 243, 244, 245, 246 · Book expert FFN, router, buffers, gather/index_add_ andupdate_bias</li><li>DeepSeek-V3technicalreport§2.1.2 · Actual V3gating/selection qualification · https://arxiv.org/html/2412.19437v2#S2.SS1.SSS2</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-14">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (78)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.41 — Build the Complete DeepSeek-MoE Layer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.41.1 First, the complete picture</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.2 Step 1 — Input tensor</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.3 Step 2 — Flatten the token dimension</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.4 Why flatten?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.5 Step 3 — Shared expert path</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.6 Why don&#x27;t we flatten this path?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.7 Step 4 — Router parameters</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.8 Router computation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.9 Concrete router matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.10 Step 5 — Add dynamic bias</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.11 Why before Top-K?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.12 Step 6 — Top-K</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.13 Step 7 — Softmax only over selected experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.14 Step 8 — Build the routing table</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.15 Why represent it this way?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1 receives</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2 receives</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3 receives</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4 receives</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.41.16 Step 9 — Sparse dispatch</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.17 The mask</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.18 nonzero() gives us the locations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.19 Gather the actual token representations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.20 Execute the expert</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.21 Retrieve their gate weights</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.22 Weighted expert result</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.23 The crucial index_add_</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.24 Let&#x27;s trace one token completely</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.25 Step 10 — Add shared path</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.26 Step 11 — Add the residual</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.27 Step 12 — Restore shape</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.28 Step 13 — Final output</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>When wrapping this standalone MoE in a pre-norm Transformer, remove its internal x residual or remove outer addition; production-style block should add the residual once.</td></tr><tr><td>5.41.29 Step 14 — Update the load-balancing bias</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.30 Another example of bincount</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.31 Average load</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.32 Calculate violation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.41.33 Apply the bounded update</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.34 Why is Expert 2 now more attractive?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.35 Important: the bias is persistent</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.36 Important: bias update isn&#x27;t backpropagation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.37 Full source-style code</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>The book-style biased-logit softmax and tanh feedback are educational variants, not exact production V3. Also avoid recomputing feedback routing after router weights change; collect actual forward indices.</td></tr><tr><td>5.41.38 The forward() method in plain English</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.39 Why the code uses a loop over experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.40 What happens if an expert receives zero tokens?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.41 Complete tensor-shape trace</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Input</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Flatten</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Router logits</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-K indices</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-K logits</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Gates</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert-specific input</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert output</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Routed output</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Reshape</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Final output</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.41.42 Exam numerical — token dispatch</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.43 Calculate the violations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.44 Expert parameter-count numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.45 Shared expert parameter numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.46 Why shared experts are dense but routed experts are sparse</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.47 Production reality: dispatch is not free</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.48 Another critical distinction: educational code vs production DeepSeek</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.49 The entire DeepSeek-MoE formula</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.50 One complete numerical trace</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.51 The conceptual breakthrough</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.52 DeepSeek-MoE in four equations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>1. Router</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. Balanced routing</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. Sparse expert mixture</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>4. Complete layer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.41.53 What you should now understand, not memorize</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.41.54 Where we are in the DeepSeek architecture</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-A02" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A02 — MoE top-k routing and selected normalization</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Use a small selected subset of experts per token, while retaining a larger stored expert pool.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a>, <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-5-41-i82-15">Notation and assumptions</h4><p>Linear two-feature experts in this fixture; full-softmax router then selected-probability renormalization. DeepSeek sigmoid/top-k/group variants are separate.</p><h4 id="v3-heading-chunk-les-step-5-41-i82-16">Derivation and mechanism</h4><ol><li>Compute router scores and select k.</li><li>Apply only selected experts.</li><li>Weight selected outputs using the declared normalization; add shared expert output separately if present.</li></ol><h4 id="v3-heading-chunk-les-step-5-41-i82-17">Worked example</h4><p>Expert0=identity,expert1=2identity,expert2=3identity; x=[1,2]. Router[.6,.3,.1],k2→selected weights[2/3,1/3], output=[4/3,8/3]. Unnormalized selected scores would yield[1.2,2.4], a different result.</p><h4 id="v3-heading-chunk-les-step-5-41-i82-18">Limitations</h4><ul><li>Stored parameters and active-per-token parameters use different denominators.</li><li>This fixture has no nonlinear FFN, capacity overflow or distributed dispatcher.</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-19">Connections to later concepts</h4><ul><li>A03 controls expert concentration, and distributed expert dispatch introduces costs not represented by a linear weighted-output fixture.</li></ul><h4 id="v3-heading-chunk-les-step-5-41-i82-20">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 183, 184, 185, 186, 187 · Chapter4 MoE routing motivation</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-41-i82-21">Executed code and evidence</h4><p>Functions: routed_output. Passed checks: MoE-route, MoE-renormalize, MoE-weighted-output</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-41-i82"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-41-i82" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-40-i81">← Previous lesson</a> · <a href="#chunk-les-step-5-42-i83">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-40-i81">Step 5.40 — DeepSeek-MoE Innovation #1 and #2</a></p><p><strong>This lesson:</strong> Step 5.41 — Build the Complete DeepSeek-MoE Layer</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-41-i82"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-41-i82-22">Step 5.41 — Build the Complete DeepSeek-MoE Layer</h3>
+<p><em>Plan node: A2 · chat order #82</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We now combine everything from Steps <strong>5.38–5.40</strong> into one working mechanism:</p>
+<div class="math block">
+\boxed{
+\text{Shared Experts}
++
+\text{Dynamic Routing}
++
+\text{Top-K}
++
+\text{Sparse Dispatch}
++
+\text{Weighted Aggregation}
++
+\text{Residual}
++
+\text{Loss-Free Bias Update}
+}
+</div>
+<p>The source's implementation follows exactly this three-path architecture: a dense shared path, a sparse routed path, and a residual path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-23">5.41.1 First, the complete picture</h4>
+<p>For an input tensor:</p>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}
+</div>
+<p>we have:</p>
+<pre><code class="language-text">                         X
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+              ▼                     ▼
+       SHARED PATH              ROUTED PATH
+       every token              router
+              │                     │
+              │                  + bias
+              │                     │
+              │                  Top-K
+              │                     │
+              │                 Softmax
+              │                     │
+              │             selected experts only
+              │                     │
+              │               weighted sum
+              │                     │
+              └──────────┬──────────┘
+                         │
+                         ▼
+                    + residual X
+                         │
+                         ▼
+                    final output
+</code></pre>
+<p>The source explicitly describes the same three paths and the final summation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-24">5.41.2 Step 1 — Input tensor</h4>
+<p>Let:</p>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">B</span>: batch size</li>
+<li><span class="math inline">S</span>: sequence length</li>
+<li><span class="math inline">D</span>: model dimension</li>
+</ul>
+<p>Example:</p>
+<div class="math block">
+B=2,\quad S=4,\quad D=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+X\in\mathbb R^{2\times4\times8}.
+</div>
+<p>There are:</p>
+<div class="math block">
+2\times4=
+\boxed{8}
+</div>
+<p>tokens.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-25">5.41.3 Step 2 — Flatten the token dimension</h4>
+<p>The router works token-by-token.</p>
+<p>So reshape:</p>
+<div class="math block">
+X
+\rightarrow
+X_f
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+X_f\in\mathbb R^{(BS)\times D}
+}
+</div>
+<p>In PyTorch:</p>
+<pre><code class="language-python">x_flat = x.reshape(-1, D)
+</code></pre>
+<p>The source uses exactly this approach. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For our example:</p>
+<div class="math block">
+2\times4\times8
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{8\times8}.
+</div>
+<p>Nothing about the token representations has changed; we've only rearranged them.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-26">5.41.4 Why flatten?</h4>
+<p>Because now each row corresponds to one token:</p>
+<pre><code class="language-text">row 0 → token 0
+row 1 → token 1
+row 2 → token 2
+...
+row 7 → token 7
+</code></pre>
+<p>So routing becomes a simple matrix operation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-27">5.41.5 Step 3 — Shared expert path</h4>
+<p>Suppose we have:</p>
+<div class="math block">
+N_s=2
+</div>
+<p>shared experts.</p>
+<p>Each shared expert is an FFN:</p>
+<div class="math block">
+S_1(x),S_2(x).
+</div>
+<p>Every token goes through both.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+S(x)=S_1(x)+S_2(x)
+}
+</div>
+<p>in the source's simplified implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>In code:</p>
+<pre><code class="language-python">shared_out = torch.zeros_like(x)
+
+for exp in self.shared:
+    shared_out += exp(x)
+</code></pre>
+<p>Notice:</p>
+<pre><code class="language-python">exp(x)
+</code></pre>
+<p>uses the entire original:</p>
+<div class="math block">
+B\times S\times D
+</div>
+<p>tensor.</p>
+<p>There is no Top-K here.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-28">5.41.6 Why don't we flatten this path?</h4>
+<p>We don't need to.</p>
+<p>The shared experts naturally accept:</p>
+<div class="math block">
+B\times S\times D.
+</div>
+<p>The source implementation deliberately keeps the shared path in that shape. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-29">5.41.7 Step 4 — Router parameters</h4>
+<p>Suppose:</p>
+<div class="math block">
+N_r=4
+</div>
+<p>routed experts.</p>
+<p>The router weight is:</p>
+<div class="math block">
+W_R\in\mathbb R^{N_r\times D}
+</div>
+<p>when implemented with PyTorch's <code>F.linear</code>, whose weight is conventionally stored as:</p>
+<div class="math block">
+[\text{out features},\text{in features}].
+</div>
+<p>So here:</p>
+<div class="math block">
+W_R\in\mathbb R^{4\times8}.
+</div>
+<p>The source calls this learnable parameter matrix <code>centroids</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-30">5.41.8 Router computation</h4>
+<p>We calculate:</p>
+<div class="math block">
+L=F.linear(X_f,W_R).
+</div>
+<p>Equivalent mathematically to:</p>
+<div class="math block">
+L=X_fW_R^\top.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+(8\times8)(8\times4)
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{8\times4}.
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{
+1\text{ row per token}
+\times
+1\text{ score per routed expert}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-31">5.41.9 Concrete router matrix</h4>
+<p>Imagine the result is:</p>
+<div class="math block">
+L=
+\begin{bmatrix}
+1.2&amp;0.3&amp;2.1&amp;1.4\\
+0.5&amp;2.2&amp;1.1&amp;0.7\\
+1.8&amp;1.6&amp;0.2&amp;2.0\\
+0.2&amp;0.9&amp;2.4&amp;1.1\\
+1.7&amp;1.5&amp;1.3&amp;0.4\\
+0.6&amp;2.3&amp;1.0&amp;1.9\\
+1.1&amp;0.8&amp;2.0&amp;1.2\\
+2.1&amp;0.4&amp;0.9&amp;1.7
+\end{bmatrix}.
+</div>
+<p>There are:</p>
+<div class="math block">
+8
+</div>
+<p>tokens and:</p>
+<div class="math block">
+4
+</div>
+<p>routed experts.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-32">5.41.10 Step 5 — Add dynamic bias</h4>
+<p>From Step 5.39, we maintain:</p>
+<div class="math block">
+b\in\mathbb R^{N_r}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+b=
+\begin{bmatrix}
+0.2&amp;0.1&amp;-0.3&amp;0
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+L'=L+b
+}
+</div>
+<p>where the bias is broadcast across all tokens.</p>
+<p>For token 1:</p>
+<div class="math block">
+[1.2,0.3,2.1,1.4]
++
+[0.2,0.1,-0.3,0]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[1.4,0.4,1.8,1.4]
+}.
+</div>
+<p>This is exactly where the source puts the dynamic balancing bias: <strong>before Top-K</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-33">5.41.11 Why before Top-K?</h4>
+<p>Suppose:</p>
+<div class="math block">
+L=[2.0,1.9,1.8,1.7].
+</div>
+<p>With:</p>
+<div class="math block">
+k=2
+</div>
+<p>we select:</p>
+<div class="math block">
+E_1,E_2.
+</div>
+<p>Now suppose Expert 1 is overloaded and its bias becomes:</p>
+<div class="math block">
+b_1=-0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+L'=[1.5,1.9,1.8,1.7].
+</div>
+<p>Top-2 becomes:</p>
+<div class="math block">
+\boxed{E_2,E_3}.
+</div>
+<p>So the bias can actually change <strong>which experts are selected</strong>.</p>
+<p>That's why the placement matters.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-34">5.41.12 Step 6 — Top-K</h4>
+<p>Suppose:</p>
+<div class="math block">
+k=2.
+</div>
+<p>For token 1:</p>
+<div class="math block">
+[1.4,0.4,1.8,1.4]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_1}
+</div>
+<p>with logits:</p>
+<div class="math block">
+[1.8,1.4].
+</div>
+<p>So:</p>
+<div class="math block">
+top\_k\_idx=[3,1]
+</div>
+<p>if using zero-based indexing.</p>
+<p>The source uses:</p>
+<pre><code class="language-python">topk_logits, topk_idx = torch.topk(
+    logits,
+    self.top_k,
+    dim=-1
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-35">5.41.13 Step 7 — Softmax only over selected experts</h4>
+<p>For token 1:</p>
+<div class="math block">
+z=[1.8,1.4].
+</div>
+<p>Softmax:</p>
+<div class="math block">
+g_1=
+\frac{e^{1.8}}{e^{1.8}+e^{1.4}}
+</div>
+<p>and:</p>
+<div class="math block">
+g_3=
+\frac{e^{1.4}}{e^{1.8}+e^{1.4}}.
+</div>
+<p>Using:</p>
+<div class="math block">
+e^{1.8}\approx6.050
+</div>
+<div class="math block">
+e^{1.4}\approx4.055,
+</div>
+<p>we get:</p>
+<div class="math block">
+g_1\approx
+\frac{6.050}{10.105}
+\approx
+\boxed{0.599}.
+</div>
+<p>and:</p>
+<div class="math block">
+g_3\approx
+\boxed{0.401}.
+</div>
+<p>The source uses exactly this Top-K → softmax sequence. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-36">5.41.14 Step 8 — Build the routing table</h4>
+<p>Now let's trace <strong>four tokens</strong> so we can see dispatch.</p>
+<p>Assume:</p>
+<div class="math block">
+N_r=4,\qquad k=2.
+</div>
+<p>Suppose after bias and Top-K:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Expert 1</th>
+<th style="text-align:right">Expert 2</th>
+<th style="text-align:right">Expert 3</th>
+<th style="text-align:right">Expert 4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">T_1</span></td>
+<td style="text-align:right">0.599</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.401</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td><span class="math inline">T_2</span></td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.750</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.250</td>
+</tr>
+<tr>
+<td><span class="math inline">T_3</span></td>
+<td style="text-align:right">0.450</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.550</td>
+</tr>
+<tr>
+<td><span class="math inline">T_4</span></td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.600</td>
+<td style="text-align:right">0.400</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>This is the sparse <strong>gate matrix</strong>.</p>
+<p>Notice:</p>
+<div class="math block">
+2
+</div>
+<p>nonzero entries per token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-37">5.41.15 Why represent it this way?</h4>
+<p>Because now we immediately know:</p>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-38">Expert 1 receives</h6>
+<div class="math block">
+T_1,T_3
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-39">Expert 2 receives</h6>
+<div class="math block">
+T_2,T_4
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-40">Expert 3 receives</h6>
+<div class="math block">
+T_1,T_4
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-41">Expert 4 receives</h6>
+<div class="math block">
+T_2,T_3
+</div>
+<p>So the router has created:</p>
+<div class="math block">
+\boxed{
+\text{token groups per expert}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-42">5.41.16 Step 9 — Sparse dispatch</h4>
+<p>Now comes one of the most important implementation ideas.</p>
+<p>We do <strong>not</strong> process:</p>
+<pre><code class="language-text">Expert 1 → all tokens
+Expert 2 → all tokens
+Expert 3 → all tokens
+Expert 4 → all tokens
+</code></pre>
+<p>That would destroy sparsity.</p>
+<p>Instead:</p>
+<pre><code class="language-text">Expert 1 → only T1,T3
+Expert 2 → only T2,T4
+Expert 3 → only T1,T4
+Expert 4 → only T2,T3
+</code></pre>
+<p>The source implements exactly this idea by creating a mask for each expert and gathering only its assigned rows. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-43">5.41.17 The mask</h4>
+<p>For Expert 1:</p>
+<pre><code class="language-python">mask = (topk_idx == 0)
+</code></pre>
+<p>Suppose:</p>
+<pre><code class="language-text">topk_idx =
+[
+  [2,0],
+  [1,3],
+  [0,3],
+  [1,2]
+]
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-text">mask =
+[
+  [False, True ],
+  [False, False],
+  [True,  False],
+  [False, False]
+]
+</code></pre>
+<p>So Expert 1 gets:</p>
+<div class="math block">
+T_1,T_3.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-44">5.41.18 <code>nonzero()</code> gives us the locations</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">row_idx, which_k = mask.nonzero(as_tuple=True)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<ul>
+<li><code>row_idx</code>: which token?</li>
+<li><code>which_k</code>: which Top-K slot?</li>
+</ul>
+<p>For:</p>
+<pre><code class="language-text">mask =
+[
+ [F,T],
+ [F,F],
+ [T,F],
+ [F,F]
+]
+</code></pre>
+<p>we get:</p>
+<div class="math block">
+row\_idx=[0,2]
+</div>
+<p>and:</p>
+<div class="math block">
+which\_k=[1,0].
+</div>
+<p>So:</p>
+<ul>
+<li>token 0 chose Expert 1 in Top-K slot 1;</li>
+<li>token 2 chose Expert 1 in Top-K slot 0.</li>
+</ul>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-45">5.41.19 Gather the actual token representations</h4>
+<p>Now:</p>
+<pre><code class="language-python">exp_in = x_flat.index_select(0, row_idx)
+</code></pre>
+<p>If:</p>
+<div class="math block">
+x_f\in\mathbb R^{4\times D}
+</div>
+<p>and:</p>
+<div class="math block">
+row\_idx=[0,2],
+</div>
+<p>then:</p>
+<div class="math block">
+exp\_in\in\mathbb R^{2\times D}.
+</div>
+<p>So Expert 1 receives a mini-batch of only its assigned tokens.</p>
+<p>This is sparse batching.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-46">5.41.20 Execute the expert</h4>
+<p>Now:</p>
+<pre><code class="language-python">out = self.routed[i](exp_in)
+</code></pre>
+<p>If the expert preserves model dimension:</p>
+<div class="math block">
+2\times D
+\rightarrow
+2\times D.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+D=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+2\times8
+\rightarrow
+2\times8.
+</div>
+<p>Only two token representations went through Expert 1.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-47">5.41.21 Retrieve their gate weights</h4>
+<p>We need the corresponding routing weights.</p>
+<p>Source:</p>
+<pre><code class="language-python">w = gate[row_idx, which_k].unsqueeze(-1)
+</code></pre>
+<p>Suppose:</p>
+<div class="math block">
+gate=
+\begin{bmatrix}
+0&amp;0&amp;0.401&amp;0.599\\
+0&amp;0.750&amp;0&amp;0.250\\
+0.450&amp;0&amp;0&amp;0.550\\
+0&amp;0.600&amp;0.400&amp;0
+\end{bmatrix}
+</div>
+<p>and Expert 1 selected rows are:</p>
+<div class="math block">
+row\_idx=[0,2].
+</div>
+<p>Then its weights are:</p>
+<div class="math block">
+[0.599,0.450].
+</div>
+<p>After <code>unsqueeze(-1)</code>:</p>
+<div class="math block">
+\boxed{
+[2\times1]
+}.
+</div>
+<p>This shape allows broadcasting when multiplying by expert outputs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-48">5.41.22 Weighted expert result</h4>
+<p>Suppose:</p>
+<div class="math block">
+E_1(T_1)=
+\begin{bmatrix}
+1&amp;2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+E_1(T_3)=
+\begin{bmatrix}
+3&amp;4
+\end{bmatrix}.
+</div>
+<p>Weights:</p>
+<div class="math block">
+0.599
+</div>
+<p>and:</p>
+<div class="math block">
+0.450.
+</div>
+<p>Then Expert 1 contributes:</p>
+<div class="math block">
+0.599[1,2]
+</div>
+<p>for <span class="math inline">T_1</span>, and:</p>
+<div class="math block">
+0.450[3,4]
+</div>
+<p>for <span class="math inline">T_3</span>.</p>
+<p>These results must go back to the correct original token positions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-49">5.41.23 The crucial <code>index_add_</code></h4>
+<p>The source uses:</p>
+<pre><code class="language-python">routed_out.index_add_(0, row_idx, out * w)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is extremely important.</p>
+<p>Suppose:</p>
+<div class="math block">
+routed\_out
+</div>
+<p>has shape:</p>
+<div class="math block">
+T\times D.
+</div>
+<p>For our four-token example:</p>
+<div class="math block">
+4\times D.
+</div>
+<p>We don't want to overwrite positions.</p>
+<p>We want:</p>
+<div class="math block">
+routed\_out[0]
+\mathrel{+}=E_1(T_1)\times0.599
+</div>
+<p>and:</p>
+<div class="math block">
+routed\_out[2]
+\mathrel{+}=E_1(T_3)\times0.450.
+</div>
+<p>Then Expert 2 adds its contribution to tokens 1 and 3.</p>
+<p>Expert 3 adds its contribution to tokens 0 and 3.</p>
+<p>Expert 4 adds its contribution to tokens 1 and 2.</p>
+<p>Hence the <strong>same token may accumulate contributions from multiple experts</strong>.</p>
+<p>That is exactly why <code>index_add_</code> is useful.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-50">5.41.24 Let's trace one token completely</h4>
+<p>Take token <span class="math inline">T_1</span>.</p>
+<p>Suppose:</p>
+<div class="math block">
+T_1\rightarrow E_1,E_3.
+</div>
+<p>Weights:</p>
+<div class="math block">
+0.599,\quad0.401.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+E_1(T_1)
+=
+[2,1]
+</div>
+<p>and:</p>
+<div class="math block">
+E_3(T_1)
+=
+[5,4].
+</div>
+<p>Then:</p>
+<div class="math block">
+R(T_1)
+=
+0.599[2,1]
++
+0.401[5,4].
+</div>
+<p>First component:</p>
+<div class="math block">
+1.198+2.005
+=
+\boxed{3.203}.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.599+1.604
+=
+\boxed{2.203}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+R(T_1)=[3.203,2.203]
+}.
+</div>
+<p>This is the sparse routed contribution.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-51">5.41.25 Step 10 — Add shared path</h4>
+<p>Suppose the shared experts produce:</p>
+<div class="math block">
+S(T_1)
+=
+[1,1].
+</div>
+<p>Then:</p>
+<div class="math block">
+S(T_1)+R(T_1)
+</div>
+<p>becomes:</p>
+<div class="math block">
+[1,1]+[3.203,2.203]
+</div>
+<div class="math block">
+=
+\boxed{[4.203,3.203]}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-52">5.41.26 Step 11 — Add the residual</h4>
+<p>Suppose:</p>
+<div class="math block">
+x_{T_1}
+=
+[0.5,2].
+</div>
+<p>Then final:</p>
+<div class="math block">
+Y(T_1)
+=
+x_{T_1}
++
+S(T_1)
++
+R(T_1).
+</div>
+<p>Thus:</p>
+<div class="math block">
+[0.5,2]+[1,1]+[3.203,2.203]
+</div>
+<div class="math block">
+=
+\boxed{
+[4.703,5.203]
+}.
+</div>
+<p>This follows the source's final structure:</p>
+<div class="math block">
+\boxed{
+x+shared\_out+routed\_out
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-53">5.41.27 Step 12 — Restore shape</h4>
+<p>We had:</p>
+<div class="math block">
+routed\_out
+\in
+\mathbb R^{BS\times D}.
+</div>
+<p>Reshape:</p>
+<div class="math block">
+\boxed{
+B\times S\times D
+}.
+</div>
+<p>In code:</p>
+<pre><code class="language-python">routed_out = routed_out.view(B, S, D)
+</code></pre>
+<p>The source uses exactly this. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-41-i82-1" data-full-review="added"><p>Correction: When wrapping this standalone MoE in a pre-norm Transformer, remove its internal x residual or remove outer addition; production-style block should add the residual once.</p><p><a href="#audit-full-chunk-les-step-5-41-i82">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-41-i82-54">5.41.28 Step 13 — Final output</h4>
+<p>Finally:</p>
+<pre><code class="language-python">return x + shared_out + routed_out
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Y=X+S(X)+R(X)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+Y\in
+\mathbb R^{B\times S\times D}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-55">5.41.29 Step 14 — Update the load-balancing bias</h4>
+<p>Now the forward computation is finished.</p>
+<p>During training, the source performs a separate bias update.</p>
+<p>It first gets the expert counts:</p>
+<pre><code class="language-python">counts = torch.bincount(
+    top_k_indices.flatten(),
+    minlength=self.n_routed
+)
+</code></pre>
+<p>So if:</p>
+<pre><code class="language-text">top_k_indices =
+[
+ [2,0],
+ [1,3],
+ [0,3],
+ [1,2]
+]
+</code></pre>
+<p>flatten:</p>
+<pre><code class="language-text">[2,0,1,3,0,3,1,2]
+</code></pre>
+<p>Counts:</p>
+<div class="math block">
+E_1=2
+</div>
+<div class="math block">
+E_2=2
+</div>
+<div class="math block">
+E_3=2
+</div>
+<div class="math block">
+E_4=2.
+</div>
+<p>Perfectly balanced.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-56">5.41.30 Another example of <code>bincount</code></h4>
+<p>Suppose instead:</p>
+<pre><code class="language-text">top_k_indices =
+[
+ [2,0],
+ [2,3],
+ [0,3],
+ [2,3]
+]
+</code></pre>
+<p>Flatten:</p>
+<div class="math block">
+[2,0,2,3,0,3,2,3].
+</div>
+<p>Counts:</p>
+<div class="math block">
+\boxed{
+[2,0,3,3]
+}.
+</div>
+<p>So:</p>
+<ul>
+<li>Expert 1: 2</li>
+<li>Expert 2: 0</li>
+<li>Expert 3: 3</li>
+<li>Expert 4: 3</li>
+</ul>
+<p>Expert 2 is effectively dead for this batch.</p>
+<p>Experts 3 and 4 are relatively overloaded.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-57">5.41.31 Average load</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=4,\quad k=2,\quad N_r=4.
+</div>
+<p>Total assignments:</p>
+<div class="math block">
+T\times k
+=
+8.
+</div>
+<p>Average:</p>
+<div class="math block">
+\frac84
+=
+\boxed{2}.
+</div>
+<p>So:</p>
+<div class="math block">
+\bar C=2.
+</div>
+<p>This is exactly the source's logic. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-58">5.41.32 Calculate violation</h4>
+<p>Use:</p>
+<div class="math block">
+\boxed{
+v_i=
+\frac{\bar C-C_i}
+{\bar C+\epsilon}
+}
+</div>
+<p>as in the source implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For:</p>
+<div class="math block">
+C=[2,0,3,3]
+</div>
+<p>and:</p>
+<div class="math block">
+\bar C=2,
+</div>
+<p>we get:</p>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-59">Expert 1</h6>
+<div class="math block">
+v_1=
+\frac{2-2}{2}
+=
+0.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-60">Expert 2</h6>
+<div class="math block">
+v_2=
+\frac{2-0}{2}
+=
+\boxed{1}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-61">Expert 3</h6>
+<div class="math block">
+v_3=
+\frac{2-3}{2}
+=
+\boxed{-0.5}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-62">Expert 4</h6>
+<div class="math block">
+v_4=-0.5.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+v=[0,1,-0.5,-0.5]
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-63">5.41.33 Apply the bounded update</h4>
+<p>Suppose:</p>
+<div class="math block">
+\eta=0.01.
+</div>
+<p>Then:</p>
+<div class="math block">
+\Delta b_i
+=
+0.01\tanh(v_i).
+</div>
+<p>For Expert 2:</p>
+<div class="math block">
+\tanh(1)\approx0.7616
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_2
+\approx
+\boxed{0.007616}.
+</div>
+<p>For Experts 3 and 4:</p>
+<div class="math block">
+\tanh(-0.5)\approx-0.4621
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_3
+=
+\Delta b_4
+\approx
+\boxed{-0.004621}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+b_2\uparrow
+</div>
+<p>and:</p>
+<div class="math block">
+b_3,b_4\downarrow.
+</div>
+<p>Exactly the desired direction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-64">5.41.34 Why is Expert 2 now more attractive?</h4>
+<p>Because next time:</p>
+<div class="math block">
+L'_2=L_2+b_2.
+</div>
+<p>Since:</p>
+<div class="math block">
+b_2
+</div>
+<p>increased:</p>
+<div class="math block">
+L'_2
+</div>
+<p>also increases.</p>
+<p>Therefore Expert 2 is more likely to enter Top-K.</p>
+<p>Conversely, Expert 3:</p>
+<div class="math block">
+b_3\downarrow
+</div>
+<p>so:</p>
+<div class="math block">
+L'_3\downarrow.
+</div>
+<p>Thus Expert 3 becomes less likely to be selected.</p>
+<p>This is the self-correcting loop emphasized by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-65">5.41.35 Important: the bias is persistent</h4>
+<p>The bias isn't simply:</p>
+<div class="math block">
+\text{temporary computation}.
+</div>
+<p>It is carried into later steps.</p>
+<p>So:</p>
+<div class="math block">
+b^{(t)}
+\rightarrow
+b^{(t+1)}
+\rightarrow
+b^{(t+2)}
+\rightarrow\cdots
+</div>
+<p>The router gradually adapts its selection preferences.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-66">5.41.36 Important: bias update isn't backpropagation</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">@torch.no_grad()
+</code></pre>
+<p>for the update. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<pre><code class="language-text">language loss
+      ↓
+backpropagation
+      ↓
+model parameters
+
+separate load measurement
+      ↓
+bias update
+      ↓
+router preference next step
+</code></pre>
+<p>That separation is the heart of the:</p>
+<div class="math block">
+\boxed{\text{loss-free}}
+</div>
+<p>approach.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-41-i82-0" data-full-review="added"><p>Correction: The book-style biased-logit softmax and tanh feedback are educational variants, not exact production V3. Also avoid recomputing feedback routing after router weights change; collect actual forward indices.</p><p><a href="#audit-full-chunk-les-step-5-41-i82">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-41-i82-67">5.41.37 Full source-style code</h4>
+<p>Now let's put the pieces together.</p>
+<pre><code class="language-python">import math
+from typing import Optional
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+def _gelu(x: torch.Tensor) -&gt; torch.Tensor:
+    return 0.5 * x * (
+        1.0
+        + torch.tanh(
+            math.sqrt(2.0 / math.pi)
+            * (x + 0.044715 * torch.pow(x, 3))
+        )
+    )
+
+
+class ExpertFFN(nn.Module):
+    &quot;&quot;&quot;
+    Two-layer expert FFN.
+    &quot;&quot;&quot;
+
+    def __init__(self, d_model: int, hidden: int):
+        super().__init__()
+
+        self.fc1 = nn.Linear(
+            d_model,
+            hidden,
+            bias=False
+        )
+
+        self.fc2 = nn.Linear(
+            hidden,
+            d_model,
+            bias=False
+        )
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        return self.fc2(
+            _gelu(
+                self.fc1(x)
+            )
+        )
+
+
+class DeepSeekMoE(nn.Module):
+
+    def __init__(
+        self,
+        d_model: int,
+        n_routed_exp: int,
+        n_shared_exp: int = 1,
+        top_k: int = 8,
+        routed_hidden: int = 2048,
+        shared_hidden: Optional[int] = None,
+        bias_lr: float = 0.01,
+    ):
+        super().__init__()
+
+        assert top_k &lt;= n_routed_exp
+
+        self.d_model = d_model
+        self.n_routed = n_routed_exp
+        self.n_shared = n_shared_exp
+        self.top_k = top_k
+        self.bias_lr = bias_lr
+
+        # Sparse routed experts
+        self.routed = nn.ModuleList(
+            [
+                ExpertFFN(d_model, routed_hidden)
+                for _ in range(n_routed_exp)
+            ]
+        )
+
+        # Dense shared experts
+        hidden_shared = shared_hidden or routed_hidden
+
+        self.shared = nn.ModuleList(
+            [
+                ExpertFFN(d_model, hidden_shared)
+                for _ in range(n_shared_exp)
+            ]
+        )
+
+        # Router weights
+        self.centroids = nn.Parameter(
+            torch.empty(n_routed_exp, d_model)
+        )
+
+        nn.init.normal_(
+            self.centroids,
+            std=d_model ** -0.5
+        )
+
+        # Dynamic balancing bias
+        self.register_buffer(
+            &quot;bias&quot;,
+            torch.zeros(n_routed_exp)
+        )
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+
+        B, S, D = x.shape
+
+        # -------------------------------------------------
+        # 1. SHARED PATH
+        # -------------------------------------------------
+
+        shared_out = torch.zeros_like(x)
+
+        for expert in self.shared:
+            shared_out += expert(x)
+
+        # -------------------------------------------------
+        # 2. FLATTEN TOKENS
+        # -------------------------------------------------
+
+        x_flat = x.reshape(-1, D)
+
+        # -------------------------------------------------
+        # 3. ROUTER
+        # -------------------------------------------------
+
+        logits = F.linear(
+            x_flat,
+            self.centroids
+        )
+
+        # -------------------------------------------------
+        # 4. DYNAMIC LOAD-BALANCING BIAS
+        # -------------------------------------------------
+
+        logits = logits + self.bias.to(
+            logits.dtype
+        )
+
+        # -------------------------------------------------
+        # 5. TOP-K
+        # -------------------------------------------------
+
+        topk_logits, topk_idx = torch.topk(
+            logits,
+            self.top_k,
+            dim=-1
+        )
+
+        # -------------------------------------------------
+        # 6. SOFTMAX GATES
+        # -------------------------------------------------
+
+        gate = F.softmax(
+            topk_logits,
+            dim=-1,
+            dtype=x.dtype
+        )
+
+        # -------------------------------------------------
+        # 7. SPARSE DISPATCH
+        # -------------------------------------------------
+
+        routed_out = torch.zeros_like(x_flat)
+
+        for i in range(self.n_routed):
+
+            mask = (topk_idx == i)
+
+            row_idx, which_k = mask.nonzero(
+                as_tuple=True
+            )
+
+            if row_idx.numel() == 0:
+                continue
+
+            exp_in = x_flat.index_select(
+                0,
+                row_idx
+            )
+
+            out = self.routed[i](
+                exp_in
+            )
+
+            w = gate[
+                row_idx,
+                which_k
+            ].unsqueeze(-1)
+
+            routed_out.index_add_(
+                0,
+                row_idx,
+                out * w
+            )
+
+        routed_out = routed_out.view(
+            B, S, D
+        )
+
+        # -------------------------------------------------
+        # 8. RESIDUAL + SHARED + ROUTED
+        # -------------------------------------------------
+
+        return (
+            x
+            + shared_out
+            + routed_out
+        )
+</code></pre>
+<p>This is source-grounded pseudocode/implementation structure adapted directly from the book's listings rather than a claim that this is production DeepSeek code. The source itself describes its implementation as a scaled-down, educational implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-68">5.41.38 The <code>forward()</code> method in plain English</h4>
+<p>Let's translate the whole function:</p>
+<pre><code class="language-text">Input X
+  ↓
+Every token → shared experts
+  ↓
+Flatten tokens
+  ↓
+Router computes scores
+  ↓
+Add balancing bias
+  ↓
+Choose top-k experts
+  ↓
+Softmax selected scores
+  ↓
+Group tokens according to destination expert
+  ↓
+Run each group through its expert
+  ↓
+Weight each expert output
+  ↓
+Scatter-add results back to token locations
+  ↓
+Reshape
+  ↓
+Add shared output
+  ↓
+Add residual X
+  ↓
+Final output
+</code></pre>
+<p>That is the complete MoE forward pass.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-69">5.41.39 Why the code uses a loop over experts</h4>
+<p>This line:</p>
+<pre><code class="language-python">for i in range(self.n_routed):
+</code></pre>
+<p>does <strong>not</strong> mean every expert processes every token.</p>
+<p>The loop merely asks:</p>
+<blockquote>
+<p>“Which tokens were assigned to expert <span class="math inline">i</span>?”</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">mask = (topk_idx == i)
+</code></pre>
+<p>finds only those tokens.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{loop over experts}
+\neq
+\text{dense computation over all tokens}
+}
+</div>
+<p>This is a very important code-reading point.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-70">5.41.40 What happens if an expert receives zero tokens?</h4>
+<p>Then:</p>
+<pre><code class="language-python">if row_idx.numel() == 0:
+    continue
+</code></pre>
+<p>So the expert is skipped entirely for that batch.</p>
+<p>No expert computation.</p>
+<p>This is sparse execution.</p>
+<p>But if this happens repeatedly, it indicates a routing problem—the “dead expert” issue discussed earlier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-71">5.41.41 Complete tensor-shape trace</h4>
+<p>Let's use:</p>
+<div class="math block">
+B=2,\quad S=4,\quad D=8
+</div>
+<p>with:</p>
+<div class="math block">
+N_r=4,\quad k=2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-72">Input</h6>
+<div class="math block">
+\boxed{2\times4\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-73">Flatten</h6>
+<div class="math block">
+\boxed{8\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-74">Router logits</h6>
+<div class="math block">
+\boxed{8\times4}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-75">Top-K indices</h6>
+<div class="math block">
+\boxed{8\times2}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-76">Top-K logits</h6>
+<div class="math block">
+\boxed{8\times2}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-77">Gates</h6>
+<div class="math block">
+\boxed{8\times2}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-78">Expert-specific input</h6>
+<p>If Expert 1 gets 3 tokens:</p>
+<div class="math block">
+\boxed{3\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-79">Expert output</h6>
+<div class="math block">
+\boxed{3\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-80">Routed output</h6>
+<div class="math block">
+\boxed{8\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-81">Reshape</h6>
+<div class="math block">
+\boxed{2\times4\times8}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-82">Final output</h6>
+<div class="math block">
+\boxed{2\times4\times8}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-83">5.41.42 Exam numerical — token dispatch</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=4,\quad S=16.
+</div>
+<p>Then:</p>
+<div class="math block">
+T=64.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+N_r=8,\quad k=2.
+</div>
+<p>Total assignments:</p>
+<div class="math block">
+64\times2
+=
+\boxed{128}.
+</div>
+<p>Perfect average:</p>
+<div class="math block">
+128/8
+=
+\boxed{16}.
+</div>
+<p>Suppose actual counts:</p>
+<div class="math block">
+[20,10,18,12,16,14,22,16].
+</div>
+<p>Check:</p>
+<div class="math block">
+20+10+18+12+16+14+22+16
+=
+128.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{E_7\text{ is the hottest expert}}
+</div>
+<p>with 22 assignments, while:</p>
+<div class="math block">
+\boxed{E_2}
+</div>
+<p>has only 10.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-84">5.41.43 Calculate the violations</h4>
+<p>Using:</p>
+<div class="math block">
+\bar C=16
+</div>
+<p>and:</p>
+<div class="math block">
+v_i=
+\frac{16-C_i}{16}.
+</div>
+<p>We get:</p>
+<div class="math block">
+E_1:\frac{-4}{16}=-0.25
+</div>
+<div class="math block">
+E_2:\frac{6}{16}=0.375
+</div>
+<div class="math block">
+E_3:\frac{-2}{16}=-0.125
+</div>
+<div class="math block">
+E_4:\frac{4}{16}=0.25
+</div>
+<div class="math block">
+E_5=0
+</div>
+<div class="math block">
+E_6:\frac{2}{16}=0.125
+</div>
+<div class="math block">
+E_7:\frac{-6}{16}=-0.375
+</div>
+<div class="math block">
+E_8=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+b_2,b_4,b_6\uparrow
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+b_1,b_3,b_7\downarrow
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-85">5.41.44 Expert parameter-count numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=4096
+</div>
+<p>and:</p>
+<div class="math block">
+H=1024.
+</div>
+<p>One expert has approximately:</p>
+<div class="math block">
+2DH
+</div>
+<p>weights.</p>
+<p>Therefore:</p>
+<div class="math block">
+2(4096)(1024)
+=
+\boxed{8,388,608}.
+</div>
+<p>With:</p>
+<div class="math block">
+64
+</div>
+<p>routed experts:</p>
+<div class="math block">
+64\times8,388,608
+=
+\boxed{536,870,912}.
+</div>
+<p>So the routed expert pool contains about:</p>
+<div class="math block">
+\boxed{536.9M}
+</div>
+<p>weights.</p>
+<p>But with:</p>
+<div class="math block">
+k=8,
+</div>
+<p>only:</p>
+<div class="math block">
+8\times8,388,608
+=
+\boxed{67,108,864}
+</div>
+<p>expert weights are activated per token.</p>
+<p>Again:</p>
+<div class="math block">
+\boxed{
+\text{total expert parameters}
+\neq
+\text{active expert parameters}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-86">5.41.45 Shared expert parameter numerical</h4>
+<p>Suppose we additionally have:</p>
+<div class="math block">
+2
+</div>
+<p>shared experts, each with:</p>
+<div class="math block">
+H=1024.
+</div>
+<p>Each:</p>
+<div class="math block">
+8,388,608
+</div>
+<p>parameters.</p>
+<p>Therefore:</p>
+<div class="math block">
+2\times8,388,608
+=
+\boxed{16,777,216}.
+</div>
+<p>So every token sees those:</p>
+<div class="math block">
+\boxed{16.8M}
+</div>
+<p>shared parameters, while only a subset of routed parameters is activated.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-87">5.41.46 Why shared experts are dense but routed experts are sparse</h4>
+<p>For every token:</p>
+<div class="math block">
+\boxed{
+\text{shared computation}
+}
+</div>
+<p>always happens.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{routed computation}
+}
+</div>
+<p>depends on Top-K.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Dense common computation}
++
+\text{Sparse specialized computation}
+}
+</div>
+<p>is the key DeepSeek-MoE structure.</p>
+<p>The source explicitly frames the shared experts as dense generalists and routed experts as sparse specialists. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-88">5.41.47 Production reality: dispatch is not free</h4>
+<p>This is important for systems/design questions.</p>
+<p>Mathematically we say:</p>
+<div class="math block">
+\text{only selected experts execute}.
+</div>
+<p>But on distributed GPUs, tokens may need to move to the GPU that owns the selected expert.</p>
+<p>That introduces:</p>
+<div class="math block">
+\boxed{\text{communication overhead}}
+</div>
+<p>often involving all-to-all communication in distributed MoE systems.</p>
+<p>The source later discusses this as a major systems issue motivating DualPipe. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MoE efficiency}
+\neq
+\text{zero communication cost}
+}
+</div>
+<p>The source's chapter 4 implementation is intentionally simplified and does not reproduce full production distributed execution.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-89">5.41.48 Another critical distinction: educational code vs production DeepSeek</h4>
+<p>The source code is designed to make the mechanism understandable.</p>
+<p>For example, the source says shared experts are processed sequentially in a simple <code>for</code> loop and notes that production systems would parallelize expert computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore don't answer an interview question:</p>
+<blockquote>
+<p>“DeepSeek production runs experts one by one in a Python loop.”</p>
+</blockquote>
+<p>That would be wrong.</p>
+<p>The correct distinction is:</p>
+<div class="math block">
+\boxed{
+\text{source implementation}
+=
+\text{educational reference implementation}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{production system}
+=
+\text{distributed, parallel expert execution}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-90">5.41.49 The entire DeepSeek-MoE formula</h4>
+<p>We can now express the whole thing in one equation.</p>
+<p>Let:</p>
+<div class="math block">
+L_t=W_Rx_t+b.
+</div>
+<p>Select:</p>
+<div class="math block">
+I_t=TopK(L_t,k).
+</div>
+<p>Normalize:</p>
+<div class="math block">
+g_{t,i}
+=
+\frac{e^{L_{t,i}}}
+{\sum_{j\in I_t}e^{L_{t,j}}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+R(x_t)
+=
+\sum_{i\in I_t}
+g_{t,i}E_i(x_t).
+</div>
+<p>Shared path:</p>
+<div class="math block">
+S(x_t)
+=
+\sum_{j=1}^{N_s}S_j(x_t).
+</div>
+<p>Final:</p>
+<div class="math block">
+\boxed{
+y_t
+=
+x_t
++
+S(x_t)
++
+R(x_t)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+b_i
+\text{ updated separately from routing load}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-91">5.41.50 One complete numerical trace</h4>
+<p>Let's make this exam-level.</p>
+<p>Suppose there is one token:</p>
+<div class="math block">
+x=[1,2].
+</div>
+<p>There are:</p>
+<div class="math block">
+4
+</div>
+<p>routed experts and:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Router produces:</p>
+<div class="math block">
+L=[1.0,2.0,3.0,1.5].
+</div>
+<p>Bias:</p>
+<div class="math block">
+b=[0.1,0,-0.5,0.2].
+</div>
+<p>Adjusted:</p>
+<div class="math block">
+L'=[1.1,2.0,2.5,1.7].
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<p>Selected logits:</p>
+<div class="math block">
+[2.5,2.0].
+</div>
+<p>Softmax:</p>
+<div class="math block">
+e^{2.5}\approx12.182
+</div>
+<div class="math block">
+e^2\approx7.389.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+g_3
+=
+\frac{12.182}{19.571}
+\approx
+\boxed{0.622}.
+</div>
+<div class="math block">
+g_2
+\approx
+\boxed{0.378}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+E_3(x)=[4,1]
+</div>
+<p>and:</p>
+<div class="math block">
+E_2(x)=[1,5].
+</div>
+<p>Routed output:</p>
+<div class="math block">
+0.622[4,1]+0.378[1,5].
+</div>
+<p>First component:</p>
+<div class="math block">
+2.488+0.378
+=
+\boxed{2.866}.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.622+1.890
+=
+\boxed{2.512}.
+</div>
+<p>Suppose shared path:</p>
+<div class="math block">
+S(x)=[1,0.5].
+</div>
+<p>Residual:</p>
+<div class="math block">
+x=[1,2].
+</div>
+<p>Final:</p>
+<div class="math block">
+y=
+[1,2]+[1,0.5]+[2.866,2.512]
+</div>
+<div class="math block">
+=
+\boxed{
+[4.866,\;5.012]
+}.
+</div>
+<p>This is the complete forward calculation for one token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-92">5.41.51 The conceptual breakthrough</h4>
+<p>At this point, notice what DeepSeek has created:</p>
+<div class="math block">
+\boxed{
+\text{Every token gets common knowledge}
+}
+</div>
+<p>from the shared experts,</p>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Every token gets specialized knowledge}
+}
+</div>
+<p>from only a small number of routed experts,</p>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{the router controls specialization}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{the dynamic bias controls utilization}.
+}
+</div>
+<p>That is the complete architectural logic.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-93">5.41.52 DeepSeek-MoE in four equations</h4>
+<p>For exam revision, reduce the whole chapter to these:</p>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-94">1. Router</h6>
+<div class="math block">
+\boxed{
+L=XW_R
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-95">2. Balanced routing</h6>
+<div class="math block">
+\boxed{
+L'=L+b
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-96">3. Sparse expert mixture</h6>
+<div class="math block">
+\boxed{
+R(x)=
+\sum_{i\in TopK(L',k)}
+g_iE_i(x)
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-41-i82-97">4. Complete layer</h6>
+<div class="math block">
+\boxed{
+Y=X+
+\sum_jS_j(X)+R(X)
+}
+</div>
+<p>Then separately:</p>
+<div class="math block">
+\boxed{
+b_i\leftarrow
+b_i+\eta\tanh
+\left(
+\frac{\bar C-C_i}{\bar C+\epsilon}
+\right)
+}
+</div>
+<p>during training.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-98">5.41.53 What you should now understand, not memorize</h4>
+<p>You should now be able to explain <strong>why each operation exists</strong>:</p>
+<div class="math block">
+\boxed{\text{Flatten}}
+</div>
+<p>because routing is token-wise.</p>
+<div class="math block">
+\boxed{\text{Router}}
+</div>
+<p>because the model needs to choose specialists.</p>
+<div class="math block">
+\boxed{\text{Bias}}
+</div>
+<p>because some experts can become overloaded.</p>
+<div class="math block">
+\boxed{\text{Top-K}}
+</div>
+<p>because we want sparsity.</p>
+<div class="math block">
+\boxed{\text{Softmax}}
+</div>
+<p>because selected experts need normalized mixture weights.</p>
+<div class="math block">
+\boxed{\text{Dispatch}}
+</div>
+<p>because each expert should process only its assigned tokens.</p>
+<div class="math block">
+\boxed{\text{index\_add}}
+</div>
+<p>because multiple experts contribute back to the same token.</p>
+<div class="math block">
+\boxed{\text{Shared experts}}
+</div>
+<p>because common knowledge should not be redundantly relearned.</p>
+<div class="math block">
+\boxed{\text{Residual}}
+</div>
+<p>because the MoE sits in the Transformer residual stream.</p>
+<div class="math block">
+\boxed{\text{Bias update}}
+</div>
+<p>because routing balance is corrected over training without adding an auxiliary loss.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-41-i82-99">5.41.54 Where we are in the DeepSeek architecture</h4>
+<p>We have now completed the entire conceptual Chapter 4 architecture:</p>
+<div class="math block">
+\boxed{
+\text{Dense FFN}
+\rightarrow
+\text{MoE}
+\rightarrow
+\text{Load balancing}
+\rightarrow
+\text{Fine-grained experts}
+\rightarrow
+\text{Shared experts}
+\rightarrow
+\text{Loss-free balancing}
+\rightarrow
+\text{Complete DeepSeek-MoE layer}
+}
+</div>
+<p>The source's later experiment compares a standard MoE and its DeepSeek-style implementation with nearly equal learnable parameters; it reports lower validation loss and higher throughput for the DeepSeek-style version in that scaled-down experiment. This is <strong>the book's experiment</strong>, not a universal benchmark claim. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

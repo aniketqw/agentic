@@ -1,0 +1,1263 @@
+<section class="chunk" id="chunk-les-step-0-2-i3" data-id="les-step-0-2-i3"><details class="audit-card" id="audit-full-chunk-les-step-0-2-i3" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-1">Motivation</h4><p>Convert arbitrary scores into a distribution, then evaluate sequence likelihood and token training loss. Prerequisites: Step 0.1, multiplication, exponentials and logarithms.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-2">Prerequisites</h4><ul><li>Read the prerequisite chain stated in the original lesson and this review motivation.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-3">Notation and units</h4><ul><li>\log P(x_{1:n})=\sum_{t=1}^{n}\log P(x_t\mid x_{&lt;t})</li><li>\log p_i=(z_i-m)-\log\sum_j e^{z_j-m},\qquad m=\max_j z_j</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-4">Assumptions</h4><ul><li>Natural logs give losses in nats. A finite logit vector has strictly positive exact softmax probabilities; numerical underflow or explicit masking can produce zeros. The masked row must contain at least one permitted key. Temperature is positive; temperature zero needs a separate greedy branch.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-5">Step-by-step derivation</h4><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><h4 id="v3-heading-chunk-les-step-0-2-i3-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-7">Verified 0.2.11</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 0.09003057317038046; 0.24472847105479764; 0.6652409557748218</p><p>Verification: foundations_decoding / 0.2.11 · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-8">Verified 0.2.27</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 0.6652409557748218; 0.24472847105479764; 0.09003057317038046</p><p>Verification: foundations_decoding / 0.2.27 · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-9">Verified 0.2.mastery</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 0.2689414213699951; 0.7310585786300049</p><p>Verification: foundations_decoding / 0.2.mastery · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-10">Verified 0.2.15.correction</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 0.27211847744896767; 0.6056108089617321; 0.12227071358930015; 0.0</p><p>Verification: foundations_decoding / 0.2.15.correction · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-11">Verified 0.2.15.old-result-refuted</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 1</p><p>Verification: foundations_decoding / 0.2.15.old-result-refuted · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-2-i3-12">Verified 0.2.16.row1</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><p>Answer: 1.0; 0.0; 0.0</p><p>Verification: foundations_decoding / 0.2.16.row1 · reused earlier evidence; not counted again</p></div><h4 id="v3-heading-chunk-les-step-0-2-i3-13">Corrections and source qualifications</h4><ul><li>heading: 0.2.15; text: Correct masked distribution for [1.2,2,.4,-inf] is [.2721184774,.6056108090,.1222707136,0]; the third permitted key does not have zero probability.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-14">Mastery answers and retained exercise context</h4><ol><li>Q1: The vector includes a negative value and entries above one, and does not sum to one.</li><li>Q2: The chain rule of conditional probability.</li><li>Q3: Logs turn products into sums and permit stable likelihood calculations.</li><li>Q4: softmax([0,1])=[0.2689414214,0.7310585786].</li><li>Q5: The common exponential factor cancels.</li><li>Q6: −ln(0.01)=4.6051701860 nats.</li><li>Q7: A_ij is the normalized pre-dropout coefficient assigned by query i to permitted key j.</li><li>Q8: QKᵀ contains raw scores; row softmax produces normalized coefficients.</li><li>Q9: Logits are unconstrained scores; token probabilities are the normalized vocabulary distribution.</li><li>Q10: Q,K,V → QKᵀ → scale and mask → row softmax A → AV.</li></ol><h4 id="v3-heading-chunk-les-step-0-2-i3-15">Edge cases and remaining gaps</h4><ul><li>An all-masked row is undefined; silently accepting NaNs would hide an input/mask error.</li><li>Normalization is across allowed keys per query, or across vocabulary classes at the output. Post-softmax attention dropout need not preserve row sums of one in an individual training pass.</li><li>The NLP book’s physical p87 says column values, while p90 uses softmax(scores, dim=-1) and sums the last dimension. Use the explicit query/key layout and implementation to determine the axis.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-16">Connections and progression</h4><ul><li>The same normalizer becomes attention, decoding temperature, distillation distributions and the log probabilities used in RL policy ratios.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-17">Exact source support</h4><ul><li>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron.pdf · physical PDF pages 251, 252 · Chapter 4, equations 4-20 and 4-22: softmax and cross-entropy</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 324, 325, 326, 360, 361, 362 · §5.1 target/logit loss and §5.3.1 temperature</li><li>Natural language processing with Transformers _ building.pdf · physical PDF pages 87, 90 · Normalization wording versus executable last-axis normalization</li><li>Understanding_Attention_Handbook_01.pdf · physical PDF pages 10, 11 · Sections 7–8: masks and row-wise aggregation</li><li>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2.pdf · physical PDF pages 1, 2 · Primitive softmax and sequence factorization; secondary cheatsheet support</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-18">Executable code and explained functions</h4><p>inherited_review/examples/foundation_examples.py</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (74)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.1 First: What problem are we trying to solve?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.2 What is a probability distribution?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.3 Why does a language model need probabilities?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.4 Autoregressive probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.5 Why factorization matters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.6 The problem with multiplying probabilities</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.7 Log-probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Example</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.8 Why are log-probabilities negative?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.9 Negative log-probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Model predicts correct token with probability 0.9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Model predicts it with probability 0.5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Model predicts it with probability 0.01</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.10 Now we reach SOFTMAX</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.11 Understand softmax from the inside out</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1: exponentiate</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2: calculate the sum</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3: divide each by the total</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.12 Why the exponential?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1. It guarantees positivity</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. It preserves ordering</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. It amplifies differences</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>4. It normalizes</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.13 Logits are NOT probabilities</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.14 A very important Transformer connection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Attention</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Output layer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.15 Attention softmax vs language-model softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.16 Causal masking + softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.17 Softmax has a beautiful property: shift invariance</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.18 Numerically stable softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.19 Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Case 1: T=1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Case 2: T&lt;1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Case 3: T&gt;1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Intuition</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.20 One-hot targets</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.21 Why negative log probability is such a good loss</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Prediction A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Prediction B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Prediction C</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.22 From one token to the entire sentence</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.23 Connection to attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.24 Extremely important distinction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1. Learned parameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. Scores / logits</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. Normalized weights/probabilities</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.25 The entire mathematical picture so far</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.26 Tensor-shape grounding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.27 A tiny complete numerical example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.28 PyTorch implementation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>0.2.29 A safer practical version</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.30 What you should understand, not memorize</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Why probability?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why logits?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why softmax?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why log?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why negative log probability?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why does softmax appear in attention?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2.31 One subtle point: attention weights are not automatically &quot;probabilities&quot; in the ordinary semantic sense</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.2.32 MASTER CONNECTION</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>MASTER CHECK — 0.2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10 — most important</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Sources used for this lesson</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-inherited-0-2" data-inherited-review="added"><summary>Inherited foundation review — Probability and softmax: numerical correction and stable losses</summary><p>Read this qualification together with the original lesson. Checked fixtures and source support are recorded below; the full course remains under review.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-19">Motivation, prerequisites and assumptions</h4><p>Convert arbitrary scores into a distribution, then evaluate sequence likelihood and token training loss. Prerequisites: Step 0.1, multiplication, exponentials and logarithms.</p><p>Natural logs give losses in nats. A finite logit vector has strictly positive exact softmax probabilities; numerical underflow or explicit masking can produce zeros. The masked row must contain at least one permitted key. Temperature is positive; temperature zero needs a separate greedy branch.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-20">Derivation and worked results</h4><ol><li>Conditional probability P(a,b)=P(a)P(b|a), applied repeatedly, gives the autoregressive product. Taking logs turns that product into a sum. The first factor needs an unconditional or explicitly supplied beginning-of-sequence context.</li><li>Exponentiating and normalizing gives softmax. Adding a common constant multiplies numerator and denominator by the same factor, which cancels. Subtracting the maximum avoids exponential overflow.</li><li>Correction to 0.2.15: exp(1.2), exp(2.0), exp(0.4), exp(−∞) normalize to [0.2721184774,0.6056108090,0.1222707136,0]. The inherited [0.31,0.69,0,0] is incorrect. The third key is permitted and has positive mass.</li><li>The complete causal example has rows [1,0,0], [0.7310585786,0.2689414214,0] and [0.0420100661,0.8437947345,0.1141951994].</li><li>For logits [2,1,0], the exact class-2 probability is 0.2447284711 and loss is 1.4076059644. Keep unrounded probabilities during calculation; a three-decimal display of the final loss is 1.408.</li><li>For a target y, stable loss is logsumexp(z)−z_y. With logits [1000,0] and target 2, direct log-softmax gives −1000 even though a floating-point softmax probability can underflow to zero.</li></ol><div class="math block">\log P(x_{1:n})=\sum_{t=1}^{n}\log P(x_t\mid x_{&lt;t})</div><div class="math block">\log p_i=(z_i-m)-\log\sum_j e^{z_j-m},\qquad m=\max_j z_j</div><h4 id="v3-heading-chunk-les-step-0-2-i3-21">Edge cases and limitations</h4><ul><li>An all-masked row is undefined; silently accepting NaNs would hide an input/mask error.</li><li>Normalization is across allowed keys per query, or across vocabulary classes at the output. Post-softmax attention dropout need not preserve row sums of one in an individual training pass.</li><li>The NLP book’s physical p87 says column values, while p90 uses softmax(scores, dim=-1) and sums the last dimension. Use the explicit query/key layout and implementation to determine the axis.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-22">Mastery-check answer key</h4><ol><li>Q1: The vector includes a negative value and entries above one, and does not sum to one.</li><li>Q2: The chain rule of conditional probability.</li><li>Q3: Logs turn products into sums and permit stable likelihood calculations.</li><li>Q4: softmax([0,1])=[0.2689414214,0.7310585786].</li><li>Q5: The common exponential factor cancels.</li><li>Q6: −ln(0.01)=4.6051701860 nats.</li><li>Q7: A_ij is the normalized pre-dropout coefficient assigned by query i to permitted key j.</li><li>Q8: QKᵀ contains raw scores; row softmax produces normalized coefficients.</li><li>Q9: Logits are unconstrained scores; token probabilities are the normalized vocabulary distribution.</li><li>Q10: Q,K,V → QKᵀ → scale and mask → row softmax A → AV.</li></ol><h4 id="v3-heading-chunk-les-step-0-2-i3-23">Source grounding</h4><ul><li>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron.pdf · physical PDF pages 251, 252 · Chapter 4, equations 4-20 and 4-22: softmax and cross-entropy</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 324, 325, 326, 360, 361, 362 · §5.1 target/logit loss and §5.3.1 temperature</li><li>Natural language processing with Transformers _ building.pdf · physical PDF pages 87, 90 · Normalization wording versus executable last-axis normalization</li><li>Understanding_Attention_Handbook_01.pdf · physical PDF pages 10, 11 · Sections 7–8: masks and row-wise aggregation</li><li>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2.pdf · physical PDF pages 1, 2 · Primitive softmax and sequence factorization; secondary cheatsheet support</li></ul><p>These passages support the named mathematical mechanism. The new derivations and toy calculations are explicitly independent reconstructions. Research-performance claims and every inherited source-attribution sentence require their own claim-level evidence.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-24">Progression and execution</h4><p>The same normalizer becomes attention, decoding temperature, distillation distributions and the log probabilities used in RL policy ratios.</p><p><a href="#audit-inherited-code">Executable foundation examples and verified outputs</a> · <a href="#audit-inherited-checks">Independent checking methods</a></p></details><details class="audit-card" id="audit-F03" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> F03 — Stable softmax and log-softmax</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F02">← Previous audit card</a> · <a href="#audit-F04">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-0-2-i3-25">Why this matters</h4><p>Logits need to become a normalized distribution without overflowing when all scores are large.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-0-2-i3-26">Symbols, shapes and assumptions</h4><p>Normalize over the vocabulary for token prediction, or over allowed key positions for attention. Temperature τ must be positive. At least one entry must be finite.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-27">Derivation or mechanism</h4><ol><li>Choose m=max(z).</li><li>Subtract m from every logit before dividing by τ. The common exponential factor cancels.</li><li>Compute log Z from these shifted exponentials. Subtract log Z to obtain log-probabilities.</li></ol><div class="math block" data-tex="p_i=\frac{\exp((z_i-m)/\tau)}{\sum_j\exp((z_j-m)/\tau)}">p_i=\frac{\exp((z_i-m)/\tau)}{\sum_j\exp((z_j-m)/\tau)}</div><div class="math block" data-tex="\log p_i=(z_i-m)/\tau-\log\sum_j\exp((z_j-m)/\tau)">\log p_i=(z_i-m)/\tau-\log\sum_j\exp((z_j-m)/\tau)</div><h4 id="v3-heading-chunk-les-step-0-2-i3-28">Worked numerical</h4><p>For logits [1000,1001,1002] and τ=1, subtract 1002 to obtain [-2,-1,0]. The probabilities are approximately [0.090031,0.244728,0.665241]. Adding or subtracting 1000 leaves them unchanged. For [0,-1000], log-softmax retains [0,-1000] even if exp(-1000) underflows to zero.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-29">Edge cases and limits</h4><ul><li>τ=0 is not the softmax formula; a greedy limit is a separate procedure.</li><li>All -∞ means no allowed outcome, so the companion rejects the row.</li><li>The numerical implementation is stable for finite, representable input differences; it is not arbitrary-precision arithmetic.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-30">Connections</h4><ul><li>F10 derives the softmax/CE gradient.</li><li>T04 applies row softmax to scaled attention scores.</li><li>Later decoding cards compare truncation rules.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-31">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 3, 8 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 173, 174, 315 · §3.4 and §5.1</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-32">Executable companion and checking evidence</h4><p>Functions: <code>log_softmax</code>, <code>softmax</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: F03-softmax, F03-temperature, F03-underflow. <a href="#audit-checks">Inspect the check methods</a>.</p></details><details class="audit-card" id="audit-F04" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> F04 — Conditional sequence probability and log likelihood</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F03">← Previous audit card</a> · <a href="#audit-F05">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-0-2-i3-33">Why this matters</h4><p>A language model scores a sequence through conditional next-token predictions; this explains the training target and the sequence objective.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a></p><h4 id="v3-heading-chunk-les-step-0-2-i3-34">Symbols, shapes and assumptions</h4><p>p(x₁,…,xT) factors into conditional probabilities. The first factor needs an initial context/BOS convention. This factorization does not assume independent tokens.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-35">Derivation or mechanism</h4><ol><li>Apply the conditional probability chain rule.</li><li>Take a logarithm to convert the product into a sum.</li><li>Negate that sum for negative log likelihood; averaging introduces an explicit denominator.</li></ol><div class="math block" data-tex="p(x_{1:T})=\prod_{t=1}^{T}p(x_t\mid x_{&lt;t})">p(x_{1:T})=\prod_{t=1}^{T}p(x_t\mid x_{&lt;t})</div><div class="math block" data-tex="-\log p(x_{1:T})=-\sum_{t=1}^{T}\log p(x_t\mid x_{&lt;t})">-\log p(x_{1:T})=-\sum_{t=1}^{T}\log p(x_t\mid x_{&lt;t})</div><h4 id="v3-heading-chunk-les-step-0-2-i3-36">Worked numerical</h4><p>If the two conditional probabilities are 0.4 and 0.25, the joint probability is 0.1. Its negative natural log is 2.302585093. The two losses are 0.916290732 and 1.386294361; their sum agrees. Their mean is a different quantity, 1.151292546.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-37">Edge cases and limits</h4><ul><li>Zero assigned probability for an observed token gives infinite negative log likelihood.</li><li>Do not compare a sequence-sum loss with a token-mean loss without accounting for length.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-38">Connections</h4><ul><li>T01 implements shifted teacher-forced targets.</li><li>KD and RL later change which distribution supplies the sampled sequence.</li></ul><h4 id="v3-heading-chunk-les-step-0-2-i3-39">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 3 · Slide syllabus</li><li><a href="https://www.deeplearningbook.org/contents/prob.html" rel="noopener noreferrer">§3.6, chain rule of conditional probabilities</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-0-2-i3-40">Executable companion and checking evidence</h4><p>Functions: <code>log_softmax</code>, <code>ce_logits</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: F04-joint-log. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-0-2-i3"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-0-2-i3" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-0-1-i2">← Previous lesson</a> · <a href="#chunk-les-step-0-3-i4">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-1-i2">STEP 0.1 — SCALARS, VECTORS AND MATRICES</a></p><p><strong>This lesson:</strong> STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-13">Understanding_Attention_Handbook_01</a>; <a href="#source-17">minillm-slides</a>; <a href="#source-21">Natural language processing with Transformers _ building</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-0-2-i3"></a></p>
+<h2>STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</h2>
+<p><em>Plan node: I0 · chat order #3</em></p>
+<p>Now we move from the linear-algebra primitives we just learned into the <strong>probability machinery</strong> that turns Transformer outputs into meaningful distributions.</p>
+<p>This step is extremely important because the same mathematical ideas will later reappear in:</p>
+<p><strong>attention → language-model training → decoding → distillation → KL divergence → RL/PPO/GRPO.</strong></p>
+<p>The master cheatsheet explicitly places these formulas at the mathematical foundation of the Transformer and language-model objective. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-41">0.2.1 First: What problem are we trying to solve?</h3>
+<p>Suppose the Transformer has processed:</p>
+<blockquote>
+<p><code>The cat is</code></p>
+</blockquote>
+<p>and now must predict the next token.</p>
+<p>The model does <strong>not</strong> directly output:</p>
+<blockquote>
+<p><code>&quot;sleeping&quot;</code></p>
+</blockquote>
+<p>Instead, the final layer produces a vector of arbitrary real numbers called <strong>logits</strong>:</p>
+<div class="math block">
+z =
+\begin{bmatrix}
+2.1\\
+0.3\\
+4.2\\
+1.0\\
+...
+\end{bmatrix}
+</div>
+<p>There is one logit for every vocabulary token.</p>
+<p>For example:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Logit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the</td>
+<td style="text-align:right">2.1</td>
+</tr>
+<tr>
+<td>dog</td>
+<td style="text-align:right">0.3</td>
+</tr>
+<tr>
+<td>sleeping</td>
+<td style="text-align:right">4.2</td>
+</tr>
+<tr>
+<td>ran</td>
+<td style="text-align:right">1.0</td>
+</tr>
+<tr>
+<td>...</td>
+<td style="text-align:right">...</td>
+</tr>
+</tbody>
+</table>
+<p>But these numbers are <strong>not probabilities</strong>.</p>
+<p>They can be:</p>
+<ul>
+<li>negative</li>
+<li>positive</li>
+<li>larger than 1</li>
+<li>smaller than 0</li>
+</ul>
+<p>So we need a transformation:</p>
+<div class="math block">
+\boxed{\text{logits} \rightarrow \text{probabilities}}
+</div>
+<p>That transformation is <strong>softmax</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-42">0.2.2 What is a probability distribution?</h3>
+<p>Suppose we have five possible next tokens.</p>
+<p>A probability distribution could be:</p>
+<div class="math block">
+p=[0.05,0.10,0.60,0.05,0.20]
+</div>
+<p>A valid discrete probability distribution must satisfy two conditions:</p>
+<div class="math block">
+p_i\ge 0
+</div>
+<p>and</p>
+<div class="math block">
+\sum_i p_i=1
+</div>
+<p>So:</p>
+<div class="math block">
+0.05+0.10+0.60+0.05+0.20=1
+</div>
+<p>This means:</p>
+<blockquote>
+<p>All possible outcomes share 100% of the probability mass.</p>
+</blockquote>
+<p>This is exactly the kind of distribution a language model needs when choosing its next token.</p>
+<p>The supplied MiniLLM material gives a concrete example where the next-token distribution is:</p>
+<div class="math block">
+[0.05,0.10,0.60,0.05,0.20]
+</div>
+<p>for <code>{the, cat, sat, dog, ran}</code>. <em>(Source: minillm-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-43">0.2.3 Why does a language model need probabilities?</h3>
+<p>Because language generation is inherently uncertain.</p>
+<p>Take:</p>
+<blockquote>
+<p><code>The sky is</code></p>
+</blockquote>
+<p>Possible continuations might be:</p>
+<div class="math block">
+P(\text{blue})=0.60
+</div>
+<div class="math block">
+P(\text{cloudy})=0.15
+</div>
+<div class="math block">
+P(\text{clear})=0.10
+</div>
+<div class="math block">
+P(\text{dark})=0.05
+</div>
+<p>etc.</p>
+<p>The model is effectively saying:</p>
+<blockquote>
+<p>Given the context, how likely is each possible next token?</p>
+</blockquote>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{P(x_t\mid x_{&lt;t})}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">x_t</span> = current/next token</li>
+<li><span class="math inline">x_{&lt;t}</span> = all previous tokens</li>
+</ul>
+<p>This conditional probability is the heart of autoregressive language modeling.</p>
+<p>The NLP with Transformers book describes GPT-style language modeling exactly this way: the model estimates the probability of a token sequence through conditional next-token probabilities. <em>(Source: Natural language processing with Transformers _ building)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-44">0.2.4 Autoregressive probability</h3>
+<p>Suppose the sentence is:</p>
+<blockquote>
+<p><code>I love cats</code></p>
+</blockquote>
+<p>Let the tokens be:</p>
+<div class="math block">
+x_1=I,\quad x_2=love,\quad x_3=cats
+</div>
+<p>We want the probability of the <strong>whole sequence</strong>:</p>
+<div class="math block">
+P(I,love,cats)
+</div>
+<p>Using the chain rule of probability:</p>
+<div class="math block">
+\boxed{
+P(x_1,x_2,\ldots,x_n)
+=
+\prod_{t=1}^{n}
+P(x_t\mid x_{&lt;t})
+}
+</div>
+<p>So:</p>
+<div class="math block">
+P(I,love,cats)
+=
+P(I)\,
+P(love\mid I)\,
+P(cats\mid I,love)
+</div>
+<p>This is called <strong>autoregressive factorization</strong>.</p>
+<p>It is in your cheatsheet as the language-model objective. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-45">0.2.5 Why factorization matters</h3>
+<p>Calculating the probability of every possible full sentence directly would be impossible.</p>
+<p>Instead, the model breaks the problem into manageable pieces:</p>
+<div class="math block">
+\text{whole sequence}
+</div>
+<p>becomes</p>
+<div class="math block">
+\text{next-token prediction at position 1}
+</div>
+<ul>
+<li></li>
+</ul>
+<div class="math block">
+\text{next-token prediction at position 2}
+</div>
+<ul>
+<li></li>
+</ul>
+<div class="math block">
+\text{next-token prediction at position 3}
+</div>
+<p>etc.</p>
+<p>So a Transformer doesn't need to directly model:</p>
+<div class="math block">
+P(\text{&quot;The cat sat on the mat&quot;})
+</div>
+<p>as one giant indivisible object.</p>
+<p>It models:</p>
+<div class="math block">
+P(\text{The})
+</div>
+<p>then</p>
+<div class="math block">
+P(\text{cat}\mid\text{The})
+</div>
+<p>then</p>
+<div class="math block">
+P(\text{sat}\mid\text{The cat})
+</div>
+<p>and so on.</p>
+<p>This is the foundation of both <strong>training and generation</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-46">0.2.6 The problem with multiplying probabilities</h3>
+<p>Consider:</p>
+<div class="math block">
+0.8\times0.7\times0.9\times0.6\times0.5
+</div>
+<div class="math block">
+=0.1512
+</div>
+<p>Now imagine a sequence of 1,000 tokens.</p>
+<p>You might multiply hundreds or thousands of numbers like:</p>
+<div class="math block">
+0.001\times0.02\times0.4\times0.003\times\cdots
+</div>
+<p>The result becomes extremely tiny.</p>
+<p>This creates numerical problems.</p>
+<p>So we use <strong>logarithms</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-47">0.2.7 Log-probability</h3>
+<p>Take:</p>
+<div class="math block">
+P(x_1,\ldots,x_n)
+=
+\prod_t P(x_t\mid x_{&lt;t})
+</div>
+<p>Apply <span class="math inline">\log</span>:</p>
+<div class="math block">
+\log P(x_1,\ldots,x_n)
+=
+\log
+\left(
+\prod_t P(x_t\mid x_{&lt;t})
+\right)
+</div>
+<p>Using:</p>
+<div class="math block">
+\log(ab)=\log a+\log b
+</div>
+<p>we obtain:</p>
+<div class="math block">
+\boxed{
+\log P(x_1,\ldots,x_n)
+=
+\sum_t
+\log P(x_t\mid x_{&lt;t})
+}
+</div>
+<p>So multiplication becomes addition.</p>
+<p>That is enormously more convenient computationally.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-2-i3-48">Example</h4>
+<p>Suppose:</p>
+<div class="math block">
+P_1=0.8
+</div>
+<div class="math block">
+P_2=0.7
+</div>
+<div class="math block">
+P_3=0.9
+</div>
+<p>Then:</p>
+<div class="math block">
+P_{\text{sequence}}
+=
+0.8(0.7)(0.9)
+=
+0.504
+</div>
+<p>Log form:</p>
+<div class="math block">
+\log(0.504)
+</div>
+<p>which is equivalent to:</p>
+<div class="math block">
+\log(0.8)+\log(0.7)+\log(0.9)
+</div>
+<p>So instead of multiplying many tiny values, we add log-probabilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-49">0.2.8 Why are log-probabilities negative?</h3>
+<p>Because for probabilities:</p>
+<div class="math block">
+0&lt;p\le1
+</div>
+<p>and therefore:</p>
+<div class="math block">
+\log p\le0
+</div>
+<p>For example:</p>
+<div class="math block">
+\log(1)=0
+</div>
+<div class="math block">
+\log(0.5)\approx-0.693
+</div>
+<div class="math block">
+\log(0.1)\approx-2.303
+</div>
+<div class="math block">
+\log(0.001)\approx-6.908
+</div>
+<p>So:</p>
+<blockquote>
+<p>Higher probability → log probability closer to 0.</p>
+</blockquote>
+<blockquote>
+<p>Lower probability → more negative log probability.</p>
+</blockquote>
+<p>This gives us a very useful way to measure how well the model predicted the correct token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-50">0.2.9 Negative log-probability</h3>
+<p>Because log probabilities are negative, training usually minimizes:</p>
+<div class="math block">
+\boxed{
+-\log P(x_t\mid x_{&lt;t})
+}
+</div>
+<p>This is the <strong>negative log-likelihood loss for one token</strong>.</p>
+<p>Look at what happens:</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-51">Model predicts correct token with probability 0.9</h5>
+<div class="math block">
+-\log(0.9)\approx0.105
+</div>
+<p>Very small loss.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-52">Model predicts it with probability 0.5</h5>
+<div class="math block">
+-\log(0.5)\approx0.693
+</div>
+<p>Larger loss.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-53">Model predicts it with probability 0.01</h5>
+<div class="math block">
+-\log(0.01)\approx4.605
+</div>
+<p>Huge loss.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\text{better probability for the correct token} \Rightarrow \text{smaller loss}}
+</div>
+<p>The cheatsheet expresses the per-position loss as:</p>
+<div class="math block">
+L_t=-\log P_\theta(x_t\mid x_{&lt;t})
+</div>
+<p>and sequence-average loss as the mean over positions. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-54">0.2.10 Now we reach SOFTMAX</h3>
+<p>We have logits:</p>
+<div class="math block">
+z_1,z_2,\ldots,z_V
+</div>
+<p>where <span class="math inline">V</span> is vocabulary size.</p>
+<p>We need to convert them into:</p>
+<div class="math block">
+p_1,p_2,\ldots,p_V
+</div>
+<p>such that:</p>
+<div class="math block">
+p_i\ge0
+</div>
+<p>and:</p>
+<div class="math block">
+\sum_i p_i=1
+</div>
+<p>Softmax does exactly this.</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}(z_i)
+=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}
+}
+</div>
+<p>This formula appears directly in the mathematical cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-55">0.2.11 Understand softmax from the inside out</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[1,2,3]
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-56">Step 1: exponentiate</h5>
+<div class="math block">
+e^1\approx2.718
+</div>
+<div class="math block">
+e^2\approx7.389
+</div>
+<div class="math block">
+e^3\approx20.086
+</div>
+<p>So:</p>
+<div class="math block">
+[e^1,e^2,e^3]
+\approx
+[2.718,7.389,20.086]
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-57">Step 2: calculate the sum</h5>
+<div class="math block">
+2.718+7.389+20.086
+=
+30.193
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-58">Step 3: divide each by the total</h5>
+<div class="math block">
+p_1=\frac{2.718}{30.193}\approx0.090
+</div>
+<div class="math block">
+p_2=\frac{7.389}{30.193}\approx0.245
+</div>
+<div class="math block">
+p_3=\frac{20.086}{30.193}\approx0.665
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}([1,2,3])
+\approx
+[0.090,0.245,0.665]
+}
+</div>
+<p>Check:</p>
+<div class="math block">
+0.090+0.245+0.665\approx1
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-59">0.2.12 Why the exponential?</h3>
+<p>This is an important <strong>WHY</strong>, not a memorization detail.</p>
+<p>Softmax uses:</p>
+<div class="math block">
+e^{z_i}
+</div>
+<p>for several useful reasons.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-60">1. It guarantees positivity</h5>
+<p>Exponentials are always positive:</p>
+<div class="math block">
+e^z&gt;0
+</div>
+<p>So the resulting probabilities cannot be negative.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-61">2. It preserves ordering</h5>
+<p>If:</p>
+<div class="math block">
+z_3&gt;z_2
+</div>
+<p>then:</p>
+<div class="math block">
+e^{z_3}&gt;e^{z_2}
+</div>
+<p>So larger logits still produce larger probabilities.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-62">3. It amplifies differences</h5>
+<p>Compare:</p>
+<div class="math block">
+z=[1,2]
+</div>
+<p>Difference = 1.</p>
+<p>Exponentials:</p>
+<div class="math block">
+[e^1,e^2]=[2.718,7.389]
+</div>
+<p>Now the larger value dominates much more strongly.</p>
+<p>This gives softmax a useful competitive behavior.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-63">4. It normalizes</h5>
+<p>Dividing by:</p>
+<div class="math block">
+\sum_j e^{z_j}
+</div>
+<p>forces the results to sum to 1.</p>
+<p>So softmax is essentially:</p>
+<div class="math block">
+\boxed{
+\text{positive transformation + normalization}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-64">0.2.13 Logits are NOT probabilities</h3>
+<p>This distinction is essential.</p>
+<p>Suppose:</p>
+<div class="math block">
+z=[2,1,-1]
+</div>
+<p>These are logits.</p>
+<p>You cannot say:</p>
+<blockquote>
+<p>&quot;Token 1 has probability 2.&quot;</p>
+</blockquote>
+<p>That is impossible.</p>
+<p>After softmax:</p>
+<div class="math block">
+\operatorname{softmax}(z)
+</div>
+<p>produces valid probabilities.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Logit} \neq \text{Probability}
+}
+</div>
+<p>Pipeline:</p>
+<div class="math block">
+\boxed{
+\text{Transformer hidden state}
+\rightarrow
+\text{linear projection}
+\rightarrow
+\text{logits}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{probabilities}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-65">0.2.14 A very important Transformer connection</h3>
+<p>Remember our earlier attention equation:</p>
+<div class="math block">
+S=QK^T
+</div>
+<p>These are also just <strong>scores</strong>.</p>
+<p>They are not probabilities.</p>
+<p>Then:</p>
+<div class="math block">
+A=\operatorname{softmax}\left(\frac{QK^T}{\sqrt{d_k}}+M\right)
+</div>
+<p>produces attention weights.</p>
+<p>The attention handbook describes the process as:</p>
+<p><strong>project → compare → scale → constrain → normalize → aggregate.</strong></p>
+<p>In particular, row-wise softmax turns the compatibility scores into nonnegative weights that sum to one across allowed keys. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So softmax appears in two extremely important places:</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-66">Attention</h5>
+<div class="math block">
+\boxed{\text{scores}\rightarrow\text{attention weights}}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-67">Output layer</h5>
+<div class="math block">
+\boxed{\text{logits}\rightarrow\text{token probabilities}}
+</div>
+<p>Same mathematical operation.</p>
+<p>Different semantic purpose.</p>
+<hr />
+<aside class="audit-card" data-inherited-review="added" id="audit-inherited-softmax-correction"><strong>Numerical correction:</strong> softmax([1.2,2.0,0.4,−∞]) ≈ [0.2721184774,0.6056108090,0.1222707136,0]. The third entry is permitted and must not be zero. The inherited displayed result below is retained for traceability. <a href="#audit-inherited-0-2">Derivation and checked counterpart</a>.</aside><aside class="audit-card" id="audit-full-note-chunk-les-step-0-2-i3-0" data-full-review="added"><p>Correction: Correct masked distribution for [1.2,2,.4,-inf] is [.2721184774,.6056108090,.1222707136,0]; the third permitted key does not have zero probability.</p><p><a href="#audit-full-chunk-les-step-0-2-i3">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-0-2-i3-68">0.2.15 Attention softmax vs language-model softmax</h3>
+<p>This distinction is worth memorizing.</p>
+<p>Suppose a sequence has <span class="math inline">n=4</span> tokens.</p>
+<p>Attention scores for token 3 might be:</p>
+<div class="math block">
+[1.2,\;2.0,\;0.4,\;-\infty]
+</div>
+<p>After causal masking and softmax:</p>
+<div class="math block">
+[0.31,\;0.69,\;0.00,\;0.00]
+</div>
+<p>These tell us how the query distributes its attention over allowable positions.</p>
+<p>But at the output layer we might have:</p>
+<div class="math block">
+z=[2.1,0.7,4.3,-1.2,\ldots]
+</div>
+<p>Softmax turns these into probabilities over the <strong>vocabulary</strong>.</p>
+<p>Thus:</p>
+<table>
+<thead>
+<tr>
+<th>Softmax location</th>
+<th>Distribution is over</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attention</td>
+<td>positions/tokens being attended to</td>
+</tr>
+<tr>
+<td>Output layer</td>
+<td>vocabulary tokens</td>
+</tr>
+</tbody>
+</table>
+<p>This distinction will become very important later when we study <strong>decoding</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-69">0.2.16 Causal masking + softmax</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+S=
+\begin{bmatrix}
+2 &amp; 1 &amp; 5\\
+3 &amp; 2 &amp; 4\\
+1 &amp; 4 &amp; 2
+\end{bmatrix}
+</div>
+<p>For a causal language model:</p>
+<p>Token 1 cannot look at future tokens 2 and 3.</p>
+<p>Token 2 cannot look at future token 3.</p>
+<p>So we use a mask:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0 &amp; -\infty &amp; -\infty\\
+0 &amp; 0 &amp; -\infty\\
+0 &amp; 0 &amp; 0
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S+M
+=
+\begin{bmatrix}
+2 &amp; -\infty &amp; -\infty\\
+3 &amp; 2 &amp; -\infty\\
+1 &amp; 4 &amp; 2
+\end{bmatrix}
+</div>
+<p>Now apply softmax row-by-row.</p>
+<p>For row 1:</p>
+<div class="math block">
+\operatorname{softmax}[2,-\infty,-\infty]
+=
+[1,0,0]
+</div>
+<p>For row 2:</p>
+<div class="math block">
+\operatorname{softmax}[3,2,-\infty]
+</div>
+<p>gives approximately:</p>
+<div class="math block">
+[0.731,0.269,0]
+</div>
+<p>The <span class="math inline">-\infty</span> effectively produces zero probability.</p>
+<p>So the causal mask works because:</p>
+<div class="math block">
+e^{-\infty}\rightarrow0
+</div>
+<p>This is the mathematical mechanism behind preventing future-token information leakage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-70">0.2.17 Softmax has a beautiful property: shift invariance</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[1,2,3]
+</div>
+<p>Now add 10 to every number:</p>
+<div class="math block">
+z'=[11,12,13]
+</div>
+<p>Softmax gives exactly the same result:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}(z+c)
+=
+\operatorname{softmax}(z)
+}
+</div>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+\frac{e^{z_i+c}}
+{\sum_j e^{z_j+c}}
+</div>
+<p>can be rewritten as:</p>
+<div class="math block">
+\frac{e^c e^{z_i}}
+{e^c\sum_j e^{z_j}}
+</div>
+<p>and <span class="math inline">e^c</span> cancels.</p>
+<p>This gives us a very useful computational trick.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-71">0.2.18 Numerically stable softmax</h3>
+<p>Instead of calculating:</p>
+<div class="math block">
+\frac{e^{z_i}}{\sum_j e^{z_j}}
+</div>
+<p>we usually compute:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}(z)
+=
+\operatorname{softmax}(z-\max(z))
+}
+</div>
+<p>Example:</p>
+<div class="math block">
+z=[1000,1001,1002]
+</div>
+<p>Directly computing <span class="math inline">e^{1000}</span> can overflow numerically.</p>
+<p>Instead subtract 1002:</p>
+<div class="math block">
+[-2,-1,0]
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{softmax}([1000,1001,1002])
+=
+\operatorname{softmax}([-2,-1,0])
+</div>
+<p>Same probabilities, much safer numerically.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-72">0.2.19 Temperature</h3>
+<p>Now introduce another concept that will become central in <strong>decoding</strong>.</p>
+<p>Temperature modifies softmax:</p>
+<div class="math block">
+\boxed{
+p_i=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+T&gt;0
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-2-i3-73">Case 1: <span class="math inline">T=1</span></h4>
+<p>Normal softmax.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-2-i3-74">Case 2: <span class="math inline">T&lt;1</span></h4>
+<p>The distribution becomes <strong>sharper</strong>.</p>
+<p>Example:</p>
+<div class="math block">
+T=0.5
+</div>
+<p>Logits become effectively:</p>
+<div class="math block">
+[2z_1,2z_2,\ldots]
+</div>
+<p>Differences get amplified.</p>
+<p>The highest-probability token tends to dominate.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-2-i3-75">Case 3: <span class="math inline">T&gt;1</span></h4>
+<p>The distribution becomes <strong>flatter</strong>.</p>
+<p>Differences between logits matter less.</p>
+<p>More probability spreads to lower-ranked alternatives.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-0-2-i3-76">Intuition</h5>
+<p>Think of temperature as a control over certainty:</p>
+<div class="math block">
+\boxed{
+T\downarrow \Rightarrow \text{sharper}
+}
+</div>
+<div class="math block">
+\boxed{
+T\uparrow \Rightarrow \text{flatter}
+}
+</div>
+<p>This will later become a major <strong>text-decoding</strong> mechanism.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-77">0.2.20 One-hot targets</h3>
+<p>Now connect probability to training.</p>
+<p>Suppose vocabulary:</p>
+<div class="math block">
+[\text{the},\text{cat},\text{sat},\text{dog},\text{ran}]
+</div>
+<p>The correct next token is:</p>
+<blockquote>
+<p><code>sat</code></p>
+</blockquote>
+<p>Represent the target as a one-hot vector:</p>
+<div class="math block">
+y=[0,0,1,0,0]
+</div>
+<p>Suppose the model predicts:</p>
+<div class="math block">
+q=[0.05,0.10,0.60,0.05,0.20]
+</div>
+<p>So:</p>
+<div class="math block">
+q_{\text{sat}}=0.60
+</div>
+<p>The loss is:</p>
+<div class="math block">
+\boxed{
+L=-\log(0.60)
+}
+</div>
+<div class="math block">
+L\approx0.5108
+</div>
+<p>This exact worked example appears in the supplied MiniLLM material. <em>(Source: minillm-slides)</em></p>
+<p>Notice something interesting:</p>
+<p>The model predicted probabilities for all five tokens, but for a one-hot target the loss ultimately depends on the probability assigned to the <strong>correct token</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-78">0.2.21 Why negative log probability is such a good loss</h3>
+<p>Suppose the correct answer is <code>sat</code>.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-79">Prediction A</h5>
+<div class="math block">
+P(\text{sat})=0.9
+</div>
+<p>Loss:</p>
+<div class="math block">
+-\log(0.9)=0.105
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-80">Prediction B</h5>
+<div class="math block">
+P(\text{sat})=0.5
+</div>
+<p>Loss:</p>
+<div class="math block">
+-\log(0.5)=0.693
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-81">Prediction C</h5>
+<div class="math block">
+P(\text{sat})=0.01
+</div>
+<p>Loss:</p>
+<div class="math block">
+-\log(0.01)=4.605
+</div>
+<p>This means the loss heavily punishes <strong>confidently wrong predictions</strong>.</p>
+<p>That's exactly what we want.</p>
+<p>A model saying:</p>
+<blockquote>
+<p>&quot;I am 99% sure the answer is wrong&quot;</p>
+</blockquote>
+<p>should be punished much more strongly than a model saying:</p>
+<blockquote>
+<p>&quot;I am only somewhat uncertain.&quot;</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-82">0.2.22 From one token to the entire sentence</h3>
+<p>For <span class="math inline">n</span> tokens:</p>
+<div class="math block">
+L_t=-\log P_\theta(x_t\mid x_{&lt;t})
+</div>
+<p>Average:</p>
+<div class="math block">
+\boxed{
+L
+=
+-\frac{1}{n}
+\sum_{t=1}^{n}
+\log P_\theta(x_t\mid x_{&lt;t})
+}
+</div>
+<p>This is the standard next-token training objective shown in your cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<p>Therefore the complete training chain is:</p>
+<div class="math block">
+\boxed{
+\text{tokens}
+\rightarrow
+\text{Transformer}
+\rightarrow
+\text{logits}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{probabilities}
+\rightarrow
+-\log P(\text{correct token})
+\rightarrow
+\text{loss}
+}
+</div>
+<p>That chain is one of the most important chains in the entire course.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-83">0.2.23 Connection to attention</h3>
+<p>Now connect today's lesson to yesterday's linear algebra.</p>
+<p>Yesterday:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V
+</div>
+<p>then:</p>
+<div class="math block">
+S=QK^T
+</div>
+<p>Today we add:</p>
+<div class="math block">
+A=\operatorname{softmax}(S/\sqrt{d_k}+M)
+</div>
+<p>and:</p>
+<div class="math block">
+O=AV
+</div>
+<p>So we have:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow Q,K,V
+\rightarrow QK^T
+\rightarrow \text{scaled scores}
+\rightarrow \text{softmax}
+\rightarrow A
+\rightarrow AV
+}
+</div>
+<p>The attention handbook explicitly emphasizes that the attention weights are intermediate coefficients and that the actual output is <span class="math inline">AV</span>. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>This is why yesterday's dot product was not the end of the story.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-84">0.2.24 Extremely important distinction</h3>
+<p>There are now <strong>three different kinds of numbers</strong> you must not mix up:</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-85">1. Learned parameters</h5>
+<p>For example:</p>
+<div class="math block">
+W_Q
+</div>
+<p>These are model parameters learned during training.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-86">2. Scores / logits</h5>
+<p>Examples:</p>
+<div class="math block">
+QK^T
+</div>
+<p>or final vocabulary logits:</p>
+<div class="math block">
+z
+</div>
+<p>These are raw compatibility/evidence scores.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-87">3. Normalized weights/probabilities</h5>
+<p>Examples:</p>
+<div class="math block">
+A=\operatorname{softmax}(QK^T)
+</div>
+<p>or:</p>
+<div class="math block">
+p=\operatorname{softmax}(z)
+</div>
+<p>These are normalized values.</p>
+<p>Raschka explicitly distinguishes learned weight parameters from dynamic attention weights. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-88">0.2.25 The entire mathematical picture so far</h3>
+<p>We can now build the first major chain:</p>
+<pre><code class="language-text">Token
+  ↓
+Embedding vector
+  ↓
+Matrix transformations
+  ↓
+Q, K, V
+  ↓
+Dot product
+  ↓
+Raw attention scores
+  ↓
+Scale by √d_k
+  ↓
+Causal mask
+  ↓
+Softmax
+  ↓
+Attention weights
+  ↓
+Weighted sum of V
+  ↓
+Contextual representation
+  ↓
+Transformer layers
+  ↓
+Final hidden state
+  ↓
+Linear projection
+  ↓
+Vocabulary logits
+  ↓
+Softmax
+  ↓
+Next-token probability distribution
+  ↓
+-log(probability of correct token)
+  ↓
+Training loss
+</code></pre>
+<p>Once this chain is solid, a huge portion of Transformer mathematics becomes much easier.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-89">0.2.26 Tensor-shape grounding</h3>
+<p>Let's make this precise.</p>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>with:</p>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_k}
+</div>
+<p>so:</p>
+<div class="math block">
+Q\in\mathbb R^{n\times d_k}
+</div>
+<p>Likewise:</p>
+<div class="math block">
+K\in\mathbb R^{n\times d_k}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+QK^T
+</div>
+<p>has shape:</p>
+<div class="math block">
+(n\times d_k)(d_k\times n)
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{n\times n}
+</div>
+<p>Then:</p>
+<div class="math block">
+A\in\mathbb R^{n\times n}
+</div>
+<p>and if:</p>
+<div class="math block">
+V\in\mathbb R^{n\times d_v}
+</div>
+<p>then:</p>
+<div class="math block">
+AV
+=
+(n\times n)(n\times d_v)
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{n\times d_v}
+</div>
+<p>These exact shape relationships are summarized in your Transformer cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-90">0.2.27 A tiny complete numerical example</h3>
+<p>Let's make the entire softmax calculation concrete.</p>
+<p>Suppose the model produces three logits:</p>
+<div class="math block">
+z=[2,1,0]
+</div>
+<p>Exponentials:</p>
+<div class="math block">
+[e^2,e^1,e^0]
+</div>
+<div class="math block">
+\approx[7.389,2.718,1]
+</div>
+<p>Sum:</p>
+<div class="math block">
+7.389+2.718+1=11.107
+</div>
+<p>Therefore:</p>
+<div class="math block">
+p_1=\frac{7.389}{11.107}\approx0.665
+</div>
+<div class="math block">
+p_2=\frac{2.718}{11.107}\approx0.245
+</div>
+<div class="math block">
+p_3=\frac{1}{11.107}\approx0.090
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+p\approx[0.665,0.245,0.090]
+}
+</div>
+<p>Suppose the correct token is token 2.</p>
+<p>Then:</p>
+<div class="math block">
+L=-\log(0.245)
+</div>
+<div class="math block">
+\boxed{L\approx1.407}
+</div>
+<p>So the model receives a substantially larger penalty than it would if the correct token had probability 0.9.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-91">0.2.28 PyTorch implementation</h3>
+<p>This is the computation you should be able to recognize immediately in code.</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+# Raw logits from a model
+logits = torch.tensor([2.0, 1.0, 0.0])
+
+# Convert logits to probabilities
+probs = F.softmax(logits, dim=-1)
+
+print(&quot;Logits:&quot;, logits)
+print(&quot;Probabilities:&quot;, probs)
+print(&quot;Sum:&quot;, probs.sum())
+
+# Suppose token 2 is the correct answer
+target = torch.tensor(1)
+
+# Negative log probability
+loss = -torch.log(probs[target])
+
+print(&quot;Probability of correct token:&quot;, probs[target])
+print(&quot;Loss:&quot;, loss)
+</code></pre>
+<p>Conceptually:</p>
+<pre><code class="language-python">logits
+   ↓
+softmax
+   ↓
+probabilities
+   ↓
+select correct-token probability
+   ↓
+-log(...)
+   ↓
+loss
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-92">0.2.29 A safer practical version</h3>
+<p>In real PyTorch training, you usually don't manually do:</p>
+<pre><code class="language-python">softmax()
+-log()
+</code></pre>
+<p>for the language-model loss.</p>
+<p>Instead, functions such as cross-entropy loss are designed to operate directly on logits in a numerically stable way.</p>
+<p>That is one reason the next lesson—<strong>entropy, cross-entropy, and KL divergence</strong>—is so important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-93">0.2.30 What you should understand, not memorize</h3>
+<p>At this point you should be able to explain:</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-94">Why probability?</h5>
+<p>Because the model needs to represent uncertainty over possible next tokens.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-95">Why logits?</h5>
+<p>Because the neural network naturally produces unconstrained real-valued scores.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-96">Why softmax?</h5>
+<p>Because we need to transform those scores into nonnegative normalized values.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-97">Why log?</h5>
+<p>Because sequence probabilities are products, and logarithms convert products into sums while improving numerical behavior.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-98">Why negative log probability?</h5>
+<p>Because we want high probability on the correct answer to correspond to low loss.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-99">Why does softmax appear in attention?</h5>
+<p>Because raw compatibility scores need to become normalized coefficients before we aggregate value vectors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-100">0.2.31 One subtle point: attention weights are not automatically &quot;probabilities&quot; in the ordinary semantic sense</h3>
+<p>Mathematically, a row of attention weights has the properties:</p>
+<div class="math block">
+a_i\ge0
+</div>
+<p>and</p>
+<div class="math block">
+\sum_i a_i=1
+</div>
+<p>so it behaves like a distribution over positions.</p>
+<p>But we should be careful with interpretation.</p>
+<p>It does <strong>not</strong> automatically mean:</p>
+<blockquote>
+<p>&quot;The model believes there is a 70% probability that this token is the reason for the prediction.&quot;</p>
+</blockquote>
+<p>The attention handbook specifically warns against automatically treating attention weights as faithful explanations of model decisions. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>This distinction will matter later when you study Transformer interpretability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-101">0.2.32 MASTER CONNECTION</h3>
+<p>You can now see why our first two mathematical lessons were ordered this way.</p>
+<p>We started:</p>
+<div class="math block">
+\boxed{\text{vectors}}
+</div>
+<p>because embeddings, queries, keys, and values are vectors.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{matrices}}
+</div>
+<p>because projections and batched transformations are matrix operations.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{dot product}}
+</div>
+<p>because it creates compatibility scores.</p>
+<p>Now:</p>
+<div class="math block">
+\boxed{\text{probability}}
+</div>
+<p>because scores must often become normalized distributions.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{log probability}}
+</div>
+<p>because language-model sequence probabilities are products.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{softmax}}
+</div>
+<p>because it converts raw scores into normalized weights/probabilities.</p>
+<p>Next we need to understand:</p>
+<div class="math block">
+\boxed{
+\text{Entropy}
+\rightarrow
+\text{Cross-Entropy}
+\rightarrow
+\text{KL Divergence}
+}
+</div>
+<p>because those concepts are the mathematical bridge from ordinary language-model training to:</p>
+<p><strong>knowledge distillation → RLHF → RLVR → PPO → GRPO → DeepSeek-R1.</strong></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-2-i3-102">MASTER CHECK — 0.2</h3>
+<p>Try these without looking back.</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-103">Q1</h5>
+<p>Why can't a vector like:</p>
+<div class="math block">
+[2.3,-1.7,5.2]
+</div>
+<p>be directly interpreted as probabilities?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-104">Q2</h5>
+<p>Given:</p>
+<div class="math block">
+P(x_1,x_2,x_3)
+=
+P(x_1)P(x_2|x_1)P(x_3|x_1,x_2)
+</div>
+<p>what fundamental probability rule gives us this factorization?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-105">Q3</h5>
+<p>Why do language models use log-probabilities?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-106">Q4</h5>
+<p>Calculate approximately:</p>
+<div class="math block">
+\operatorname{softmax}([0,1])
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-107">Q5</h5>
+<p>Why does adding the same constant <span class="math inline">c</span> to every logit not change softmax?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-108">Q6</h5>
+<p>A model gives the correct token probability:</p>
+<div class="math block">
+p=0.01
+</div>
+<p>What is its negative log-probability loss?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-109">Q7</h5>
+<p>In attention:</p>
+<div class="math block">
+A=\operatorname{softmax}(QK^T/\sqrt{d_k})
+</div>
+<p>what does <span class="math inline">A_{ij}</span> represent?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-110">Q8</h5>
+<p>What is the difference between:</p>
+<div class="math block">
+QK^T
+</div>
+<p>and:</p>
+<div class="math block">
+\operatorname{softmax}(QK^T)?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-111">Q9</h5>
+<p>In a language model, what is the difference between <strong>logits</strong> and <strong>token probabilities</strong>?</p>
+<h5 id="v3-heading-chunk-les-step-0-2-i3-112">Q10 — most important</h5>
+<p>Complete the chain:</p>
+<div class="math block">
+Q,K,V
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+AV
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-2-i3-113">Sources used for this lesson</h4>
+<p>The core mathematical grounding here comes from the supplied <strong>Transformer Mathematical Cheatsheet</strong>, Sebastian Raschka's <strong>Build a Large Language Model (From Scratch)</strong>, the supplied <strong>Natural Language Processing with Transformers</strong> text, and the supplied <strong>MiniLLM</strong> slides. The attention-specific score → softmax → weighted aggregation explanation is additionally grounded in the supplied <strong>Understanding Attention Handbook</strong>. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet; Build a Large Language Model (From Scratch); Natural language processing with Transformers _ building; minillm-slides; Understanding_Attention_Handbook_01)</em></p>
+<hr />
+</section>

@@ -1,0 +1,1061 @@
+<section class="chunk" id="chunk-les-step-5-31-i72" data-id="les-step-5-31-i72"><details class="audit-card" id="audit-full-chunk-les-step-5-31-i72" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-31-i72-1">Motivation</h4><p>Show why understanding labels and generating faithful target-language text require complementary benchmarks.</p><h4 id="v3-heading-chunk-les-step-5-31-i72-2">Prerequisites</h4><ul><li>Train/dev/test separation and task-specific fine-tuning</li><li>Tokenizer, vocabulary, multilingual pretraining</li><li>Accuracy, precision/recall and F1; distinguish points from relative percent</li><li>Autoregressive generation and multilingual task formats</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-3">Notation and units</h4><ul><li>L is a language; task and language jointly define an evaluation set</li><li>Scores are on a declared 0..100 scale; score differences are points</li><li>Corpus tokens depend on the counting tokenizer and release; a token is not necessarily a word</li><li>Four task families become five evaluations because cross-lingual QA has two answer-language directions</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-4">Assumptions</h4><ul><li>All historical counts are attributed to the supplied release/paper, not presented as live 2026 leaderboard facts</li><li>Translated parallel examples share content and are not statistically independent across languages</li><li>Reported scores require fixed checkpoint, preprocessing, split, prompt and metric implementation</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-5">Step-by-step derivation</h4><ol><li>NLU benchmarks test decisions or spans; generation also requires fluent target-language output, faithfulness, morphology and requested language adherence. Neither benchmark implies complete linguistic ability.</li><li>IndicGenBench covers29 languages in13 scripts and4 families; resource tiers9higher,7medium,13low are relative to this benchmark, not universal fixed properties.</li><li>Four source dataset families produce five evaluation tasks: CrossSum-IN, FLORES-IN, XQuAD-IN, XorQA-IN-EN and XorQA-IN-XX. XOR variants share input/evidence but differ in answer language.</li><li>Human translation supplies multi-way content alignment where original low-resource corpora are sparse. Translation can introduce source-language artifacts; inherited quality control must still be checked in each target language.</li><li>Use chrF for summary/translation and normalized token F1 for QA. Character overlap reduces word-tokenization dependence but does not measure factual truth.</li><li>Keep the original English-source content, translated target output and source split provenance together; parallelity enables paired comparison but prevents treating translated examples as independent observations.</li></ol><h4 id="v3-heading-chunk-les-step-5-31-i72-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-31-i72-7">Tier and task-family count</h5><p>Given: 9high,7medium,13low languages;4families</p><ol><li>Sum9+7+13=29.</li><li>Count one extra cross-lingual QA direction to obtain5evaluations.</li></ol><p>Answer: 29 languages;4families,5tasks</p><p>Verification: indic_mla_moe / indic.gen_tiers · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-31-i72-8">CrossSum size</h5><p>Given: 700 examples perlanguage;29languages</p><ol><li>100train+100dev+500test=700.</li><li>700×29=20,300.</li></ol><p>Answer: 20,300 language-instantiated examples</p><p>Verification: indic_mla_moe / indic.crosssum_count · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-31-i72-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-10">Mastery answers and retained exercise context</h4><ol><li>Why a second benchmark? Strong classification transfer does not demonstrate faithful generation in the target language.</li><li>Why translate shared content? It makes content-matched cross-language analysis possible despite sparse source corpora.</li><li>Whyfour families butfivetasks? One XorQA family is scored with English andtarget-language answers.</li><li>Inherited exercise 5.31.19 Numerical exam question: Given: 29\text{ languages} and: 700\text{ examples/language}, compute total examples: 29\times700 = \boxed{20,300}. Then: Training examples: 29\times100 = \boxed{2,900}. Development: 29\times100 = \boxed{2,900}. Test: 29\times500 = \boxed{14,500}. Check: 2900+2900+14500 = \boxed{20,300}.</li><li>Inherited exercise 5.31.36 Numerical exam bank: Question 1 CrossSum-IN: 100+100+500=700 per language. For 29 languages: 700\times29 = \boxed{20,300}. Question 2 FLORES-IN: 997+1012 = \boxed{2009}. For 29 languages: 2009\times29 = \boxed{58,261}. (Source: indicgenbench-slides) Question 3 Translator wage ratio: 15.90/2.80 \approx \boxed{5.68\times}. Rounded: \boxed{5.7\times}. Question 4 Five generation tasks: \boxed{ 1\text{ CrossSum} + 1\text{ FLORES} + 1\text{ XQuAD} + 2\text{ XorQA} = 5 }</li><li>Inherited exercise 5.31.37 Exam-style conceptual question: Question: Why does IndicGenBench translate established benchmarks instead of constructing every dataset from scratch? The deck gives three reasons: \boxed{ \text{multi-way parallel data} } for separating task knowledge from language effects and measuring cross-lingual generalization, \boxed{ \text{lack of clean source data for many low-resource languages} } and: \boxed{ \text{reuse of existing benchmark quality control} }. (Source: indicgenbench-slides)</li><li>Inherited exercise 5.31.38 Exam-style conceptual question: Question: Why does IndicGenBench use chrF for summarization and translation rather than simply BLEU/ROUGE? Because the deck argues that token-level metrics can be unreliable for low-resource languages where tokenization itself is a weak link. Character-level F-score reduces this dependence. (Source: indicgenbench-slides)</li></ol><h4 id="v3-heading-chunk-les-step-5-31-i72-11">Edge cases and remaining gaps</h4><ul><li>Human supervision does not imply exhaustive manual checking or error-free translations</li><li>An aggregate can hide task, dialect, resource tier and script gaps; report denominators and per-language results</li><li>Source benchmark results were inspected, not reproduced by running pretrained models</li><li>Historical model comparisons in the source are not current model rankings.</li><li>Raw scores across chrF and QA F1 should not be averaged without an explicitly declared aggregation convention.</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-12">Connections and progression</h4><ul><li>Dataset construction follows; metrics and directionality then reveal output-language weaknesses.</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-13">Exact source support</h4><ul><li>indicgenbench-slides(1).pdf · physical PDF pages 2, 3, 4, 5, 6, 7, 9, 17 · Motivation, coverage, task families, translation rationale and metrics</li></ul><h4 id="v3-heading-chunk-les-step-5-31-i72-14">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (47)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.31 — IndicGenBench: Why a Second Indic Benchmark Is Needed</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.31.1 Start with the problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.2 The motivation slide gives a striking result</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.3 Why is generation harder to evaluate than classification?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.4 Scope of IndicGenBench</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.5 “Higher-resource” does NOT mean high-resource globally</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.6 Why classify languages into resource tiers?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.7 The five generation tasks</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.8 Why does the benchmark mostly translate existing datasets?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.9 Reason 1 — Multi-way parallel data</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.10 Example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.11 Reason 2 — Clean source text may not exist in low-resource languages</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.12 Reason 3 — Reuse existing quality control</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.13 This is an important benchmark-design tradeoff</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.14 Human translators</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.15 Why is this mentioned in a technical lecture?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.16 First major task: CrossSum-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.17 Why is this “cross-lingual” summarization?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.18 CrossSum-IN construction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.19 Numerical exam question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.20 Second major task: FLORES-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.21 FLORES split structure</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.22 Important exception</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.23 What does FLORES-IN actually ask the model to do?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.24 Why is n-way parallelity valuable?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.25 Third task: XQuAD-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.26 Fourth and fifth tasks: XorQA-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.27 Why two variants?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Variant 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Variant 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.31.28 First major metric: chrF</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.29 Why character-level evaluation?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.30 Second metric family: token F1</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.31 So the benchmark has two metric families</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.32 Numerical chrF intuition</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.33 IndicGenBench vs IndicXTREME</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.34 The important conceptual relationship</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.35 Why is that scientifically important?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.36 Numerical exam bank</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Question 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Question 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Question 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Question 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.31.37 Exam-style conceptual question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.38 Exam-style conceptual question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.39 The deeper lesson</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.31.40 Final mental model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-31-i72"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-31-i72" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-indicqa">← Previous lesson</a> · <a href="#chunk-les-step-5-32-i73">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-28-i69">Step 5.28 — IndicXTREME Benchmark Architecture</a></p><p><strong>This lesson:</strong> Step 5.31 — IndicGenBench: Why a Second Indic Benchmark Is Needed</p><p><strong>Source references:</strong> <a href="#source-4">indicgenbench-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-31-i72"></a></p>
+<h2>Step 5.31 — IndicGenBench: Why a Second Indic Benchmark Is Needed</h2>
+<p><em>Plan node: I11 · chat order #72</em></p>
+<p>We now enter the <strong>IndicGenBench</strong> material.</p>
+<p>This is the natural continuation after IndicXTREME.</p>
+<p>The key distinction is:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME asks: “Can the model understand/classify Indic text?”}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{IndicGenBench asks: “Can the model actually generate useful Indic text?”}
+}
+</div>
+<p>The supplied deck explicitly frames IndicGenBench as a benchmark for <strong>generation capabilities</strong> such as summarization, translation, and question answering, in contrast to IndicXTREME's classification/NLU emphasis. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-15">5.31.1 Start with the problem</h3>
+<p>Suppose an LLM performs well on an Indic classification task:</p>
+<div class="math block">
+\text{Hindi sentence}\rightarrow\text{positive}.
+</div>
+<p>That tells us something about:</p>
+<div class="math block">
+\boxed{\text{understanding}}
+</div>
+<p>but a real user often wants the model to <strong>produce language</strong>.</p>
+<p>For example:</p>
+<div class="math block">
+\text{English article}
+\rightarrow
+\text{Hindi summary}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{English sentence}
+\rightarrow
+\text{Tamil translation}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{Hindi question}
+\rightarrow
+\text{Hindi answer}.
+</div>
+<p>These are generation problems.</p>
+<p>So the benchmark needs to test:</p>
+<div class="math block">
+\boxed{
+\text{Can the model produce correct, faithful, fluent Indic-language output?}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-16">5.31.2 The motivation slide gives a striking result</h3>
+<p>The deck says that Singh et al. built IndicGenBench to expose a large generation gap:</p>
+<blockquote>
+<p>on <strong>every one of five generation tasks</strong>, even the best model scores far below its own English performance. <em>(Source: indicgenbench-slides)</em></p>
+</blockquote>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{English capability}
+&gt;
+\text{Indic generation capability}
+}
+</div>
+<p>across all five reported generation tasks.</p>
+<p>This is important because a multilingual model can appear strong globally while still having a substantial target-language generation deficit.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-17">5.31.3 Why is generation harder to evaluate than classification?</h3>
+<p>Consider classification:</p>
+<div class="math block">
+x\rightarrow y
+</div>
+<p>where <span class="math inline">y</span> might be:</p>
+<div class="math block">
+\{\text{positive, negative}\}.
+</div>
+<p>Evaluation is easy:</p>
+<div class="math block">
+\boxed{
+\hat y=y?
+}
+</div>
+<p>Generation is different.</p>
+<p>Suppose the gold summary is:</p>
+<blockquote>
+<p>“The mission launched successfully after several delays.”</p>
+</blockquote>
+<p>The model writes:</p>
+<blockquote>
+<p>“After multiple delays, the mission was finally launched successfully.”</p>
+</blockquote>
+<p>Are these equivalent?</p>
+<p>Yes, semantically.</p>
+<p>But exact string matching would say:</p>
+<div class="math block">
+\boxed{\text{different}}
+</div>
+<p>even though the generation is good.</p>
+<p>Therefore generation benchmarks need metrics capable of handling:</p>
+<div class="math block">
+\boxed{
+\text{multiple valid ways of expressing the same meaning}
+}.
+</div>
+<p>That is why IndicGenBench's metric design becomes important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-18">5.31.4 Scope of IndicGenBench</h3>
+<p>The deck defines:</p>
+<div class="math block">
+\boxed{29\text{ Indic languages}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{13\text{ scripts}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{4\text{ language families}}.
+</div>
+<p>The 29 languages are divided into three resource tiers:</p>
+<div class="math block">
+\boxed{9\text{ Higher}}
+</div>
+<div class="math block">
+\boxed{7\text{ Medium}}
+</div>
+<div class="math block">
+\boxed{13\text{ Low}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is already a major difference from our previous benchmark discussion.</p>
+<p>IndicGenBench explicitly makes <strong>resource level</strong> a central experimental variable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-19">5.31.5 “Higher-resource” does NOT mean high-resource globally</h3>
+<p>This is an important source-specific warning.</p>
+<p>The deck gives Hindi as an example:</p>
+<div class="math block">
+\boxed{\sim160,000\text{ Wikipedia articles}}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{6.6\text{M+ for English}}.
+</div>
+<p>So “Higher” means:</p>
+<div class="math block">
+\boxed{
+\text{higher relative to other Indic languages}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{
+\text{high-resource by global standards}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This prevents a very common misinterpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-20">5.31.6 Why classify languages into resource tiers?</h3>
+<p>Because we want to ask:</p>
+<div class="math block">
+\boxed{
+\text{Does generation quality decline as language resources decline?}
+}
+</div>
+<p>So instead of reporting only one average:</p>
+<div class="math block">
+\text{Average performance}=X,
+</div>
+<p>we can investigate:</p>
+<div class="math block">
+\boxed{
+\text{Higher}
+\rightarrow
+\text{Medium}
+\rightarrow
+\text{Low}
+}
+</div>
+<p>and observe whether performance follows the same direction.</p>
+<p>The later results slide says it does: performance drops from High to Medium to Low across every task. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-21">5.31.7 The five generation tasks</h3>
+<p>IndicGenBench contains five generation tasks.</p>
+<p>The deck describes them as:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>cross-lingual summarization,</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}
+</div>
+<p>machine translation,</p>
+<div class="math block">
+\boxed{\text{XQuAD-IN}}
+</div>
+<p>multilingual QA,</p>
+<p>and two versions of:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN}}
+</div>
+<p>cross-lingual QA. <em>(Source: indicgenbench-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+1+1+1+2=5
+}
+</div>
+<p>generation tasks.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-22">5.31.8 Why does the benchmark mostly translate existing datasets?</h3>
+<p>This is one of the most important design decisions in the deck.</p>
+<p>Instead of creating every benchmark entirely from scratch, the researchers start with existing English-source benchmarks:</p>
+<div class="math block">
+\boxed{\text{CrossSum}}
+</div>
+<div class="math block">
+\boxed{\text{FLORES-200}}
+</div>
+<div class="math block">
+\boxed{\text{XQuAD}}
+</div>
+<div class="math block">
+\boxed{\text{XOR-TyDi}}.
+</div>
+<p>Then they add professional human translations into Indic languages. <em>(Source: indicgenbench-slides)</em></p>
+<p>At first this may seem like a weakness:</p>
+<blockquote>
+<p>Why not create everything directly in Indic languages?</p>
+</blockquote>
+<p>The deck gives <strong>three explicit reasons</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-23">5.31.9 Reason 1 — Multi-way parallel data</h3>
+<p>Suppose we start from the same source example:</p>
+<div class="math block">
+x
+</div>
+<p>and create:</p>
+<div class="math block">
+y_{\text{Hindi}},
+y_{\text{Tamil}},
+y_{\text{Bengali}},
+\ldots
+</div>
+<p>all corresponding to the same source.</p>
+<p>Now comparisons become much cleaner.</p>
+<p>We can ask whether a model's performance difference comes from:</p>
+<div class="math block">
+\boxed{\text{language}}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{\text{different underlying task content}}.
+</div>
+<p>This is exactly why the deck values <strong>multi-way parallel data</strong>. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-24">5.31.10 Example</h3>
+<p>Suppose the source is one English sentence:</p>
+<div class="math block">
+x=\text{“The satellite launched successfully.”}
+</div>
+<p>Create translations into:</p>
+<div class="math block">
+\text{Hindi}
+</div>
+<div class="math block">
+\text{Tamil}
+</div>
+<div class="math block">
+\text{Bengali}
+</div>
+<p>and so on.</p>
+<p>Because every language began with the same <span class="math inline">x</span>, comparisons become:</p>
+<div class="math block">
+\boxed{
+\text{same task}
++
+\text{same underlying content}
++
+\text{different target language}
+}
+</div>
+<p>which is very useful for studying cross-lingual generalization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-25">5.31.11 Reason 2 — Clean source text may not exist in low-resource languages</h3>
+<p>Suppose researchers want to build a fresh QA dataset in a very low-resource language.</p>
+<p>They need:</p>
+<div class="math block">
+\text{clean documents}
++
+\text{questions}
++
+\text{answers}
++
+\text{quality control}.
+</div>
+<p>But high-quality source material may not exist at sufficient scale.</p>
+<p>The deck specifically points out that some low-resource languages do not have clean knowledge corpora such as Wikipedia at the level needed for fresh dataset construction. <em>(Source: indicgenbench-slides)</em></p>
+<p>Translation provides a way around that.</p>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{
+\text{find huge clean Indic source corpus}
+}
+</div>
+<p>we can:</p>
+<div class="math block">
+\boxed{
+\text{start from already-developed English benchmark}
+}
+</div>
+<p>and translate it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-26">5.31.12 Reason 3 — Reuse existing quality control</h3>
+<p>Existing datasets have already gone through substantial:</p>
+<div class="math block">
+\text{design}
+</div>
+<div class="math block">
+\text{validation}
+</div>
+<div class="math block">
+\text{quality control}.
+</div>
+<p>So IndicGenBench can inherit that work and focus additional effort on:</p>
+<div class="math block">
+\boxed{
+\text{high-quality human Indic translation}
+}.
+</div>
+<p>The deck explicitly lists this as its third motivation. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-27">5.31.13 This is an important benchmark-design tradeoff</h3>
+<p>Translation-based construction gives:</p>
+<div class="math block">
+\boxed{
+\text{comparability}
++
+\text{scalability}
++
+\text{reusable task design}
+}
+</div>
+<p>but introduces another possible problem:</p>
+<div class="math block">
+\boxed{
+\text{translation artifacts/errors}
+}.
+</div>
+<p>And the deck later demonstrates exactly that translation quality matters, especially for some tasks. <em>(Source: indicgenbench-slides)</em></p>
+<p>So the design tradeoff is:</p>
+<div class="math block">
+\boxed{
+\text{clean common source}
+\quad\text{vs}\quad
+\text{native-language authenticity}
+}
+</div>
+<p>and the benchmark tries to balance the two through professional human translation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-28">5.31.14 Human translators</h3>
+<p>The deck says the translators were:</p>
+<div class="math block">
+\boxed{\text{professional data labelers}}
+</div>
+<p>working through the authors' organization and an external vendor.</p>
+<p>They were paid competitively according to the labor laws and prevailing market rates of each region. <em>(Source: indicgenbench-slides)</em></p>
+<p>One reported detail is particularly interesting:</p>
+<div class="math block">
+\boxed{2.80\text{ USD/hour}}
+</div>
+<p>for Pashto versus:</p>
+<div class="math block">
+\boxed{15.90\text{ USD/hour}}
+</div>
+<p>for Tibetan.</p>
+<p>That is a:</p>
+<div class="math block">
+\frac{15.90}{2.80}
+\approx
+\boxed{5.68\times}
+</div>
+<p>difference, which the slide summarizes as a:</p>
+<div class="math block">
+\boxed{5.7\times}
+</div>
+<p>pay range across languages. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-29">5.31.15 Why is this mentioned in a technical lecture?</h3>
+<p>Because dataset construction is not just:</p>
+<div class="math block">
+\boxed{\text{NLP algorithm}}
+</div>
+<p>It is also:</p>
+<div class="math block">
+\boxed{
+\text{human annotation process}
++
+\text{labor practices}
++
+\text{quality control}
+}.
+</div>
+<p>The quality of a benchmark depends on the people producing and validating its data.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-30">5.31.16 First major task: CrossSum-IN</h3>
+<p>Now we begin the individual task architecture.</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>is <strong>cross-lingual summarization</strong>.</p>
+<p>The source benchmark is:</p>
+<div class="math block">
+\boxed{\text{CrossSum}}
+</div>
+<p>which itself comes from:</p>
+<div class="math block">
+\boxed{\text{XL-Sum}}
+</div>
+<p>and is based on BBC news articles and summaries across languages. <em>(Source: indicgenbench-slides)</em></p>
+<p>The generation task is:</p>
+<div class="math block">
+\boxed{
+\text{article}
+\rightarrow
+\text{summary in target language}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-31">5.31.17 Why is this “cross-lingual” summarization?</h3>
+<p>The source article and target summary can involve different languages.</p>
+<p>In the benchmark's construction, the deck starts from English article-summary pairs and creates target-language summaries.</p>
+<p>The key requirement is that the model should generate the summary:</p>
+<div class="math block">
+\boxed{
+\text{directly in the target language}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\text{source}
+\rightarrow
+\text{English intermediate}
+\rightarrow
+\text{target}.
+</div>
+<p>The example slide explicitly emphasizes faithful compressed generation directly in the target language. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-32">5.31.18 CrossSum-IN construction</h3>
+<p>For each language, the dataset uses:</p>
+<div class="math block">
+\boxed{
+100\text{ train}
++
+100\text{ dev}
++
+500\text{ test}
+}
+</div>
+<p>examples.</p>
+<p>Thus:</p>
+<div class="math block">
+100+100+500
+=
+\boxed{700}
+</div>
+<p>examples per language.</p>
+<p>There are:</p>
+<div class="math block">
+\boxed{29\text{ languages}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+700\times29
+=
+\boxed{20,300}
+</div>
+<p>examples total.</p>
+<p>The deck explicitly reports this number and confirms it by direct arithmetic. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-33">5.31.19 Numerical exam question</h3>
+<p>Given:</p>
+<div class="math block">
+29\text{ languages}
+</div>
+<p>and:</p>
+<div class="math block">
+700\text{ examples/language},
+</div>
+<p>compute total examples:</p>
+<div class="math block">
+29\times700
+=
+\boxed{20,300}.
+</div>
+<p>Then:</p>
+<p>Training examples:</p>
+<div class="math block">
+29\times100
+=
+\boxed{2,900}.
+</div>
+<p>Development:</p>
+<div class="math block">
+29\times100
+=
+\boxed{2,900}.
+</div>
+<p>Test:</p>
+<div class="math block">
+29\times500
+=
+\boxed{14,500}.
+</div>
+<p>Check:</p>
+<div class="math block">
+2900+2900+14500
+=
+\boxed{20,300}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-34">5.31.20 Second major task: FLORES-IN</h3>
+<p>The next task is:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}
+</div>
+<p>for machine translation.</p>
+<p>The source dataset is:</p>
+<div class="math block">
+\boxed{\text{FLORES-200}}.
+</div>
+<p>Unlike CrossSum, FLORES already contains high-quality human-annotated multilingual parallel data.</p>
+<p>So IndicGenBench reuses as much as possible and translates into languages not already covered. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-35">5.31.21 FLORES split structure</h3>
+<p>The source FLORES-200 split has:</p>
+<div class="math block">
+\boxed{997\text{ dev}}
+</div>
+<div class="math block">
+\boxed{1012\text{ devtest}}
+</div>
+<div class="math block">
+\boxed{992\text{ test}}
+</div>
+<p>but the deck says the non-public test is not used for this construction.</p>
+<p>Therefore:</p>
+<div class="math block">
+997+1012
+=
+\boxed{2009}
+</div>
+<p>sentences per language.</p>
+<p>For:</p>
+<div class="math block">
+29
+</div>
+<p>languages:</p>
+<div class="math block">
+2009\times29
+=
+\boxed{58,261}
+</div>
+<p>examples.</p>
+<p>The slide reports approximately:</p>
+<div class="math block">
+\boxed{58.2K}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-36">5.31.22 Important exception</h3>
+<p>The deck says FLORES-IN is:</p>
+<div class="math block">
+\boxed{\text{the only task with no training split}}
+</div>
+<p>in IndicGenBench.</p>
+<p>Why?</p>
+<p>Because this is fundamentally a benchmark of translation over an established parallel evaluation set, and the source FLORES structure is reused directly rather than creating a new task-specific training split for the benchmark. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-37">5.31.23 What does FLORES-IN actually ask the model to do?</h3>
+<p>Very simply:</p>
+<div class="math block">
+\boxed{
+\text{source sentence}
+\rightarrow
+\text{target-language sentence}
+}
+</div>
+<p>No question.</p>
+<p>No long context.</p>
+<p>No multiple-choice alternatives.</p>
+<p>Just translation.</p>
+<p>The deck emphasizes that the same source sentence is represented across all target languages, making the dataset <strong>n-way parallel</strong>. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-38">5.31.24 Why is n-way parallelity valuable?</h3>
+<p>Suppose:</p>
+<div class="math block">
+x_{\text{English}}
+</div>
+<p>has translations:</p>
+<div class="math block">
+y_{\text{Hindi}},
+y_{\text{Tamil}},
+y_{\text{Punjabi}},
+y_{\text{Bengali}},
+\ldots
+</div>
+<p>Then each language is being tested against the same semantic source.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{language comparison becomes cleaner}
+}
+</div>
+<p>because the underlying content is held constant.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-39">5.31.25 Third task: XQuAD-IN</h3>
+<p>The next task is:</p>
+<div class="math block">
+\boxed{\text{XQuAD-IN}}
+</div>
+<p>for multilingual reading comprehension / QA.</p>
+<p>The source is:</p>
+<div class="math block">
+\boxed{\text{XQuAD}}
+</div>
+<p>which itself derives from:</p>
+<div class="math block">
+\boxed{\text{SQuAD}}
+</div>
+<p>and contains English Wikipedia passages and short-span questions/answers. <em>(Source: indicgenbench-slides)</em></p>
+<p>The generation problem is:</p>
+<div class="math block">
+\boxed{
+\text{context + question}
+\rightarrow
+\text{answer}
+}
+</div>
+<p>in the target language.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-40">5.31.26 Fourth and fifth tasks: XorQA-IN</h3>
+<p>This is particularly interesting because one underlying translation effort produces <strong>two tasks</strong>.</p>
+<p>The source is:</p>
+<div class="math block">
+\boxed{\text{XOR-TyDi}}.
+</div>
+<p>The original data has:</p>
+<div class="math block">
+\boxed{\text{non-English question}}
+</div>
+<p>paired with:</p>
+<div class="math block">
+\boxed{\text{English evidence passage}}
+</div>
+<p>and an answer.</p>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>IndicGenBench expands this into:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN-EN}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN-XX}}.
+</div>
+<p>We will study the exact distinction in the next step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-41">5.31.27 Why two variants?</h3>
+<p>Because the model can be asked to:</p>
+<h5 id="v3-heading-chunk-les-step-5-31-i72-42">Variant 1</h5>
+<p>Read a target-language question, retrieve evidence from English, and answer in:</p>
+<div class="math block">
+\boxed{\text{English}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-31-i72-43">Variant 2</h5>
+<p>Read the same kind of cross-lingual setup but generate the answer in:</p>
+<div class="math block">
+\boxed{\text{the target language}}.
+</div>
+<p>So these test different abilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-44">5.31.28 First major metric: chrF</h3>
+<p>For:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}},
+</div>
+<p>the benchmark uses:</p>
+<div class="math block">
+\boxed{\text{chrF}}
+</div>
+<p>or <strong>character-level F-score</strong>.</p>
+<p>The deck specifically chooses character-level scoring because token-based metrics such as:</p>
+<div class="math block">
+\boxed{\text{ROUGE}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{BLEU}}
+</div>
+<p>can be unreliable for low-resource languages, where tokenization itself may be problematic. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-45">5.31.29 Why character-level evaluation?</h3>
+<p>Suppose a tokenizer splits one word into:</p>
+<div class="math block">
+5
+</div>
+<p>subword pieces in one language but only:</p>
+<div class="math block">
+1
+</div>
+<p>piece in another.</p>
+<p>Then a token-level metric can become sensitive to tokenizer behavior.</p>
+<p>Character-level comparison is less dependent on the model's subword segmentation.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{tokenization artifact}
+\downarrow
+}
+</div>
+<p>when moving from token-level to character-level evaluation.</p>
+<p>The source specifically motivates chrF on this basis. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-46">5.31.30 Second metric family: token F1</h3>
+<p>For:</p>
+<div class="math block">
+\boxed{\text{XQuAD-IN}}
+</div>
+<p>and both:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN}}
+</div>
+<p>variants, the benchmark uses:</p>
+<div class="math block">
+\boxed{\text{token-overlap F1}}.
+</div>
+<p>This is inherited from the SQuAD-style QA literature. <em>(Source: indicgenbench-slides)</em></p>
+<p>Recall:</p>
+<div class="math block">
+Precision=\frac{TP}{TP+FP}
+</div>
+<div class="math block">
+Recall=\frac{TP}{TP+FN}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+F1=
+\frac{2PR}{P+R}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-47">5.31.31 So the benchmark has two metric families</h3>
+<div class="math block">
+\boxed{
+\text{Generation of free text}
+\rightarrow
+\text{chrF}
+}
+</div>
+<p>for:</p>
+<div class="math block">
+\text{summary}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{translation}.
+</div>
+<p>While:</p>
+<div class="math block">
+\boxed{
+\text{short-span QA}
+\rightarrow
+\text{token F1}
+}
+</div>
+<p>because the answer is expected to overlap a gold answer span.</p>
+<p>This is an important exam distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-48">5.31.32 Numerical chrF intuition</h3>
+<p>The source does not give the underlying chrF formula on this slide, so we should <strong>not</strong> invent a full implementation equation and pretend it comes from the deck.</p>
+<p>The safe understanding is:</p>
+<div class="math block">
+\boxed{
+\text{chrF compares character-level n-gram overlap using an F-score formulation}
+}
+</div>
+<p>which reduces sensitivity to subword/tokenization differences.</p>
+<p>That is the benchmark-design lesson supported by the source. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-49">5.31.33 IndicGenBench vs IndicXTREME</h3>
+<p>Now the distinction should be crystal clear.</p>
+<table>
+<thead>
+<tr>
+<th>IndicXTREME</th>
+<th>IndicGenBench</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primarily NLU</td>
+<td>Primarily generation</td>
+</tr>
+<tr>
+<td>Classification-heavy</td>
+<td>Summarization/translation/QA</td>
+</tr>
+<tr>
+<td>Accuracy/F1</td>
+<td>chrF/token F1</td>
+</tr>
+<tr>
+<td>9 tasks</td>
+<td>5 generation tasks</td>
+</tr>
+<tr>
+<td>Tests understanding/transfer</td>
+<td>Tests output generation</td>
+</tr>
+<tr>
+<td>20-language contribution scope stated in deck</td>
+<td>29-language scope</td>
+</tr>
+</tbody>
+</table>
+<p>The first five columns are conceptual descriptions grounded in the supplied decks. The language counts come directly from their respective slides. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-50">5.31.34 The important conceptual relationship</h3>
+<p>We should not think:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME vs IndicGenBench}
+=
+\text{same benchmark twice}
+}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}
+=
+\text{Can the model understand?}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{IndicGenBench}
+=
+\text{Can the model generate?}
+}
+</div>
+<p>A model can be strong at one and weak at the other.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-51">5.31.35 Why is that scientifically important?</h3>
+<p>Imagine a model with:</p>
+<div class="math block">
+90\%
+</div>
+<p>classification performance.</p>
+<p>But when asked to generate an Indic summary, its chrF is poor.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{understanding capability}
+\not\Rightarrow
+\text{generation capability}
+}
+</div>
+<p>This is one of the central gaps that IndicGenBench is designed to expose. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-52">5.31.36 Numerical exam bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-31-i72-53">Question 1</h5>
+<p>CrossSum-IN:</p>
+<div class="math block">
+100+100+500=700
+</div>
+<p>per language.</p>
+<p>For 29 languages:</p>
+<div class="math block">
+700\times29
+=
+\boxed{20,300}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-31-i72-54">Question 2</h5>
+<p>FLORES-IN:</p>
+<div class="math block">
+997+1012
+=
+\boxed{2009}.
+</div>
+<p>For 29 languages:</p>
+<div class="math block">
+2009\times29
+=
+\boxed{58,261}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-31-i72-55">Question 3</h5>
+<p>Translator wage ratio:</p>
+<div class="math block">
+15.90/2.80
+\approx
+\boxed{5.68\times}.
+</div>
+<p>Rounded:</p>
+<div class="math block">
+\boxed{5.7\times}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-31-i72-56">Question 4</h5>
+<p>Five generation tasks:</p>
+<div class="math block">
+\boxed{
+1\text{ CrossSum}
++
+1\text{ FLORES}
++
+1\text{ XQuAD}
++
+2\text{ XorQA}
+=
+5
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-57">5.31.37 Exam-style conceptual question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>Why does IndicGenBench translate established benchmarks instead of constructing every dataset from scratch?</p>
+</blockquote>
+<p>The deck gives three reasons:</p>
+<div class="math block">
+\boxed{
+\text{multi-way parallel data}
+}
+</div>
+<p>for separating task knowledge from language effects and measuring cross-lingual generalization,</p>
+<div class="math block">
+\boxed{
+\text{lack of clean source data for many low-resource languages}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{reuse of existing benchmark quality control}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-58">5.31.38 Exam-style conceptual question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>Why does IndicGenBench use chrF for summarization and translation rather than simply BLEU/ROUGE?</p>
+</blockquote>
+<p>Because the deck argues that token-level metrics can be unreliable for low-resource languages where tokenization itself is a weak link. Character-level F-score reduces this dependence. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-59">5.31.39 The deeper lesson</h3>
+<p>IndicGenBench is not merely “another multilingual benchmark.”</p>
+<p>It addresses a different failure mode:</p>
+<div class="math block">
+\boxed{
+\text{A model can understand an Indic language without being able to generate it well.}
+}
+</div>
+<p>Therefore the evaluation chain becomes:</p>
+<div class="math block">
+\boxed{
+\text{IndicCorp}
+\rightarrow
+\text{pretraining resources}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}
+\rightarrow
+\text{understanding/NLU evaluation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{IndicGenBench}
+\rightarrow
+\text{generation evaluation}
+}
+</div>
+<p>Together they give a much more complete view of multilingual Indic capability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-31-i72-60">5.31.40 Final mental model</h3>
+<p>Remember:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}
+=
+\text{UNDERSTAND}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{IndicGenBench}
+=
+\text{GENERATE}
+}
+</div>
+<p>IndicGenBench covers:</p>
+<div class="math block">
+\boxed{29\text{ languages}}
+</div>
+<div class="math block">
+\boxed{13\text{ scripts}}
+</div>
+<div class="math block">
+\boxed{4\text{ families}}
+</div>
+<div class="math block">
+\boxed{3\text{ resource tiers}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{5\text{ generation tasks}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>Its construction philosophy is:</p>
+<div class="math block">
+\boxed{
+\text{existing high-quality benchmark}
+\rightarrow
+\text{professional human translation}
+\rightarrow
+\text{parallel Indic evaluation}
+}
+</div>
+<p>rather than rebuilding the entire task ecosystem from scratch.</p>
+<p>And the first major warning is already visible:</p>
+<div class="math block">
+\boxed{
+\text{even the best models perform substantially worse in Indic generation than in English}
+}
+</div>
+<p>across all five generation tasks in the benchmark's reported analysis. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+</section>

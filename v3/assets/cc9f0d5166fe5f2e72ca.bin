@@ -1,0 +1,168 @@
+"""Independent scalar formulas, finite differences and metamorphic checks.
+Run: python check_companion.py. Writes evidence.json and outputs.json beside itself.
+"""
+from pathlib import Path
+from dataclasses import replace
+import json,math
+import numpy as np
+from companion import *
+BASE=Path(__file__).resolve().parent
+checks=[];outputs={}
+def check(cid,condition,method):
+    checks.append({'check_id':cid,'method':method,'status':'passed' if bool(condition) else 'failed'})
+def close(cid,actual,expected,method,tol=1e-9):
+    check(cid,np.allclose(actual,expected,atol=tol,rtol=tol),method)
+def reject(cid,fn):
+    try:fn();ok=False
+    except ValueError:ok=True
+    check(cid,ok,'explicit boundary rejection')
+def scalar_attention(trace):
+    q,k,v,qr,kr=[trace[n] for n in ('q','k','v','qr','kr')]
+    out=np.zeros((*q.shape[:-1],v.shape[-1]));b,h,s,d=q.shape
+    for bb in range(b):
+      for hh in range(h):
+       for i in range(s):
+        scores=[]
+        for j in range(i+1):
+         scores.append(sum(q[bb,hh,i,c]*k[bb,hh,j,c] for c in range(d))/math.sqrt(d)
+                       +sum(qr[bb,hh,i,c]*kr[bb,hh,j,c] for c in range(qr.shape[-1]))/math.sqrt(qr.shape[-1]))
+        weights=[math.exp(a-max(scores)) for a in scores];den=sum(weights)
+        for c in range(v.shape[-1]):out[bb,hh,i,c]=sum(weights[j]/den*v[bb,hh,j,c] for j in range(i+1))
+    return out
+
+stream=pack([[10,20,30],[40,50]],99,100)
+close('MD104-EOT',stream,[10,20,30,99,40,50,99],'independent literal concatenation')
+check('MD104-BYTES',stream.nbytes==14,'dtype itemsize arithmetic')
+close('MD104-SPLIT',[int(100000*.95),100000-int(100000*.95)],[95000,5000],'integer split arithmetic')
+reject('MD104-OVERFLOW',lambda:pack([[70000]],99,70001))
+x,y=batch(np.arange(100,108),[2],4)
+close('MD105-SLICE-X',x,[[102,103,104,105]],'literal index trace')
+close('MD105-SLICE-Y',y,[[103,104,105,106]],'literal shifted trace')
+reject('MD105-SHORT',lambda:batch([1,2,3],[0],3))
+xx,yy=batch([5,8,3,9,2,7],[1],4)
+close('MD105-EXAM-X',xx,[[8,3,9,2]],'literal inherited numerical')
+close('MD105-EXAM-Y',yy,[[3,9,2,7]],'literal inherited numerical')
+check('MD105-DTYPE',xx.dtype==np.int64,'storage/computation dtype contract')
+check('MD105-TOKENS',24*256==6144,'independent product')
+reject('MD106-HEAD',lambda:replace(Args(),d=5).validate())
+reject('MD106-ROPE',lambda:replace(Args(),rope_dim=3).validate())
+reject('MD106-TOPK',lambda:replace(Args(),top_k=4).validate())
+check('MD106-DEFAULT-HEAD',512//8==64,'division contract')
+z=np.array([[[[1.,2.,3.,4.],[4.,3.,2.,1.]]]])
+r=rope(z,3)
+ref=np.zeros_like(z)
+for i in range(2):
+ for j in range(2):
+  angle=(3+i)*10000**(-2*j/4);a,b=z[0,0,i,2*j:2*j+2]
+  ref[0,0,i,2*j:2*j+2]=[a*math.cos(angle)-b*math.sin(angle),a*math.sin(angle)+b*math.cos(angle)]
+close('MD107-MATRIX',r,ref,'independent real 2x2 rotation matrices')
+close('MD107-NORM',np.sum(r*r,axis=-1),np.sum(z*z,axis=-1),'orthogonal norm preservation')
+close('MD107-ZERO',rope(z[:,:,:1],0),z[:,:,:1],'position-zero identity')
+reject('MD107-OFFSET',lambda:rope(z,31))
+close('MD107-CHUNK',rope(z,3),np.concatenate([rope(z[:,:,:1],3),rope(z[:,:,1:],4)],2),'absolute-offset partition equivalence')
+a=Args();model=Mini(a);ids=np.array([[0,1,2,3,4,5]]);logits,cache,trace=model(ids)
+first=trace['blocks'][0]['attention'];manual=scalar_attention(first)
+block=model.blocks[0];projected=manual.transpose(0,2,1,3).reshape(1,6,4)@block.attention.out
+close('MD108-SCALAR',trace['blocks'][0]['attention_update'],projected,'independent scalar dot-product, masked softmax and weighted retrieval')
+for i in range(6):
+ close(f'MD108-CAUSAL-{i}',first['weights'][0,:,i,i+1:],0,'future weights must vanish')
+close('MD108-ROW-SUM',first['weights'].sum(-1),1,'probability conservation')
+check('MD108-CACHE-WIDTH',cache[0][0].shape==(1,6,2) and cache[0][1].shape==(1,2,6,2),'cache contracts')
+close('MD108-MEMORY',[2*512,128+8*32,2*512/(128+8*32)],[1024,384,8/3],'independent full latent-plus-positional cache arithmetic')
+state=None;pieces=[]
+for token in range(6):
+ l,state,_=model(ids[:,token:token+1],state);pieces.append(l)
+close('MD112-CACHED',np.concatenate(pieces,1),logits,'full-sequence vs token-by-token logits',1e-8)
+l1,state,_=model(ids[:,:2]);l2,state,_=model(ids[:,2:5],state);l3,state,_=model(ids[:,5:],state)
+close('MD112-CHUNKED',np.concatenate((l1,l2,l3),1),logits,'multi-token cached causal offset equivalence',1e-8)
+changed=ids.copy();changed[0,-1]=8
+other,_,_=model(changed)
+close('MD112-FUTURE',other[:,:-1],logits[:,:-1],'future-token perturbation invariance')
+close('MD109-TOPK-WEIGHTS',softmax([4.,3.]),[1/(1+math.exp(-1)),1/(1+math.exp(1))],'independent logistic closed form')
+moe=block.moe;h=norm(trace['blocks'][0]['h']);out,routing=moe(h);flat=h.reshape(-1,4);slow=np.zeros_like(flat)
+for token in range(len(flat)):
+ slow[token]=moe.expert(flat[token],a.experts)
+ for rank,e in enumerate(routing['indices'][token]):slow[token]+=routing['gates'][token,rank]*moe.expert(flat[token],e)
+close('MD109-DISPATCH',out,slow.reshape(h.shape),'independent token-wise weighted expert aggregation')
+check('MD109-ASSIGNMENTS',int(routing['counts'].sum())==6*a.top_k,'conservation of assignments')
+before=moe.bias.copy();_,rt=moe(h,True);avg=6*a.top_k/a.experts
+close('MD109-BIAS',moe.bias-before,.01*np.tanh((avg-rt['counts'])/(avg+1e-6)),'feedback equation with independently counted loads')
+moe.bias[:]=before
+check('MD109-IDEAL-LOAD',6144*2/8==1536,'integer assignment arithmetic')
+prev=6;aligned=[]
+for depth in [1,2,3]:
+ future,target,length=mtp_alignment(ids,depth)
+ close(f'MD110-FUTURE-{depth}',future,ids[:,depth:5],'literal semantic future-token indexing')
+ close(f'MD110-TARGET-{depth}',target,ids[:,depth+1:6],'literal farther target indexing')
+ check(f'MD110-PREFIX-{depth}',length<=prev,'progressively shorten previously refined prefix');prev=length
+ aligned.append({'depth':depth,'future':future.tolist(),'target':target.tolist(),'length':length})
+reject('MD110-EMPTY',lambda:mtp_alignment(ids,5))
+check('MD110-PROJECTION',2*768*768==1179648,'bias-free 2d-to-d projection parameter product')
+check('MD110-HEAD',768*50257==38597376,'shared vocabulary matrix parameter product')
+for i in range(a.layers-1):
+ t=trace['blocks'][i];next_trace=trace['blocks'][i+1]
+ close(f'MD111-RESIDUAL-{i}',t['h']+t['ff'],next_trace['h']-next_trace['attention_update'],'independent adjacent-block residual route identity')
+close('MD111-LAYERNORM',norm(np.array([[1.,3.]])),[[-1/math.sqrt(1+1e-5),1/math.sqrt(1+1e-5)]],'independent population mean and variance')
+targets=np.array([[1,2,3,4,5,6]])
+loss=ce(logits,targets)
+manual_loss=sum(math.log(sum(math.exp(float(v-max(row))) for v in row))+float(max(row)-row[y]) for row,y in zip(logits[0],targets[0]))/6
+close('MD112-LOSS',loss,manual_loss,'independent scalar logsumexp target likelihood')
+outputs['mini']={'logits':logits.tolist(),'loss':loss,'cache_shapes':[[list(c.shape) for c in layer] for layer in cache],'mtp_alignment':aligned}
+for t,expected in [(0,0),(100,.00015),(200,.0003),(2600,.000165),(5000,.00003),(6000,.00003)]:
+ close(f'MD113-LR-{t}',lr(t),expected,'independent schedule boundary/midpoint')
+# Actual toy learning update of the vocabulary head, not just a mocked optimizer.
+h=trace['h'].reshape(-1,4);z=logits.reshape(-1,9);t=targets.ravel();p=softmax(z)
+g=p.copy();g[np.arange(6),t]-=1;g/=6;grad=h.T@g
+micro=[h[:2].T@(g[:2]*3),h[2:4].T@(g[2:4]*3),h[4:].T@(g[4:]*3)]
+close('MD113-ACCUM',sum(micro)/3,grad,'three equal-size microbatch mean gradients vs full batch')
+for i,j in [(0,0),(2,5),(3,8)]:
+ eps=1e-6;w=model.head.copy();w[i,j]+=eps;plus=ce((h@w).reshape(1,6,9),targets)
+ w[i,j]-=2*eps;minus=ce((h@w).reshape(1,6,9),targets)
+ close(f'MD113-GRAD-{i}-{j}',grad[i,j],(plus-minus)/(2*eps),'central finite differences',1e-6)
+updated=model.head-.05*grad;after=ce((h@updated).reshape(1,6,9),targets)
+check('MD113-LEARNING',after<loss,'executed toy SGD head update lowers same-batch CE');outputs['training']={'before':loss,'after':after,'gradient_norm':float(np.linalg.norm(grad))}
+close('MD114-ADV',[1-.5,0-.5,.5-.5],[.5,-.5,0],'baseline subtraction')
+# Exact two-action score-function identity, independently differentiated.
+theta=.4;prob=1/(1+math.exp(-theta));pg=prob*(1-prob)
+eps=1e-6;fd=(1/(1+math.exp(-(theta+eps)))-1/(1+math.exp(-(theta-eps))))/(2*eps)
+close('MD114-POLICY-GRAD',pg,fd,'analytical expected reward gradient vs central finite differences',1e-7)
+for r,a,expected in [(1.1,2,2.2),(1.8,2,2.4),(.5,-2,-1.6),(.5,2,1),(1.8,-2,-3.6)]:
+ close(f'MD115-CLIP-{r}-{a}',surrogate(r,a),expected,'independent signed clipped surrogate branch')
+close('MD115-RATIO',[.22/.2,.6/.2,.1/.2],[1.1,3,.5],'new/old probabilities')
+adv=advantages([1,1,0,0]);close('MD116-GROUP',adv,[1,1,-1,-1],'population deviation 0.5',1e-7)
+close('MD116-EQUAL',advantages([1,1,1,1]),[0,0,0,0],'equal-reward zero signal')
+reject('MD116-SINGLE',lambda:advantages([1]))
+ratio=np.array([1.1,1.8,.5,1.3]);objective=float(np.mean(surrogate(ratio,adv)))
+close('MD116-OBJECTIVE',objective,(1.1+1.2-.8-1.3)/4,'independent four-completion signed objective',1e-7)
+close('MD116-K3',.8-math.log(.8)-1,.0231435513142097,'positive scalar k3 approximation')
+check('MD117-PARSE',verify('First 12\nFinal answer: 11',11)==1,'final-marker protocol ignores earlier numbers')
+check('MD117-WRONG',verify('Final answer: 8',11)==0,'correctness predicate')
+check('MD117-AMBIGUOUS',verify('Final answer: 11\nFinal answer: 12',11)==0,'ambiguous final markers rejected')
+check('MD117-INJECTION',verify('Answer is 11 or 12',11)==0,'unstructured alternatives rejected')
+close('MD118-FILTER-RATE',3/8,.375,'acceptance arithmetic')
+close('MD118-DATA',[600000+200000,600000/800000],[800000,.75],'reasoning/general aggregate counts')
+close('MD119-BF16-BYTES',671e9*2,1.342e12,'decimal parameter byte budget')
+close('MD119-BOOK-SUM',395+211+10+10+178,804,'sum exposes rounded-category inconsistency')
+student=np.array([4.,2.5,1.5,-.5]);teacher=np.array([5.,3.,1.,-1.]);value,gradient,kdtrace=kd(student,teacher,0)
+for i in range(4):
+ up=student.copy();dn=student.copy();up[i]+=1e-6;dn[i]-=1e-6
+ numerical=(kd(up,teacher,0)[0]-kd(dn,teacher,0)[0])/2e-6
+ close(f'MD120-GRAD-{i}',gradient[i],numerical,'central finite difference of full T-squared KD',1e-6)
+hard=sum(math.exp(v-max(student)) for v in student)
+close('MD120-HARD',kdtrace['hard'],math.log(hard)+max(student)-student[0],'independent scalar target logsumexp')
+close('MD120-IDENTITY',kd(student,student,0,alpha=0)[0],0,'same-distribution KL identity')
+outputs['kd']={'loss':value,'gradient':gradient.tolist(),**{k: v.tolist() if isinstance(v,np.ndarray) else v for k,v in kdtrace.items()}}
+teacher_count=100*64+(64*128+128)+(128*128+128)+(128*64+64)+(64*10+10)
+student_count=100*64+(64*32+32)+(32*10+10)
+check('MD120-TEACHER-PARAMS',teacher_count==40138,'sum all embedding, linear weights and biases')
+check('MD120-STUDENT-PARAMS',student_count==8810,'sum all embedding, linear weights and biases')
+close('MD121-PPOINTS',[72.6-47,94.3-91.6,62.1-55,57.2-40.2],[25.6,2.7,7.1,17],'independent percentage-point subtraction')
+close('MD121-RELATIVE',(72.6-47)/47,.5446808510638298,'percentage-point vs relative-improvement distinction')
+close('MD121-CEILING',(79.8-72.6)/79.8,.0902255639097744,'teacher-relative gap, scoped empirical claim')
+close('MD122-PIPELINE',8/(8+4-1),8/11,'balanced simplified pipeline utilization')
+close('MD122-END-TO-END',ce(np.concatenate(pieces,1),targets),loss,'data/model/cache/loss integration')
+outputs['ppo_grpo']={'advantages':adv.tolist(),'objective':objective}
+result={'passed':sum(c['status']=='passed' for c in checks),'failed':sum(c['status']=='failed' for c in checks),'checks':checks,'scope':'Independent educational CPU NumPy reconstruction and selected inherited arithmetic. Original PyTorch programs, full pretraining, multi-GPU, production FP8 and empirical benchmark experiments were not executed.'}
+(BASE/'evidence.json').write_text(json.dumps(result,indent=2));(BASE/'outputs.json').write_text(json.dumps(outputs,indent=2))
+print(json.dumps({'passed':result['passed'],'failed':result['failed'],'kd':outputs['kd'],'training':outputs['training']},indent=2))
+if result['failed']:raise SystemExit(1)

@@ -1,0 +1,1313 @@
+<section class="chunk" id="chunk-les-step-4-7-i39" data-id="les-step-4-7-i39"><details class="audit-card" id="audit-full-chunk-les-step-4-7-i39" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-4-7-i39-1">Motivation</h4><p>Use three training attempts as controlled ablations so each addition has an identifiable purpose.</p><h4 id="v3-heading-chunk-les-step-4-7-i39-2">Prerequisites</h4><ul><li>Softmax/log-softmax</li><li>Cross-entropy and directed KL</li><li>Chain rule and masked token reduction</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-3">Notation and units</h4><ul><li>Teacher logits v; student logits z; temperature tau&gt;0</li><li>p_tau=softmax(v/tau), q_tau=softmax(z/tau)</li><li>alpha: hard-label weight; L=alpha CE(z, y)+(1-alpha)tau² KL(p_tau||q_tau)</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-4">Assumptions</h4><ul><li>Teacher detached/frozen</li><li>Aligned output classes/token vocabulary for direct KL</li><li>Natural logarithms, so losses are nats</li><li>One T² multiplication; loss reduction consistent across examples/tokens</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-5">Step-by-step derivation</h4><ol><li>Attempt 1 trainsCE with ground-truth labels; it is a baseline rather than distillation if teacher data is absent.</li><li>Attempt 2 matches detached teacher probabilities at T1; finite gradient is q-p, so a small teacher target does not itself guarantee a small gradient when student assigns a large probability.</li><li>Attempt 3 matches both distributions at elevated T and uses T² compensation.</li><li>Full objective adds hard CE for external supervision; tune T/alpha with the same held-out protocol and controlled budget.</li><li>Rounded probability amplification is a property of displayed numbers, not exact model gradient amplification.</li><li>One label among K equally likely classes conveys log2(K)bits; the book’s roughly one bit framing is an intuition, not a universal information calculation.</li></ol><h4 id="v3-heading-chunk-les-step-4-7-i39-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-7-i39-7">Rounded amplification</h5><p>Given: Displayed fox probability.016→.138</p><ol><li>Ratio.138/.016=8.625.</li><li>Recompute full-precision teacher softmax separately; do not equate this probability ratio to gradient ratio.</li></ol><p>Answer: {&#x27;rounded_ratio&#x27;: 8.625, &#x27;actual_ratio&#x27;: 8.700774056357057}</p><p>Verification: peft_distillation / P47-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-7-i39-8">Completed hybrid loss</h5><p>Given: hard.4, KL.02, T3, alpha.25</p><ol><li>T²KL=.18.</li><li>Combined.25×.4+.75×.18=.235.</li></ol><p>Answer: 0.235</p><p>Verification: peft_distillation / P47-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-4-7-i39-9">Corrections and source qualifications</h4><ul><li>heading: 3.; text: A label among K equally likely classes conveys log2(K) bits. Four classes give 2 bits; roughly one bit is an intuition rather than a general theorem.</li><li>heading: 9.; text: The KD student-logit gradient is q-p at T1. Tiny teacher p alone does not guarantee a tiny gradient; student q also matters.</li><li>heading: 36.; text: T²-scaled KL retains centered-logit matching at high T. Near-uniform raw probabilities do not alone render the objective useless.</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-10">Mastery answers and retained exercise context</h4><ol><li>Fox rounded amplification 8.625; bird35.5; hard P=.8, NLL=.2231435513; hybrid hard.4, KL.02, T3, alpha.25=.235; given KL.01, T5 scaled: .25.</li><li>Attempt 2 can be peaked, but its gradient depends on both q and p; temperature compresses logit differences; hard+soft combines label correctness and teacher alternatives.</li><li>29. Exam numerical — probability amplification
+Teacher:
+
+P_{\text{fox}}(T=1)=0.016
+
+and:
+
+P_{\text{fox}}(T=3)=0.138.
+
+Amplification:
+
+\frac{0.138}{0.016}
+=
+\boxed{8.625}.
+
+So the fox probability becomes approximately:
+
+\boxed{8.6\times}
+
+larger.</li><li>30. Exam numerical — bird amplification
+
+0.002\rightarrow0.071.
+
+
+\frac{0.071}{0.002}
+=
+\boxed{35.5}.
+
+So:
+
+\boxed{35.5\times}.</li><li>31. Exam numerical — hard loss
+Correct probability:
+
+P=0.8.
+
+Then:
+
+L_h=-\ln0.8
+
+
+\boxed{
+L_h\approx0.223
+}</li><li>32. Exam numerical — full KD loss
+Suppose:
+
+L_h=0.4,
+
+
+KL=0.02,
+
+
+T=3,
+
+
+\alpha=0.25.
+
+Then:
+
+T^2KL
+=
+9(0.02)
+=
+0.18.
+
+Therefore:
+
+L
+=
+0.25(0.4)
++
+0.75(0.18)
+
+
+=0.1+0.135
+
+
+\boxed{0.235}.</li><li>33. Exam numerical — temperature correction
+Suppose:
+
+T=5
+
+and:
+
+KL=0.01.
+
+Then:
+
+T^2=25
+
+and:
+
+T^2KL
+=
+25(0.01)
+=
+\boxed{0.25}.</li><li>34. Exam conceptual question
+Why is Attempt #2 only slightly better than Attempt #1?
+Because teacher probabilities at:
+
+T=1
+
+are still highly concentrated on the top class:
+
+[0.865,0.117,0.016,0.002].
+
+The small probabilities corresponding to alternative classes create very weak gradients, so much of the teacher&#x27;s relational knowledge remains effectively hidden. (Source: Build a DeepSeek Model (From Scratch))</li><li>35. Exam conceptual question
+Why does temperature help?
+Because:
+
+z/T
+
+compresses logit differences before softmax.
+This makes lower-probability alternatives receive larger probabilities.
+Thus:
+
+\boxed{
+\text{small teacher probabilities become trainable signals}
+}
+
+while preserving ranking.</li><li>36. Exam conceptual question
+Why not use T=1000?
+Because the distribution becomes nearly uniform.
+Then:
+
+P_T^T
+\approx
+[1/V,\ldots,1/V].
+
+You lose the useful relative structure between alternatives.
+The source therefore describes a middle temperature range as more useful than extreme smoothing. (Source: Build a DeepSeek Model (From Scratch))</li><li>37. Exam conceptual question
+Why does the complete loss use two terms?
+Because:
+
+L_{\text{hard}}
+
+provides:
+
+\boxed{\text{correctness}}
+
+while:
+
+KL
+
+provides:
+
+\boxed{\text{teacher&#x27;s relational information}}
+
+The source explicitly describes these as grounding and knowledge transfer. (Source: Build a DeepSeek Model (From Scratch))</li></ol><h4 id="v3-heading-chunk-les-step-4-7-i39-11">Edge cases and remaining gaps</h4><ul><li>Teacher errors and domain shift transfer to student</li><li>Teacher accuracy is a reference, not a mathematical upper bound on student accuracy</li><li>Finite-temperature gradient is (q-p)/tau; 1/tau² is a high-temperature approximation</li><li>Online teacher execution is optional if logits can be cached; caching storage may be large</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-12">Connections and progression</h4><ul><li>Classical KL matching contrasts with teacher-text SFT; masks and stable log-softmax come from transformer training</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442 · Three attempts, temperature and combination loss</li></ul><h4 id="v3-heading-chunk-les-step-4-7-i39-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (66)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 4.7 — The Three Progressive Distillation Attempts</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>1. The overall evolution</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>2. Attempt #1 — Ignore the teacher completely</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3. What information does hard labeling give?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>4. Example of what the student does NOT know</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>5. Why Attempt #1 is limited</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>6. Attempt #2 — Use the teacher&#x27;s probabilities</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>7. But Attempt #2 has a problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>8. Why is that bad?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>9. Gradient intuition for Attempt #2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>10. So Attempt #2 solves one problem but creates another</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt #1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt #2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>11. Attempt #3 — Temperature-scaled teacher targets</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>12. Use the same teacher logits</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>13. Look at what happened</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>14. What happened to bird?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>15. What information is revealed?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>16. What does “dark knowledge” really mean?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>17. Critical property: ranking does not change</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>18. Why T=3, not T=100?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>19. Numerical comparison of temperatures</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>20. There is another subtle point: student size matters</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>21. Now we have a better signal</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>22. Why not use only the soft target?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>23. Complete loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>24. Why T^2 appears only now</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>25. The progression is now mathematically complete</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Complete objective</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>26. Numerical evolution with the chapter&#x27;s example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Complete objective</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>27. What each attempt teaches us</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>28. The design logic</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>29. Exam numerical — probability amplification</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>30. Exam numerical — bird amplification</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>31. Exam numerical — hard loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>32. Exam numerical — full KD loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>33. Exam numerical — temperature correction</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>34. Exam conceptual question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Why is Attempt #2 only slightly better than Attempt #1?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>35. Exam conceptual question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Why does temperature help?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>36. Exam conceptual question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Why not use T=1000?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>37. Exam conceptual question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Why does the complete loss use two terms?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>38. One very useful mental analogy</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Hard label</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Soft target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Temperature-scaled soft target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Combined objective</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>39. Important source boundary</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>40. Final master diagram</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>41. The four formulas to know</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Teacher soft target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Soft matching</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Final classical KD</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>42. The single most important progression</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 4.7 complete</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-7-i39"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-7-i39" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-6-i38">← Previous lesson</a> · <a href="#chunk-les-step-4-8-i40">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-4-6-i38">Step 4.6 — The Complete DeepSeek-R1 Distillation Pipeline, Model Choices, and Empirical Results</a></p><p><strong>This lesson:</strong> Step 4.7 — The Three Progressive Distillation Attempts</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-7-i39"></a></p>
+<h2>Step 4.7 — The Three Progressive Distillation Attempts</h2>
+<p><em>Plan node: I5 · chat order #39</em></p>
+<p>We are now going back to the section where the chapter <strong>builds the classical distillation objective from the simplest possible baseline to the final loss</strong>.</p>
+<p>This is important because the formulas make much more sense when you understand <strong>why each modification was introduced</strong>.</p>
+<p>The source explicitly presents this as three progressive approaches: hard-label training, teacher-output matching at <span class="math inline">T=1</span>, and temperature-scaled soft targets; the complete hard+soft loss is then built from those ideas. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-15">1. The overall evolution</h3>
+<p>Think of the progression as:</p>
+<div class="math block">
+\boxed{
+\text{Attempt 1}
+\rightarrow
+\text{Attempt 2}
+\rightarrow
+\text{Attempt 3}
+\rightarrow
+\text{Complete KD loss}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{Hard labels}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Teacher probabilities at }T=1
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Teacher probabilities at higher }T
+}
+</div>
+<p>and finally:</p>
+<div class="math block">
+\boxed{
+\text{Hard loss + temperature-scaled soft loss}
+}
+</div>
+<p>The reason for every step is the key thing to understand.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-16">2. Attempt #1 — Ignore the teacher completely</h3>
+<p>Suppose the true class is:</p>
+<div class="math block">
+\text{cat}.
+</div>
+<p>The hard label is represented as:</p>
+<div class="math block">
+\boxed{
+y=[1,0,0,0]
+}
+</div>
+<p>for:</p>
+<div class="math block">
+[\text{cat},\text{dog},\text{fox},\text{bird}].
+</div>
+<p>The student predicts:</p>
+<div class="math block">
+P_S=[p_1,p_2,p_3,p_4].
+</div>
+<p>The loss is ordinary cross-entropy:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\sum_i y_i\log p_i
+}
+</div>
+<p>Since only the correct class has <span class="math inline">y_i=1</span>:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\log P_S(\text{cat})
+}
+</div>
+<p>Nothing about the teacher is used.</p>
+<p>The source calls this the baseline and notes that the student must independently discover relationships between classes. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-7-i39-0" data-full-review="added"><p>Correction: A label among K equally likely classes conveys log2(K) bits. Four classes give 2 bits; roughly one bit is an intuition rather than a general theorem.</p><p><a href="#audit-full-chunk-les-step-4-7-i39">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-7-i39-17">3. What information does hard labeling give?</h3>
+<p>Suppose:</p>
+<div class="math block">
+y=[1,0,0,0].
+</div>
+<p>The student knows:</p>
+<div class="math block">
+\boxed{\text{cat is correct}}
+</div>
+<p>but receives no explicit information about:</p>
+<div class="math block">
+\text{dog}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{fox}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{bird}.
+</div>
+<p>In the source's simplified information-theoretic framing, each example provides roughly one bit of directional information. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The important conceptual message is not the exact bit count; it is:</p>
+<div class="math block">
+\boxed{
+\text{hard labels tell you the answer, not the teacher's uncertainty structure}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-18">4. Example of what the student does NOT know</h3>
+<p>Suppose the image is a cat.</p>
+<p>Teacher knows:</p>
+<div class="math block">
+P_T=
+[0.865,0.117,0.016,0.002].
+</div>
+<p>This says:</p>
+<div class="math block">
+\text{cat} &gt; \text{dog} &gt; \text{fox} &gt; \text{bird}.
+</div>
+<p>The hard label only says:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>So the hard-label student does not directly receive:</p>
+<div class="math block">
+\boxed{
+\text{cat is much more similar to dog than to bird}
+}
+</div>
+<p>That structure is the teacher's additional knowledge.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-19">5. Why Attempt #1 is limited</h3>
+<p>Suppose we want the student to discover that:</p>
+<div class="math block">
+\text{cat}\sim\text{dog}
+</div>
+<p>more than:</p>
+<div class="math block">
+\text{cat}\sim\text{bird}.
+</div>
+<p>With only hard labels, the student has to infer that indirectly from many examples.</p>
+<p>That is:</p>
+<div class="math block">
+\text{many examples}
+\rightarrow
+\text{statistical pattern}
+\rightarrow
+\text{learn relationships}.
+</div>
+<p>The teacher has already learned these relationships.</p>
+<p>So why make the student rediscover them?</p>
+<p>That question motivates Attempt #2.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-20">6. Attempt #2 — Use the teacher's probabilities</h3>
+<p>Now we say:</p>
+<blockquote>
+<p>Instead of giving only the one-hot label, why not train the student to reproduce the teacher's output probabilities?</p>
+</blockquote>
+<p>Teacher produces:</p>
+<div class="math block">
+P_T=[0.865,0.117,0.016,0.002].
+</div>
+<p>Now the student has access to:</p>
+<div class="math block">
+\boxed{
+\text{the entire teacher distribution}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{just the correct class}
+}.
+</div>
+<p>This is already a major improvement conceptually.</p>
+<p>The source describes this as the second attempt. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-21">7. But Attempt #2 has a problem</h3>
+<p>The teacher's distribution at ordinary temperature is:</p>
+<div class="math block">
+\boxed{
+[0.865,0.117,0.016,0.002]
+}
+</div>
+<p>Look at the last two values:</p>
+<div class="math block">
+0.016
+</div>
+<p>and:</p>
+<div class="math block">
+0.002.
+</div>
+<p>They are tiny.</p>
+<p>The teacher technically contains information about fox and bird, but the signal is extremely small.</p>
+<p>The source describes this as the distribution being almost as peaked as the hard label. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-22">8. Why is that bad?</h3>
+<p>Suppose we compare:</p>
+<div class="math block">
+\text{cat}=0.865
+</div>
+<p>to:</p>
+<div class="math block">
+\text{fox}=0.016.
+</div>
+<p>The ratio is:</p>
+<div class="math block">
+\frac{0.865}{0.016}
+\approx54.1.
+</div>
+<p>So the cat probability is roughly 54 times larger.</p>
+<p>And:</p>
+<div class="math block">
+\frac{0.865}{0.002}
+=
+432.5.
+</div>
+<p>So the cat probability is more than 400 times larger than bird.</p>
+<p>Thus the contribution from very small classes is tiny compared with the dominant class.</p>
+<p>The source specifically explains this in terms of gradient magnitudes. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-7-i39-1" data-full-review="added"><p>Correction: The KD student-logit gradient is q-p at T1. Tiny teacher p alone does not guarantee a tiny gradient; student q also matters.</p><p><a href="#audit-full-chunk-les-step-4-7-i39">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-7-i39-23">9. Gradient intuition for Attempt #2</h3>
+<p>For a teacher-target matching objective, the teacher probability influences the strength of the learning signal.</p>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+P_T(\text{fox})=0.016.
+</div>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+P_T(\text{bird})=0.002.
+</div>
+<p>Therefore the student receives very weak pressure to learn those subtle distinctions.</p>
+<p>The source gives the useful comparison:</p>
+<div class="math block">
+\boxed{
+0.016\text{ is about }50\times\text{ smaller than }0.865
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+0.002\text{ is about }400\times\text{ smaller}
+}
+</div>
+<p>in the relevant gradient intuition. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-24">10. So Attempt #2 solves one problem but creates another</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-25">Attempt #1</h5>
+<p>Problem:</p>
+<div class="math block">
+\boxed{
+\text{no teacher information}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-26">Attempt #2</h5>
+<p>Improvement:</p>
+<div class="math block">
+\boxed{
+\text{teacher information is present}
+}
+</div>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{most teacher information is buried in tiny probabilities}
+}
+</div>
+<p>So the next question is:</p>
+<blockquote>
+<p>How do we make those small probabilities more informative?</p>
+</blockquote>
+<p>This leads directly to temperature.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-27">11. Attempt #3 — Temperature-scaled teacher targets</h3>
+<p>Instead of:</p>
+<div class="math block">
+P_T=\operatorname{softmax}(z_T),
+</div>
+<p>we calculate:</p>
+<div class="math block">
+\boxed{
+P_T^T
+=
+\operatorname{softmax}(z_T/T)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+T&gt;1.
+</div>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{T=3}
+</div>
+<p>as the central example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-28">12. Use the same teacher logits</h3>
+<p>Teacher logits:</p>
+<div class="math block">
+z_T=[5,3,1,-1].
+</div>
+<p>At:</p>
+<div class="math block">
+T=1
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+[0.865,0.117,0.016,0.002]
+}
+</div>
+<p>At:</p>
+<div class="math block">
+T=3
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+[0.523,0.268,0.138,0.071]
+}
+</div>
+<p>The source provides exactly these values. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-29">13. Look at what happened</h3>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+\text{fox}=0.016
+</div>
+<p>At <span class="math inline">T=3</span>:</p>
+<div class="math block">
+\text{fox}=0.138.
+</div>
+<p>Increase:</p>
+<div class="math block">
+\frac{0.138}{0.016}
+=
+\boxed{8.625}.
+</div>
+<p>So the fox signal becomes about:</p>
+<div class="math block">
+\boxed{8.6\times}
+</div>
+<p>larger.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-30">14. What happened to bird?</h3>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+\text{bird}=0.002.
+</div>
+<p>At <span class="math inline">T=3</span>:</p>
+<div class="math block">
+\text{bird}=0.071.
+</div>
+<p>Ratio:</p>
+<div class="math block">
+\frac{0.071}{0.002}
+=
+\boxed{35.5}.
+</div>
+<p>So the bird probability becomes about:</p>
+<div class="math block">
+\boxed{35\times}
+</div>
+<p>larger.</p>
+<p>This is why the source says temperature makes previously tiny probabilities meaningfully visible. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-31">15. What information is revealed?</h3>
+<p>At <span class="math inline">T=3</span>:</p>
+<div class="math block">
+[0.523,0.268,0.138,0.071].
+</div>
+<p>Now the student sees:</p>
+<div class="math block">
+\boxed{
+\text{cat}
+&gt;
+\text{dog}
+&gt;
+\text{fox}
+&gt;
+\text{bird}
+}
+</div>
+<p>with meaningful probability differences.</p>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{dark knowledge}}
+</div>
+<p>and describes the resulting relationship as:</p>
+<div class="math block">
+\text{cat}\rightarrow\text{dog}\rightarrow\text{fox}\rightarrow\text{bird}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-32">16. What does “dark knowledge” really mean?</h3>
+<p>It is not mysterious knowledge hidden somewhere inside the model.</p>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{information contained in the relative probabilities of alternatives}
+}
+</div>
+<p>The hard label says:</p>
+<div class="math block">
+\boxed{\text{cat}}
+</div>
+<p>The soft target says:</p>
+<div class="math block">
+\boxed{
+\text{cat strongly preferred, dog somewhat plausible, fox less plausible, bird unlikely}
+}
+</div>
+<p>So the teacher gives the student a <strong>structured ranking of alternatives</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-33">17. Critical property: ranking does not change</h3>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+5&gt;3&gt;1&gt;-1.
+</div>
+<p>At <span class="math inline">T=3</span>:</p>
+<div class="math block">
+5/3&gt;3/3&gt;1/3&gt;-1/3.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{ordering remains unchanged}
+}
+</div>
+<p>Temperature changes the <strong>sharpness</strong>, not the ranking.</p>
+<p>That is crucial.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-34">18. Why <span class="math inline">T=3</span>, not <span class="math inline">T=100</span>?</h3>
+<p>Because too much smoothing destroys useful information.</p>
+<p>The source describes a <strong>Goldilocks zone</strong>:</p>
+<div class="math block">
+T=1
+</div>
+<p>→ too sharp.</p>
+<p>Approximately:</p>
+<div class="math block">
+T=2\text{ to }5
+</div>
+<p>→ useful dark knowledge.</p>
+<p>Very high:</p>
+<div class="math block">
+T\gtrsim10
+</div>
+<p>→ distribution becomes too flat and useful distinctions can disappear. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-35">19. Numerical comparison of temperatures</h3>
+<p>Teacher logits:</p>
+<div class="math block">
+[5,3,1,-1].
+</div>
+<p>The source gives:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Temperature</th>
+<th>Distribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right"><span class="math inline">T=1</span></td>
+<td><span class="math inline">[0.865,0.117,0.016,0.002]</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=2</span></td>
+<td><span class="math inline">[0.644,0.237,0.087,0.032]</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=3</span></td>
+<td><span class="math inline">[0.523,0.268,0.138,0.071]</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=5</span></td>
+<td><span class="math inline">[0.413,0.277,0.186,0.124]</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">T=10</span></td>
+<td><span class="math inline">[0.329,0.270,0.221,0.181]</span></td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Look carefully.</p>
+<p>At:</p>
+<div class="math block">
+T=10
+</div>
+<p>the distribution is getting close to:</p>
+<div class="math block">
+[0.25,0.25,0.25,0.25].
+</div>
+<p>So now the teacher is almost saying:</p>
+<blockquote>
+<p>“I am not very sure; everything is fairly plausible.”</p>
+</blockquote>
+<p>That loses some useful distinctions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-36">20. There is another subtle point: student size matters</h3>
+<p>The source connects temperature choice to student capacity.</p>
+<p>Very small student:</p>
+<div class="math block">
+1B-3B
+</div>
+<p>is given as benefiting from roughly:</p>
+<div class="math block">
+T=2\text{ or }3.
+</div>
+<p>Medium:</p>
+<div class="math block">
+7B-14B
+</div>
+<p>around:</p>
+<div class="math block">
+T=3\text{ or }4.
+</div>
+<p>Larger:</p>
+<div class="math block">
+32B-70B
+</div>
+<p>can benefit from:</p>
+<div class="math block">
+T=4\text{ or }5.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The reasoning is:</p>
+<div class="math block">
+\boxed{
+\text{more capable student}
+\rightarrow
+\text{can absorb richer soft information}
+}
+</div>
+<p>whereas a tiny student may be overwhelmed by overly diffuse targets.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-37">21. Now we have a better signal</h3>
+<p>At this point:</p>
+<div class="math block">
+\boxed{
+\text{Attempt \#3 gives us rich teacher information}
+}
+</div>
+<p>But there is still a question.</p>
+<p>Should we throw away the ground-truth hard label completely?</p>
+<p>The answer is:</p>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<p>and this takes us to the complete KD loss.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-38">22. Why not use only the soft target?</h3>
+<p>Suppose the teacher makes a mistake.</p>
+<p>Ground truth says:</p>
+<div class="math block">
+\text{cat}.
+</div>
+<p>But the teacher says:</p>
+<div class="math block">
+P_T^T=[0.4,0.35,0.2,0.05].
+</div>
+<p>The student could become overly influenced by the teacher's mistake or uncertainty.</p>
+<p>The hard label gives a direct correctness constraint.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{ground truth provides grounding}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{teacher distribution provides knowledge transfer}
+}
+</div>
+<p>This is exactly how the source motivates the final objective. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-39">23. Complete loss</h3>
+<p>Now we combine:</p>
+<div class="math block">
+L_{\text{hard}}
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{soft}}.
+</div>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+\beta T^2
+KL(P_T^T\|P_S^T)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\alpha+\beta=1
+</div>
+<p>under the normalized weighting convention. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The implementation writes this as:</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+(1-\alpha)T^2KL
+}
+</div>
+<p>which is the same when:</p>
+<div class="math block">
+\beta=1-\alpha.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-40">24. Why <span class="math inline">T^2</span> appears only now</h3>
+<p>We previously established:</p>
+<div class="math block">
+P_T^T=\operatorname{softmax}(z_T/T)
+</div>
+<p>and:</p>
+<div class="math block">
+P_S^T=\operatorname{softmax}(z_S/T).
+</div>
+<p>Increasing <span class="math inline">T</span> weakens the gradients.</p>
+<p>The source gives the relationship:</p>
+<div class="math block">
+\frac{\partial L_{\text{soft}}}{\partial z_S}
+\propto
+\frac1T(P_S^T-P_T^T)
+</div>
+<p>and explains that the probability gap itself shrinks approximately like <span class="math inline">1/T</span>, giving:</p>
+<div class="math block">
+\boxed{
+\text{gradient}\sim\frac1{T^2}
+}
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+\times T^2
+}
+</div>
+<p>restores a comparable scale. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-41">25. The progression is now mathematically complete</h3>
+<p>Let's put all four stages together.</p>
+<h4 id="v3-heading-chunk-les-step-4-7-i39-42">Attempt 1</h4>
+<div class="math block">
+\boxed{
+L=CE(\text{student},\text{ground truth})
+}
+</div>
+<p>Problem:</p>
+<div class="math block">
+\text{no teacher knowledge}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-7-i39-43">Attempt 2</h4>
+<div class="math block">
+\boxed{
+\text{match teacher probabilities at }T=1
+}
+</div>
+<p>Problem:</p>
+<div class="math block">
+\text{teacher distribution too peaked}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-7-i39-44">Attempt 3</h4>
+<div class="math block">
+\boxed{
+\text{match teacher probabilities at }T&gt;1
+}
+</div>
+<p>Improvement:</p>
+<div class="math block">
+\text{dark knowledge becomes visible}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-7-i39-45">Complete objective</h4>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+\beta T^2KL(P_T^T\|P_S^T)
+}
+</div>
+<p>Now we have:</p>
+<div class="math block">
+\boxed{
+\text{correctness + teacher structure}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-46">26. Numerical evolution with the chapter's example</h3>
+<p>Teacher:</p>
+<div class="math block">
+z_T=[5,3,1,-1].
+</div>
+<p>Student:</p>
+<div class="math block">
+z_S=[4,2.5,1.5,-0.5].
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-7-i39-47">Attempt 1</h5>
+<p>Use hard label:</p>
+<div class="math block">
+y=0.
+</div>
+<p>Student ordinary softmax:</p>
+<div class="math block">
+P_S\approx[0.760,0.170,0.062,0.008].
+</div>
+<p>Hard CE:</p>
+<div class="math block">
+L_h=-\ln(0.760)
+\approx
+\boxed{0.275}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-7-i39-48">Attempt 2</h5>
+<p>Teacher at:</p>
+<div class="math block">
+T=1:
+</div>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>Too peaked.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-7-i39-49">Attempt 3</h5>
+<p>Teacher at:</p>
+<div class="math block">
+T=3:
+</div>
+<div class="math block">
+[0.523,0.268,0.138,0.071].
+</div>
+<p>Student at:</p>
+<div class="math block">
+T=3:
+</div>
+<div class="math block">
+[0.442,0.268,0.192,0.099].
+</div>
+<p>KL:</p>
+<div class="math block">
+\boxed{0.0199}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-7-i39-50">Complete objective</h5>
+<div class="math block">
+T^2=9.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{soft}}
+=
+9(0.0199)
+\approx
+0.179.
+</div>
+<p>With:</p>
+<div class="math block">
+\alpha=0.3,\qquad\beta=0.7,
+</div>
+<p>we get:</p>
+<div class="math block">
+L
+=
+0.3(0.275)+0.7(0.179)
+</div>
+<div class="math block">
+\boxed{
+L\approx0.208
+}
+</div>
+<p>as given by the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-51">27. What each attempt teaches us</h3>
+<p>This is probably the most useful table to memorize.</p>
+<table>
+<thead>
+<tr>
+<th>Attempt</th>
+<th>What student sees</th>
+<th>Main problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>hard ground truth</td>
+<td>teacher knowledge completely ignored</td>
+</tr>
+<tr>
+<td>2</td>
+<td>teacher probabilities at <span class="math inline">T=1</span></td>
+<td>probabilities are too peaked</td>
+</tr>
+<tr>
+<td>3</td>
+<td>teacher probabilities at <span class="math inline">T&gt;1</span></td>
+<td>rich information is exposed</td>
+</tr>
+<tr>
+<td>Final</td>
+<td>hard CE + <span class="math inline">T^2</span>-scaled KL</td>
+<td>combines correctness + teacher knowledge</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-52">28. The design logic</h3>
+<p>The chapter's reasoning can be expressed as:</p>
+<div class="math block">
+\boxed{
+\text{Why use teacher?}
+}
+</div>
+<p>Because hard labels lose information.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Why use temperature?}
+}
+</div>
+<p>Because teacher probabilities at <span class="math inline">T=1</span> hide most of the useful information in tiny values.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Why keep hard labels?}
+}
+</div>
+<p>Because teacher guidance should not replace objective correctness.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Why }T^2?
+}
+</div>
+<p>Because temperature weakens the soft-loss gradient.</p>
+<p>That is the whole derivation logic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-53">29. Exam numerical — probability amplification</h3>
+<p>Teacher:</p>
+<div class="math block">
+P_{\text{fox}}(T=1)=0.016
+</div>
+<p>and:</p>
+<div class="math block">
+P_{\text{fox}}(T=3)=0.138.
+</div>
+<p>Amplification:</p>
+<div class="math block">
+\frac{0.138}{0.016}
+=
+\boxed{8.625}.
+</div>
+<p>So the fox probability becomes approximately:</p>
+<div class="math block">
+\boxed{8.6\times}
+</div>
+<p>larger.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-54">30. Exam numerical — bird amplification</h3>
+<div class="math block">
+0.002\rightarrow0.071.
+</div>
+<div class="math block">
+\frac{0.071}{0.002}
+=
+\boxed{35.5}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{35.5\times}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-55">31. Exam numerical — hard loss</h3>
+<p>Correct probability:</p>
+<div class="math block">
+P=0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_h=-\ln0.8
+</div>
+<div class="math block">
+\boxed{
+L_h\approx0.223
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-56">32. Exam numerical — full KD loss</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_h=0.4,
+</div>
+<div class="math block">
+KL=0.02,
+</div>
+<div class="math block">
+T=3,
+</div>
+<div class="math block">
+\alpha=0.25.
+</div>
+<p>Then:</p>
+<div class="math block">
+T^2KL
+=
+9(0.02)
+=
+0.18.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L
+=
+0.25(0.4)
++
+0.75(0.18)
+</div>
+<div class="math block">
+=0.1+0.135
+</div>
+<div class="math block">
+\boxed{0.235}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-57">33. Exam numerical — temperature correction</h3>
+<p>Suppose:</p>
+<div class="math block">
+T=5
+</div>
+<p>and:</p>
+<div class="math block">
+KL=0.01.
+</div>
+<p>Then:</p>
+<div class="math block">
+T^2=25
+</div>
+<p>and:</p>
+<div class="math block">
+T^2KL
+=
+25(0.01)
+=
+\boxed{0.25}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-58">34. Exam conceptual question</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-59">Why is Attempt #2 only slightly better than Attempt #1?</h5>
+<p>Because teacher probabilities at:</p>
+<div class="math block">
+T=1
+</div>
+<p>are still highly concentrated on the top class:</p>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>The small probabilities corresponding to alternative classes create very weak gradients, so much of the teacher's relational knowledge remains effectively hidden. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-60">35. Exam conceptual question</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-61">Why does temperature help?</h5>
+<p>Because:</p>
+<div class="math block">
+z/T
+</div>
+<p>compresses logit differences before softmax.</p>
+<p>This makes lower-probability alternatives receive larger probabilities.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{small teacher probabilities become trainable signals}
+}
+</div>
+<p>while preserving ranking.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-7-i39-2" data-full-review="added"><p>Correction: T²-scaled KL retains centered-logit matching at high T. Near-uniform raw probabilities do not alone render the objective useless.</p><p><a href="#audit-full-chunk-les-step-4-7-i39">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-7-i39-62">36. Exam conceptual question</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-63">Why not use <span class="math inline">T=1000</span>?</h5>
+<p>Because the distribution becomes nearly uniform.</p>
+<p>Then:</p>
+<div class="math block">
+P_T^T
+\approx
+[1/V,\ldots,1/V].
+</div>
+<p>You lose the useful relative structure between alternatives.</p>
+<p>The source therefore describes a middle temperature range as more useful than extreme smoothing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-64">37. Exam conceptual question</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-65">Why does the complete loss use two terms?</h5>
+<p>Because:</p>
+<div class="math block">
+L_{\text{hard}}
+</div>
+<p>provides:</p>
+<div class="math block">
+\boxed{\text{correctness}}
+</div>
+<p>while:</p>
+<div class="math block">
+KL
+</div>
+<p>provides:</p>
+<div class="math block">
+\boxed{\text{teacher's relational information}}
+</div>
+<p>The source explicitly describes these as grounding and knowledge transfer. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-66">38. One very useful mental analogy</h3>
+<p>Think of the teacher as an expert professor.</p>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-67">Hard label</h5>
+<p>Professor says:</p>
+<blockquote>
+<p>The answer is <strong>A</strong>.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-68">Soft target</h5>
+<p>Professor says:</p>
+<blockquote>
+<p>The answer is A with high confidence, B is somewhat plausible, C is less plausible, D is almost impossible.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-69">Temperature-scaled soft target</h5>
+<p>Professor slows down and explains the uncertainty more clearly:</p>
+<blockquote>
+<p>A is strongest, but B is considerably more plausible than C, and C is considerably more plausible than D.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-70">Combined objective</h5>
+<p>Student is told:</p>
+<blockquote>
+<p>Learn the correct answer from the ground truth, but also learn the expert's reasoning structure.</p>
+</blockquote>
+<p>That is the intuition behind the math.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-71">39. Important source boundary</h3>
+<p>Everything we just did is about <strong>classical knowledge distillation</strong>.</p>
+<p>The later DeepSeek-R1 approach changes the mechanism:</p>
+<div class="math block">
+\boxed{
+\text{R1 hard/text distillation}
+=
+\text{teacher-generated reasoning traces + SFT}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{
+\text{temperature-scaled KL}
+}
+</div>
+<p>The source explicitly contrasts these two paradigms. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So do not combine them into one formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-72">40. Final master diagram</h3>
+<pre><code class="language-text">                 ATTEMPT 1
+                    |
+            Hard ground-truth
+                    |
+                 Problem:
+             teacher ignored
+                    ↓
+                 ATTEMPT 2
+                    |
+         Teacher probabilities
+                  T = 1
+                    |
+                 Problem:
+             distribution peaked
+                    ↓
+                 ATTEMPT 3
+                    |
+         Teacher probabilities
+                  T &gt; 1
+                    |
+             Dark knowledge
+              becomes visible
+                    ↓
+             COMPLETE KD LOSS
+                    |
+       +------------+------------+
+       |                         |
+   Hard CE                  Soft KL × T²
+   correctness             teacher structure
+       |                         |
+       +------------+------------+
+                    |
+              Student update
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-73">41. The four formulas to know</h3>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-74">Attempt 1</h5>
+<div class="math block">
+\boxed{
+L_h=-\log P_S(y)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-75">Teacher soft target</h5>
+<div class="math block">
+\boxed{
+P_T^T=\operatorname{softmax}(z_T/T)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-76">Soft matching</h5>
+<div class="math block">
+\boxed{
+KL(P_T^T\|P_S^T)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-7-i39-77">Final classical KD</h5>
+<div class="math block">
+\boxed{
+L=
+\alpha L_h+
+\beta T^2KL(P_T^T\|P_S^T)
+}
+</div>
+<p>with the chapter's common example:</p>
+<div class="math block">
+\boxed{\alpha=0.3,\quad\beta=0.7,\quad T=3}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-7-i39-78">42. The single most important progression</h3>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\text{Hard labels}
+\rightarrow
+\text{Teacher probabilities}
+\rightarrow
+\text{Temperature-softened teacher probabilities}
+\rightarrow
+\text{Hard + soft weighted loss}
+}
+</div>
+<p>And understand <strong>why</strong>:</p>
+<div class="math block">
+\boxed{
+\text{not enough information}
+\rightarrow
+\text{information too concentrated}
+\rightarrow
+\text{information exposed}
+\rightarrow
+\text{information + correctness combined}
+}
+</div>
+<p>That is the logic of the chapter's entire classical KD construction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-7-i39-79">Step 4.7 complete</h4>
+<p>We have now finished the complete classical-KD progression.</p>
+<hr />
+</section>

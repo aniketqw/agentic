@@ -1,0 +1,1251 @@
+<section class="chunk" id="chunk-les-step-5-49-i95" data-id="les-step-5-49-i95"><details class="audit-card" id="audit-full-chunk-les-step-5-49-i95" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-49-i95-1">Motivation</h4><p>Separate floating-point format range, rounding and scale metadata from raw payload memory savings.</p><h4 id="v3-heading-chunk-les-step-5-49-i95-2">Prerequisites</h4><ul><li>Linear algebra and chain rule</li><li>Binary floating-point normal/subnormal encodings</li><li>Quantization scale convention</li><li>Tensor shape and loss normalization</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-3">Notation and units</h4><ul><li>X:[N, K], W:[K, O], Y=XW:[N, O] row convention</li><li>s_q: fmax/amax quantization multiplier; s_d:1/s_q reconstruction multiplier</li><li>Nc:128 reduction/group channels in cited design</li><li>G: dL/dY; dX=GW^T; dW=X^TG</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Finite saturating E4M3FN RTNE is simulated; tensor arithmetic uses NumPy higher precision.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-5">Step-by-step derivation</h4><ol><li>A normal binary value is(-1)^sign*(1+mantissa/2^m)*2^(exponent-bias); subnormal values replace the implicit1 with 0 and use minimum exponent. Special encodings are format-specific.</li><li>E4M3FN hasfinite maximum 448 and minimum positive subnormal 2^-9; E5M2 hasmaximum 57344 and minimum subnormal 2^-16. E4M3FNUZ differs and must not be conflated.</li><li>Compute current amax, choose multiplier 448/amax, cast to nearest representable E4M3FN, then reconstruct bydivision. Handle zero amax, NaN, Inf and saturation explicitly.</li><li>Weights-only payload memory P*b/8 excludes master copies, gradients, optimizer states, activations, scales and allocator overhead.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-i95-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-i95-7">Weights-only memory</h5><p>Given: 70 billion weights</p><ol><li>FP32:70e9*4=280e9bytes.</li><li>BF16:140e9bytes; FP8:70e9bytes.</li><li>GB uses 10^9; GiB uses 2^30; these are not training-memory totals.</li></ol><p>Answer: 280 GB,140 GB,70 GB raw payload</p><p>Verification: mtp_fp8_parallelism / FP8-memory-70B · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-i95-8">Real FP8 scale and reconstruction</h5><p>Given: x=[1,2,-4], E4M3FN</p><ol><li>amax 4; multiplier 448/4=112.</li><li>Scaled values[112,224,-448]are exactly representable.</li><li>Divide codes by 112.</li></ol><p>Answer: reconstruction[1,2,-4] with zero fixture error</p><p>Verification: mtp_fp8_parallelism / FP8-reconstruct · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-49-i95-9">Corrections and source qualifications</h4><ul><li>heading: Quantization and dequantization scale convention; text: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.</li><li>heading: Optimizer-state precision; text: Actual DeepSeek-V3 precision qualification: the book presents a high-precision optimizer teaching pipeline. The V3 technical report §3.3.3 uses BF16 AdamW first/second moments, with FP32 master weights and accumulated gradients. Therefore “all optimizer states are FP32” is not an exact description of that production framework.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.49.8 Exam numerical; answer: A model has: P=10^{10} parameters. How much memory do the weights require at FP32? Each parameter: 4\text{ bytes}. Therefore: 10^{10}\times 4 = 4\times 10^{10}\text{ bytes}. Approximately: \boxed{40\text{ GB}}. At FP16: 10^{10}\times 2 = 2\times 10^{10} bytes: \boxed{20\text{ GB}}. So merely changing numerical representation halves the raw weight-storage requirement. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.32 Exam numerical — direct scaling; answer: Given: x=[-4,2,6]. Target signed INT8 range: [-127,127]. Find the scale. First: \alpha=\max(|-4|,|2|,|6|) =6. Therefore: s=\frac{127}{6} \approx21.1667. Quantize x=2: q= \operatorname{round} \left(2\times 21.1667\right) = \operatorname{round}(42.3334) \boxed{42}. Dequantize: \hat{x} = \frac{42}{21.1667} \approx \boxed{1.984}. So quantization introduced a small error. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.33 Exam numerical — memory; answer: A model contains: P=70\times 10^9 parameters. Calculate raw weight memory at: Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.39 The first mixed-precision example; answer: Consider a linear layer: \boxed{ y=Wx. } The naive approach would perform the whole calculation in one precision. DeepSeek instead uses different representations for different stages. The source&#x27;s forward-pass flow is: x:\ BF16 \rightarrow FP8 W:\ FP32/BF16 \rightarrow FP8 then: FP8\times FP8 \rightarrow FP32\text{ accumulation} then: FP32\rightarrow BF16 for stored output. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.45 First mixed-precision exam numerical; answer: Suppose a linear layer has: W\in\mathbb R^{4096\times 4096}. How many multiplication pairs are involved in a matrix multiplication with: x\in\mathbb R^{4096} for one output vector? Each output requires: 4096 multiplications. There are: 4096 outputs. Therefore: 4096\times 4096 = \boxed{16,777,216} multiply operations for the matrix product. The source&#x27;s mixed-precision idea is to perform this huge volume of arithmetic using low-precision FP8 computation while preserving higher precision where needed. (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Step 5.49 checkpoint; answer: You should now be able to answer: Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: How can we perform the enormous number of numerical operations required to train such a model more efficiently?; answer: The source&#x27;s answer is: \boxed{\text{FP8 quantization}} The source frames quantization as the mechanism for trading a small amount of numerical precision for substantial memory and computational efficiency. (Source: Build a DeepSeek Model (From Scratch)) 5.49.1 What is quantization? Start from the simplest possible fact: A neural network is ultimately manipulating numbers. For example, a weight matrix may contain: W= \begin{bmatrix} 0.13 &amp; -0.72\\ 1.42 &amp; 0.003 \end{bmatrix}. An activation matrix might contain: X= \begin{bmatrix} 0.81 &amp; -1.24\\ 0.002 &amp; 2.31 \end{bmatrix}. The computer has to represent every one of those numbers using some numerical format. The source begins with: \boxed{\text{FP32}} as its high-precision baseline. (Source: Build a DeepSeek Model (From Scratch)) 5.49.2 FP32 means 32 bits per number A floating-point number is represented using: \boxed{\text{sign + exponent + mantissa}}. For FP32, the source gives: \boxed{ 1\text{ sign bit} + 8\text{ exponent bits} + 23\text{ mantissa bits} = 32\text{ bits}. } (Source: Build a DeepSeek Model (From Scratch)) Conceptually: FP32 ┌─────┬──────────┬───────────────────────┐ │ S │ Exponent │ Mantissa │ │ 1 │ 8 │ 23 │ └─────┴──────────┴───────────────────────┘ 5.49.3 What do the three pieces mean? This is fundamental. Sign One bit determines whether the number is positive or negative. \boxed{ S=0\Rightarrow +,\qquad S=1\Rightarrow - } Exponent The exponent c; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: How much memory do the weights require at FP32?; answer: Each parameter: 4\text{ bytes}. Therefore: 10^{10}\times 4 = 4\times 10^{10}\text{ bytes}. Approximately: \boxed{40\text{ GB}}. At FP16: 10^{10}\times 2 = 2\times 10^{10} bytes: \boxed{20\text{ GB}}. So merely changing numerical representation halves the raw weight-storage requirement. 5.49.9 This is the central quantization trade-off Quantization means reducing the numerical precision/bit-width. Conceptually: \boxed{ FP32\rightarrow FP16\rightarrow FP8 } means: \boxed{ 32\rightarrow16\rightarrow8\text{ bits per number}. } But we are giving something up. We are reducing the set of numbers that can be represented accurately. The source uses the analogy of an image whose color palette is reduced from many colors to only a small number: individual details can be lost, but the overall structure can remain recognizable. (Source: Build a DeepSeek Model (From Scratch)) So: \boxed{ \text{less precision} \rightarrow \text{less memory + potentially faster computation}. } 5.49.10 Why does lower precision help computation? Suppose the GPU must perform: Y=WX for enormous matrices. The arithmetic itself is only part of the cost. The system also has to: \boxed{ \text{move data} \rightarrow \text{store data} \rightarrow \text{load data} \rightarrow \text{compute}. } Smaller numerical representations mean less data movement. The source explicitly identifies faster training/inference and reduced memory as two major benefits of lower-precision parameters. (Source: Build a Dee; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: for one output vector?; answer: Each output requires: 4096 multiplications. There are: 4096 outputs. Therefore: 4096\times 4096 = \boxed{16,777,216} multiply operations for the matrix product. The source&#x27;s mixed-precision idea is to perform this huge volume of arithmetic using low-precision FP8 computation while preserving higher precision where needed. (Source: Build a DeepSeek Model (From Scratch)) 5.49.46 Important caveat about the source&#x27;s terminology The source describes the forward propagation as the standard prediction step and says this is also the primary computation during inference. In the broader chapter, however, the focus is specifically on the training framework and later sections discuss Fprop, Dgrad, Wgrad and optimizer state. So for our course-level understanding, treat Fprop here as the forward computation inside the mixed-precision training pipeline as well as the analogous operation used for inference. (Source: Build a DeepSeek Model (From Scratch)) 5.49.47 What we have established The progression is now: \boxed{ \text{FP32} } gives: \text{high precision + large range} ↓ \boxed{ \text{FP16/BF16} } gives: \text{lower memory with different range/precision trade-offs} ↓ \boxed{ \text{FP8} } gives: \text{even lower memory / higher computational efficiency} but creates serious numerical challenges. Therefore DeepSeek builds: \boxed{ \text{five complementary FP8 techniques}. } Step 5.49 checkpoint You should now be able to answer: What is quantization? \boxed{ \text{Re; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-i95-11">Edge cases and remaining gaps</h4><ul><li>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-12">Connections and progression</h4><ul><li>Local amax scales → range control → E4M3 significand precision</li><li>Group GEMMs → dequantization within reduction → safe accumulation</li><li>High-precision learning state → refreshed low-precision compute copies → communication/storage budget</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · FP8 operand GEMMs; local tiles; 128-element promotion; BF16 moments versus FP32 master/grad. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S3.SS3</li><li>NVIDIA Transformer Engine FP8 Current Scaling documentation · E4M3 maximum 448 and E5M2 maximum 57344; cast-to-nearest-even; scale conventions. Read 2026-10-07. · https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (65)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.49 — FP8 Quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.1 What is quantization?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.2 FP32 means 32 bits per number</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.3 What do the three pieces mean?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Sign</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Exponent</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Mantissa</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4 Very important distinction</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5 Why not always use FP32?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6 What happens at FP16?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.7 General memory formula</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.8 Exam numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.9 This is the central quantization trade-off</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.10 Why does lower precision help computation?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.11 FP16 is not the same as FP8</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.12 Compare the common formats</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.13 FP16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.14 What is overflow?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.15 What is underflow?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.16 BF16: why is it different?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.17 This gives us a beautiful comparison</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>BF16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.18 Numerical-format mental model</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Exponent</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Mantissa</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.19 INT8 is different</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.20 Why is FP8 more attractive?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.21 Why doesn&#x27;t FP8 alone solve everything?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.22 Scaling: the key prerequisite</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.23 Step 1 — Find the maximum absolute value</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.24 Why absolute value?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.25 Step 2 — Calculate the scaling factor</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.26 Step 3 — Quantize</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.27 Step 4 — Dequantize</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.28 The basic formulas</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.29 Why do we need scaling?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.30 Quantization is not “rounding everything to an integer”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.31 Quantization error</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.32 Exam numerical — direct scaling</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.33 Exam numerical — memory</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP32</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>FP8</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.34 But there is a trap</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.35 The five pillars</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.36 Why five pillars instead of one trick?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.37 The first pillar — Mixed Precision</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.38 Think of a factory</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.39 The first mixed-precision example</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.40 Why convert BF16 to FP8?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.41 Why accumulate in FP32?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.42 Why convert the result back to BF16?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.43 Source&#x27;s forward-pass pipeline</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.44 This is the philosophy of DeepSeek FP8</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.45 First mixed-precision exam numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.46 Important caveat about the source&#x27;s terminology</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.47 What we have established</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Step 5.49 checkpoint</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>What is quantization?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>What controls range?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>What controls precision?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Why does FP8 need scaling?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Basic scaling formulas?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Why mixed precision?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-Q05" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> Q05 — FP8 format variants and finite extrema</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Bit-field counts alone do not define overflow, NaN and finite-range behavior.</p><p><strong>Prerequisites:</strong> <a href="#audit-Q03">Normal, subnormal and special float values</a></p><h4 id="v3-heading-chunk-les-step-5-49-i95-15">Notation and assumptions</h4><p>Explicit positive finite enumeration: E4M3FN bias7, exponent15/mantissa7 reserved NaN; E5M2 IEEE-style exponent31 reserved. Signed values mirror finite positive values.</p><h4 id="v3-heading-chunk-les-step-5-49-i95-16">Derivation and mechanism</h4><ol><li>Enumerate exponent/mantissa codes using the declared normal/subnormal rules.</li><li>Exclude variant-specific special encodings.</li><li>Read maximum finite and smallest positive subnormal from the remaining set.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-i95-17">Worked example</h4><p>E4M3FN maximum=(1+6/8)2^8=448; smallest subnormal=2^-9. E5M2 maximum=(1+3/4)2^15=57344; smallest subnormal=2^-16. These are not E4M3FNUZ constants.</p><h4 id="v3-heading-chunk-les-step-5-49-i95-18">Limitations</h4><ul><li>Enumeration checks representation values, not a GPU matmul or hardware rounding kernel.</li><li>Scale factors, accumulation and master weights determine training behavior.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-19">Connections to later concepts</h4><ul><li>Q01 scales tensor magnitudes into a representable numeric range; accumulation precision is a separate training contract.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-i95-20">Source support</h4><ul><li><a href="https://arxiv.org/abs/2209.05433" rel="noopener noreferrer">E4M3/E5M2 formats; distinguish explicit implementation variants</a></li><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 291, 292, 293, 294, 295 · FP8 precision context</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-49-i95-21">Executed code and evidence</h4><p>Functions: fp8_finite_values. Passed checks: FP8-E4M3FN-max, FP8-E4M3FN-minsub, FP8-E5M2-max, FP8-E5M2-minsub</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-i95"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-i95" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-48-1e-i94">← Previous lesson</a> · <a href="#chunk-les-step-5-49-1-i96">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p><p><strong>This lesson:</strong> Step 5.49 — FP8 Quantization</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-i95"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-i95-22">Step 5.49 — FP8 Quantization</h3>
+<p><em>Plan node: A4 · chat order #95</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We now move to the second major part of Chapter 5.</p>
+<p>So far:</p>
+<div class="math block">
+\boxed{\text{MLA}}
+\rightarrow
+\text{reduce KV-cache memory}
+</div>
+<div class="math block">
+\boxed{\text{MoE}}
+\rightarrow
+\text{increase parameter capacity without activating everything}
+</div>
+<div class="math block">
+\boxed{\text{MTP}}
+\rightarrow
+\text{richer future-prediction training signal}.
+</div>
+<p>Now we ask a different question:</p>
+<blockquote>
+<p><strong>How can we perform the enormous number of numerical operations required to train such a model more efficiently?</strong></p>
+</blockquote>
+<p>The source's answer is:</p>
+<div class="math block">
+\boxed{\text{FP8 quantization}}
+</div>
+<p>The source frames quantization as the mechanism for trading a small amount of numerical precision for substantial memory and computational efficiency. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-23">5.49.1 What is quantization?</h4>
+<p>Start from the simplest possible fact:</p>
+<p>A neural network is ultimately manipulating numbers.</p>
+<p>For example, a weight matrix may contain:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+0.13 &amp; -0.72\\
+1.42 &amp; 0.003
+\end{bmatrix}.
+</div>
+<p>An activation matrix might contain:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+0.81 &amp; -1.24\\
+0.002 &amp; 2.31
+\end{bmatrix}.
+</div>
+<p>The computer has to represent every one of those numbers using some numerical format.</p>
+<p>The source begins with:</p>
+<div class="math block">
+\boxed{\text{FP32}}
+</div>
+<p>as its high-precision baseline. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-24">5.49.2 FP32 means 32 bits per number</h4>
+<p>A floating-point number is represented using:</p>
+<div class="math block">
+\boxed{\text{sign + exponent + mantissa}}.
+</div>
+<p>For FP32, the source gives:</p>
+<div class="math block">
+\boxed{
+1\text{ sign bit}
++
+8\text{ exponent bits}
++
+23\text{ mantissa bits}
+=
+32\text{ bits}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">FP32
+┌─────┬──────────┬───────────────────────┐
+│ S   │ Exponent │      Mantissa         │
+│ 1   │    8     │          23           │
+└─────┴──────────┴───────────────────────┘
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-25">5.49.3 What do the three pieces mean?</h4>
+<p>This is fundamental.</p>
+<h5 id="v3-heading-chunk-les-step-5-49-i95-26">Sign</h5>
+<p>One bit determines whether the number is positive or negative.</p>
+<div class="math block">
+\boxed{
+S=0\Rightarrow +,\qquad S=1\Rightarrow -
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-i95-27">Exponent</h5>
+<p>The exponent controls the <strong>scale</strong> or <strong>dynamic range</strong>.</p>
+<p>It answers roughly:</p>
+<blockquote>
+<p>How large or how small can this number be?</p>
+</blockquote>
+<p>More exponent bits:</p>
+<div class="math block">
+\boxed{\text{larger dynamic range}}
+</div>
+<p>The source explicitly describes the exponent as controlling magnitude and dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-i95-28">Mantissa</h5>
+<p>The mantissa/significand controls the <strong>precision</strong>.</p>
+<p>It answers:</p>
+<blockquote>
+<p>How many meaningful digits can I represent?</p>
+</blockquote>
+<p>More mantissa bits:</p>
+<div class="math block">
+\boxed{\text{greater precision}}
+</div>
+<p>and therefore smaller gaps between nearby representable values.</p>
+<p>The source explicitly makes this distinction between exponent and mantissa. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-29">5.49.4 Very important distinction</h4>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\text{Exponent bits}\rightarrow\text{range}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Mantissa bits}\rightarrow\text{precision}
+}
+</div>
+<p>So when a format redistributes bits:</p>
+<ul>
+<li>more exponent bits → broader numerical range,</li>
+<li>more mantissa bits → finer numerical precision.</li>
+</ul>
+<p>This single distinction will explain almost all of the FP8 design decisions later.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-30">5.49.5 Why not always use FP32?</h4>
+<p>Because large models contain an enormous number of values.</p>
+<p>Suppose:</p>
+<div class="math block">
+70\text{ billion parameters}.
+</div>
+<p>At FP32:</p>
+<div class="math block">
+70\times10^9\times4\text{ bytes}
+</div>
+<p>because:</p>
+<div class="math block">
+32\text{ bits}=4\text{ bytes}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{280\text{ GB}}.
+</div>
+<p>This is exactly the kind of memory calculation shown in the source for a 70B model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-31">5.49.6 What happens at FP16?</h4>
+<p>FP16 uses:</p>
+<div class="math block">
+16\text{ bits}=2\text{ bytes}
+</div>
+<p>per value.</p>
+<p>So for 70B parameters:</p>
+<div class="math block">
+70\times10^9\times2
+=
+140\text{ GB}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+280\text{ GB}\rightarrow140\text{ GB}.
+}
+</div>
+<p>The source uses precisely this comparison. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-32">5.49.7 General memory formula</h4>
+<p>For <span class="math inline">P</span> parameters and <span class="math inline">b</span> bits per parameter:</p>
+<div class="math block">
+\boxed{
+M=P\frac{b}{8}
+}
+</div>
+<p>bytes.</p>
+<p>Or in GB, approximately:</p>
+<div class="math block">
+\boxed{
+M_{\text{GB}}
+=
+\frac{P\times b}{8\times10^9}.
+}
+</div>
+<p>This assumes decimal GB and ignores additional memory such as gradients, optimizer states, activations, fragmentation, etc.</p>
+<p>For just the weight storage calculation, this is the important formula.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-33">5.49.8 Exam numerical</h4>
+<p>A model has:</p>
+<div class="math block">
+P=10^{10}
+</div>
+<p>parameters.</p>
+<p>How much memory do the weights require at FP32?</p>
+<p>Each parameter:</p>
+<div class="math block">
+4\text{ bytes}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+10^{10}\times4
+=
+4\times10^{10}\text{ bytes}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{40\text{ GB}}.
+</div>
+<p>At FP16:</p>
+<div class="math block">
+10^{10}\times2
+=
+2\times10^{10}
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{20\text{ GB}}.
+</div>
+<p>So merely changing numerical representation halves the raw weight-storage requirement.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-34">5.49.9 This is the central quantization trade-off</h4>
+<p>Quantization means reducing the numerical precision/bit-width.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+FP32\rightarrow FP16\rightarrow FP8
+}
+</div>
+<p>means:</p>
+<div class="math block">
+\boxed{
+32\rightarrow16\rightarrow8\text{ bits per number}.
+}
+</div>
+<p>But we are giving something up.</p>
+<p>We are reducing the set of numbers that can be represented accurately.</p>
+<p>The source uses the analogy of an image whose color palette is reduced from many colors to only a small number: individual details can be lost, but the overall structure can remain recognizable. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{less precision}
+\rightarrow
+\text{less memory + potentially faster computation}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-35">5.49.10 Why does lower precision help computation?</h4>
+<p>Suppose the GPU must perform:</p>
+<div class="math block">
+Y=WX
+</div>
+<p>for enormous matrices.</p>
+<p>The arithmetic itself is only part of the cost.</p>
+<p>The system also has to:</p>
+<div class="math block">
+\boxed{
+\text{move data}
+\rightarrow
+\text{store data}
+\rightarrow
+\text{load data}
+\rightarrow
+\text{compute}.
+}
+</div>
+<p>Smaller numerical representations mean less data movement.</p>
+<p>The source explicitly identifies faster training/inference and reduced memory as two major benefits of lower-precision parameters. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-36">5.49.11 FP16 is not the same as FP8</h4>
+<p>This is important.</p>
+<p>FP16:</p>
+<div class="math block">
+\boxed{
+16\text{ bits}
+}
+</div>
+<p>FP8:</p>
+<div class="math block">
+\boxed{
+8\text{ bits}
+}
+</div>
+<p>So FP8 cuts the per-value storage in half again:</p>
+<div class="math block">
+2\text{ bytes}\rightarrow1\text{ byte}.
+</div>
+<p>Compared with FP32:</p>
+<div class="math block">
+4\text{ bytes}\rightarrow1\text{ byte}.
+</div>
+<p>Therefore the raw representation is:</p>
+<div class="math block">
+\boxed{
+4\times\text{ smaller than FP32}.
+}
+</div>
+<p>But the numerical precision/range is also much more constrained.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-37">5.49.12 Compare the common formats</h4>
+<p>The source gives the following configurations:</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th style="text-align:right">Sign</th>
+<th style="text-align:right">Exponent</th>
+<th style="text-align:right">Mantissa</th>
+<th style="text-align:right">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP32</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">23</td>
+<td style="text-align:right">32</td>
+</tr>
+<tr>
+<td>FP16</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">10</td>
+<td style="text-align:right">16</td>
+</tr>
+<tr>
+<td>BF16</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">7</td>
+<td style="text-align:right">16</td>
+</tr>
+<tr>
+<td>INT8</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">7-bit integer value</td>
+<td style="text-align:right">8</td>
+</tr>
+<tr>
+<td>FP8 E4M3</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">3</td>
+<td style="text-align:right">8</td>
+</tr>
+<tr>
+<td>FP8 E5M2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">8</td>
+</tr>
+</tbody>
+</table>
+<p>The source presents these progressively as the numerical foundations for the FP8 discussion. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-38">5.49.13 FP16</h4>
+<p>FP16:</p>
+<div class="math block">
+\boxed{
+1+5+10=16.
+}
+</div>
+<p>Compared with FP32:</p>
+<div class="math block">
+1+8+23=32.
+</div>
+<p>So both range and precision are reduced.</p>
+<p>The source notes that FP16 can suffer from:</p>
+<div class="math block">
+\boxed{\text{overflow}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{underflow}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-39">5.49.14 What is overflow?</h4>
+<p>Suppose the format can represent values only up to some maximum:</p>
+<div class="math block">
+x_{\max}.
+</div>
+<p>If a calculation produces:</p>
+<div class="math block">
+x&gt;x_{\max},
+</div>
+<p>the number cannot be represented normally in that format.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{too large}\rightarrow\text{overflow}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-40">5.49.15 What is underflow?</h4>
+<p>At the opposite extreme, suppose the format cannot preserve sufficiently small values.</p>
+<p>Then:</p>
+<div class="math block">
+|x|
+</div>
+<p>becomes so small relative to the format that numerical detail is lost.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{too small}\rightarrow\text{underflow}.
+}
+</div>
+<p>These two problems become especially important when moving toward FP8.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-41">5.49.16 BF16: why is it different?</h4>
+<p>BF16 also uses 16 bits, but the distribution is:</p>
+<div class="math block">
+\boxed{
+1+8+7=16.
+}
+</div>
+<p>Notice:</p>
+<div class="math block">
+\boxed{
+\text{same 8 exponent bits as FP32}.
+}
+</div>
+<p>but only:</p>
+<div class="math block">
+\boxed{
+7\text{ mantissa bits}.
+}
+</div>
+<p>Therefore BF16 sacrifices precision much more aggressively than FP16, but retains the broad dynamic range of FP32.</p>
+<p>The source describes BF16 as particularly useful for training because its large exponent range makes it resistant to overflow. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-42">5.49.17 This gives us a beautiful comparison</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-43">FP16</h6>
+<div class="math block">
+\boxed{
+5\text{ exponent},10\text{ mantissa}
+}
+</div>
+<p>More precision than BF16, less range.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-44">BF16</h6>
+<div class="math block">
+\boxed{
+8\text{ exponent},7\text{ mantissa}
+}
+</div>
+<p>More range than FP16, less precision.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+FP16\leftrightarrow BF16
+=
+\text{range vs precision trade-off}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-45">5.49.18 Numerical-format mental model</h4>
+<p>Think of a ruler.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-46">Exponent</h6>
+<p>Determines how <strong>long the ruler is</strong>:</p>
+<div class="math block">
+\boxed{\text{range}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-47">Mantissa</h6>
+<p>Determines how <strong>finely marked the ruler is</strong>:</p>
+<div class="math block">
+\boxed{\text{precision}}
+</div>
+<p>You can have:</p>
+<ul>
+<li>a very long ruler with coarse marks,</li>
+<li>a short ruler with extremely fine marks.</li>
+</ul>
+<p>That is essentially the trade-off between exponent and mantissa allocation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-48">5.49.19 INT8 is different</h4>
+<p>INT8 is not floating-point.</p>
+<p>It has:</p>
+<div class="math block">
+\boxed{
+8\text{ bits}
+}
+</div>
+<p>but no exponent/mantissa structure.</p>
+<p>The source describes signed INT8 as having a range of approximately:</p>
+<div class="math block">
+\boxed{-127\text{ to }127}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This means INT8 has an extremely limited direct numerical range compared with floating-point formats.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-49">5.49.20 Why is FP8 more attractive?</h4>
+<p>FP8 retains:</p>
+<div class="math block">
+\boxed{
+\text{sign + exponent + mantissa}.
+}
+</div>
+<p>So even though it uses only 8 bits, it retains floating-point flexibility.</p>
+<p>The source specifically focuses on:</p>
+<div class="math block">
+\boxed{\text{E4M3}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+1\text{ sign}+4\text{ exponent}+3\text{ mantissa}=8.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-50">5.49.21 Why doesn't FP8 alone solve everything?</h4>
+<p>Because 8 bits are extremely restrictive.</p>
+<p>Suppose a tensor contains:</p>
+<div class="math block">
+[0.001,\;0.01,\;0.1,\;1,\;10,\;1000].
+</div>
+<p>The values span many orders of magnitude.</p>
+<p>Trying to represent all of them directly in a narrow low-precision format can cause:</p>
+<div class="math block">
+\boxed{
+\text{overflow}
+}
+</div>
+<p>for large values or:</p>
+<div class="math block">
+\boxed{
+\text{loss of precision}
+}
+</div>
+<p>for small values.</p>
+<p>This is why the next concept is absolutely fundamental:</p>
+<div class="math block">
+\boxed{\text{scaling}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-51">5.49.22 Scaling: the key prerequisite</h4>
+<p>The source's basic quantization mechanism is:</p>
+<div class="math block">
+\boxed{
+\text{find range}
+\rightarrow
+\text{scale}
+\rightarrow
+\text{quantize}
+\rightarrow
+\text{dequantize}.
+}
+</div>
+<p>The purpose is to map a high-precision tensor into the representable range of the low-precision format while preserving relative relationships. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-52">5.49.23 Step 1 — Find the maximum absolute value</h4>
+<p>Suppose:</p>
+<div class="math block">
+x=[2.0,\;3.0,\;-7.59,\;10.8].
+</div>
+<p>Find:</p>
+<div class="math block">
+\alpha=\max_i|x_i|.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\alpha=10.8}.
+</div>
+<p>The source uses exactly <span class="math inline">10.8</span> as its illustrative maximum. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-53">5.49.24 Why absolute value?</h4>
+<p>Because we care about both positive and negative extremes.</p>
+<p>For:</p>
+<div class="math block">
+x=[-10,2,5],
+</div>
+<p>the maximum value is:</p>
+<div class="math block">
+5,
+</div>
+<p>but the maximum <strong>absolute</strong> value is:</p>
+<div class="math block">
+\boxed{10}.
+</div>
+<p>For symmetric signed ranges such as:</p>
+<div class="math block">
+[-127,127],
+</div>
+<p>the quantity that determines scaling is:</p>
+<div class="math block">
+\boxed{
+\max |x|.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-54">5.49.25 Step 2 — Calculate the scaling factor</h4>
+<p>For the INT8 example:</p>
+<div class="math block">
+q_{\max}=127.
+</div>
+<p>Original maximum:</p>
+<div class="math block">
+\alpha=10.8.
+</div>
+<p>So the source computes:</p>
+<div class="math block">
+\boxed{
+s=\frac{127}{10.8}.
+}
+</div>
+<p>Numerically:</p>
+<div class="math block">
+s\approx11.7593.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This tells us how much to stretch the original values to fit the target integer range.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-55">5.49.26 Step 3 — Quantize</h4>
+<p>Take:</p>
+<div class="math block">
+x=-7.59.
+</div>
+<p>Multiply by:</p>
+<div class="math block">
+s=\frac{127}{10.8}.
+</div>
+<p>So:</p>
+<div class="math block">
+-7.59\times\frac{127}{10.8}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+-89.2.
+</div>
+<p>Round:</p>
+<div class="math block">
+\boxed{-89}.
+</div>
+<p>The source gives the same example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+q=\operatorname{round}(xs).
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-56">5.49.27 Step 4 — Dequantize</h4>
+<p>Now suppose we have stored:</p>
+<div class="math block">
+q=-89.
+</div>
+<p>To approximately recover the original value:</p>
+<div class="math block">
+x\approx\frac{q}{s}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+x\approx
+\frac{-89}{127/10.8}.
+</div>
+<p>Which is approximately:</p>
+<div class="math block">
+\boxed{-7.59}.
+</div>
+<p>The result is approximate because rounding introduced quantization error. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-57">5.49.28 The basic formulas</h4>
+<p>The source's scaling mechanism can therefore be summarized as:</p>
+<div class="math block">
+\boxed{
+\alpha=\max_i|x_i|
+}
+</div>
+<div class="math block">
+\boxed{
+s=\frac{q_{\max}}{\alpha}
+}
+</div>
+<div class="math block">
+\boxed{
+q_i=\operatorname{round}(x_i s)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\hat{x}_i=\frac{q_i}{s}.
+}
+</div>
+<p>These are extremely important formulas.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-58">5.49.29 Why do we need scaling?</h4>
+<p>Suppose the target range is:</p>
+<div class="math block">
+[-127,127]
+</div>
+<p>but the original tensor contains:</p>
+<div class="math block">
+[-10.8,10.8].
+</div>
+<p>We cannot simply store:</p>
+<div class="math block">
+10.8
+</div>
+<p>inside a signed integer format that directly represents only integers in:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>Scaling maps:</p>
+<div class="math block">
+[-10.8,10.8]
+</div>
+<p>onto approximately:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{scaling changes representation range, not the underlying relative ordering}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-59">5.49.30 Quantization is not “rounding everything to an integer”</h4>
+<p>This is a common misconception.</p>
+<p>Quantization means:</p>
+<div class="math block">
+\boxed{
+\text{representing values using a lower-precision numerical space}.
+}
+</div>
+<p>Scaling is one mechanism used to achieve this.</p>
+<p>For INT8:</p>
+<div class="math block">
+\text{scaled integer}.
+</div>
+<p>For FP8:</p>
+<div class="math block">
+\text{scaled low-precision floating-point}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{quantization}\neq\text{INT8 only}.
+}
+</div>
+<p>The source explicitly introduces scaling as the prerequisite for its later FP8 framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-60">5.49.31 Quantization error</h4>
+<p>Suppose original:</p>
+<div class="math block">
+x=-7.59.
+</div>
+<p>After quantization/dequantization:</p>
+<div class="math block">
+\hat{x}\approx-7.56
+</div>
+<p>for illustration.</p>
+<p>Then quantization error is:</p>
+<div class="math block">
+e=x-\hat{x}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+e\neq0
+}
+</div>
+<p>in general.</p>
+<p>Quantization is therefore a controlled approximation.</p>
+<p>The goal is not:</p>
+<div class="math block">
+\boxed{\text{zero error}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{small enough error that model quality/training stability remain acceptable}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-61">5.49.32 Exam numerical — direct scaling</h4>
+<p>Given:</p>
+<div class="math block">
+x=[-4,2,6].
+</div>
+<p>Target signed INT8 range:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>Find the scale.</p>
+<p>First:</p>
+<div class="math block">
+\alpha=\max(|-4|,|2|,|6|)
+=6.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s=\frac{127}{6}
+\approx21.1667.
+</div>
+<p>Quantize <span class="math inline">x=2</span>:</p>
+<div class="math block">
+q=
+\operatorname{round}
+\left(2\times21.1667\right)
+</div>
+<div class="math block">
+=
+\operatorname{round}(42.3334)
+</div>
+<div class="math block">
+\boxed{42}.
+</div>
+<p>Dequantize:</p>
+<div class="math block">
+\hat{x}
+=
+\frac{42}{21.1667}
+\approx
+\boxed{1.984}.
+</div>
+<p>So quantization introduced a small error.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-62">5.49.33 Exam numerical — memory</h4>
+<p>A model contains:</p>
+<div class="math block">
+P=70\times10^9
+</div>
+<p>parameters.</p>
+<p>Calculate raw weight memory at:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-63">FP32</h6>
+<div class="math block">
+70\times10^9\times4
+=
+280\times10^9
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{280\text{ GB}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-64">FP16</h6>
+<div class="math block">
+70\times10^9\times2
+=
+140\times10^9
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{140\text{ GB}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-65">FP8</h6>
+<div class="math block">
+70\times10^9\times1
+=
+70\times10^9
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{70\text{ GB}}.
+</div>
+<p>Thus, purely for weight storage:</p>
+<div class="math block">
+\boxed{
+FP32:280GB
+\rightarrow
+FP16:140GB
+\rightarrow
+FP8:70GB.
+}
+</div>
+<p>This follows the source's core memory argument, although the source's explicit worked example stops at the 32-bit → 16-bit comparison. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-66">5.49.34 But there is a trap</h4>
+<p>You might think:</p>
+<blockquote>
+<p>“Great. Just convert the entire model to FP8.”</p>
+</blockquote>
+<p>That is <strong>not</strong> the DeepSeek strategy.</p>
+<p>The source explicitly says DeepSeek uses a <strong>mixed precision framework</strong>.</p>
+<p>That means:</p>
+<div class="math block">
+\boxed{
+\text{not everything becomes FP8}.
+}
+</div>
+<p>Some parts use lower precision for speed.</p>
+<p>Other sensitive parts remain in higher precision for stability. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-67">5.49.35 The five pillars</h4>
+<p>Once the basic scaling foundation is established, the source introduces five pillars:</p>
+<div class="math block">
+\boxed{
+1.\ \text{Mixed Precision Framework}
+}
+</div>
+<div class="math block">
+\boxed{
+2.\ \text{Fine-Grained Quantization}
+}
+</div>
+<div class="math block">
+\boxed{
+3.\ \text{Increasing Accumulation Precision}
+}
+</div>
+<div class="math block">
+\boxed{
+4.\ \text{Mantissa Over Exponents}
+}
+</div>
+<div class="math block">
+\boxed{
+5.\ \text{Online Quantization}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This list is the roadmap for the rest of FP8.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-68">5.49.36 Why five pillars instead of one trick?</h4>
+<p>Because FP8 has a severe problem:</p>
+<div class="math block">
+\boxed{
+8\text{ bits}
+\Rightarrow
+\text{very limited numerical precision/range}.
+}
+</div>
+<p>So DeepSeek combines several techniques.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                   FP8
+                    │
+       ┌────────────┼────────────┐
+       ▼            ▼            ▼
+   lower-cost   scale better   accumulate safely
+       │            │            │
+       └────────────┼────────────┘
+                    ▼
+              stable training
+</code></pre>
+<p>The source emphasizes that these techniques work together rather than operating independently.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-69">5.49.37 The first pillar — Mixed Precision</h4>
+<p>Now we enter:</p>
+<div class="math block">
+\boxed{\text{5.5.6 Pillar 1: The Mixed Precision Framework}}
+</div>
+<p>The source's central idea is:</p>
+<div class="math block">
+\boxed{
+\text{Not all numbers are equally sensitive to precision loss}.
+}
+</div>
+<p>So instead of:</p>
+<div class="math block">
+\text{everything}=FP32
+</div>
+<p>or:</p>
+<div class="math block">
+\text{everything}=FP8,
+</div>
+<p>use:</p>
+<div class="math block">
+\boxed{
+\text{different formats for different jobs}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-70">5.49.38 Think of a factory</h4>
+<p>Imagine a factory where:</p>
+<ul>
+<li>cheap fast tools perform repetitive work,</li>
+<li>precision tools handle sensitive operations,</li>
+<li>final quality control uses accurate measurements.</li>
+</ul>
+<p>DeepSeek applies the same principle numerically.</p>
+<p>For huge matrix multiplications:</p>
+<div class="math block">
+\boxed{FP8}
+</div>
+<p>For sensitive stored state:</p>
+<div class="math block">
+\boxed{FP32/BF16}.
+</div>
+<p>The source calls this the central bargain of mixed precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-71">5.49.39 The first mixed-precision example</h4>
+<p>Consider a linear layer:</p>
+<div class="math block">
+\boxed{
+y=Wx.
+}
+</div>
+<p>The naive approach would perform the whole calculation in one precision.</p>
+<p>DeepSeek instead uses different representations for different stages.</p>
+<p>The source's forward-pass flow is:</p>
+<div class="math block">
+x:\ BF16
+\rightarrow FP8
+</div>
+<div class="math block">
+W:\ FP32/BF16
+\rightarrow FP8
+</div>
+<p>then:</p>
+<div class="math block">
+FP8\times FP8
+\rightarrow
+FP32\text{ accumulation}
+</div>
+<p>then:</p>
+<div class="math block">
+FP32\rightarrow BF16
+</div>
+<p>for stored output. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-72">5.49.40 Why convert BF16 to FP8?</h4>
+<p>Because the expensive matrix multiplication is where the source wants the performance benefit.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{storage precision}
+\neq
+\text{compute precision}.
+}
+</div>
+<p>A tensor can be:</p>
+<div class="math block">
+BF16\text{ in memory}
+</div>
+<p>but:</p>
+<div class="math block">
+FP8\text{ during GEMM}.
+</div>
+<p>This is one of the most important mixed-precision ideas.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-73">5.49.41 Why accumulate in FP32?</h4>
+<p>Suppose:</p>
+<div class="math block">
+y=Wx.
+</div>
+<p>Each output is a sum:</p>
+<div class="math block">
+y_i=
+\sum_jW_{ij}x_j.
+</div>
+<p>There may be thousands of terms.</p>
+<p>Even if each multiplication is approximately represented in FP8, repeatedly summing low-precision products can accumulate numerical error.</p>
+<p>The source therefore says the FP8 products are accumulated using FP32 precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{low-precision multiplication}
++
+\text{high-precision accumulation}.
+}
+</div>
+<p>This idea will become an entire separate pillar later.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-74">5.49.42 Why convert the result back to BF16?</h4>
+<p>Because the output does not necessarily need to remain FP32 in storage.</p>
+<p>The source says:</p>
+<div class="math block">
+FP32\text{ accumulated result}
+\rightarrow
+BF16
+</div>
+<p>for storage/inter-layer transmission. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+FP8
+\rightarrow
+FP32
+\rightarrow
+BF16
+}
+</div>
+<p>is not contradictory.</p>
+<p>Each format is being used for a different purpose.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-75">5.49.43 Source's forward-pass pipeline</h4>
+<p>The source's conceptual flow can be written:</p>
+<div class="math block">
+\boxed{
+x_{BF16}
+\rightarrow
+x_{FP8}
+}
+</div>
+<div class="math block">
+\boxed{
+W_{master}
+\rightarrow
+W_{FP8}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+x_{FP8}W_{FP8}
+\rightarrow
+\text{FP32 accumulator}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+y_{FP32}
+\rightarrow
+y_{BF16}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-76">5.49.44 This is the philosophy of DeepSeek FP8</h4>
+<p>Not:</p>
+<div class="math block">
+\boxed{
+\text{“FP8 everywhere.”}
+}
+</div>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{“Use FP8 where speed matters; use higher precision where errors matter.”}
+}
+</div>
+<p>That is the core of the mixed-precision framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-77">5.49.45 First mixed-precision exam numerical</h4>
+<p>Suppose a linear layer has:</p>
+<div class="math block">
+W\in\mathbb R^{4096\times4096}.
+</div>
+<p>How many multiplication pairs are involved in a matrix multiplication with:</p>
+<div class="math block">
+x\in\mathbb R^{4096}
+</div>
+<p>for one output vector?</p>
+<p>Each output requires:</p>
+<div class="math block">
+4096
+</div>
+<p>multiplications.</p>
+<p>There are:</p>
+<div class="math block">
+4096
+</div>
+<p>outputs.</p>
+<p>Therefore:</p>
+<div class="math block">
+4096\times4096
+=
+\boxed{16,777,216}
+</div>
+<p>multiply operations for the matrix product.</p>
+<p>The source's mixed-precision idea is to perform this huge volume of arithmetic using low-precision FP8 computation while preserving higher precision where needed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-78">5.49.46 Important caveat about the source's terminology</h4>
+<p>The source describes the forward propagation as the standard prediction step and says this is also the primary computation during inference. In the broader chapter, however, the focus is specifically on the <strong>training</strong> framework and later sections discuss Fprop, Dgrad, Wgrad and optimizer state. So for our course-level understanding, treat Fprop here as the forward computation inside the mixed-precision training pipeline as well as the analogous operation used for inference. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-79">5.49.47 What we have established</h4>
+<p>The progression is now:</p>
+<div class="math block">
+\boxed{
+\text{FP32}
+}
+</div>
+<p>gives:</p>
+<div class="math block">
+\text{high precision + large range}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{FP16/BF16}
+}
+</div>
+<p>gives:</p>
+<div class="math block">
+\text{lower memory with different range/precision trade-offs}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{FP8}
+}
+</div>
+<p>gives:</p>
+<div class="math block">
+\text{even lower memory / higher computational efficiency}
+</div>
+<p>but creates serious numerical challenges.</p>
+<p>Therefore DeepSeek builds:</p>
+<div class="math block">
+\boxed{
+\text{five complementary FP8 techniques}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-i95-80">Step 5.49 checkpoint</h4>
+<p>You should now be able to answer:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-81">What is quantization?</h6>
+<div class="math block">
+\boxed{
+\text{Reducing numerical precision/bit-width to improve memory and computation efficiency.}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-82">What controls range?</h6>
+<div class="math block">
+\boxed{\text{Exponent}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-83">What controls precision?</h6>
+<div class="math block">
+\boxed{\text{Mantissa}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-84">Why does FP8 need scaling?</h6>
+<p>Because its numerical representation is highly constrained, so values need to be mapped into a manageable range.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-85">Basic scaling formulas?</h6>
+<div class="math block">
+\boxed{\alpha=\max|x|}
+</div>
+<div class="math block">
+\boxed{s=q_{\max}/\alpha}
+</div>
+<div class="math block">
+\boxed{q=\operatorname{round}(xs)}
+</div>
+<div class="math block">
+\boxed{\hat{x}=q/s}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-i95-86">Why mixed precision?</h6>
+<div class="math block">
+\boxed{
+\text{FP8 for expensive computation}
++
+\text{BF16/FP32 for sensitive quantities}.
+}
+</div>
+<p>These are all grounded in the source's Chapter 5.5 foundation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

@@ -1,0 +1,51 @@
+"""Independent Decimal references and scalar checks of educational primitives."""
+from pathlib import Path
+from decimal import Decimal, localcontext
+import math,json
+import numpy as np
+import math_companion as m
+checks=[];outputs={}
+def check(cid,a,b,method,tol=1e-10):
+ a,b=np.asarray(a),np.asarray(b);ok=a.shape==b.shape and np.allclose(a,b,atol=tol,rtol=tol);checks.append(dict(check_id=cid,method=method,status='passed' if ok else 'failed'));outputs[cid]=a.tolist()
+def dsoft(z,T=1):
+ with localcontext() as c:
+  c.prec=60;x=[Decimal(str(v))/Decimal(str(T)) for v in z];e=[v.exp() for v in x];s=sum(e);return [float(v/s) for v in e]
+for z in ([0,1],[2,1,0],[4,3,2,1],[5,4,2,0],[2,3],[20,30]):
+ for T in (.5,1,2):check('softmax_'+str(z)+'_T'+str(T),m.softmax(z,T),dsoft(z,T),'60-digit Decimal exponentiation from original logits')
+check('position_1_4',m.position(1,4),[math.sin(1),math.cos(1),math.sin(.01),math.cos(.01)],'scalar frequencies independently specified')
+check('position_2_4',m.position(2,4),[math.sin(2),math.cos(2),math.sin(.02),math.cos(.02)],'scalar frequencies independently specified')
+q=np.array([1.,2.,3.,4.]);k=np.array([2.,-.3,.7,1.])
+check('rope_norm',np.linalg.norm(m.rope(q,3)),np.linalg.norm(q),'orthogonal rotations preserve Euclidean norm')
+check('rope_relative',m.rope(q,2)@m.rope(k,5),q@m.rope(k,3),'R_m transpose R_n equals R_(n-m)')
+check('residual_add',np.array([2,4,1])+[.5,-1,2],[2.5,3,3],'elementwise hand addition')
+for x in ([1,2,3,4],[2,4,6,8],[-2,1,3,4],[5,5,5,5]):
+ for rms in (False,True):
+  mean=sum(x)/len(x);c=x if rms else [v-mean for v in x];sq=sum(v*v for v in c)/len(x);ref=[v/math.sqrt(sq+1e-5) for v in c];check('norm_'+str(x)+'_'+str(rms),m.normalize(x,rms),ref,'scalar feature mean/population variance or mean square')
+Q=np.array([[1,0],[0,1],[1,1]]);V=np.array([[1,0],[0,2],[3,1]])
+out,a=m.attention(Q,Q,V);ref=[]
+for i in range(3):
+ scores=[sum(float(Q[i,c])*float(Q[j,c]) for c in range(2))/math.sqrt(2) for j in range(i+1)];w=dsoft(scores);ref.append([sum(w[j]*V[j,c] for j in range(i+1)) for c in range(2)])
+check('causal_output',out,ref,'scalar allowed-key dot products plus Decimal normalizer')
+check('causal_forbidden',a[np.triu_indices(3,1)],[0,0,0],'all strictly future coefficients zero',0)
+check('topk_probabilities',m.softmax(m.top_k([5,4,1,0],2)),[1/(1+math.exp(-1)),1/(1+math.exp(1)),0,0],'two-class logistic closed form')
+check('topk_exact_ties',np.isfinite(m.top_k([5,5,5,1],2)),[True,True,False,False],'stable index tie policy')
+for p,th,keep in [([.4,.25,.15,.1,.06,.04],.8,[0,1,2]),([.35,.2,.15,.12,.1,.08],.75,[0,1,2,3]),([.5,.2,.15,.1,.05],.8,[0,1,2]),([.31,.28,.18,.12,.07,.04],.75,[0,1,2]),([.22,.19,.17,.13,.11,.1,.08],.8,[0,1,2,3,4]),([.85,.08,.03,.02,.01,.01],.9,[0,1]),([.15,.14,.13,.12,.11,.1,.09,.08,.08],.9,list(range(8)))]:
+ o,ks=m.nucleus(p,th);den=sum(Decimal(str(p[i])) for i in keep);ref=[float(Decimal(str(v))/den) if i in keep else 0 for i,v in enumerate(p)];check('nucleus_'+str(p)+'_'+str(th),o,ref,'Decimal mass division using independently specified crossing set');check('nucleus_count_'+str(p),len(ks),len(keep),'hand cumulative crossing')
+for T,count in [(1,3),(2,4)]:check('temperature_nucleus_'+str(T),len(m.nucleus(m.softmax([4,3,2,1],T),.9)[1]),count,'hand cumulative mass crossing; 0.8984636759 < .9 at T=2')
+check('combined_decode',m.softmax(m.top_k(m.repetition([5,4,2,0],[0],2),3),2),dsoft([1.25,2,1])+[0],'Decimal reference after hand repetition/filter/scaling')
+check('negative_penalty',m.repetition([-2,1],[0],2),[-4,1],'negative repeated logit multiplied to reduce its probability')
+check('sequence_product_log',m.sequence_score([.8,.5,.25])[:2],[.1,math.log(.1)],'direct product .1 then logarithm')
+check('sequence_B_log',m.sequence_score([.7,.95])[1],math.log(.665),'independent product then log; correct inherited -.4072')
+check('length_A',m.sequence_score([.6,.6],.6)[3],2*math.log(.6)/((7/6)**.6),'direct probability/count substitution')
+check('length_B',m.sequence_score([.75]*4,.6)[3],4*math.log(.75)/((9/6)**.6),'direct probability/count substitution')
+check('attention_shape_entries',8*12*512*512,25165824,'BhT² arithmetic')
+check('ffn_1024',2*1024*4096,8388608,'two weight matrix entry counts')
+check('unembedding_512',512*32000,16384000,'dV weight entries')
+check('logit_8_256_32000',8*256*32000,65536000,'BTV activation entries')
+check('fullblock_24',24*(4*768**2+2*768*3072),169869312,'four attention plus two FFN maps, no norms/biases/embedding')
+for cid,call in [('zero_temperature',lambda:m.softmax([1,2],0)),('all_masked',lambda:m.softmax([-np.inf,-np.inf])),('invalid_k',lambda:m.top_k([1],2)),('invalid_p',lambda:m.nucleus([.3,.3],.9)),('zero_norm_without_eps',lambda:m.normalize([0,0],eps=0))]:
+ try:call();ok=False
+ except ValueError:ok=True
+ checks.append(dict(check_id=cid,method='explicit invalid boundary rejects with ValueError',status='passed' if ok else 'failed'))
+r=dict(passed=sum(c['status']=='passed' for c in checks),failed=sum(c['status']=='failed' for c in checks),checks=checks,scope='New toy mathematical checks only. Previously verified full decoder and foundation checks are referenced separately; production model/backend code is not executed.')
+root=Path(__file__).parent;(root/'evidence.json').write_text(json.dumps(r,indent=2));(root/'outputs.json').write_text(json.dumps(outputs,indent=2));print(r['passed'],r['failed']);assert not r['failed']

@@ -1,0 +1,1929 @@
+<section class="chunk" id="chunk-les-step-5-45-i86" data-id="les-step-5-45-i86"><details class="audit-card" id="audit-full-chunk-les-step-5-45-i86" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-45-i86-1">Motivation</h4><p>Verify the complete eight-token routing trace and remove indexing ambiguity.</p><h4 id="v3-heading-chunk-les-step-5-45-i86-2">Prerequisites</h4><ul><li>Two-layer FFN matrix shapes and parameter counts</li><li>Stable softmax, top-k, integer indices and gather/scatter accumulation</li><li>Expert parallelism, load/importance distinction and non-gradient feedback</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-3">Notation and units</h4><ul><li>T=B×S flattened tokens, D model width, N routed experts, k selected per token</li><li>Row score matrix[T, N]; selected indices and gates[T, k]; final stream[T, D]</li><li>Book bias is a persistent nontrainable buffer; gate weights come from softmax selected biased logits</li><li>V3: si=sigmoid(x·ei); select by si+bi; normalize original si within selected set</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-4">Assumptions</h4><ul><li>Bias-free educational two-matrix GELU experts use2DHparameters; gated/SwiGLUuses3DH</li><li>Per-tokenk/N is routed expert activation fraction, notcomplete-model storage or latency ratio</li><li>The Transformer owns the residual unless a standalone MoE explicitly returns x+transform; neveraddit twice</li><li>Tie behavior and normalization must be explicit; expert choices are learned, not manual domain labels</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-5">Step-by-step derivation</h4><ol><li>Use X[[1,0],[0,1],[1,1],[2,1],[1,2],[2,0],[0,2],[2,2]], WR[[1,0,1.2,2],[0,1,1.5,−.5]], bias[0,.1,−.2,.2], k2. All numbers are illustrative.</li><li>Token 1 has adjusted logits[1,.1,1,2.2], so second selection ties E1/E3. Freeze a defined tie policy; the companion stable ordering chooses E1 for the exact floating tie presentation. Token 4 E3/E4 both mathematically3.7 and their order can flip due to binary rounding.</li><li>The displayed matrix with values4,1,3,2is one-based expert labels, not zero-basedindices. Correct0-basedrows are[3,0],[2,1],[2,3],[2,3]asatiedset,[2,1],[3,2],[2,1],[2,3].</li><li>Normalize only selected adjusted logits in the book mode; retain full precision until final display. Gate magnitudes are not load counts; load tally is[1,3,7,5].</li><li>Use column experts E3[[1,1],[0,1]]and E4[[1,0],[1,1]]with x column; row-oriented NumPy must multiply by their transposes. Weighted dispatch recovers each manually worked row.</li><li>Shared=.5X; standalone final=X+shared+routed. The final matrix with unrounded gates is written in expected_outputs.jsonandall8rows checked independently.</li><li>Update bias from counts with mean4, tanh relative violations and rate.01. The book epsilon1e−6slightly changes digits relative to idealized division by exact4; declare which form is used.</li><li>Interpret inference bias as a frozen learned training buffer in this educational variant; production serving may use other deployment load-balance policies. No universal claim of adaptive inference updates follows from this example.</li></ol><h4 id="v3-heading-chunk-les-step-5-45-i86-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-45-i86-7">Exact8-tokenoutputs</h5><p>Given: Inherited8tokentrace; gate weights computed before display rounding</p><ol><li>Compute T×N router logits.</li><li>Select and normalize2experts per row.</li><li>Use independent explicit expert functions and scatter accumulation.</li><li>Add.5X shared and X residual once.</li></ol><p>Answer: [[2.5, 0.7685247834990178], [0.5498339973124778, 2.950166002687522], [3.1899744811276127, 2.8100255188723877], [5.5, 3.5000000000000004], [4.3698915256370015, 5.260216948725995], [5.0, 1.761594155955765], [1.336375544336332, 5.663624455663668], [6.761594155955764, 5.238405844044235]]</p><p>Verification: indic_mla_moe / moe.full_loads · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-45-i86-8">Feedback direction</h5><p>Given: Loads[1,3,7,5]; mean4; initialbias[0,.1,−.2,.2]</p><ol><li>Violations approximately[.75,.25,−.75,−.25].</li><li>Add.01tanh(vi)with source epsilon.</li></ol><p>Answer: [0.006351488405274629, 0.10244918603652796, -0.20635148840527465, 0.19755081396347207]</p><p>Verification: indic_mla_moe / moe.bias_direction · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-45-i86-9">Toy versus production gates</h5><p>Given: Logits[1,2,3,.5]; top2; bias initially zero</p><ol><li>Book selected softmax([3,2])≈[.731058579,.268941421].</li><li>V3normalizes[sigmoid3, sigmoid2]≈[.519575155,.480424845].</li><li>Changing bias while maintaining selected set does not change V3gates.</li></ol><p>Answer: Book and V3gatesdiffer; mode flag prevents confusion</p><p>Verification: indic_mla_moe / moe.v3_gates · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-45-i86-10">Corrections and source qualifications</h4><ul><li>heading: 5.45.8; text: The matrix containing expert label 4 is one-based, despite the introductory phrase“zero-based expert indices.” Subtract 1 for executable indices.</li><li>heading: 5.45.7; text: Token 1 has a tie for second place(E1 and E3 at1.0); the presented routing trace chooses E1. Explicitly declare this tie policy. Token 4 selects E3/E4 equally; binary rounding may reverse their order without changing weighted output.</li><li>heading: 5.45.37; text: Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-11">Mastery answers and retained exercise context</h4><ol><li>Are displayed4/1labels zero-based? No; they are one-based E4/E1names; actual indices3/0.</li><li>Why count gates and slots separately? Loads measure discrete assignment count; gates weight expert outputs.</li><li>Are all sixteen gates separate outputs? No; two expert contributions accumulate for each of the eight token rows.</li><li>Can rounding change top-k? Yes; especially ties and near-ties. Freeze and report the tie breaker.</li><li>What are expert1/2update directions for loads900/1100withmean1024? Positive(124/1024)andnegative(−76/1024), respectively.</li><li>Inherited exercise 5.45.42 Exam-level question 1: Suppose: B=8,\quad S=1024, N=64,\quad k=8. Find: Number of tokens 8\times1024 = \boxed{8192}. Router shape \boxed{8192\times64}. Top-K shape \boxed{8192\times8}. Total assignments 8192\times8 = \boxed{65,536}. Ideal expert load 65,536/64 = \boxed{1024}.</li><li>Inherited exercise 5.45.43 Exam-level question 2: Suppose actual loads are: [900,1100,1024,\ldots]. For Expert 1: v_1= \frac{1024-900}{1024} = \boxed{0.1211}. So: \boxed{b_1\uparrow}. For Expert 2: v_2= \frac{1024-1100}{1024} = \boxed{-0.0742}. So: \boxed{b_2\downarrow}.</li><li>Inherited exercise 5.45.44 Exam-level question 3: A token has adjusted logits: [1.5,\,2.0,\,3.0,\,0.5]. With: k=2, select: \boxed{E_3, E_2}. Gate: g_3= \frac{e^3}{e^3+e^2} \approx \boxed{0.7311} g_2 \approx \boxed{0.2689}. The two gates must sum to: \boxed{1}.</li><li>Inherited exercise 5.45.45 Exam-level question 4: Suppose: T=5000,\quad N=20,\quad k=4. Total assignments: 5000\times4 = \boxed{20,000}. Ideal average: 20,000/20 = \boxed{1000}. If one expert gets: 1400 assignments: v= \frac{1000-1400}{1000} = \boxed{-0.4}. Therefore: \boxed{\text{its bias decreases}}.</li></ol><h4 id="v3-heading-chunk-les-step-5-45-i86-12">Edge cases and remaining gaps</h4><ul><li>All expert weights must remain available, possibly sharded/offloaded; unselected does not mean not stored</li><li>Dispatch, all-to-all communication, kernel batching and load imbalance can reduce ideal compute advantages</li><li>No real DeepSeek training, pretrained quality evaluation or distributed hardware benchmark was run</li><li>Toy linear transformations are transparent numericals, not actual DeepSeek trained experts.</li><li>Tie policies can change expert load and output on Token1; specific load tally requires stated choice.</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-13">Connections and progression</h4><ul><li>Connects totop-kselection, shared expert counts, biasfeedback and MoE block residual ownership.</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 241, 244, 245, 246 · Sparsegather/scatter, biasandthree-path book implementation</li><li>DeepSeek-V3technicalreport§2.1.2 · Production selection/gating qualification · https://arxiv.org/html/2412.19437v2#S2.SS1.SSS2</li></ul><h4 id="v3-heading-chunk-les-step-5-45-i86-15">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (106)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.45 — Full 8-Token × 4-Expert Routing Trace</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.1 Step 1 — Create 8 token representations</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.2 Step 2 — Define the router</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.3 Step 3 — Compute router logits</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.4 Shape check</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.5 Step 4 — Add the dynamic bias</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.6 Compute the adjusted matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.7 Step 5 — Set Top-K</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Token 1 has a tie for second place(E1 and E3 at1.0); the presented routing trace chooses E1. Explicitly declare this tie policy. Token 4 selects E3/E4 equally; binary rounding may reverse their order without changing weighted output.</td></tr><tr><td>Token 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.8 Top-K matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>The matrix containing expert label 4 is one-based, despite the introductory phrase“zero-based expert indices.” Subtract 1 for executable indices.</td></tr><tr><td>5.45.9 Step 6 — Extract the selected logits</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>T_1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T_8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.10 Step 7 — Softmax the selected logits</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Token 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token 8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.11 Complete gate matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.12 Step 8 — Count expert loads</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.13 Step 9 — Ideal average load</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.14 Step 10 — Compute load violation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.15 Step 11 — Update the dynamic bias</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.16 New bias</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.17 Why this changes future routing</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.18 Step 12 — Now actually run the selected experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.19 Compute expert outputs for Token 1</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.20 Token 2</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.21 Token 3</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.22 Token 4</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.23 Token 5</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.24 Token 6</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.25 Token 7</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.26 Token 8</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Expert 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Expert 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.27 Complete routed-output matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.28 Step 13 — Shared expert path</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.29 Step 14 — Add the residual</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.30 All final outputs</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.31 Important source-code nuance about the residual</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.32 Step 15 — What index_add_ was really doing</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.33 Why we process an expert&#x27;s tokens as a batch</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.34 The full data movement</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.35 Load balancing vs gate weight</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.36 Why Top-K creates discrete routing</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.37 What happens during training</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</td></tr><tr><td>Normal gradient path</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Separate balancing path</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.38 What happens during inference?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.39 Full tensor-shape table</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.40 Full routing summary</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.41 The entire computation in one equation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.42 Exam-level question 1</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Number of tokens</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Router shape</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-K shape</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Total assignments</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Ideal expert load</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.45.43 Exam-level question 2</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.44 Exam-level question 3</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.45 Exam-level question 4</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.45.46 Final mental model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-45-i86"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-45-i86" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-44-i85">← Previous lesson</a> · <a href="#chunk-les-step-5-43-i84">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-44-i85">Step 5.44 — Dense FFN vs MoE: Complete Parameter, Compute, and Scaling Derivation</a></p><p><strong>This lesson:</strong> Step 5.45 — Full 8-Token × 4-Expert Routing Trace</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-45-i86"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-45-i86-16">Step 5.45 — Full 8-Token × 4-Expert Routing Trace</h3>
+<p><em>Plan node: A2 · chat order #86</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>Now we will do the <strong>entire routing computation by hand</strong>.</p>
+<p>This is the step where the previously separate ideas become one concrete calculation:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+\text{router logits}
+\rightarrow
++b
+\rightarrow
+Top\text{-}K
+\rightarrow
+\text{gates}
+\rightarrow
+\text{dispatch}
+\rightarrow
+\text{expert outputs}
+\rightarrow
+\text{weighted aggregation}
+\rightarrow
+\text{shared path}
+\rightarrow
+\text{residual}
+}
+</div>
+<p>The source's implementation follows this same sequence: router → bias → Top-K → softmax → sparse dispatch → weighted accumulation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The numerical values below are <strong>our illustrative example</strong>, chosen so every calculation can be done explicitly. They are not claimed to be DeepSeek's learned weights.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-17">5.45.1 Step 1 — Create 8 token representations</h4>
+<p>Let:</p>
+<div class="math block">
+B=2,\qquad S=4,\qquad D=2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+T=B\times S=8
+</div>
+<p>tokens.</p>
+<p>We'll use:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1\\
+2&amp;1\\
+1&amp;2\\
+2&amp;0\\
+0&amp;2\\
+2&amp;2
+\end{bmatrix}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb R^{8\times2}
+}
+</div>
+<p>after flattening.</p>
+<p>Originally it came from:</p>
+<div class="math block">
+2\times4\times2.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-18">5.45.2 Step 2 — Define the router</h4>
+<p>Use:</p>
+<div class="math block">
+N=4
+</div>
+<p>routed experts.</p>
+<p>Let the mathematical router matrix be:</p>
+<div class="math block">
+W_R=
+\begin{bmatrix}
+1&amp;0&amp;1.2&amp;2\\
+0&amp;1&amp;1.5&amp;-0.5
+\end{bmatrix}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+W_R\in\mathbb R^{2\times4}.
+</div>
+<p>The source describes the same concept using an input matrix multiplied by a learned routing matrix to produce the expert-selector/logit matrix. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-19">5.45.3 Step 3 — Compute router logits</h4>
+<p>We calculate:</p>
+<div class="math block">
+L=XW_R.
+</div>
+<p>For token 1:</p>
+<div class="math block">
+x_1=[1,0].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+[1,0]
+\begin{bmatrix}
+1&amp;0&amp;1.2&amp;2\\
+0&amp;1&amp;1.5&amp;-0.5
+\end{bmatrix}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{[1,0,1.2,2]}.
+</div>
+<p>Do this for all 8 tokens.</p>
+<p>The complete router-logit matrix is:</p>
+<div class="math block">
+\boxed{
+L=
+\begin{bmatrix}
+1&amp;0&amp;1.2&amp;2\\
+0&amp;1&amp;1.5&amp;-0.5\\
+1&amp;1&amp;2.7&amp;1.5\\
+2&amp;1&amp;3.9&amp;3.5\\
+1&amp;2&amp;4.2&amp;1\\
+2&amp;0&amp;2.4&amp;4\\
+0&amp;2&amp;3&amp;-1\\
+2&amp;2&amp;5.4&amp;3
+\end{bmatrix}
+}
+</div>
+<p>Interpretation:</p>
+<ul>
+<li>row = token</li>
+<li>column = expert</li>
+<li>entry = router score for that expert</li>
+</ul>
+<p>So:</p>
+<div class="math block">
+L_{t,i}
+</div>
+<p>means:</p>
+<blockquote>
+<p>score assigned to expert <span class="math inline">i</span> for token <span class="math inline">t</span>.</p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-20">5.45.4 Shape check</h4>
+<p>We had:</p>
+<div class="math block">
+X:8\times2
+</div>
+<p>and:</p>
+<div class="math block">
+W_R:2\times4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+XW_R:
+\boxed{8\times4}.
+</div>
+<p>This matches the source's “tokens × experts” selector-matrix idea. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-21">5.45.5 Step 4 — Add the dynamic bias</h4>
+<p>Let:</p>
+<div class="math block">
+b=
+\begin{bmatrix}
+0&amp;0.1&amp;-0.2&amp;0.2
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+b_1=0,\quad
+b_2=0.1,\quad
+b_3=-0.2,\quad
+b_4=0.2.
+</div>
+<p>The adjusted logits are:</p>
+<div class="math block">
+\boxed{
+L'=L+b
+}
+</div>
+<p>with broadcasting across all rows.</p>
+<p>The source's implementation explicitly performs:</p>
+<pre><code class="language-python">router_logits_with_bias = router_logits + self.bias
+</code></pre>
+<p>before Top-K. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-22">5.45.6 Compute the adjusted matrix</h4>
+<p>We get:</p>
+<div class="math block">
+\boxed{
+L'=
+\begin{bmatrix}
+1&amp;0.1&amp;1.0&amp;2.2\\
+0&amp;1.1&amp;1.3&amp;-0.3\\
+1&amp;1.1&amp;2.5&amp;1.7\\
+2&amp;1.1&amp;3.7&amp;3.7\\
+1&amp;2.1&amp;4.0&amp;1.2\\
+2&amp;0.1&amp;2.2&amp;4.2\\
+0&amp;2.1&amp;2.8&amp;-0.8\\
+2&amp;2.1&amp;5.2&amp;3.2
+\end{bmatrix}
+}
+</div>
+<p>Notice what happened.</p>
+<p>For Expert 3:</p>
+<div class="math block">
+-0.2
+</div>
+<p>was added.</p>
+<p>For Expert 4:</p>
+<div class="math block">
++0.2
+</div>
+<p>was added.</p>
+<p>The bias therefore affects routing <strong>before</strong> the Top-K decision.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-45-i86-1" data-full-review="added"><p>Correction: Token 1 has a tie for second place(E1 and E3 at1.0); the presented routing trace chooses E1. Explicitly declare this tie policy. Token 4 selects E3/E4 equally; binary rounding may reverse their order without changing weighted output.</p><p><a href="#audit-full-chunk-les-step-5-45-i86">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-45-i86-23">5.45.7 Step 5 — Set Top-K</h4>
+<p>Let:</p>
+<div class="math block">
+\boxed{k=2}.
+</div>
+<p>Each token chooses two experts.</p>
+<p>Now process each row.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-24">Token 1</h5>
+<div class="math block">
+[1,0.1,1.0,2.2]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_4,E_1}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-25">Token 2</h5>
+<div class="math block">
+[0,1.1,1.3,-0.3]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-26">Token 3</h5>
+<div class="math block">
+[1,1.1,2.5,1.7]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_4}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-27">Token 4</h5>
+<div class="math block">
+[2,1.1,3.7,3.7]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_4}.
+</div>
+<p>There is a tie for the top two values here.</p>
+<p>For this educational example, we choose both tied experts:</p>
+<div class="math block">
+E_3,E_4.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-28">Token 5</h5>
+<div class="math block">
+[1,2.1,4.0,1.2]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-29">Token 6</h5>
+<div class="math block">
+[2,0.1,2.2,4.2]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_4,E_3}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-30">Token 7</h5>
+<div class="math block">
+[0,2.1,2.8,-0.8]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-31">Token 8</h5>
+<div class="math block">
+[2,2.1,5.2,3.2]
+</div>
+<p>Top-2:</p>
+<div class="math block">
+\boxed{E_3,E_4}.
+</div>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-45-i86-0" data-full-review="added"><p>Correction: The matrix containing expert label 4 is one-based, despite the introductory phrase“zero-based expert indices.” Subtract 1 for executable indices.</p><p><a href="#audit-full-chunk-les-step-5-45-i86">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-45-i86-32">5.45.8 Top-K matrix</h4>
+<p>Using zero-based expert indices, this is:</p>
+<div class="math block">
+\boxed{
+I=
+\begin{bmatrix}
+4&amp;1\\
+3&amp;2\\
+3&amp;4\\
+3&amp;4\\
+3&amp;2\\
+4&amp;3\\
+3&amp;2\\
+3&amp;4
+\end{bmatrix}
+}
+</div>
+<p>or, using one-based expert names:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Selected experts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">T_1</span></td>
+<td><span class="math inline">E_4,E_1</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_2</span></td>
+<td><span class="math inline">E_3,E_2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_3</span></td>
+<td><span class="math inline">E_3,E_4</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_4</span></td>
+<td><span class="math inline">E_3,E_4</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_5</span></td>
+<td><span class="math inline">E_3,E_2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_6</span></td>
+<td><span class="math inline">E_4,E_3</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_7</span></td>
+<td><span class="math inline">E_3,E_2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">T_8</span></td>
+<td><span class="math inline">E_3,E_4</span></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-33">5.45.9 Step 6 — Extract the selected logits</h4>
+<p>For each token, keep only the two selected scores.</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-34"><span class="math inline">T_1</span></h6>
+<div class="math block">
+[2.2,1.0]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-35"><span class="math inline">T_2</span></h6>
+<div class="math block">
+[1.3,1.1]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-36"><span class="math inline">T_3</span></h6>
+<div class="math block">
+[2.5,1.7]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-37"><span class="math inline">T_4</span></h6>
+<div class="math block">
+[3.7,3.7]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-38"><span class="math inline">T_5</span></h6>
+<div class="math block">
+[4.0,2.1]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-39"><span class="math inline">T_6</span></h6>
+<div class="math block">
+[4.2,2.2]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-40"><span class="math inline">T_7</span></h6>
+<div class="math block">
+[2.8,2.1]
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-41"><span class="math inline">T_8</span></h6>
+<div class="math block">
+[5.2,3.2]
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-42">5.45.10 Step 7 — Softmax the selected logits</h4>
+<p>The source performs:</p>
+<pre><code class="language-python">gates = F.softmax(top_k_logits, dim=-1)
+</code></pre>
+<p>so the normalization is only across the selected experts for each token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-43">Token 1</h5>
+<p>Selected:</p>
+<div class="math block">
+[2.2,1.0].
+</div>
+<p>Compute:</p>
+<div class="math block">
+e^{2.2}\approx9.025
+</div>
+<div class="math block">
+e^1\approx2.718.
+</div>
+<p>Sum:</p>
+<div class="math block">
+11.743.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+g_{1,4}
+=
+\frac{9.025}{11.743}
+\approx
+\boxed{0.7685}
+</div>
+<p>and:</p>
+<div class="math block">
+g_{1,1}
+\approx
+\boxed{0.2315}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-44">Token 2</h5>
+<div class="math block">
+[1.3,1.1]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.5498,0.4502]
+}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+E_3:0.5498
+</div>
+<div class="math block">
+E_2:0.4502.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-45">Token 3</h5>
+<div class="math block">
+[2.5,1.7]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.6900,0.3100]
+}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+E_3:0.6900
+</div>
+<div class="math block">
+E_4:0.3100.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-46">Token 4</h5>
+<div class="math block">
+[3.7,3.7]
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+[0.5,0.5]
+}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-47">Token 5</h5>
+<div class="math block">
+[4.0,2.1]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.8699,0.1301]
+}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-48">Token 6</h5>
+<div class="math block">
+[4.2,2.2]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.8808,0.1192]
+}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-49">Token 7</h5>
+<div class="math block">
+[2.8,2.1]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.6682,0.3318]
+}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-45-i86-50">Token 8</h5>
+<div class="math block">
+[5.2,3.2]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[0.8808,0.1192]
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-51">5.45.11 Complete gate matrix</h4>
+<p>Write zero for unselected experts:</p>
+<div class="math block">
+\boxed{
+G=
+\begin{bmatrix}
+0.2315&amp;0&amp;0&amp;0.7685\\
+0&amp;0.4502&amp;0.5498&amp;0\\
+0&amp;0&amp;0.6900&amp;0.3100\\
+0&amp;0&amp;0.5000&amp;0.5000\\
+0&amp;0.1301&amp;0.8699&amp;0\\
+0&amp;0&amp;0.1192&amp;0.8808\\
+0&amp;0.3318&amp;0.6682&amp;0\\
+0&amp;0&amp;0.8808&amp;0.1192
+\end{bmatrix}
+}
+</div>
+<p>Check every row:</p>
+<div class="math block">
+\sum_iG_{t,i}=1.
+</div>
+<p>For example:</p>
+<div class="math block">
+0.2315+0.7685=1.
+</div>
+<p>And:</p>
+<div class="math block">
+0.5498+0.4502=1.
+</div>
+<p>This is an excellent exam sanity check.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-52">5.45.12 Step 8 — Count expert loads</h4>
+<p>Now ignore the gate magnitudes and count <strong>how many assignments</strong> each expert received.</p>
+<p>From the routing table:</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-53">Expert 1</h6>
+<p>Only <span class="math inline">T_1</span>:</p>
+<div class="math block">
+\boxed{C_1=1}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-54">Expert 2</h6>
+<p><span class="math inline">T_2,T_5,T_7</span>:</p>
+<div class="math block">
+\boxed{C_2=3}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-55">Expert 3</h6>
+<p><span class="math inline">T_2,T_3,T_4,T_5,T_6,T_7,T_8</span>:</p>
+<div class="math block">
+\boxed{C_3=7}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-56">Expert 4</h6>
+<p><span class="math inline">T_1,T_3,T_4,T_6,T_8</span>:</p>
+<div class="math block">
+\boxed{C_4=5}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+C=[1,3,7,5]
+}
+</div>
+<p>Total:</p>
+<div class="math block">
+1+3+7+5=16.
+</div>
+<p>That must equal:</p>
+<div class="math block">
+T\times k
+=
+8\times2
+=
+16.
+</div>
+<p>Perfect.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-57">5.45.13 Step 9 — Ideal average load</h4>
+<p>There are:</p>
+<div class="math block">
+16
+</div>
+<p>total assignments and:</p>
+<div class="math block">
+4
+</div>
+<p>experts.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\bar C=\frac{16}{4}=4
+}
+</div>
+<p>Ideal load:</p>
+<div class="math block">
+\boxed{
+[4,4,4,4]
+}.
+</div>
+<p>Actual:</p>
+<div class="math block">
+[1,3,7,5].
+</div>
+<p>So:</p>
+<div class="math block">
+E_1,E_2
+</div>
+<p>are underloaded, while:</p>
+<div class="math block">
+E_3,E_4
+</div>
+<p>are overloaded.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-58">5.45.14 Step 10 — Compute load violation</h4>
+<p>The source's concrete implementation uses:</p>
+<div class="math block">
+\boxed{
+v_i=
+\frac{\bar C-C_i}
+{\bar C+\epsilon}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Ignoring the tiny <span class="math inline">\epsilon</span> for readable arithmetic:</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-59">Expert 1</h6>
+<div class="math block">
+v_1=\frac{4-1}{4}
+=
+\boxed{0.75}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-60">Expert 2</h6>
+<div class="math block">
+v_2=\frac{4-3}{4}
+=
+\boxed{0.25}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-61">Expert 3</h6>
+<div class="math block">
+v_3=\frac{4-7}{4}
+=
+\boxed{-0.75}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-62">Expert 4</h6>
+<div class="math block">
+v_4=\frac{4-5}{4}
+=
+\boxed{-0.25}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+v=[0.75,0.25,-0.75,-0.25]
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-63">5.45.15 Step 11 — Update the dynamic bias</h4>
+<p>Use:</p>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+\eta\tanh(v_i)
+}
+</div>
+<p>as in the source's implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose:</p>
+<div class="math block">
+\eta=0.01.
+</div>
+<p>Then:</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-64">Expert 1</h6>
+<div class="math block">
+\tanh(0.75)\approx0.6351
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_1
+=
+0.01(0.6351)
+=
+\boxed{+0.006351}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-65">Expert 2</h6>
+<div class="math block">
+\tanh(0.25)\approx0.2449
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_2
+=
+\boxed{+0.002449}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-66">Expert 3</h6>
+<div class="math block">
+\tanh(-0.75)\approx-0.6351
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_3
+=
+\boxed{-0.006351}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-67">Expert 4</h6>
+<div class="math block">
+\tanh(-0.25)\approx-0.2449
+</div>
+<p>so:</p>
+<div class="math block">
+\Delta b_4
+=
+\boxed{-0.002449}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-68">5.45.16 New bias</h4>
+<p>Original:</p>
+<div class="math block">
+b=[0,0.1,-0.2,0.2].
+</div>
+<p>Add the corrections:</p>
+<div class="math block">
+b'=
+[0.006351,\,
+0.102449,\,
+-0.206351,\,
+0.197551].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+b'
+\approx
+[0.00635,0.10245,-0.20635,0.19755].
+}
+</div>
+<p>The direction is correct:</p>
+<div class="math block">
+\boxed{E_1\uparrow}
+</div>
+<div class="math block">
+\boxed{E_2\uparrow}
+</div>
+<div class="math block">
+\boxed{E_3\downarrow}
+</div>
+<div class="math block">
+\boxed{E_4\downarrow}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-69">5.45.17 Why this changes future routing</h4>
+<p>Suppose a future token has raw logits:</p>
+<div class="math block">
+[2.0,2.1,2.2,2.05].
+</div>
+<p>With no balancing bias, Top-2 would be:</p>
+<div class="math block">
+E_3,E_2.
+</div>
+<p>After adding the new bias:</p>
+<div class="math block">
+[2.0064,\;2.2024,\;1.9936,\;2.2476].
+</div>
+<p>Now Top-2 becomes:</p>
+<div class="math block">
+\boxed{E_4,E_2}.
+</div>
+<p>This is exactly the intended feedback mechanism:</p>
+<div class="math block">
+\text{underloaded}
+\rightarrow
+b\uparrow
+\rightarrow
+\text{selection more likely}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{overloaded}
+\rightarrow
+b\downarrow
+\rightarrow
+\text{selection less likely}.
+</div>
+<p>The source describes this self-correcting effect explicitly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-70">5.45.18 Step 12 — Now actually run the selected experts</h4>
+<p>Up to now we've only performed routing.</p>
+<p>Now each selected token is sent to its corresponding expert.</p>
+<p>To make the arithmetic concrete, define illustrative expert transformations:</p>
+<div class="math block">
+E_1(x)=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1
+\end{bmatrix}x
+</div>
+<div class="math block">
+E_2(x)=
+\begin{bmatrix}
+2&amp;0\\
+0&amp;2
+\end{bmatrix}x
+</div>
+<div class="math block">
+E_3(x)=
+\begin{bmatrix}
+1&amp;1\\
+0&amp;1
+\end{bmatrix}x
+</div>
+<div class="math block">
+E_4(x)=
+\begin{bmatrix}
+1&amp;0\\
+1&amp;1
+\end{bmatrix}x.
+</div>
+<p>Again:</p>
+<div class="math block">
+\boxed{\text{These expert weights are illustrative only.}}
+</div>
+<p>The source defines the experts as two-layer FFNs, not these simplified linear matrices. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-71">5.45.19 Compute expert outputs for Token 1</h4>
+<p>Token 1:</p>
+<div class="math block">
+x_1=[1,0].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_4,E_1.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-72">Expert 4</h6>
+<div class="math block">
+E_4(x_1)
+=
+\begin{bmatrix}
+1&amp;0\\
+1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1\\0
+\end{bmatrix}
+=
+\begin{bmatrix}
+1\\1
+\end{bmatrix}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-73">Expert 1</h6>
+<div class="math block">
+E_1(x_1)
+=
+\begin{bmatrix}
+1\\0
+\end{bmatrix}.
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.7685,\quad0.2315.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_1
+=
+0.7685
+\begin{bmatrix}
+1\\1
+\end{bmatrix}
++
+0.2315
+\begin{bmatrix}
+1\\0
+\end{bmatrix}.
+</div>
+<p>First component:</p>
+<div class="math block">
+0.7685+0.2315=1.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.7685.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_1=[1,\;0.7685]
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-74">5.45.20 Token 2</h4>
+<div class="math block">
+x_2=[0,1].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-75">Expert 3</h6>
+<div class="math block">
+E_3(x_2)
+=
+\begin{bmatrix}
+1\\1
+\end{bmatrix}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-76">Expert 2</h6>
+<div class="math block">
+E_2(x_2)
+=
+\begin{bmatrix}
+0\\2
+\end{bmatrix}.
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.5498,\quad0.4502.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_2
+=
+0.5498[1,1]
++
+0.4502[0,2].
+</div>
+<p>First:</p>
+<div class="math block">
+0.5498.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.5498+0.9004
+=
+1.4502.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_2=[0.5498,\;1.4502].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-77">5.45.21 Token 3</h4>
+<div class="math block">
+x_3=[1,1].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-78">Expert 3</h6>
+<div class="math block">
+E_3(x_3)
+=
+[2,1].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-79">Expert 4</h6>
+<div class="math block">
+E_4(x_3)
+=
+[1,2].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.6900,\quad0.3100.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_3
+=
+0.69[2,1]+0.31[1,2].
+</div>
+<p>First:</p>
+<div class="math block">
+1.38+0.31
+=
+1.69.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.69+0.62
+=
+1.31.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_3=[1.6900,\;1.3100].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-80">5.45.22 Token 4</h4>
+<div class="math block">
+x_4=[2,1].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-81">Expert 3</h6>
+<div class="math block">
+E_3(x_4)
+=
+[3,1].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-82">Expert 4</h6>
+<div class="math block">
+E_4(x_4)
+=
+[2,3].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.5,0.5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_4
+=
+0.5[3,1]+0.5[2,3].
+</div>
+<div class="math block">
+=
+[2.5,2].
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_4=[2.5,2].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-83">5.45.23 Token 5</h4>
+<div class="math block">
+x_5=[1,2].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-84">Expert 3</h6>
+<div class="math block">
+E_3(x_5)
+=
+[3,2].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-85">Expert 2</h6>
+<div class="math block">
+E_2(x_5)
+=
+[2,4].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.8699,\quad0.1301.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_5
+=
+0.8699[3,2]+0.1301[2,4].
+</div>
+<p>First:</p>
+<div class="math block">
+2.6097+0.2602
+=
+2.8699.
+</div>
+<p>Second:</p>
+<div class="math block">
+1.7398+0.5204
+=
+2.2602.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_5=[2.8699,\;2.2602].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-86">5.45.24 Token 6</h4>
+<div class="math block">
+x_6=[2,0].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_4,E_3.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-87">Expert 4</h6>
+<div class="math block">
+E_4(x_6)
+=
+[2,2].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-88">Expert 3</h6>
+<div class="math block">
+E_3(x_6)
+=
+[2,0].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.8808,\quad0.1192.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_6
+=
+0.8808[2,2]
++
+0.1192[2,0].
+</div>
+<p>First:</p>
+<div class="math block">
+1.7616+0.2384=2.
+</div>
+<p>Second:</p>
+<div class="math block">
+1.7616.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_6=[2,\;1.7616].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-89">5.45.25 Token 7</h4>
+<div class="math block">
+x_7=[0,2].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-90">Expert 3</h6>
+<div class="math block">
+E_3(x_7)
+=
+[2,2].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-91">Expert 2</h6>
+<div class="math block">
+E_2(x_7)
+=
+[0,4].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.6682,\quad0.3318.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_7
+=
+0.6682[2,2]
++
+0.3318[0,4].
+</div>
+<p>First:</p>
+<div class="math block">
+1.3364.
+</div>
+<p>Second:</p>
+<div class="math block">
+1.3364+1.3272
+=
+2.6636.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_7=[1.3364,\;2.6636].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-92">5.45.26 Token 8</h4>
+<div class="math block">
+x_8=[2,2].
+</div>
+<p>Selected:</p>
+<div class="math block">
+E_3,E_4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-93">Expert 3</h6>
+<div class="math block">
+E_3(x_8)
+=
+[4,2].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-94">Expert 4</h6>
+<div class="math block">
+E_4(x_8)
+=
+[2,4].
+</div>
+<p>Gates:</p>
+<div class="math block">
+0.8808,\quad0.1192.
+</div>
+<p>Thus:</p>
+<div class="math block">
+R_8
+=
+0.8808[4,2]
++
+0.1192[2,4].
+</div>
+<p>First:</p>
+<div class="math block">
+3.5232+0.2384
+=
+3.7616.
+</div>
+<p>Second:</p>
+<div class="math block">
+1.7616+0.4768
+=
+2.2384.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+R_8=[3.7616,\;2.2384].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-95">5.45.27 Complete routed-output matrix</h4>
+<p>We now have:</p>
+<div class="math block">
+\boxed{
+R=
+\begin{bmatrix}
+1&amp;0.7685\\
+0.5498&amp;1.4502\\
+1.6900&amp;1.3100\\
+2.5000&amp;2.0000\\
+2.8699&amp;2.2602\\
+2.0000&amp;1.7616\\
+1.3364&amp;2.6636\\
+3.7616&amp;2.2384
+\end{bmatrix}
+}
+</div>
+<p>This has shape:</p>
+<div class="math block">
+\boxed{8\times2}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-96">5.45.28 Step 13 — Shared expert path</h4>
+<p>Now add the shared path.</p>
+<p>For this illustrative numerical example, suppose we have one shared expert:</p>
+<div class="math block">
+S(x)=0.5x.
+</div>
+<p>So:</p>
+<div class="math block">
+S=
+0.5X.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+S=
+\begin{bmatrix}
+0.5&amp;0\\
+0&amp;0.5\\
+0.5&amp;0.5\\
+1&amp;0.5\\
+0.5&amp;1\\
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+}
+</div>
+<p>In the source implementation, every token is passed through the shared experts, while the routed experts are sparse.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-97">5.45.29 Step 14 — Add the residual</h4>
+<p>For each token:</p>
+<div class="math block">
+\boxed{
+Y_t=x_t+S_t+R_t
+}
+</div>
+<p>for the chapter-4-style complete MoE module.</p>
+<p>For Token 1:</p>
+<div class="math block">
+x_1=[1,0]
+</div>
+<div class="math block">
+S_1=[0.5,0]
+</div>
+<div class="math block">
+R_1=[1,0.7685].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Y_1
+=
+[1,0]+[0.5,0]+[1,0.7685]
+</div>
+<div class="math block">
+=
+\boxed{
+[2.5,0.7685]
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-98">5.45.30 All final outputs</h4>
+<p>Applying the same calculation to every token:</p>
+<div class="math block">
+\boxed{
+Y=
+\begin{bmatrix}
+2.5000&amp;0.7685\\
+0.5498&amp;2.9502\\
+3.1900&amp;2.8100\\
+5.5000&amp;3.5000\\
+4.3699&amp;5.2602\\
+5.0000&amp;1.7616\\
+1.3364&amp;5.6636\\
+6.7616&amp;5.2384
+\end{bmatrix}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+Y\in\mathbb R^{8\times2}.
+}
+</div>
+<p>Then reshape back to:</p>
+<div class="math block">
+\boxed{
+2\times4\times2
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-99">5.45.31 Important source-code nuance about the residual</h4>
+<p>There is a small but important implementation distinction in the source that you should understand.</p>
+<p>In the chapter-4 complete MoE implementation, the final return is:</p>
+<pre><code class="language-python">return x + shared_out + routed_out
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>But in the later <code>TransformerBlock</code> implementation, the block itself does:</p>
+<pre><code class="language-python">x = x + self.feed_forward(self.norm2(x))
+</code></pre>
+<p>so the MoE implementation returns the transformation while the Transformer block owns the residual connection.</p>
+<p>These are two ways of organizing the same residual structure.</p>
+<p>So don't accidentally implement:</p>
+<div class="math block">
+x+\text{MoE}(x)
+</div>
+<p>inside the MoE <strong>and then again</strong> add another residual around the whole MoE in a way that duplicates the residual.</p>
+<p>The important architectural structure is:</p>
+<div class="math block">
+\boxed{
+\text{residual around the MoE sub-block}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-100">5.45.32 Step 15 — What <code>index_add_</code> was really doing</h4>
+<p>Return to:</p>
+<pre><code class="language-python">routed_out_flat.index_add_(0, row_idx, exp_out * w)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For example, Token 1 selected:</p>
+<div class="math block">
+E_4,E_1.
+</div>
+<p>So:</p>
+<div class="math block">
+R_1=
+0.7685E_4(x_1)+0.2315E_1(x_1).
+</div>
+<p>Those two contributions are added into the same output location:</p>
+<div class="math block">
+routed\_out[1].
+</div>
+<p>For a different token, say Token 6:</p>
+<div class="math block">
+R_6=
+0.8808E_4(x_6)+0.1192E_3(x_6).
+</div>
+<p>Those contributions are added into:</p>
+<div class="math block">
+routed\_out[6].
+</div>
+<p>Thus <code>index_add_</code> performs the mathematical operation:</p>
+<div class="math block">
+\boxed{
+R_t\mathrel{+}=
+\sum_{i\in I_t}g_{t,i}E_i(x_t)
+}
+</div>
+<p>while preserving the original token ordering.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-101">5.45.33 Why we process an expert's tokens as a batch</h4>
+<p>Suppose Expert 3 gets:</p>
+<div class="math block">
+T_2,T_3,T_4,T_5,T_6,T_7,T_8.
+</div>
+<p>Rather than calling:</p>
+<pre><code class="language-text">E3(T2)
+E3(T3)
+E3(T4)
+...
+</code></pre>
+<p>individually, we gather them:</p>
+<div class="math block">
+X_3\in\mathbb R^{7\times D}
+</div>
+<p>and run:</p>
+<div class="math block">
+E_3(X_3).
+</div>
+<p>The source explicitly explains that this batches together all tokens destined for the same expert rather than processing them one at a time. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is crucial for practical accelerator efficiency.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-102">5.45.34 The full data movement</h4>
+<p>Now you can visualize the dispatch:</p>
+<pre><code class="language-text">T1 ───────► E4 ──┐
+      └────► E1 ─┤
+                 ├──► R1
+T2 ───────► E3 ──┤
+      └────► E2 ─┤
+                 ├──► R2
+T3 ───────► E3 ──┤
+      └────► E4 ─┤
+                 ├──► R3
+...
+</code></pre>
+<p>Each token can appear in two expert batches because:</p>
+<div class="math block">
+k=2.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-103">5.45.35 Load balancing vs gate weight</h4>
+<p>Look carefully at Expert 3.</p>
+<p>It was selected:</p>
+<div class="math block">
+7
+</div>
+<p>times.</p>
+<p>It is overloaded.</p>
+<p>But the gate values also matter.</p>
+<p>An expert could be:</p>
+<div class="math block">
+\boxed{\text{selected frequently}}
+</div>
+<p>but given relatively small weights.</p>
+<p>That is why the source distinguishes:</p>
+<div class="math block">
+\boxed{\text{actual dispatch load}}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{\text{router probability / importance}}.
+</div>
+<p>The source explicitly motivates the load-balancing formulation because probability mass alone does not reveal actual workload. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-104">5.45.36 Why Top-K creates discrete routing</h4>
+<p>The router logits are continuous:</p>
+<div class="math block">
+[1.2,0.7,2.3,1.8].
+</div>
+<p>But Top-K converts that into a discrete decision:</p>
+<div class="math block">
+\{E_3,E_4\}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{continuous scores}
+\rightarrow
+\text{discrete expert selection}
+}.
+</div>
+<p>Then softmax makes the selected combination continuous again:</p>
+<div class="math block">
+\{E_3,E_4\}
+\rightarrow
+\{0.62,0.38\}.
+</div>
+<p>This is an extremely useful conceptual decomposition.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-45-i86-2" data-full-review="added"><p>Correction: Production V3 differs from the educational book: choose experts with sigmoid affinity plus bias; calculate gates from unbiased sigmoid affinities, and update separate bias by load sign steps. V3 also has a very small complementary sequence-wise auxiliary balance loss, so“no additional balance loss at all”is not an exact description of the full production training recipe.</p><p><a href="#audit-full-chunk-les-step-5-45-i86">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-45-i86-105">5.45.37 What happens during training</h4>
+<p>There are now two types of updates.</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-106">Normal gradient path</h6>
+<p>The next-token loss produces gradients through:</p>
+<div class="math block">
+\text{expert FFNs}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{router parameters}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-107">Separate balancing path</h6>
+<p>The source's dynamic bias update operates under:</p>
+<div class="math block">
+\boxed{\texttt{torch.no\_grad()}}
+</div>
+<p>and updates the bias separately. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<pre><code class="language-text">LM loss
+   ↓
+backprop
+   ↓
+learned model weights
+
+expert loads
+   ↓
+bias calculation
+   ↓
+bias buffer
+</code></pre>
+<p>That is the meaning of <strong>auxiliary-loss-free</strong> in the source's implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-108">5.45.38 What happens during inference?</h4>
+<p>The source's later implementation explicitly wraps the bias update in:</p>
+<pre><code class="language-python">if self.training:
+</code></pre>
+<p>so the load-balancing update is absent during inference. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus inference performs:</p>
+<div class="math block">
+\boxed{
+\text{router}
+\rightarrow
+\text{bias already stored}
+\rightarrow
+TopK
+\rightarrow
+softmax
+\rightarrow
+experts
+}
+</div>
+<p>but does not continually update the bias based on current inference batches.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-109">5.45.39 Full tensor-shape table</h4>
+<p>For:</p>
+<div class="math block">
+B=2,\quad S=4,\quad D=2,\quad N=4,\quad k=2,
+</div>
+<p>we have:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input <span class="math inline">X</span></td>
+<td><span class="math inline">2\times4\times2</span></td>
+</tr>
+<tr>
+<td>Flattened <span class="math inline">X_f</span></td>
+<td><span class="math inline">8\times2</span></td>
+</tr>
+<tr>
+<td>Router <span class="math inline">W_R</span></td>
+<td><span class="math inline">2\times4</span></td>
+</tr>
+<tr>
+<td>Router logits <span class="math inline">L</span></td>
+<td><span class="math inline">8\times4</span></td>
+</tr>
+<tr>
+<td>Bias-adjusted logits <span class="math inline">L'</span></td>
+<td><span class="math inline">8\times4</span></td>
+</tr>
+<tr>
+<td>Top-K indices</td>
+<td><span class="math inline">8\times2</span></td>
+</tr>
+<tr>
+<td>Top-K logits</td>
+<td><span class="math inline">8\times2</span></td>
+</tr>
+<tr>
+<td>Gates</td>
+<td><span class="math inline">8\times2</span></td>
+</tr>
+<tr>
+<td>Routed output</td>
+<td><span class="math inline">8\times2</span></td>
+</tr>
+<tr>
+<td>Shared output</td>
+<td><span class="math inline">2\times4\times2</span></td>
+</tr>
+<tr>
+<td>Final output</td>
+<td><span class="math inline">2\times4\times2</span></td>
+</tr>
+</tbody>
+</table>
+<p>This is the shape flow you should know cold.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-110">5.45.40 Full routing summary</h4>
+<p>Our example has:</p>
+<div class="math block">
+\boxed{8\text{ tokens}}
+</div>
+<div class="math block">
+\boxed{4\text{ routed experts}}
+</div>
+<div class="math block">
+\boxed{Top\text{-}2}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{16\text{ total expert assignments}}.
+</div>
+<p>Actual loads:</p>
+<div class="math block">
+\boxed{
+[1,3,7,5]
+}
+</div>
+<p>Ideal:</p>
+<div class="math block">
+\boxed{
+[4,4,4,4]
+}
+</div>
+<p>Violation:</p>
+<div class="math block">
+\boxed{
+[0.75,0.25,-0.75,-0.25]
+}
+</div>
+<p>Bias update direction:</p>
+<div class="math block">
+\boxed{
+[+,+,-,-]
+}
+</div>
+<p>and the final output remains:</p>
+<div class="math block">
+\boxed{
+B\times S\times D
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-111">5.45.41 The entire computation in one equation</h4>
+<p>For every token:</p>
+<div class="math block">
+\boxed{
+y_t
+=
+x_t
++
+S(x_t)
++
+\sum_{i\in TopK(W_Rx_t+b,k)}
+g_{t,i}E_i(x_t)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\boxed{
+g_{t,i}
+=
+\operatorname{softmax}
+\left(
+(W_Rx_t+b)_{TopK}
+\right)_i
+}
+</div>
+<p>and separately:</p>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+
+\eta\tanh
+\left(
+\frac{\bar C-C_i}{\bar C+\epsilon}
+\right).
+}
+</div>
+<p>This is the complete mathematical heart of the DeepSeek-MoE mechanism represented in the source implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-112">5.45.42 Exam-level question 1</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=8,\quad S=1024,
+</div>
+<div class="math block">
+N=64,\quad k=8.
+</div>
+<p>Find:</p>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-113">Number of tokens</h6>
+<div class="math block">
+8\times1024
+=
+\boxed{8192}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-114">Router shape</h6>
+<div class="math block">
+\boxed{8192\times64}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-115">Top-K shape</h6>
+<div class="math block">
+\boxed{8192\times8}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-116">Total assignments</h6>
+<div class="math block">
+8192\times8
+=
+\boxed{65,536}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-45-i86-117">Ideal expert load</h6>
+<div class="math block">
+65,536/64
+=
+\boxed{1024}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-118">5.45.43 Exam-level question 2</h4>
+<p>Suppose actual loads are:</p>
+<div class="math block">
+[900,1100,1024,\ldots].
+</div>
+<p>For Expert 1:</p>
+<div class="math block">
+v_1=
+\frac{1024-900}{1024}
+</div>
+<div class="math block">
+=
+\boxed{0.1211}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{b_1\uparrow}.
+</div>
+<p>For Expert 2:</p>
+<div class="math block">
+v_2=
+\frac{1024-1100}{1024}
+</div>
+<div class="math block">
+=
+\boxed{-0.0742}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{b_2\downarrow}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-119">5.45.44 Exam-level question 3</h4>
+<p>A token has adjusted logits:</p>
+<div class="math block">
+[1.5,\,2.0,\,3.0,\,0.5].
+</div>
+<p>With:</p>
+<div class="math block">
+k=2,
+</div>
+<p>select:</p>
+<div class="math block">
+\boxed{E_3,E_2}.
+</div>
+<p>Gate:</p>
+<div class="math block">
+g_3=
+\frac{e^3}{e^3+e^2}
+\approx
+\boxed{0.7311}
+</div>
+<div class="math block">
+g_2
+\approx
+\boxed{0.2689}.
+</div>
+<p>The two gates must sum to:</p>
+<div class="math block">
+\boxed{1}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-120">5.45.45 Exam-level question 4</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=5000,\quad N=20,\quad k=4.
+</div>
+<p>Total assignments:</p>
+<div class="math block">
+5000\times4
+=
+\boxed{20,000}.
+</div>
+<p>Ideal average:</p>
+<div class="math block">
+20,000/20
+=
+\boxed{1000}.
+</div>
+<p>If one expert gets:</p>
+<div class="math block">
+1400
+</div>
+<p>assignments:</p>
+<div class="math block">
+v=
+\frac{1000-1400}{1000}
+=
+\boxed{-0.4}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\text{its bias decreases}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-45-i86-121">5.45.46 Final mental model</h4>
+<p>You can now mentally execute an MoE layer:</p>
+<div class="math block">
+\boxed{
+\text{1. Represent tokens}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{2. Router scores all experts}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{3. Add dynamic balancing bias}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{4. Top-K chooses specialists}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{5. Softmax gives mixture weights}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{6. Group tokens by expert}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{7. Run each expert on only its tokens}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{8. Scatter/add weighted outputs}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{9. Add shared experts}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{10. Add residual}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{11. Measure load and update bias for the next training step}
+}
+</div>
+<p>That is the complete routing loop.</p>
+<p>The source's chapter 4 summary and later implementation tie these pieces together: sparse Top-K expert activation, shared dense experts, and auxiliary-loss-free dynamic balancing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

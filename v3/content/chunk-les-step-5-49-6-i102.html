@@ -1,0 +1,1086 @@
+<section class="chunk" id="chunk-les-step-5-49-6-i102" data-id="les-step-5-49-6-i102"><details class="audit-card" id="audit-full-chunk-les-step-5-49-6-i102" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-49-6-i102-1">Motivation</h4><p>Combine all five precision mechanisms into one shape-consistent linear-operator training lifecycle.</p><h4 id="v3-heading-chunk-les-step-5-49-6-i102-2">Prerequisites</h4><ul><li>Linear algebra and chain rule</li><li>Binary floating-point normal/subnormal encodings</li><li>Quantization scale convention</li><li>Tensor shape and loss normalization</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-3">Notation and units</h4><ul><li>X:[N, K], W:[K, O], Y=XW:[N, O] row convention</li><li>s_q: fmax/amax quantization multiplier; s_d:1/s_q reconstruction multiplier</li><li>Nc:128 reduction/group channels in cited design</li><li>G: dL/dY; dX=GW^T; dW=X^TG</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Finite saturating E4M3FN RTNE is simulated; tensor arithmetic uses NumPy higher precision.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-5">Step-by-step derivation</h4><ol><li>Keep FP32 master weights, current activations and sensitive modules at their declared higher precision. Choose tile geometry and fresh amax scales.</li><li>Cast compute operands to E4M3FN codes; perform each reduction-group GEMM, restore the two local scales and accumulate in higher precision.</li><li>During training, run Dgrad/Wgrad using their own operand layouts and appropriate group scaling; transposing codes does not necessarily transpose valid scale geometry.</li><li>Accumulate weight gradients across the effective batch, update master weights and optimizer state, then refresh compute copies. CPU tests verify real-arithmetic derivatives and FP8 encoding; they do not verify straight-through gradients or actual FP8 kernel training.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-6-i102-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-6-i102-7">Integrated grouped operator</h5><p>Given: X=[[1,2],[3,4]], W=identity; blocksize1teachingfixture</p><ol><li>Every activation and weight channel has its own current amax.</li><li>Codes and scales reconstruct each scalar exactly.</li><li>The grouped GEMM returns X, which matches independent NumPy matrix multiplication.</li></ol><p>Answer: [[1,2],[3,4]]</p><p>Verification: mtp_fp8_parallelism / FP8-block-gemm · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-6-i102-8">Learning state versusFP8 payload</h5><p>Given: 1e9parameters</p><ol><li>FP8 computeweightsalone1GB.</li><li>Master+gradient+BF16 moments12GB unsharded.</li><li>Addscales, activations and compute copiesseparately; no4xtrainingmemoryclaim.</li></ol><p>Answer: 1 GB compute weight payload isnot1GBtotaltrainingmemory</p><p>Verification: mtp_fp8_parallelism / FP8-storage-state · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-49-6-i102-9">Corrections and source qualifications</h4><ul><li>heading: Quantization and dequantization scale convention; text: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.</li><li>heading: Optimizer-state precision; text: Actual DeepSeek-V3 precision qualification: the book presents a high-precision optimizer teaching pipeline. The V3 technical report §3.3.3 uses BF16 AdamW first/second moments, with FP32 master weights and accumulated gradients. Therefore “all optimizer states are FP32” is not an exact description of that production framework.</li><li>heading: WGMMA and Nc=128; text: Paper §3.3.2 identifies Nc=128 reduction elements as four WGMMAs. A sketch labelling each 128-product chunk one WGMMA is a conceptual grouping, not the paper’s instruction count. Promotion cannot recover error already incurred inside a chunk.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.49.6.21 A complete numerical example; answer: Suppose a single local activation group is: X=[1.0,\;2.0,\;-4.0]. Assume a simplified target maximum: q_{\max}=127. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.6.29 One exam question that combines all five; answer: Keep FP32 master weights, current activations and sensitive modules at their declared higher precision. Choose tile geometry and fresh amax scales. Cast compute operands to E4M3FN codes; perform each reduction-group GEMM, restore the two local scales and accumulate in higher precision. During training, run Dgrad/Wgrad using their own operand layouts and appropriate group scaling; transposing codes does not necessarily transpose valid scale geometry. Accumulate weight gradients across the effective batch, update master weights and optimizer state, then refresh compute copies. CPU tests verify real-arithmetic derivatives and FP8 encoding; they do not verify straight-through gradients or actual FP8 kernel training. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question; answer: Why can DeepSeek use E4M3 uniformly rather than using E5M2 for the backward pass? Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.6.30 One exam question on the complete system; answer: Keep FP32 master weights, current activations and sensitive modules at their declared higher precision. Choose tile geometry and fresh amax scales. Cast compute operands to E4M3FN codes; perform each reduction-group GEMM, restore the two local scales and accumulate in higher precision. During training, run Dgrad/Wgrad using their own operand layouts and appropriate group scaling; transposing codes does not necessarily transpose valid scale geometry. Accumulate weight gradients across the effective batch, update master weights and optimizer state, then refresh compute copies. CPU tests verify real-arithmetic derivatives and FP8 encoding; they do not verify straight-through gradients or actual FP8 kernel training. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Question; answer: A model uses: 128 activation elements per group and: 128\times 128 weight blocks. What are these numbers doing? Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.6.31 One exam question on N_C; answer: This is a classic confusion. We saw: N_C=128 in more than one place. But ask: “What does N_C=128 mean here?” For the activation quantization discussion: \boxed{ 128\text{ activation channels per group}. } For accumulation promotion: \boxed{ 128\text{ element-wise operations per promotion interval}. } Same numerical value in the source, but different roles. Do not conflate them. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Why can DeepSeek use E4M3 uniformly rather than using E5M2 for the backward pass?; answer: Reasoning Normally: \text{backward} \rightarrow \text{large gradient outliers} \rightarrow \text{need more exponent range} which motivates E5M2. But DeepSeek: \boxed{ \text{fine-grained scaling} } reduces the influence of outliers at the local level. Then: \boxed{ \text{online scaling} } keeps the scales matched to the current tensor. Therefore the need for huge global dynamic range is reduced. So DeepSeek can use: \boxed{ E4M3 } and gain: \boxed{ \text{one extra mantissa bit}. } This is exactly the synergistic argument made in the source. (Source: Build a DeepSeek Model (From Scratch)) 5.49.6.30 One exam question on the complete system Question A model uses: 128 activation elements per group and: 128\times 128 weight blocks. What are these numbers doing? Answer They determine: \boxed{ \text{where independent scaling factors are applied}. } They are not: \boxed{ \text{the FP8 bit width} } and not: \boxed{ \text{the Tensor Core accumulation precision}. } The activation grouping and weight blocking belong to Pillar 2. 5.49.6.31 One exam question on N_C This is a classic confusion. We saw: N_C=128 in more than one place. But ask: “What does N_C=128 mean here?” For the activation quantization discussion: \boxed{ 128\text{ activation channels per group}. } For accumulation promotion: \boxed{ 128\text{ element-wise operations per promotion interval}. } Same numerical value in the source, but different roles. Do not conflate them. 5.49.6.32 The full De; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: What are these numbers doing?; answer: Answer They determine: \boxed{ \text{where independent scaling factors are applied}. } They are not: \boxed{ \text{the FP8 bit width} } and not: \boxed{ \text{the Tensor Core accumulation precision}. } The activation grouping and weight blocking belong to Pillar 2. 5.49.6.31 One exam question on N_C This is a classic confusion. We saw: N_C=128 in more than one place. But ask: “What does N_C=128 mean here?” For the activation quantization discussion: \boxed{ 128\text{ activation channels per group}. } For accumulation promotion: \boxed{ 128\text{ element-wise operations per promotion interval}. } Same numerical value in the source, but different roles. Do not conflate them. 5.49.6.32 The full DeepSeek architecture now We can finally reconnect this to everything we previously learned. \boxed{ \text{MLA} } reduces inference KV-cache burden. \boxed{ \text{MoE} } gives huge parameter capacity with sparse expert activation. \boxed{ \text{MTP} } adds multi-future training supervision. \boxed{ \text{FP8} } makes the massive arithmetic more efficient. And: \boxed{ \text{DualPipe} } will later address the distributed communication/scheduling problem. The source&#x27;s roadmap explicitly says these components have now been developed individually and Chapter 6 will assemble them into one functional Mini-DeepSeek system. (Source: Build a DeepSeek Model (From Scratch)) 5.49.6.33 FP8 is now complete The important conceptual hierarchy is: \boxed{ \text{Quantization fo; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-6-i102-11">Edge cases and remaining gaps</h4><ul><li>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-12">Connections and progression</h4><ul><li>Local amax scales → range control → E4M3 significand precision</li><li>Group GEMMs → dequantization within reduction → safe accumulation</li><li>High-precision learning state → refreshed low-precision compute copies → communication/storage budget</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 293, 294, 295, 296, 297, 298, 299, 300, 307, 312, 314, 315, 316 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · FP8 operand GEMMs; local tiles; 128-element promotion; BF16 moments versus FP32 master/grad. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S3.SS3</li><li>NVIDIA Transformer Engine FP8 Current Scaling documentation · E4M3 maximum 448 and E5M2 maximum 57344; cast-to-nearest-even; scale conventions. Read 2026-10-07. · https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html</li></ul><h4 id="v3-heading-chunk-les-step-5-49-6-i102-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (50)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R99 / Step 5.49.6 — Complete FP8 Synthesis: One DeepSeek Linear Operator End-to-End</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.1 The five pillars again — but now as one machine</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.2 Start with the ordinary linear layer</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.3 Before computation: what representation do we have?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Activations</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Master weights</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Optimizer state</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.4 Now Pillar 5 enters first</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.5 But Pillar 2 says: don&#x27;t use one scale for everything</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.6 Weight quantization works similarly</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.7 Now where does E4M3 enter?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.8 Quantized tensors enter the GEMM</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.9 But now Pillar 3 takes over</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.10 The low-precision accumulator</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.11 DeepSeek doesn&#x27;t wait until the end</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.12 Why FP32 register?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.13 Now Pillar 2 comes back again</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.14 The output is then stored in BF16</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.15 Now complete the backward pass</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Dgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.16 Wgrad</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.17 Then the optimizer operates in FP32</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.18 The complete loop</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.19 Now identify exactly what each pillar is doing inside this diagram</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.20 This reveals something important</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.21 A complete numerical example</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Online scaling</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.22 Suppose the local weight values have:</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.23 If an outlier appears next batch</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.24 If the outlier appears in a different group</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.25 Why E4M3 is then attractive</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.26 Why FP32 accumulation is still necessary</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.27 Why online scaling also doesn&#x27;t solve accumulation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.28 The architecture as a chain of safeguards</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.29 One exam question that combines all five</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Reasoning</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.30 One exam question on the complete system</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Answer</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.31 One exam question on N_C</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.32 The full DeepSeek architecture now</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.33 FP8 is now complete</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.34 FINAL MASTER DIAGRAM</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.6.35 What we have now finished</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-6-i102"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-6-i102" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-5-i101">← Previous lesson</a> · <a href="#chunk-les-step-5-46-i87">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-5-i101">R98 / Step 5.49.5 — Pillar 5: Online Quantization</a></p><p><strong>This lesson:</strong> R99 / Step 5.49.6 — Complete FP8 Synthesis: One DeepSeek Linear Operator End-to-End</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-6-i102"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-6-i102-15">R99 / Step 5.49.6 — Complete FP8 Synthesis: One DeepSeek Linear Operator End-to-End</h3>
+<p><em>Plan node: A4 · chat order #102</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We have now completed all five FP8 pillars individually. This response is deliberately a <strong>synthesis</strong>, not a sixth FP8 concept.</p>
+<p>The purpose is to make one thing completely clear:</p>
+<div class="math block">
+\boxed{
+\text{How do all five ideas cooperate inside one actual matrix multiplication during training?}
+}
+</div>
+<p>The source explicitly presents the five pillars as one multi-part framework rather than five unrelated tricks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-16">5.49.6.1 The five pillars again — but now as one machine</h4>
+<p>We have:</p>
+<div class="math block">
+\boxed{\text{Pillar 1: Mixed Precision}}
+</div>
+<p>Use different precisions for different jobs.</p>
+<div class="math block">
+\boxed{\text{Pillar 2: Fine-Grained Quantization}}
+</div>
+<p>Scale small groups/blocks independently.</p>
+<div class="math block">
+\boxed{\text{Pillar 3: Increasing Accumulation Precision}}
+</div>
+<p>Periodically promote partial results to FP32 accumulation.</p>
+<div class="math block">
+\boxed{\text{Pillar 4: Mantissa over Exponents}}
+</div>
+<p>Use E4M3 because fine-grained scaling helps control dynamic range.</p>
+<div class="math block">
+\boxed{\text{Pillar 5: Online Quantization}}
+</div>
+<p>Calculate the scale from the tensor being processed now rather than stale historical statistics.</p>
+<p>The source explicitly summarizes these five in exactly this spirit. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-17">5.49.6.2 Start with the ordinary linear layer</h4>
+<p>Everything happens around:</p>
+<div class="math block">
+\boxed{
+Y=WX
+}
+</div>
+<p>For one output element:</p>
+<div class="math block">
+\boxed{
+Y_{ij}
+=
+\sum_{k=1}^{K}W_{ik}X_{kj}.
+}
+</div>
+<p>The source uses this equation as the starting point for both its mixed-precision and accumulation discussions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-18">5.49.6.3 Before computation: what representation do we have?</h4>
+<p>According to the source:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-19">Activations</h6>
+<p>Typically stored as:</p>
+<div class="math block">
+\boxed{BF16}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-20">Master weights</h6>
+<p>Stored in:</p>
+<div class="math block">
+\boxed{FP32}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-21">Optimizer state</h6>
+<p>Stored in:</p>
+<div class="math block">
+\boxed{FP32}.
+</div>
+<p>The source explicitly identifies these as the higher-precision persistent quantities.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-22">5.49.6.4 Now Pillar 5 enters first</h4>
+<p>We need to quantize the current tensor.</p>
+<p>Instead of using an old scale:</p>
+<div class="math block">
+s_{t-1},
+</div>
+<p>the source says to inspect the current tensor:</p>
+<div class="math block">
+X_t.
+</div>
+<p>Compute:</p>
+<div class="math block">
+\boxed{
+\alpha_t=\max|X_t|.
+}
+</div>
+<p>Then derive the scale.</p>
+<p>So the first conceptual operation is:</p>
+<div class="math block">
+\boxed{
+X_t
+\rightarrow
+\alpha_t
+\rightarrow
+s_t.
+}
+</div>
+<p>This is <strong>Online Quantization</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-23">5.49.6.5 But Pillar 2 says: don't use one scale for everything</h4>
+<p>Suppose:</p>
+<div class="math block">
+X_t
+</div>
+<p>is a long activation vector.</p>
+<p>DeepSeek does not necessarily use one global:</p>
+<div class="math block">
+\alpha_t.
+</div>
+<p>Instead, the source says the activation vector is broken into:</p>
+<div class="math block">
+\boxed{
+N_C=128
+}
+</div>
+<p>element groups.</p>
+<p>Each group gets its own scale.</p>
+<p>Therefore, more precisely:</p>
+<div class="math block">
+\boxed{
+\alpha_{t,g}
+=
+\max_{i\in g}|X_{t,i}|
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+s_{t,g}
+}
+</div>
+<p>is derived separately for every group <span class="math inline">g</span>.</p>
+<p>That is the combination:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 2 + Pillar 5}
+=
+\text{local + current}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-24">5.49.6.6 Weight quantization works similarly</h4>
+<p>The source says the weight matrix is divided into:</p>
+<div class="math block">
+\boxed{
+128\times128
+}
+</div>
+<p>blocks.</p>
+<p>So for weight block <span class="math inline">b</span>:</p>
+<div class="math block">
+\alpha_{t,b}
+=
+\max_{i\in b}|W_{t,i}|.
+</div>
+<p>Then:</p>
+<div class="math block">
+s_{t,b}
+</div>
+<p>is calculated for that block.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{activation group}
+\rightarrow
+\text{local current scale}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{weight block}
+\rightarrow
+\text{local current scale}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-25">5.49.6.7 Now where does E4M3 enter?</h4>
+<p>Once the local dynamic ranges are controlled, DeepSeek can use:</p>
+<div class="math block">
+\boxed{E4M3}
+</div>
+<p>for its FP8 computations.</p>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+E4M3
+=
+1\text{ sign}+4\text{ exponent}+3\text{ mantissa}.
+</div>
+<p>Compared with:</p>
+<div class="math block">
+E5M2
+=
+1+5+2,
+</div>
+<p>E4M3 has:</p>
+<div class="math block">
+\boxed{\text{more mantissa precision}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{less dynamic range}}.
+</div>
+<p>The source's argument is that fine-grained quantization has already mitigated the dynamic-range problem sufficiently to let DeepSeek favor the extra mantissa bit.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 2 enables Pillar 4}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-26">5.49.6.8 Quantized tensors enter the GEMM</h4>
+<p>Now we have:</p>
+<div class="math block">
+X_{FP8}
+</div>
+<p>and:</p>
+<div class="math block">
+W_{FP8}.
+</div>
+<p>The source says the three major GEMMs use FP8:</p>
+<div class="math block">
+\boxed{
+Fprop,\quad Dgrad,\quad Wgrad.
+}
+</div>
+<p>So the forward calculation becomes conceptually:</p>
+<div class="math block">
+\boxed{
+Y\leftarrow W_{FP8}X_{FP8}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-27">5.49.6.9 But now Pillar 3 takes over</h4>
+<p>The Tensor Core performs fast low-precision matrix multiplication.</p>
+<p>The source describes WGMMA as the low-level instruction performing chunks of this matrix multiplication.</p>
+<p>So the calculation isn't thought of as one giant operation:</p>
+<div class="math block">
+4096
+</div>
+<p>products appearing magically at once.</p>
+<p>Instead, it can be understood as chunks:</p>
+<div class="math block">
+\boxed{
+WGMMA_1
+\rightarrow
+WGMMA_2
+\rightarrow
+WGMMA_3
+\rightarrow\cdots
+}
+</div>
+<p>with each contributing to the running sum.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-28">5.49.6.10 The low-precision accumulator</h4>
+<p>The Tensor Core maintains:</p>
+<div class="math block">
+\boxed{
+\text{Low Prec Acc}
+}
+</div>
+<p>while processing those chunks.</p>
+<p>The source's problem is:</p>
+<div class="math block">
+\boxed{
+\text{this accumulator has limited precision}.
+}
+</div>
+<p>For large inner dimensions, repeatedly adding many products can cause numerical error.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-29">5.49.6.11 DeepSeek doesn't wait until the end</h4>
+<p>The source specifies a promotion interval:</p>
+<div class="math block">
+\boxed{
+N_C=128.
+}
+</div>
+<p>After the relevant chunk of work, the low-precision partial sum is moved to a general-purpose CUDA Core.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Low Prec Acc}
+\xrightarrow{N_C}
+\text{FP32 Register}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-30">5.49.6.12 Why FP32 register?</h4>
+<p>Suppose:</p>
+<div class="math block">
+P_1,P_2,P_3,\ldots
+</div>
+<p>are promoted partial sums.</p>
+<p>The FP32 register maintains:</p>
+<div class="math block">
+\boxed{
+A=
+P_1+P_2+P_3+\cdots
+}
+</div>
+<p>in higher precision.</p>
+<p>So the long-running reduction is protected from the narrower low-precision accumulator.</p>
+<p>This is the essence of:</p>
+<div class="math block">
+\boxed{\text{Pillar 3}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-31">5.49.6.13 Now Pillar 2 comes back again</h4>
+<p>Remember:</p>
+<div class="math block">
+X\approx s_XQ_X
+</div>
+<p>and:</p>
+<div class="math block">
+W\approx s_WQ_W.
+</div>
+<p>So the low-precision multiplication gives a quantity proportional to:</p>
+<div class="math block">
+Q_XQ_W.
+</div>
+<p>The source explains that the CUDA Core stage uses the corresponding scaling factors to restore the magnitude of the result.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+Y
+\approx
+s_Xs_W(Q_XQ_W).
+}
+</div>
+<p>This equation is a <strong>derived mathematical abstraction of the source's scale-restoration diagram</strong>, not a literal hardware-level equation printed as such.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-32">5.49.6.14 The output is then stored in BF16</h4>
+<p>After high-precision accumulation/dequantization, the source says the result is ready to be stored in:</p>
+<div class="math block">
+\boxed{BF16}.
+</div>
+<p>So the complete forward path is:</p>
+<div class="math block">
+\boxed{
+BF16
+\rightarrow
+\text{online local scaling}
+\rightarrow
+FP8
+\rightarrow
+\text{Tensor Core GEMM}
+\rightarrow
+\text{FP32 accumulation}
+\rightarrow
+\text{dequantization}
+\rightarrow
+BF16.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-33">5.49.6.15 Now complete the backward pass</h4>
+<p>Suppose the layer is:</p>
+<div class="math block">
+Y=WX.
+</div>
+<p>There are two important gradients.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-6-i102-34">Dgrad</h5>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}
+=
+\frac{\partial L}{\partial Y}W^T.
+}
+</div>
+<p>The source says:</p>
+<div class="math block">
+dL/dY
+</div>
+<p>is typically stored in BF16, converted to FP8 for computation, and the result uses FP32 accumulation before being stored as BF16.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+BF16
+\rightarrow
+FP8
+\times
+FP8
+\rightarrow
+FP32\text{ accumulate}
+\rightarrow
+BF16.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-35">5.49.6.16 Wgrad</h4>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+X^T\frac{\partial L}{\partial Y}.
+}
+</div>
+<p>Again, the GEMM uses FP8 inputs.</p>
+<p>But now there is an important difference:</p>
+<div class="math block">
+\boxed{
+dW\text{ is stored in FP32}.
+}
+</div>
+<p>The source explicitly identifies Wgrad as the critical gradient because it directly drives the weight update.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+FP8\times FP8
+\rightarrow
+FP32\ dW.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-36">5.49.6.17 Then the optimizer operates in FP32</h4>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+W_{\text{master,new}}
+=
+W_{\text{master,old}}
+-
+\text{learning rate}
+\cdot dW.
+}
+</div>
+<p>And all of the important update state remains in:</p>
+<div class="math block">
+\boxed{FP32}.
+</div>
+<p>That includes:</p>
+<ul>
+<li>master weights,</li>
+<li>weight gradients,</li>
+<li>optimizer states such as momentum/variance,</li>
+<li>the update itself.</li>
+</ul>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-37">5.49.6.18 The complete loop</h4>
+<p>Now we can finally see the entire thing:</p>
+<pre><code class="language-text">                 FP32 MASTER WEIGHTS
+                        │
+                        ▼
+                current weight tensor
+                        │
+                        ▼
+             ONLINE LOCAL SCALING
+                        │
+                        ▼
+                     E4M3 FP8
+                        │
+                        │
+BF16 ACTIVATIONS ───────┘
+       │
+       ▼
+ONLINE LOCAL SCALING
+       │
+       ▼
+    E4M3 FP8
+       │
+       │
+       └───────────────┐
+                       ▼
+                 TENSOR CORE
+                    WGMMA
+                       │
+                low-precision
+                partial sums
+                       │
+                  Nc = 128
+                       │
+                       ▼
+                 PROMOTION
+                       │
+                       ▼
+                 CUDA CORE
+                       │
+                  FP32 register
+                       │
+                 scale restoration
+                       │
+                       ▼
+                    BF16 Y
+                       │
+                       ▼
+                      LOSS
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+            Dgrad              Wgrad
+              │                 │
+           FP8 GEMM          FP8 GEMM
+              │                 │
+           FP32 acc          FP32 dW
+              │                 │
+            BF16                │
+              │                 ▼
+              │            FP32 optimizer
+              │                 │
+              │                 ▼
+              │            FP32 master
+              │            weight update
+              │                 │
+              └─────────────────┘
+                        │
+                        ▼
+                 NEXT ITERATION
+</code></pre>
+<p>This is the complete synthesis of the source's FP8 framework.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-38">5.49.6.19 Now identify exactly what each pillar is doing inside this diagram</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-39">Pillar 1</h6>
+<p>Controls the <strong>precision map</strong>:</p>
+<div class="math block">
+\boxed{
+FP8/BF16/FP32
+}
+</div>
+<p>across the computation.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-40">Pillar 2</h6>
+<p>Controls the <strong>spatial granularity of scaling</strong>:</p>
+<div class="math block">
+\boxed{
+128\text{-element activation groups}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+128\times128\text{ weight blocks}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-41">Pillar 3</h6>
+<p>Controls the <strong>accumulation path</strong>:</p>
+<div class="math block">
+\boxed{
+\text{low precision}
+\rightarrow
+\text{FP32 promotion}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-42">Pillar 4</h6>
+<p>Controls the <strong>FP8 bit allocation</strong>:</p>
+<div class="math block">
+\boxed{
+E4M3.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-43">Pillar 5</h6>
+<p>Controls the <strong>time at which scales are calculated</strong>:</p>
+<div class="math block">
+\boxed{
+\text{current tensor}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-44">5.49.6.20 This reveals something important</h4>
+<p>The five pillars operate on <strong>different axes</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Pillar</th>
+<th>Axis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mixed precision</td>
+<td><strong>Which numerical format?</strong></td>
+</tr>
+<tr>
+<td>Fine-grained scaling</td>
+<td><strong>Which region gets the scale?</strong></td>
+</tr>
+<tr>
+<td>Accumulation precision</td>
+<td><strong>Where does the running sum live?</strong></td>
+</tr>
+<tr>
+<td>E4M3 choice</td>
+<td><strong>How are the 8 bits allocated?</strong></td>
+</tr>
+<tr>
+<td>Online quantization</td>
+<td><strong>When is the scale measured?</strong></td>
+</tr>
+</tbody>
+</table>
+<p>This is why they are complementary rather than redundant.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-45">5.49.6.21 A complete numerical example</h4>
+<p>Suppose a single local activation group is:</p>
+<div class="math block">
+X=[1.0,\;2.0,\;-4.0].
+</div>
+<p>Assume a simplified target maximum:</p>
+<div class="math block">
+q_{\max}=127.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-46">Online scaling</h6>
+<p>Current maximum:</p>
+<div class="math block">
+\alpha_X=4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s_X=\frac{127}{4}=31.75.
+</div>
+<p>Quantized values:</p>
+<div class="math block">
+1(31.75)\rightarrow32
+</div>
+<div class="math block">
+2(31.75)\rightarrow64
+</div>
+<div class="math block">
+-4(31.75)\rightarrow-127.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+Q_X=[32,64,-127].
+}
+</div>
+<p>This is a simplified INT8-style illustration of the source's scaling concept; the actual DeepSeek computation uses FP8 rather than this integer example.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-47">5.49.6.22 Suppose the local weight values have:</h4>
+<div class="math block">
+W=[0.5,-1,2].
+</div>
+<p>Then:</p>
+<div class="math block">
+\alpha_W=2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s_W=\frac{127}{2}=63.5.
+</div>
+<p>The important point is not the exact resulting FP8 code, but:</p>
+<div class="math block">
+\boxed{
+s_W
+\neq
+s_X.
+}
+</div>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{weights and activations have independent local scales}.
+}
+</div>
+<p>That follows directly from the source's fine-grained design.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-48">5.49.6.23 If an outlier appears next batch</h4>
+<p>Suppose current activation group becomes:</p>
+<div class="math block">
+[1,2,100].
+</div>
+<p>Online scaling immediately computes:</p>
+<div class="math block">
+\alpha_X=100.
+</div>
+<p>So the scale changes.</p>
+<p>The previous batch's scale is not blindly reused.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{scale follows the current data distribution}.
+}
+</div>
+<p>That is Pillar 5.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-49">5.49.6.24 If the outlier appears in a different group</h4>
+<p>Suppose:</p>
+<pre><code class="language-text">Group A → [1,2,3]
+Group B → [1,2,100]
+</code></pre>
+<p>Fine-grained quantization means:</p>
+<div class="math block">
+s_A
+</div>
+<p>is determined by:</p>
+<div class="math block">
+3,
+</div>
+<p>while:</p>
+<div class="math block">
+s_B
+</div>
+<p>is determined by:</p>
+<div class="math block">
+100.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+100\text{ does not force Group A to use Group B's scale}.
+}
+</div>
+<p>That is Pillar 2.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-50">5.49.6.25 Why E4M3 is then attractive</h4>
+<p>Because Group A has a locally controlled range.</p>
+<p>Thus it doesn't need the huge exponent range that a single global tensor scale might have required.</p>
+<p>So DeepSeek can prioritize:</p>
+<div class="math block">
+\boxed{
+3\text{ mantissa bits}
+}
+</div>
+<p>over:</p>
+<div class="math block">
+\boxed{
+5\text{ exponent bits}.
+}
+</div>
+<p>That is Pillar 4.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-51">5.49.6.26 Why FP32 accumulation is still necessary</h4>
+<p>Even after local scaling:</p>
+<div class="math block">
+Q_XQ_W
+</div>
+<p>can produce many partial products.</p>
+<p>Suppose:</p>
+<div class="math block">
+K=4096.
+</div>
+<p>Then one output involves:</p>
+<div class="math block">
+4096
+</div>
+<p>products.</p>
+<p>Fine-grained scaling doesn't automatically make the running sum numerically safe.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Pillar 2\text{ solves scale range}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+Pillar 3\text{ solves accumulation precision}.
+}
+</div>
+<p>This is a very important distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-52">5.49.6.27 Why online scaling also doesn't solve accumulation</h4>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{
+Pillar 5
+}
+</div>
+<p>ensures:</p>
+<div class="math block">
+\text{good current scale}.
+</div>
+<p>But it doesn't change how thousands of products are added.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{good scale}
+\neq
+\text{good accumulator}.
+}
+</div>
+<p>Hence Pillars 2, 3, and 5 solve different problems.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-53">5.49.6.28 The architecture as a chain of safeguards</h4>
+<p>You can think of it this way:</p>
+<div class="math block">
+\boxed{
+\text{FP8 is aggressive}
+}
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+\text{Mixed Precision}
+}
+</div>
+<p>prevents us from applying it indiscriminately.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Fine-Grained Scaling}
+}
+</div>
+<p>prevents outliers from destroying local precision.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Online Scaling}
+}
+</div>
+<p>prevents yesterday's statistics from being applied to today's tensor.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{FP32 Accumulation}
+}
+</div>
+<p>protects long matrix reductions.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+\text{E4M3}
+}
+</div>
+<p>uses the available 8-bit budget in favor of precision once the range problem is controlled.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-54">5.49.6.29 One exam question that combines all five</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-55">Question</h6>
+<p>Why can DeepSeek use E4M3 uniformly rather than using E5M2 for the backward pass?</p>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-56">Reasoning</h6>
+<p>Normally:</p>
+<div class="math block">
+\text{backward}
+\rightarrow
+\text{large gradient outliers}
+\rightarrow
+\text{need more exponent range}
+</div>
+<p>which motivates E5M2.</p>
+<p>But DeepSeek:</p>
+<div class="math block">
+\boxed{
+\text{fine-grained scaling}
+}
+</div>
+<p>reduces the influence of outliers at the local level.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{online scaling}
+}
+</div>
+<p>keeps the scales matched to the current tensor.</p>
+<p>Therefore the need for huge global dynamic range is reduced.</p>
+<p>So DeepSeek can use:</p>
+<div class="math block">
+\boxed{
+E4M3
+}
+</div>
+<p>and gain:</p>
+<div class="math block">
+\boxed{
+\text{one extra mantissa bit}.
+}
+</div>
+<p>This is exactly the synergistic argument made in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-57">5.49.6.30 One exam question on the complete system</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-58">Question</h6>
+<p>A model uses:</p>
+<div class="math block">
+128
+</div>
+<p>activation elements per group and:</p>
+<div class="math block">
+128\times128
+</div>
+<p>weight blocks.</p>
+<p>What are these numbers doing?</p>
+<h6 id="v3-heading-chunk-les-step-5-49-6-i102-59">Answer</h6>
+<p>They determine:</p>
+<div class="math block">
+\boxed{
+\text{where independent scaling factors are applied}.
+}
+</div>
+<p>They are not:</p>
+<div class="math block">
+\boxed{
+\text{the FP8 bit width}
+}
+</div>
+<p>and not:</p>
+<div class="math block">
+\boxed{
+\text{the Tensor Core accumulation precision}.
+}
+</div>
+<p>The activation grouping and weight blocking belong to <strong>Pillar 2</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-60">5.49.6.31 One exam question on <span class="math inline">N_C</span></h4>
+<p>This is a classic confusion.</p>
+<p>We saw:</p>
+<div class="math block">
+N_C=128
+</div>
+<p>in more than one place.</p>
+<p>But ask:</p>
+<blockquote>
+<p>“What does <span class="math inline">N_C=128</span> mean here?”</p>
+</blockquote>
+<p>For the activation quantization discussion:</p>
+<div class="math block">
+\boxed{
+128\text{ activation channels per group}.
+}
+</div>
+<p>For accumulation promotion:</p>
+<div class="math block">
+\boxed{
+128\text{ element-wise operations per promotion interval}.
+}
+</div>
+<p>Same numerical value in the source, but <strong>different roles</strong>.</p>
+<p>Do not conflate them.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-61">5.49.6.32 The full DeepSeek architecture now</h4>
+<p>We can finally reconnect this to everything we previously learned.</p>
+<div class="math block">
+\boxed{
+\text{MLA}
+}
+</div>
+<p>reduces inference KV-cache burden.</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+}
+</div>
+<p>gives huge parameter capacity with sparse expert activation.</p>
+<div class="math block">
+\boxed{
+\text{MTP}
+}
+</div>
+<p>adds multi-future training supervision.</p>
+<div class="math block">
+\boxed{
+\text{FP8}
+}
+</div>
+<p>makes the massive arithmetic more efficient.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{DualPipe}
+}
+</div>
+<p>will later address the distributed communication/scheduling problem.</p>
+<p>The source's roadmap explicitly says these components have now been developed individually and Chapter 6 will assemble them into one functional Mini-DeepSeek system. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-62">5.49.6.33 FP8 is now complete</h4>
+<p>The important conceptual hierarchy is:</p>
+<div class="math block">
+\boxed{
+\text{Quantization foundation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{FP8 representation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{five-pillar FP8 training framework}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{usable low-precision GEMM}
+}
+</div>
+<p>The source's summary explicitly states that these five mechanisms together enable stable FP8 training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-63">5.49.6.34 FINAL MASTER DIAGRAM</h4>
+<p>This is the diagram I want you to retain:</p>
+<pre><code class="language-text">                         INPUT ACTIVATIONS
+                              BF16
+                                │
+                                ▼
+                     ┌──────────────────┐
+                     │ ONLINE QUANT.    │
+                     │ current tensor   │
+                     └────────┬─────────┘
+                              │
+                     ┌────────▼─────────┐
+                     │ FINE-GRAINED     │
+                     │ groups of 128    │
+                     └────────┬─────────┘
+                              │
+                              ▼
+                            FP8
+                              │
+                              │
+MASTER WEIGHTS                │
+    FP32                      │
+      │                       │
+      ▼                       ▼
+ ONLINE QUANT.          ┌──────────────┐
+      │                 │  TENSOR CORE │
+      ▼                 │    WGMMA     │
+    FP8 W ─────────────►│ FP8 × FP8   │
+                        └──────┬───────┘
+                               │
+                         low-precision
+                         partial sums
+                               │
+                           every Nc
+                               │
+                               ▼
+                        ┌─────────────┐
+                        │ CUDA CORE   │
+                        │ FP32 REG    │
+                        └──────┬──────┘
+                               │
+                       scale restoration
+                               │
+                               ▼
+                             BF16
+                               │
+                               ▼
+                              LOSS
+                           /       \
+                          /         \
+                       Dgrad       Wgrad
+                         │            │
+                       FP8          FP8
+                         │            │
+                     FP32 acc      FP32 dW
+                         │            │
+                       BF16           ▼
+                         │        FP32 optimizer
+                         │            │
+                         └───────► FP32 master
+                                      weights
+                                          │
+                                          ▼
+                                   NEXT ITERATION
+</code></pre>
+<p>The source's five pillars, mixed-precision linear operator, fine-grained quantization diagram, accumulation-promotion diagram, and training summary all converge on this structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-6-i102-64">5.49.6.35 What we have now finished</h4>
+<div class="math block">
+\boxed{
+\textbf{DeepSeek FP8 — COMPLETE}
+}
+</div>
+<p>Specifically:</p>
+<div class="math block">
+\boxed{
+\text{5 pillars}
++
+\text{forward}
++
+\text{Dgrad}
++
+\text{Wgrad}
++
+\text{master update}
++
+\text{scaling}
++
+\text{accumulation}
+}
+</div>
+<p>are now connected.</p>
+<p>The source itself marks this as the end of the FP8 section and immediately transitions to the next chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

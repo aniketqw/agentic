@@ -1,0 +1,1137 @@
+<section class="chunk" id="chunk-les-step-5-35-i76" data-id="les-step-5-35-i76"><details class="audit-card" id="audit-full-chunk-les-step-5-35-i76" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-35-i76-1">Motivation</h4><p>Turn qualitative failures into a reproducible annotation rubric that complements lexical scores.</p><h4 id="v3-heading-chunk-les-step-5-35-i76-2">Prerequisites</h4><ul><li>Train/dev/test separation and task-specific fine-tuning</li><li>Tokenizer, vocabulary, multilingual pretraining</li><li>Accuracy, precision/recall and F1; distinguish points from relative percent</li><li>Faithfulness, polysemy, morphology andlanguage identification</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-3">Notation and units</h4><ul><li>L is a language; task and language jointly define an evaluation set</li><li>Scores are on a declared 0..100 scale; score differences are points</li><li>Corpus tokens depend on the counting tokenizer and release; a token is not necessarily a word</li><li>Failure labels: unsupported addition, wrong language/sense, omission, inflection error</li><li>Errorrates need numerator, denominator and sampling method</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-4">Assumptions</h4><ul><li>All historical counts are attributed to the supplied release/paper, not presented as live 2026 leaderboard facts</li><li>Translated parallel examples share content and are not statistically independent across languages</li><li>Reported scores require fixed checkpoint, preprocessing, split, prompt and metric implementation</li><li>Native-speaker review is needed forlanguage-specific judgments</li><li>Qualitativer examples illustrate failure modes;20predictions pertask/language are not a calibrated population estimate</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-5">Step-by-step derivation</h4><ol><li>For summary, align eachclaim tosource support; classify additions unsupported bythearticle even whenfluent. Distinguish compression fromomission of critical facts.</li><li>For translation, segment source information units and mark whether eachunit survives. Amissing“to shop”canchange intent despitehigh lexicaloverlap.</li><li>Forpolysemy, choose the sense supported bycontext: legalhearing andlistening aredifferent. Check alloccurrences separately; repeated form does not imply repeated meaning.</li><li>For related languages with shared script, evaluatelexicon and morphology withnative speakers; Devanagari output alone cannot certify Awadhi/Haryanvi/Chhattisgarhi.</li><li>Record taxonomy, annotator instructions, model checkpoint, decoding and sample selection before counting errors. Allow multiple labels peroutput andreport inter-annotator agreement when available.</li><li>Combine chrF/F1 with explicit support andlanguage-adherence review. Do not convert a200-output convenience qualitative sample intogeneral failure probability without representative sampling.</li></ol><h4 id="v3-heading-chunk-les-step-5-35-i76-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-35-i76-7">Qualitative sample denominator</h5><p>Given: 20predictions eachfor2tasks and5languages</p><ol><li>20×2×5=200reviewedtask-language predictions if all cells reviewed.</li><li>An illustrative3errors/20cellwouldbe15%; not a source-reportedrate.</li></ol><p>Answer: 200review instances under the stated design</p><p>Verification: indic_mla_moe / indic.qualitative_count · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-35-i76-8">Lexical overlap versus correctness</h5><p>Given: Predictionaab/reference ab for unigram chrF</p><ol><li>UnigramchrF≈90.91.</li><li>This lexical score contains no statement about source fact support.</li></ol><p>Answer: High lexical overlap does not certify faithfulness</p><p>Verification: indic_mla_moe / indic.chrf_recall_weight · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-35-i76-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-10">Mastery answers and retained exercise context</h4><ol><li>Why check facts when chrF high? Similar wording can include an unsupported detail.</li><li>How detect language bleeding? Nativelexical/morphologicalreview, not just script matching.</li><li>Does qualitative20-example analysis estimate overall error rate? It illustrates failure modes; population estimation requires defined representative sampling.</li><li>Inherited exercise 5.35.9 Exam question: Question: Why can a generation metric alone fail to fully diagnose hallucination? Because a numerical similarity score tells us how similar the generated output is to the reference under that metric, but qualitative inspection is needed to determine whether the model introduced unsupported facts that were not in the source. The IndicGenBench authors explicitly use manual analysis to expose such errors. (Source: indicgenbench-slides)</li></ol><h4 id="v3-heading-chunk-les-step-5-35-i76-11">Edge cases and remaining gaps</h4><ul><li>Human supervision does not imply exhaustive manual checking or error-free translations</li><li>An aggregate can hide task, dialect, resource tier and script gaps; report denominators and per-language results</li><li>Source benchmark results were inspected, not reproduced by running pretrained models</li><li>No pretrained outputs ornative-speaker annotations were generated in this companion.</li><li>Sharedscript and automated LID can miss language bleeding.</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-12">Connections and progression</h4><ul><li>Connects to dataset quality, generative-evaluation rubrics, translation directions and hallucination controls.</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-13">Exact source support</h4><ul><li>indicgenbench-slides(1).pdf · physical PDF pages 26, 27, 28 · Manual review scope and hallucination, language bleeding, polysemy/omission examples</li></ul><h4 id="v3-heading-chunk-les-step-5-35-i76-14">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (63)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.35 — IndicGenBench: Qualitative Failure Analysis</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.1 Why qualitative analysis is necessary</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.2 How did the authors perform the qualitative analysis?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.3 Numerical interpretation of the sample size</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.4 Failure Mode 1 — Hallucination</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.5 What should a summary do?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.6 Example of hallucination</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.7 Why is hallucination especially problematic in low-resource generation?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.8 Hallucination vs ordinary wording difference</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.9 Exam question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.10 Failure Mode 2 — Language Bleeding</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.11 What does language bleeding mean?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.12 Why are related languages especially vulnerable?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.13 Important distinction: related language ≠ same language</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.14 Language bleeding and tokenizer effects are different problems</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Tokenizer problem</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Language bleeding</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.15 Example of incorrect morphology</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.16 Failure Mode 3 — Polysemy</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.17 What went wrong?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.18 Why is this important for machine translation?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.19 Numerical polysemy example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.20 Failure Mode 4 — Missing information</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.21 What does omission mean mathematically?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Hallucination</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Omission</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.22 Four-way failure taxonomy</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Hallucination</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Language bleeding</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Polysemy error</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Omission</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.23 Why these four failures are connected</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.24 Connect to the quantitative results</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.25 Why related-language transfer is a double-edged sword</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.26 Numerical conceptual model of this tradeoff</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.27 Connect hallucination with summarization</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.28 Connect polysemy to cross-lingual translation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.29 Connect omission to information preservation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.30 The qualitative-analysis matrix</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.31 Exam-style scenario</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.32 Why this matters for model improvement</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Hallucination</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Language bleeding</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Polysemy</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Omission</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.33 Final section: licensing</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.34 Why does source lineage affect licensing?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.35 Why should engineers care?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.36 Complete IndicGenBench story</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Step 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.37 The deepest takeaway</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.35.38 Final exam bank</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.35.39 Course-level conclusion of the Indic benchmark section</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-35-i76"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-35-i76" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-34-i75">← Previous lesson</a> · <a href="#chunk-les-step-5-36-i77">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-34-i75">Step 5.34 — Transfer Languages, Few-Shot Prompting, and the Failure of Single-Language Specialization</a></p><p><strong>This lesson:</strong> Step 5.35 — IndicGenBench: Qualitative Failure Analysis</p><p><strong>Source references:</strong> <a href="#source-4">indicgenbench-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-35-i76"></a></p>
+<h2>Step 5.35 — IndicGenBench: Qualitative Failure Analysis</h2>
+<p><em>Plan node: I11 · chat order #76</em></p>
+<p>We now move from:</p>
+<div class="math block">
+\boxed{\text{“How badly does the model perform?”}}
+</div>
+<p>to the more important diagnostic question:</p>
+<div class="math block">
+\boxed{\text{“What exactly goes wrong?”}}
+</div>
+<p>The IndicGenBench authors manually inspected model outputs to understand the failure modes behind the quantitative gaps.</p>
+<p>The supplied deck focuses on three major failure patterns:</p>
+<div class="math block">
+\boxed{\text{Hallucination}}
+</div>
+<div class="math block">
+\boxed{\text{Language bleeding}}
+</div>
+<div class="math block">
+\boxed{\text{Polysemy / meaning-selection errors + missing information}}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-15">5.35.1 Why qualitative analysis is necessary</h3>
+<p>Suppose a model gets:</p>
+<div class="math block">
+\text{chrF}=40.
+</div>
+<p>That tells us the output is imperfect.</p>
+<p>But it does not tell us <strong>why</strong>.</p>
+<p>The model could be failing because of:</p>
+<div class="math block">
+\text{wrong facts}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{wrong language}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{wrong word meaning}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{missing information}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{quantitative score}
++
+\text{qualitative inspection}
+}
+</div>
+<p>gives a more useful diagnosis.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-16">5.35.2 How did the authors perform the qualitative analysis?</h3>
+<p>The deck says the authors manually reviewed:</p>
+<div class="math block">
+\boxed{20}
+</div>
+<p>predictions from:</p>
+<div class="math block">
+\boxed{\text{PaLM-2-L}}
+</div>
+<p>for each of:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{5\text{ languages}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>So the analysis examines actual outputs rather than only aggregate benchmark scores.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-17">5.35.3 Numerical interpretation of the sample size</h3>
+<p>For one task:</p>
+<div class="math block">
+20\text{ predictions/language}
+\times
+5\text{ languages}
+=
+\boxed{100}
+</div>
+<p>manually reviewed predictions.</p>
+<p>For both tasks:</p>
+<div class="math block">
+100\times2
+=
+\boxed{200}.
+</div>
+<p>So the qualitative inspection covers:</p>
+<div class="math block">
+\boxed{200\text{ predictions}}
+</div>
+<p>under this reading of the deck's sampling description.</p>
+<p>This is a derived calculation; the slide states the per-task/per-language counts rather than explicitly writing “200.”</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-18">5.35.4 Failure Mode 1 — Hallucination</h3>
+<p>The first major failure is:</p>
+<div class="math block">
+\boxed{\text{hallucination}}
+</div>
+<p>The deck says that in cross-lingual summarization, the model <strong>regularly invents details that are absent from the source article</strong>. <em>(Source: indicgenbench-slides)</em></p>
+<p>This is particularly serious for summarization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-19">5.35.5 What should a summary do?</h3>
+<p>Suppose source document <span class="math inline">D</span> contains facts:</p>
+<div class="math block">
+F(D)=\{f_1,f_2,\ldots,f_n\}.
+</div>
+<p>A faithful summary should primarily compress information already supported by <span class="math inline">D</span>:</p>
+<div class="math block">
+\boxed{
+S\approx \text{compressed representation of }D
+}
+</div>
+<p>It should not introduce an unsupported:</p>
+<div class="math block">
+f_{n+1}\notin D.
+</div>
+<p>The source doesn't provide this mathematical formulation; it is a conceptual way to describe the failure.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-20">5.35.6 Example of hallucination</h3>
+<p>Imagine the source article says:</p>
+<blockquote>
+<p>“The spacecraft was scheduled to launch next month.”</p>
+</blockquote>
+<p>A bad summary might say:</p>
+<blockquote>
+<p>“The spacecraft successfully launched last week.”</p>
+</blockquote>
+<p>The second statement introduces at least two unsupported changes:</p>
+<div class="math block">
+\text{scheduled}
+\rightarrow
+\text{successful}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{next month}
+\rightarrow
+\text{last week}.
+</div>
+<p>The model has generated a plausible sentence that is not faithful to the source.</p>
+<p>That is exactly the kind of issue the qualitative analysis is intended to uncover. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-21">5.35.7 Why is hallucination especially problematic in low-resource generation?</h3>
+<p>The benchmark already showed:</p>
+<div class="math block">
+\boxed{
+\text{Indic generation}
+&lt;
+\text{English generation}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Low-resource}
+&lt;
+\text{Medium}
+&lt;
+\text{High}
+}.
+</div>
+<p>Hallucination gives us a concrete mechanism behind part of that poor generation quality.</p>
+<p>A score decrease is now connected to:</p>
+<div class="math block">
+\boxed{
+\text{failure to preserve source-grounded facts}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-22">5.35.8 Hallucination vs ordinary wording difference</h3>
+<p>Do not confuse:</p>
+<div class="math block">
+\boxed{\text{paraphrasing}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{hallucination}}.
+</div>
+<p>Suppose source:</p>
+<blockquote>
+<p>“The mission was delayed twice.”</p>
+</blockquote>
+<p>Valid paraphrase:</p>
+<blockquote>
+<p>“The launch was postponed on two occasions.”</p>
+</blockquote>
+<p>Same factual content.</p>
+<p>But:</p>
+<blockquote>
+<p>“The mission was delayed five times.”</p>
+</blockquote>
+<p>changes the factual content.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{surface change}
+\neq
+\text{factual error}
+}
+</div>
+<p>and qualitative analysis is needed to distinguish them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-23">5.35.9 Exam question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>Why can a generation metric alone fail to fully diagnose hallucination?</p>
+</blockquote>
+<p>Because a numerical similarity score tells us how similar the generated output is to the reference under that metric, but qualitative inspection is needed to determine whether the model introduced unsupported facts that were not in the source. The IndicGenBench authors explicitly use manual analysis to expose such errors. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-24">5.35.10 Failure Mode 2 — Language Bleeding</h3>
+<p>Now comes a very interesting multilingual failure:</p>
+<div class="math block">
+\boxed{\text{language bleeding}}
+</div>
+<p>The deck focuses on:</p>
+<div class="math block">
+\boxed{\text{Awadhi}}
+</div>
+<div class="math block">
+\boxed{\text{Haryanvi}}
+</div>
+<div class="math block">
+\boxed{\text{Chhattisgarhi}}
+</div>
+<p>which are related to Hindi and share its:</p>
+<div class="math block">
+\boxed{\text{Devanagari script}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>When translating into these languages, the model frequently:</p>
+<div class="math block">
+\boxed{\text{mixes in Hindi words}}
+</div>
+<p>and produces:</p>
+<div class="math block">
+\boxed{\text{incorrectly inflected verb forms}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-25">5.35.11 What does language bleeding mean?</h3>
+<p>Suppose the requested output language is:</p>
+<div class="math block">
+L_T=\text{Awadhi}.
+</div>
+<p>But the model generates:</p>
+<div class="math block">
+\text{Awadhi}
++
+\text{Hindi}
+</div>
+<p>instead of pure Awadhi.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+P(\text{target-language token})
+}
+</div>
+<p>is being contaminated by a closely related language's patterns.</p>
+<p>This is a conceptual interpretation of the observed behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-26">5.35.12 Why are related languages especially vulnerable?</h3>
+<p>Because they may share:</p>
+<div class="math block">
+\boxed{\text{script}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{linguistic structure}}
+</div>
+<p>but still have different:</p>
+<div class="math block">
+\boxed{\text{vocabulary}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{morphology}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{inflection}}
+</div>
+<p>rules.</p>
+<p>So the model may learn:</p>
+<blockquote>
+<p>“This input belongs to a Hindi-like region of representation space.”</p>
+</blockquote>
+<p>but fail to maintain the precise target-language boundary.</p>
+<p>The source explicitly identifies the shared-Devanagari/related-language setting and the resulting Hindi mixing. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-27">5.35.13 Important distinction: related language ≠ same language</h3>
+<p>Consider:</p>
+<div class="math block">
+\boxed{
+\text{Hindi}
+\neq
+\text{Awadhi}
+}
+</div>
+<p>even if:</p>
+<div class="math block">
+\text{related}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{same script}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{shared script can help transfer}
+}
+</div>
+<p>but can also create:</p>
+<div class="math block">
+\boxed{
+\text{cross-language contamination}
+}.
+</div>
+<p>This is a very useful multilingual-model insight.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-28">5.35.14 Language bleeding and tokenizer effects are different problems</h3>
+<p>Do not mix these up.</p>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-29">Tokenizer problem</h5>
+<div class="math block">
+\text{language}
+\rightarrow
+\text{too many subword tokens}
+</div>
+<p>This affects:</p>
+<div class="math block">
+\boxed{\text{context efficiency}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-30">Language bleeding</h5>
+<div class="math block">
+\text{target language}
+\rightarrow
+\text{wrong related-language words/forms}
+</div>
+<p>This affects:</p>
+<div class="math block">
+\boxed{\text{generation correctness}}.
+</div>
+<p>They can coexist, but they are different failure mechanisms.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-31">5.35.15 Example of incorrect morphology</h3>
+<p>Suppose the target language requires:</p>
+<div class="math block">
+\text{verb form }V_T.
+</div>
+<p>The model instead generates:</p>
+<div class="math block">
+V_H
+</div>
+<p>following Hindi morphology.</p>
+<p>Then even if:</p>
+<div class="math block">
+\text{semantic meaning}
+</div>
+<p>is roughly correct, the generated language is still wrong.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{semantic adequacy}
+\neq
+\text{language correctness}
+}.
+</div>
+<p>This is particularly important when evaluating generation in closely related languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-32">5.35.16 Failure Mode 3 — Polysemy</h3>
+<p>The third failure is:</p>
+<div class="math block">
+\boxed{\text{polysemy / word-sense selection}}
+</div>
+<p>A single source word can have multiple meanings depending on context.</p>
+<p>The deck gives a concrete example involving:</p>
+<div class="math block">
+\boxed{\text{“hearing”}}
+</div>
+<p>which can refer to a:</p>
+<div class="math block">
+\text{court hearing}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{listening}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-33">5.35.17 What went wrong?</h3>
+<p>In the Konkani example, the same English word appears in two different senses.</p>
+<p>The model chooses the:</p>
+<div class="math block">
+\boxed{\text{“listening”}}
+</div>
+<p>sense both times.</p>
+<p>But the first occurrence refers to:</p>
+<div class="math block">
+\boxed{\text{a court hearing}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>So the model failed to use context to disambiguate the word.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-34">5.35.18 Why is this important for machine translation?</h3>
+<p>Machine translation is not:</p>
+<div class="math block">
+\boxed{
+\text{word}
+\rightarrow
+\text{fixed dictionary translation}
+}
+</div>
+<p>It should be:</p>
+<div class="math block">
+\boxed{
+\text{word + context}
+\rightarrow
+\text{appropriate target meaning}
+}.
+</div>
+<p>This is the essence of polysemy.</p>
+<p>The same source word:</p>
+<div class="math block">
+w
+</div>
+<p>can represent:</p>
+<div class="math block">
+m_1,m_2,\ldots,m_k.
+</div>
+<p>The model must estimate:</p>
+<div class="math block">
+\boxed{
+P(m_i\mid w,\text{context})
+}
+</div>
+<p>rather than always choosing the same <span class="math inline">m_i</span>.</p>
+<p>That equation is general NLP reasoning, not a source-provided formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-35">5.35.19 Numerical polysemy example</h3>
+<p>Suppose a word has two possible senses:</p>
+<div class="math block">
+P(m_1\mid context)=0.8
+</div>
+<div class="math block">
+P(m_2\mid context)=0.2.
+</div>
+<p>Correct interpretation:</p>
+<div class="math block">
+\boxed{m_1}.
+</div>
+<p>But if the model uses a context-insensitive prior:</p>
+<div class="math block">
+P(m_1)=0.4,
+</div>
+<div class="math block">
+P(m_2)=0.6,
+</div>
+<p>it may choose:</p>
+<div class="math block">
+\boxed{m_2}
+</div>
+<p>incorrectly.</p>
+<p>Again, this is an illustrative mathematical explanation, not a reported model probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-36">5.35.20 Failure Mode 4 — Missing information</h3>
+<p>The same qualitative-analysis slide identifies another issue:</p>
+<div class="math block">
+\boxed{
+\text{information omission}
+}
+</div>
+<p>The deck gives an Assamese example where:</p>
+<div class="math block">
+\boxed{\text{“to shop”}}
+</div>
+<p>is simply absent from the generated translation. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-37">5.35.21 What does omission mean mathematically?</h3>
+<p>Suppose source information contains:</p>
+<div class="math block">
+F=\{f_1,f_2,f_3,f_4\}.
+</div>
+<p>A complete translation should preserve all relevant information.</p>
+<p>If the model produces:</p>
+<div class="math block">
+\hat F=\{f_1,f_2,f_4\},
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{f_3}
+</div>
+<p>has disappeared.</p>
+<p>This is different from hallucination.</p>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-38">Hallucination</h5>
+<div class="math block">
+\boxed{
+\hat F=F+\{f_{\text{false}}\}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-39">Omission</h5>
+<div class="math block">
+\boxed{
+\hat F\subset F
+}
+</div>
+<p>This distinction is extremely useful.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-40">5.35.22 Four-way failure taxonomy</h3>
+<p>We can now organize the qualitative results:</p>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-41">Hallucination</h5>
+<div class="math block">
+\boxed{
+\text{adds unsupported information}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-42">Language bleeding</h5>
+<div class="math block">
+\boxed{
+\text{mixes target language with a related language}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-43">Polysemy error</h5>
+<div class="math block">
+\boxed{
+\text{chooses the wrong sense of an ambiguous word}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-44">Omission</h5>
+<div class="math block">
+\boxed{
+\text{drops information from the source}
+}
+</div>
+<p>All four are explicitly represented in the final qualitative-analysis slides. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-45">5.35.23 Why these four failures are connected</h3>
+<p>Notice that these are not random errors.</p>
+<p>They correspond to different requirements of generation:</p>
+<div class="math block">
+\boxed{
+\text{Faithfulness}
+}
+</div>
+<p>requires avoiding hallucination.</p>
+<div class="math block">
+\boxed{
+\text{Target-language control}
+}
+</div>
+<p>requires avoiding language bleeding.</p>
+<div class="math block">
+\boxed{
+\text{Contextual semantic understanding}
+}
+</div>
+<p>requires correct polysemy resolution.</p>
+<div class="math block">
+\boxed{
+\text{Information preservation}
+}
+</div>
+<p>requires avoiding omission.</p>
+<p>So a good translation requires all four simultaneously.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-46">5.35.24 Connect to the quantitative results</h3>
+<p>Earlier we observed:</p>
+<div class="math block">
+\boxed{
+\text{High resource}
+&gt;
+\text{Medium}
+&gt;
+\text{Low}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{English generation}
+&gt;
+\text{Indic generation}
+}.
+</div>
+<p>Qualitative analysis now tells us what some of those failures look like in practice:</p>
+<div class="math block">
+\boxed{
+\text{wrong facts}
++
+\text{wrong language}
++
+\text{wrong sense}
++
+\text{missing content}
+}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{aggregate score}
+\rightarrow
+\text{diagnostic failure modes}
+}
+</div>
+<p>is the important methodological connection.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-47">5.35.25 Why related-language transfer is a double-edged sword</h3>
+<p>Earlier:</p>
+<div class="math block">
+\boxed{
+\text{Hindi exemplars}
+&gt;
+\text{English exemplars}
+}
+</div>
+<p>for many target languages. <em>(Source: indicgenbench-slides)</em></p>
+<p>But now:</p>
+<div class="math block">
+\boxed{
+\text{Hindi}
+\rightarrow
+\text{Awadhi/Haryanvi/Chhattisgarhi}
+}
+</div>
+<p>can cause Hindi to bleed into the target output. <em>(Source: indicgenbench-slides)</em></p>
+<p>So linguistic similarity has two sides:</p>
+<div class="math block">
+\boxed{
+\text{similarity}
+\rightarrow
+\text{better transfer}
+}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{
+\text{similarity}
+\rightarrow
+\text{greater risk of confusion}
+}.
+</div>
+<p>That is a very important research insight.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-48">5.35.26 Numerical conceptual model of this tradeoff</h3>
+<p>Suppose linguistic relatedness gives:</p>
+<div class="math block">
++10
+</div>
+<p>points of transfer benefit.</p>
+<p>But language confusion causes:</p>
+<div class="math block">
+-4
+</div>
+<p>points of bleeding-related degradation.</p>
+<p>Then net:</p>
+<div class="math block">
+10-4
+=
+\boxed{+6}.
+</div>
+<p>This is purely an illustrative decomposition.</p>
+<p>The source does not provide separate numeric contributions for language bleeding.</p>
+<p>The key idea is that relatedness can be both:</p>
+<div class="math block">
+\boxed{\text{an advantage}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{a source of interference}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-49">5.35.27 Connect hallucination with summarization</h3>
+<p>CrossSum-IN is:</p>
+<div class="math block">
+\boxed{
+\text{long source}
+\rightarrow
+\text{short target output}
+}.
+</div>
+<p>That compression creates a difficult requirement:</p>
+<div class="math block">
+\boxed{
+\text{remove redundancy without inventing facts}
+}.
+</div>
+<p>The qualitative result shows that the model can fail specifically on the second requirement.</p>
+<p>So summarization quality is not just:</p>
+<div class="math block">
+\text{shorter text}.
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{compression}
++
+\text{faithfulness}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-50">5.35.28 Connect polysemy to cross-lingual translation</h3>
+<p>In machine translation:</p>
+<div class="math block">
+\text{source word}
+\rightarrow
+\text{target word}
+</div>
+<p>is insufficient.</p>
+<p>The actual process is closer to:</p>
+<div class="math block">
+\boxed{
+\text{source word}
++
+\text{sentence context}
++
+\text{discourse context}
+\rightarrow
+\text{target meaning}
+}.
+</div>
+<p>The Konkani “hearing” example demonstrates a failure when context isn't used correctly to choose between senses. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-51">5.35.29 Connect omission to information preservation</h3>
+<p>For translation, a good system should preserve:</p>
+<div class="math block">
+\boxed{
+\text{who}
++
+\text{what}
++
+\text{when}
++
+\text{where}
++
+\text{relevant action}
+}.
+</div>
+<p>If an important action such as:</p>
+<div class="math block">
+\boxed{\text{“to shop”}}
+</div>
+<p>disappears, the output may sound fluent while still being incomplete.</p>
+<p>That's an especially important lesson:</p>
+<div class="math block">
+\boxed{
+\text{fluency}
+\neq
+\text{faithfulness}.
+}
+</div>
+<p>The Assamese example in the deck demonstrates exactly this point. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-52">5.35.30 The qualitative-analysis matrix</h3>
+<p>You can organize the failures like this:</p>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>What model does</th>
+<th>What should happen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hallucination</td>
+<td>Adds unsupported fact</td>
+<td>Preserve source facts</td>
+</tr>
+<tr>
+<td>Language bleeding</td>
+<td>Uses Hindi in another target language</td>
+<td>Stay in requested language</td>
+</tr>
+<tr>
+<td>Polysemy</td>
+<td>Picks wrong word sense</td>
+<td>Use contextual sense</td>
+</tr>
+<tr>
+<td>Omission</td>
+<td>Drops source information</td>
+<td>Preserve relevant content</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-53">5.35.31 Exam-style scenario</h3>
+<p>Suppose the source says:</p>
+<blockquote>
+<p>“The court scheduled a hearing for Monday.”</p>
+</blockquote>
+<p>Model translation interprets “hearing” as “listening.”</p>
+<p>Classification:</p>
+<div class="math block">
+\boxed{\text{Polysemy error}}
+</div>
+<p>not hallucination.</p>
+<hr />
+<p>Suppose instead the model writes:</p>
+<blockquote>
+<p>“The court scheduled a hearing for Monday and the judge ordered five arrests.”</p>
+</blockquote>
+<p>when the source says nothing about arrests.</p>
+<p>Classification:</p>
+<div class="math block">
+\boxed{\text{Hallucination}}.
+</div>
+<hr />
+<p>Suppose:</p>
+<blockquote>
+<p>“The boy went to the shop and bought food.”</p>
+</blockquote>
+<p>becomes:</p>
+<blockquote>
+<p>“The boy went to the shop.”</p>
+</blockquote>
+<p>Classification:</p>
+<div class="math block">
+\boxed{\text{Omission}}.
+</div>
+<hr />
+<p>Suppose the target is Awadhi but half the generated words are Hindi.</p>
+<p>Classification:</p>
+<div class="math block">
+\boxed{\text{Language bleeding}}.
+</div>
+<p>These distinctions are directly grounded in the failure categories shown by the deck. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-54">5.35.32 Why this matters for model improvement</h3>
+<p>Different errors require different interventions.</p>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-55">Hallucination</h5>
+<p>Potential direction:</p>
+<div class="math block">
+\boxed{
+\text{better source grounding / factuality control}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-56">Language bleeding</h5>
+<p>Potential direction:</p>
+<div class="math block">
+\boxed{
+\text{better target-language conditioning / language-specific training}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-57">Polysemy</h5>
+<p>Potential direction:</p>
+<div class="math block">
+\boxed{
+\text{better contextual semantic modeling}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-58">Omission</h5>
+<p>Potential direction:</p>
+<div class="math block">
+\boxed{
+\text{better coverage/content preservation}
+}
+</div>
+<p>These are general remediation ideas. The supplied deck identifies the failure modes but does not prescribe a complete solution for each, so these improvement directions should be treated as model-level inference rather than source claims.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-59">5.35.33 Final section: licensing</h3>
+<p>The deck closes with a practical but important issue:</p>
+<div class="math block">
+\boxed{
+\text{dataset licensing}
+}.
+</div>
+<p>Because IndicGenBench builds on existing datasets, it inherits their licensing constraints. <em>(Source: indicgenbench-slides)</em></p>
+<p>The reported licenses are:</p>
+<div class="math block">
+\boxed{
+\text{XQuAD-IN, FLORES-IN}
+\rightarrow
+\text{CC BY-SA 4.0}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{CrossSum-IN}
+\rightarrow
+\text{CC BY-NC-SA 4.0}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{XorQA-IN}
+\rightarrow
+\text{MIT}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-60">5.35.34 Why does source lineage affect licensing?</h3>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{new benchmark}
+}
+</div>
+<p>doesn't necessarily mean:</p>
+<div class="math block">
+\boxed{
+\text{new legal status}.
+}
+</div>
+<p>If a benchmark extends:</p>
+<div class="math block">
+\text{dataset A},
+</div>
+<p>its derived data may inherit constraints from dataset A.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{technical lineage}
+\rightarrow
+\text{licensing lineage}
+}.
+</div>
+<p>The deck explicitly calls this another consequence of the translation-based approach. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-61">5.35.35 Why should engineers care?</h3>
+<p>Suppose you build:</p>
+<div class="math block">
+\text{new multilingual dataset}
+</div>
+<p>from:</p>
+<div class="math block">
+\text{existing benchmark}.
+</div>
+<p>Even if:</p>
+<div class="math block">
+\text{your annotations are new},
+</div>
+<p>you still need to check:</p>
+<div class="math block">
+\boxed{
+\text{license of original data}
+}.
+</div>
+<p>A dataset being publicly available does <strong>not</strong> automatically mean unrestricted commercial or derivative use.</p>
+<p>The exact legal obligations depend on the license.</p>
+<p>The deck's point is specifically that benchmark lineage determines these constraints. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-62">5.35.36 Complete IndicGenBench story</h3>
+<p>We can now connect the whole benchmark from beginning to end.</p>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-63">Step 1</h5>
+<p>Why build it?</p>
+<div class="math block">
+\boxed{
+\text{Indic generation quality was insufficiently measured}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-64">Step 2</h5>
+<p>How?</p>
+<div class="math block">
+\boxed{
+29\text{ languages}
++
+5\text{ generation tasks}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-65">Step 3</h5>
+<p>How construct data?</p>
+<div class="math block">
+\boxed{
+\text{existing benchmarks}
++
+\text{professional translation}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-66">Step 4</h5>
+<p>How score?</p>
+<div class="math block">
+\boxed{
+\text{chrF}
++
+\text{token-F1}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-67">Step 5</h5>
+<p>What happens quantitatively?</p>
+<div class="math block">
+\boxed{
+\text{High}&gt; \text{Medium}&gt; \text{Low}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Indic generation}&lt;\text{English generation}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-68">Step 6</h5>
+<p>What actually goes wrong?</p>
+<div class="math block">
+\boxed{
+\text{hallucination}
++
+\text{language bleeding}
++
+\text{polysemy errors}
++
+\text{omissions}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-69">5.35.37 The deepest takeaway</h3>
+<p>The most important lesson from the qualitative analysis is:</p>
+<div class="math block">
+\boxed{
+\text{A multilingual model can produce fluent-looking text and still fail in several fundamentally different ways.}
+}
+</div>
+<p>It can:</p>
+<div class="math block">
+\boxed{
+\text{invent facts}
+}
+</div>
+<p>while sounding fluent.</p>
+<p>It can:</p>
+<div class="math block">
+\boxed{
+\text{mix languages}
+}
+</div>
+<p>while remaining understandable.</p>
+<p>It can:</p>
+<div class="math block">
+\boxed{
+\text{choose the wrong meaning}
+}
+</div>
+<p>while producing grammatical text.</p>
+<p>And it can:</p>
+<div class="math block">
+\boxed{
+\text{omit important source information}
+}
+</div>
+<p>while generating a concise output.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{good generation}
+\neq
+\text{fluency alone}
+}
+</div>
+<p>A robust multilingual generator needs:</p>
+<div class="math block">
+\boxed{
+\text{faithfulness}
++
+\text{language fidelity}
++
+\text{semantic correctness}
++
+\text{information preservation}
+}.
+</div>
+<p>That is the most important conclusion from the final IndicGenBench slides. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-70">5.35.38 Final exam bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-71">Q1</h5>
+<p>A model inserts facts absent from the source.</p>
+<div class="math block">
+\boxed{\text{Hallucination}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-72">Q2</h5>
+<p>A model translates into Awadhi but repeatedly inserts Hindi words.</p>
+<div class="math block">
+\boxed{\text{Language bleeding}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-73">Q3</h5>
+<p>“hearing” is translated as “listening” even when the context indicates a court proceeding.</p>
+<div class="math block">
+\boxed{\text{Polysemy / sense-selection error}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-74">Q4</h5>
+<p>The source says “to shop,” but the translation omits that action.</p>
+<div class="math block">
+\boxed{\text{Information omission}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-35-i76-75">Q5</h5>
+<p>Why inspect outputs manually?</p>
+<div class="math block">
+\boxed{
+\text{Aggregate metrics tell you that performance is poor; qualitative analysis tells you what kind of errors produced the poor performance.}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-35-i76-76">5.35.39 Course-level conclusion of the Indic benchmark section</h3>
+<p>We have now completed the major Indic benchmark story:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}
+}
+</div>
+<p>measures multilingual <strong>understanding/NLU</strong>.</p>
+<div class="math block">
+\boxed{
+\text{IndicGenBench}
+}
+</div>
+<p>measures multilingual <strong>generation</strong>.</p>
+<p>Together:</p>
+<div class="math block">
+\boxed{
+\text{Understand}
++
+\text{Generate}
+}
+</div>
+<p>give a much broader picture of Indic-language LLM capability.</p>
+<p>And both reveal the same fundamental reality:</p>
+<div class="math block">
+\boxed{
+\text{language-resource imbalance remains a major obstacle}
+}
+</div>
+<p>even when multilingual or Indic-focused models become substantially stronger. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+</section>

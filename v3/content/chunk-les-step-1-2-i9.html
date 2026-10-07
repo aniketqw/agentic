@@ -1,0 +1,1080 @@
+<section class="chunk" id="chunk-les-step-1-2-i9" data-id="les-step-1-2-i9"><details class="audit-card" id="audit-full-chunk-les-step-1-2-i9" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-1">Motivation</h4><p>Motivation: convert categorical text into trainable vectors without treating arbitrary token ID order as semantic distance. Prerequisites: vocabulary indexing, matrix rows and gradients. Distinguish an ID, a static input embedding, a position-dependent input and a contextual hidden state.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-2">Prerequisites</h4><ul><li>Read the prerequisite chain stated in the original lesson and this review motivation.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-3">Notation and units</h4><ul><li>X_{btj}=W_E[\mathrm{id}_{bt},j]</li><li>\frac{\partial L}{\partial W_E[v,j]}=\sum_{b,t:\mathrm{id}_{bt}=v}\frac{\partial L}{\partial X_{btj}}</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-4">Assumptions</h4><ul><li>Use zero-based IDs, W_E of shape [V,d], integer inputs [B,T] and output [B,T,d]. The inherited numbers are rounded displayed book values, not a promised seeded random output from the unseeded inherited snippet. The CPU companion uses a declared fixed toy vocabulary; it does not implement a production tokenizer.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-5">Step-by-step derivation</h4><ol><li>For IDs [2,3,5,1], select rows 2,3,5,1 of the displayed 6×3 embedding table. The output is [[1.2753,−0.2010,−0.1606],[−0.4015,0.9666,−1.1481],[−2.8400,−0.7849,−1.4096],[0.9178,1.5810,1.3010]], shape [4,3].</li><li>Multiplying a one-hot row e_id by W_E selects that same row. Batch lookup does not create a dense [B,T,V] tensor; it indexes the table directly.</li><li>In the backward pass, add each token-position gradient to its selected embedding row. Repeated IDs require accumulation, not overwriting; the companion uses np.add.at. End-to-end finite differences include repeated IDs in both batch rows.</li><li>For V=50,000 and d=4,096, the table has 204,800,000 parameters. This is parameter storage; [B,T,d] is the embedding activation shape.</li><li>For the new application, sequence [0,1,0,2] supplies inputs [0,1,0] and targets [1,0,2]. Add learned position rows before the first block. The tied-weight variant would add output-head gradients to the same shared table; this companion deliberately has separate weights.</li></ol><h4 id="v3-heading-chunk-les-step-1-2-i9-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-2-i9-7">Integrated decoder two_block_logits</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>For IDs [2,3,5,1], select rows 2,3,5,1 of the displayed 6×3 embedding table. The output is [[1.2753,−0.2010,−0.1606],[−0.4015,0.9666,−1.1481],[−2.8400,−0.7849,−1.4096],[0.9178,1.5810,1.3010]], shape [4,3].</li><li>Multiplying a one-hot row e_id by W_E selects that same row. Batch lookup does not create a dense [B,T,V] tensor; it indexes the table directly.</li><li>In the backward pass, add each token-position gradient to its selected embedding row. Repeated IDs require accumulation, not overwriting; the companion uses np.add.at. End-to-end finite differences include repeated IDs in both batch rows.</li><li>For V=50,000 and d=4,096, the table has 204,800,000 parameters. This is parameter storage; [B,T,d] is the embedding activation shape.</li><li>For the new application, sequence [0,1,0,2] supplies inputs [0,1,0] and targets [1,0,2]. Add learned position rows before the first block. The tied-weight variant would add output-head gradients to the same shared table; this companion deliberately has separate weights.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_logits · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-2-i9-8">Integrated decoder two_block_mean_ce</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>For IDs [2,3,5,1], select rows 2,3,5,1 of the displayed 6×3 embedding table. The output is [[1.2753,−0.2010,−0.1606],[−0.4015,0.9666,−1.1481],[−2.8400,−0.7849,−1.4096],[0.9178,1.5810,1.3010]], shape [4,3].</li><li>Multiplying a one-hot row e_id by W_E selects that same row. Batch lookup does not create a dense [B,T,V] tensor; it indexes the table directly.</li><li>In the backward pass, add each token-position gradient to its selected embedding row. Repeated IDs require accumulation, not overwriting; the companion uses np.add.at. End-to-end finite differences include repeated IDs in both batch rows.</li><li>For V=50,000 and d=4,096, the table has 204,800,000 parameters. This is parameter storage; [B,T,d] is the embedding activation shape.</li><li>For the new application, sequence [0,1,0,2] supplies inputs [0,1,0] and targets [1,0,2]. Add learned position rows before the first block. The tied-weight variant would add output-head gradients to the same shared table; this companion deliberately has separate weights.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_mean_ce · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-2-i9-9">Integrated decoder future_token_invariance</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>For IDs [2,3,5,1], select rows 2,3,5,1 of the displayed 6×3 embedding table. The output is [[1.2753,−0.2010,−0.1606],[−0.4015,0.9666,−1.1481],[−2.8400,−0.7849,−1.4096],[0.9178,1.5810,1.3010]], shape [4,3].</li><li>Multiplying a one-hot row e_id by W_E selects that same row. Batch lookup does not create a dense [B,T,V] tensor; it indexes the table directly.</li><li>In the backward pass, add each token-position gradient to its selected embedding row. Repeated IDs require accumulation, not overwriting; the companion uses np.add.at. End-to-end finite differences include repeated IDs in both batch rows.</li><li>For V=50,000 and d=4,096, the table has 204,800,000 parameters. This is parameter storage; [B,T,d] is the embedding activation shape.</li><li>For the new application, sequence [0,1,0,2] supplies inputs [0,1,0] and targets [1,0,2]. Add learned position rows before the first block. The tied-weight variant would add output-head gradients to the same shared table; this companion deliberately has separate weights.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / future_token_invariance · reused earlier evidence; not counted again</p></div><h4 id="v3-heading-chunk-les-step-1-2-i9-10">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-11">Mastery answers and retained exercise context</h4><ol><li>Q1: IDs are arbitrary categorical indices; their numerical magnitudes and distances do not define semantic features.</li><li>Q2: [128,768] for one unbatched sequence; [B,128,768] with a batch axis.</li><li>Q3: W_E[[3,7,1]], selecting those three rows, returns [3,4].</li><li>Q4: Fresh random initialization has not yet been optimized for language prediction; pretrained initialization is a separate case.</li><li>Q5: The single one in e_id selects exactly one row in e_id W_E.</li><li>Q6: ID = discrete index; embedding = learned table row; hidden state = representation after context-dependent computation.</li><li>Q7: Reusable subwords reduce vocabulary pressure and can represent unseen combinations; coverage depends on the base alphabet and tokenizer rules.</li><li>Q8: text → tokenization → token IDs → embedding lookup in W_E → [T,d] vectors → Transformer.</li></ol><h4 id="v3-heading-chunk-les-step-1-2-i9-12">Edge cases and remaining gaps</h4><ul><li>BPE alone is not an unconditional guarantee of covering arbitrary text. Byte-level BPE with a complete base-byte alphabet provides the relevant coverage; normalization, unknown tokens and special-token rules remain tokenizer-specific.</li><li>The illustrative word splits and token IDs are hypothetical. Reproducing a real tokenizer requires its exact vocabulary, merge rules, normalization and special-token configuration.</li><li>Negative/out-of-range IDs, noninteger IDs and empty sequences are rejected by the companion. PAD must be handled by the appropriate attention and loss masks; this unpadded companion does not implement PAD handling.</li><li>Randomly initialized embeddings need not have useful semantic geometry. Useful similarity and contextual interpretation are learned properties, not guaranteed labels for vector coordinates.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-13">Connections and progression</h4><ul><li>Embedding gradients connect the input table to next-token training. The companion follows these vectors through Q/K/V, two blocks and the output head. Position-table length is checked explicitly.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-14">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 96, 97, 98, 99 · BPE transition and tokenizer-dependent subword handling</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 119, 120, 121 · displayed embedding table, lookup and one-hot equivalence</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 282 · token and positional embedding lookup in the decoder</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-15">Executable code and explained functions</h4><p>transformer_review/examples/decoder.py</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (55)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.2 — Tokens → Token IDs → Embeddings</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.1 Why Can&#x27;t We Just Feed Text Directly?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.2 Stage 1 — Tokenization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.3 Token Does NOT Necessarily Mean Word</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.4 Why Not Use One Token for Every Possible Word?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.5 Stage 2 — Token IDs</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.6 Why Integer IDs?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.7 Stage 3 — The Embedding Matrix</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.8 Embedding = Lookup</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.9 Let&#x27;s Do the Exact Numerical Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>ID 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>ID 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>ID 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>ID 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.10 Why Are These Vectors Random Initially?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.11 The Embeddings Are Trainable Parameters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.12 One-Hot Encoding Connection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.13 Why Embeddings Are Better Than Raw IDs</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.14 But There Is an Important Modern-LM Nuance</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.15 Where BPE Enters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.16 The Main Idea Behind BPE</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.17 Why Subwords Are So Useful</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.18 Special Tokens</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>BOS</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>EOS</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>PAD</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.19 Complete Representation Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Stage 1 — Raw text</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Stage 2 — Tokenization</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Stage 3 — Token IDs</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Stage 4 — Embedding lookup</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Stage 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.20 Batch Shapes</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Token IDs</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Embeddings</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.21 Executable PyTorch Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>1.2.22 Batch Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.23 Why Is the Embedding Matrix So Large?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.24 A Crucial Distinction: Token IDs vs Embeddings vs Hidden States</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Token ID</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Token embedding</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Contextual hidden state</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.2.25 Where the Learning Happens</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.26 Source Mapping</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.27 The Mental Model You Should Now Have</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.2.28 One More Important Connection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>STEP 1.2 MASTER CHECK</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-transformer-1-2" data-transformer-review="added"><summary>Verified reconstruction and answer key — Tokens, IDs and embedding lookup</summary><p>This addendum qualifies the retained original lesson. It distinguishes source-derived mechanisms, printed approximations, independently calculated teaching fixtures and remaining gaps.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-16">Motivation, prerequisites and notation</h4><p>Motivation: convert categorical text into trainable vectors without treating arbitrary token ID order as semantic distance. Prerequisites: vocabulary indexing, matrix rows and gradients. Distinguish an ID, a static input embedding, a position-dependent input and a contextual hidden state.</p><p>Use zero-based IDs, W_E of shape [V,d], integer inputs [B,T] and output [B,T,d]. The inherited numbers are rounded displayed book values, not a promised seeded random output from the unseeded inherited snippet. The CPU companion uses a declared fixed toy vocabulary; it does not implement a production tokenizer.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-17">Step-by-step derivation and numerical results</h4><ol><li>For IDs [2,3,5,1], select rows 2,3,5,1 of the displayed 6×3 embedding table. The output is [[1.2753,−0.2010,−0.1606],[−0.4015,0.9666,−1.1481],[−2.8400,−0.7849,−1.4096],[0.9178,1.5810,1.3010]], shape [4,3].</li><li>Multiplying a one-hot row e_id by W_E selects that same row. Batch lookup does not create a dense [B,T,V] tensor; it indexes the table directly.</li><li>In the backward pass, add each token-position gradient to its selected embedding row. Repeated IDs require accumulation, not overwriting; the companion uses np.add.at. End-to-end finite differences include repeated IDs in both batch rows.</li><li>For V=50,000 and d=4,096, the table has 204,800,000 parameters. This is parameter storage; [B,T,d] is the embedding activation shape.</li><li>For the new application, sequence [0,1,0,2] supplies inputs [0,1,0] and targets [1,0,2]. Add learned position rows before the first block. The tied-weight variant would add output-head gradients to the same shared table; this companion deliberately has separate weights.</li></ol><div class="math block">X_{btj}=W_E[\mathrm{id}_{bt},j]</div><div class="math block">\frac{\partial L}{\partial W_E[v,j]}=\sum_{b,t:\mathrm{id}_{bt}=v}\frac{\partial L}{\partial X_{btj}}</div><h4 id="v3-heading-chunk-les-step-1-2-i9-18">Edge cases and limits</h4><ul><li>BPE alone is not an unconditional guarantee of covering arbitrary text. Byte-level BPE with a complete base-byte alphabet provides the relevant coverage; normalization, unknown tokens and special-token rules remain tokenizer-specific.</li><li>The illustrative word splits and token IDs are hypothetical. Reproducing a real tokenizer requires its exact vocabulary, merge rules, normalization and special-token configuration.</li><li>Negative/out-of-range IDs, noninteger IDs and empty sequences are rejected by the companion. PAD must be handled by the appropriate attention and loss masks; this unpadded companion does not implement PAD handling.</li><li>Randomly initialized embeddings need not have useful semantic geometry. Useful similarity and contextual interpretation are learned properties, not guaranteed labels for vector coordinates.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-19">Complete inherited mastery answer key</h4><ol><li>Q1: IDs are arbitrary categorical indices; their numerical magnitudes and distances do not define semantic features.</li><li>Q2: [128,768] for one unbatched sequence; [B,128,768] with a batch axis.</li><li>Q3: W_E[[3,7,1]], selecting those three rows, returns [3,4].</li><li>Q4: Fresh random initialization has not yet been optimized for language prediction; pretrained initialization is a separate case.</li><li>Q5: The single one in e_id selects exactly one row in e_id W_E.</li><li>Q6: ID = discrete index; embedding = learned table row; hidden state = representation after context-dependent computation.</li><li>Q7: Reusable subwords reduce vocabulary pressure and can represent unseen combinations; coverage depends on the base alphabet and tokenizer rules.</li><li>Q8: text → tokenization → token IDs → embedding lookup in W_E → [T,d] vectors → Transformer.</li></ol><h4 id="v3-heading-chunk-les-step-1-2-i9-20">Exact grounding</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 96, 97, 98, 99 · BPE transition and tokenizer-dependent subword handling</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 119, 120, 121 · displayed embedding table, lookup and one-hot equivalence</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 282 · token and positional embedding lookup in the decoder</li></ul><p>Physical-page text and PDF identities are fingerprinted in source_locators.json and source_page_excerpts.json. These are selected supporting passages, not certification of every sentence or a pretrained-model result.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-21">Progression and executable application</h4><p>Embedding gradients connect the input table to next-token training. The companion follows these vectors through Q/K/V, two blocks and the output head. Position-table length is checked explicitly.</p><p><a href="#audit-transformer-code">Complete CPU decoder, function explanations and outputs</a> · <a href="#audit-transformer-checks">Independent verification evidence</a></p></details><details class="audit-card" id="audit-T15" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> T15 — BPE training versus BPE encoding</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Subwords allow a finite vocabulary to represent many words without storing every whole word.</p><p><strong>Prerequisites:</strong> <a href="#audit-T02">Embedding lookup and one-hot equivalence</a></p><h4 id="v3-heading-chunk-les-step-1-2-i9-22">Notation and assumptions</h4><p>Toy character alphabet, explicit &lt;/w&gt;, frequency-weighted words. Actual byte-level tokenizers also specify bytes, normalization, pre-tokenization and special tokens.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-23">Derivation and mechanism</h4><ol><li>Start with character sequences for each word and its count.</li><li>Count adjacent pairs, weighting each occurrence by word frequency.</li><li>Merge the most frequent pair, break ties lexically, and recount.</li><li>Encoding replays the learned merge ranks; it does not retrain on the new word.</li></ol><h4 id="v3-heading-chunk-les-step-1-2-i9-24">Worked example</h4><p>For low×5 and lower×2, (l,o) and (o,w) each count 7. The declared tie rule chooses (l,o), then (lo,w), then (low,&lt;/w&gt;) with count5. lower encodes as [low,e,r,&lt;/w&gt;]. The companion prints every learned merge.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-25">Limitations</h4><ul><li>This is a BPE mechanism fixture, not a byte-for-byte tiktoken replacement.</li><li>Unseen characters need a defined fallback alphabet; bytes solve a different representation contract.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-26">Connections to later concepts</h4><ul><li>Tokenization defines vocabulary IDs used by T02 embedding lookup. Fertility also changes how much context fits within a fixed token budget.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-27">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 96, 97, 98, 99 · §2.5 BPE</li><li><a href="https://aclanthology.org/P16-1162/" rel="noopener noreferrer">§3 and Algorithm1; character subwords</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-28">Executed code and evidence</h4><p>Functions: bpe_train, bpe_apply. Passed checks: BPE-pair-rank, BPE-encode</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-T02" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T02 — Embedding lookup and one-hot equivalence</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T01">← Previous audit card</a> · <a href="#audit-T03">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-2-i9-29">Why this matters</h4><p>An ID identifies a vocabulary row; an embedding turns that identifier into a learned feature vector.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-1-2-i9-30">Symbols, shapes and assumptions</h4><p>E has shape V×d. IDs must be integers in [0,V). One-hot selection is mathematically equivalent to gathering a row; it is usually less efficient to materialize.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-31">Derivation or mechanism</h4><ol><li>Construct the indicator row e_id with one 1.</li><li>Multiply e_id E; all unselected rows vanish.</li><li>Gather that same E row directly in executable code.</li></ol><div class="math block" data-tex="x_t=e_{id_t}E=E[id_t,:]">x_t=e_{id_t}E=E[id_t,:]</div><h4 id="v3-heading-chunk-les-step-1-2-i9-32">Worked numerical</h4><p>For E=[[1,0],[0,1],[1,1]] and IDs [2,0,2], the embeddings are [[1,1],[1,0],[1,1]]. Repeated ID 2 retrieves the same vector before positional information. A NumPy one-hot multiplication independently reproduces the gather.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-33">Edge cases and limits</h4><ul><li>ID 2 is not semantically twice ID 1.</li><li>Out-of-range IDs are rejected.</li><li>This fixture checks lookup, not a BPE tokenizer or learned semantic quality; those remain separate audit concepts.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-34">Connections</h4><ul><li>T07 adds positional information.</li><li>T13 maps final features back to vocabulary logits.</li></ul><h4 id="v3-heading-chunk-les-step-1-2-i9-35">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 4 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 118, 119, 120, 121, 122 · §2.7</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-2-i9-36">Executable companion and checking evidence</h4><p>Functions: <code>embedding</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T02-embedding. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-2-i9"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-2-i9" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-1-i8">← Previous lesson</a> · <a href="#chunk-les-step-1-3-i10">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a></p><p><strong>This lesson:</strong> Step 1.2 — Tokens → Token IDs → Embeddings</p><p><strong>Source references:</strong> Use the exact grounding note in this bridge.</p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-2-i9"></a></p>
+<h2>Step 1.2 — Tokens → Token IDs → Embeddings</h2>
+<p><em>Plan node: I1 · chat order #9</em></p>
+<p>Now we move one level deeper.</p>
+<p>In Step 1.1, we established that the language model works on a sequence</p>
+<div class="math block">
+x_1,x_2,\ldots,x_T
+</div>
+<p>and predicts</p>
+<div class="math block">
+P(x_t\mid x_{&lt;t})
+</div>
+<p>But there is a problem:</p>
+<blockquote>
+<p><strong>A neural network cannot directly consume the raw string <code>&quot;The cat sat&quot;</code> as matrix input.</strong></p>
+</blockquote>
+<p>We therefore need the pipeline:</p>
+<div class="math block">
+\boxed{
+\text{Raw text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\text{embedding vectors}
+\rightarrow
+X
+}
+</div>
+<p>The Transformer slides show exactly this first conversion:</p>
+<div class="math block">
+\text{Tokens}\rightarrow\text{Embeddings}
+</div>
+<p>with a learned embedding matrix.</p>
+<p>Raschka's book expands this into tokenization, vocabulary construction, token IDs, BPE, and embedding lookup.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-37">1.2.1 Why Can't We Just Feed Text Directly?</h3>
+<p>Suppose the input is:</p>
+<pre><code class="language-text">I love Transformers
+</code></pre>
+<p>A neural network performs mathematical operations such as:</p>
+<div class="math block">
+XW
+</div>
+<div class="math block">
+QK^T
+</div>
+<div class="math block">
+\operatorname{softmax}(z)
+</div>
+<p>These require numerical representations.</p>
+<p>But the string</p>
+<pre><code class="language-text">&quot;I&quot;
+&quot;love&quot;
+&quot;Transformers&quot;
+</code></pre>
+<p>is categorical data.</p>
+<p>There is no meaningful operation such as:</p>
+<div class="math block">
+\text{&quot;love&quot;}\times 2.7
+</div>
+<p>So we need to convert the language into numbers.</p>
+<p>Raschka explicitly introduces embeddings for this reason: raw text is categorical, whereas neural networks need continuous-valued numerical representations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-38">1.2.2 Stage 1 — Tokenization</h3>
+<p>The first question is:</p>
+<blockquote>
+<p><strong>How should we split text into units?</strong></p>
+</blockquote>
+<p>These units are called <strong>tokens</strong>.</p>
+<p>For example:</p>
+<pre><code class="language-text">&quot;The cat is sleeping.&quot;
+</code></pre>
+<p>could conceptually become:</p>
+<pre><code class="language-text">[&quot;The&quot;, &quot;cat&quot;, &quot;is&quot;, &quot;sleeping&quot;, &quot;.&quot;]
+</code></pre>
+<p>Now the text is no longer one large string.</p>
+<p>It is a sequence:</p>
+<div class="math block">
+x_1=\text{&quot;The&quot;}
+</div>
+<div class="math block">
+x_2=\text{&quot;cat&quot;}
+</div>
+<div class="math block">
+x_3=\text{&quot;is&quot;}
+</div>
+<div class="math block">
+x_4=\text{&quot;sleeping&quot;}
+</div>
+<div class="math block">
+x_5=\text{&quot;.&quot;}
+</div>
+<p>Raschka first demonstrates a simple tokenizer that separates words and punctuation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-39">1.2.3 Token Does NOT Necessarily Mean Word</h3>
+<p>This distinction is extremely important.</p>
+<p>A token can be:</p>
+<ul>
+<li>a complete word,</li>
+<li>part of a word,</li>
+<li>punctuation,</li>
+<li>whitespace-related representation,</li>
+<li>a special symbol.</li>
+</ul>
+<p>For example, a modern tokenizer might represent:</p>
+<pre><code class="language-text">&quot;unbelievable&quot;
+</code></pre>
+<p>as something conceptually like:</p>
+<pre><code class="language-text">[&quot;un&quot;, &quot;believ&quot;, &quot;able&quot;]
+</code></pre>
+<p>The exact result depends on the tokenizer.</p>
+<p>Therefore, in all of our mathematics:</p>
+<div class="math block">
+x_t
+</div>
+<p>means a <strong>token</strong>, not necessarily a whole word.</p>
+<p>This is why modern LLM literature almost always says:</p>
+<blockquote>
+<p><strong>next-token prediction</strong></p>
+</blockquote>
+<p>rather than strictly next-word prediction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-40">1.2.4 Why Not Use One Token for Every Possible Word?</h3>
+<p>Suppose English contains millions of possible word forms.</p>
+<p>Then a word-level vocabulary would become enormous.</p>
+<p>Worse, consider:</p>
+<pre><code class="language-text">play
+played
+playing
+playful
+player
+players
+</code></pre>
+<p>Many of these share useful structure.</p>
+<p>And new words can appear.</p>
+<p>For example:</p>
+<pre><code class="language-text">quantization-aware
+</code></pre>
+<p>or a person's unusual name.</p>
+<p>A tokenizer that can break unknown words into reusable smaller pieces is more flexible.</p>
+<p>This motivates <strong>subword tokenization</strong>, including BPE.</p>
+<p>Raschka's book first builds intuition using a simple word/punctuation tokenizer and then transitions to byte-pair encoding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-41">1.2.5 Stage 2 — Token IDs</h3>
+<p>The Transformer still does not want strings.</p>
+<p>So we create a vocabulary:</p>
+<div class="math block">
+V=\{v_0,v_1,\ldots,v_{|V|-1}\}
+</div>
+<p>and assign each token a unique integer.</p>
+<p>For example:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">ID</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;I&quot;</code></td>
+<td style="text-align:right">17</td>
+</tr>
+<tr>
+<td><code>&quot;love&quot;</code></td>
+<td style="text-align:right">42</td>
+</tr>
+<tr>
+<td><code>&quot;Transformers&quot;</code></td>
+<td style="text-align:right">815</td>
+</tr>
+<tr>
+<td><code>&quot;.&quot;</code></td>
+<td style="text-align:right">9</td>
+</tr>
+</tbody>
+</table>
+<p>Then:</p>
+<pre><code class="language-text">&quot;I love Transformers .&quot;
+</code></pre>
+<p>becomes:</p>
+<pre><code class="language-text">[17, 42, 815, 9]
+</code></pre>
+<p>These are <strong>token IDs</strong>.</p>
+<p>Raschka's vocabulary construction explicitly maps each unique token to a unique integer ID.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-42">1.2.6 Why Integer IDs?</h3>
+<p>Notice something subtle.</p>
+<p>We don't claim:</p>
+<div class="math block">
+42 &gt; 17
+</div>
+<p>means <code>&quot;love&quot;</code> is somehow mathematically greater than <code>&quot;I&quot;</code>.</p>
+<p>The integer is simply an <strong>index</strong>.</p>
+<p>Think:</p>
+<pre><code class="language-text">17  → row 17
+42  → row 42
+815 → row 815
+</code></pre>
+<p>The numerical value itself has no semantic meaning.</p>
+<p>This is why it would be wrong to simply feed token IDs directly into the Transformer as though:</p>
+<pre><code class="language-text">I = 17
+love = 42
+Transformers = 815
+</code></pre>
+<p>were meaningful continuous features.</p>
+<p>The next stage fixes this.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-43">1.2.7 Stage 3 — The Embedding Matrix</h3>
+<p>We introduce a learnable matrix:</p>
+<div class="math block">
+\boxed{
+W_E\in\mathbb R^{|V|\times d}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">|V|</span> = vocabulary size</li>
+<li><span class="math inline">d</span> = embedding dimension</li>
+</ul>
+<p>Suppose:</p>
+<div class="math block">
+|V|=6
+</div>
+<p>and</p>
+<div class="math block">
+d=3
+</div>
+<p>Then:</p>
+<div class="math block">
+W_E\in\mathbb R^{6\times3}
+</div>
+<p>For example:</p>
+<div class="math block">
+W_E=
+\begin{bmatrix}
+0.3&amp;-0.2&amp;0.5\\
+0.8&amp;0.1&amp;-0.4\\
+-0.7&amp;0.6&amp;0.2\\
+0.4&amp;0.9&amp;-0.1\\
+-0.5&amp;0.2&amp;0.8\\
+0.1&amp;-0.8&amp;0.3
+\end{bmatrix}
+</div>
+<p>Each row corresponds to one token.</p>
+<p>So:</p>
+<div class="math block">
+W_E[0]
+</div>
+<p>is the vector for token ID 0.</p>
+<p>And:</p>
+<div class="math block">
+W_E[3]
+</div>
+<p>is the vector for token ID 3.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-44">1.2.8 Embedding = Lookup</h3>
+<p>Suppose the token sequence is:</p>
+<div class="math block">
+[2,3,5,1]
+</div>
+<p>Then the embedding operation retrieves:</p>
+<div class="math block">
+W_E[2],W_E[3],W_E[5],W_E[1]
+</div>
+<p>giving:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+W_E[2]\\
+W_E[3]\\
+W_E[5]\\
+W_E[1]
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+X\in\mathbb R^{4\times3}
+</div>
+<p>The key idea is:</p>
+<div class="math block">
+\boxed{
+\text{token ID}
+\rightarrow
+\text{row lookup in }W_E
+}
+</div>
+<p>Raschka demonstrates this directly with a PyTorch <code>Embedding</code> layer: each token ID retrieves the corresponding row of the embedding weight matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-45">1.2.9 Let's Do the Exact Numerical Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_E=
+\begin{bmatrix}
+0.3374&amp;-0.1778&amp;-0.1690\\
+0.9178&amp;1.5810&amp;1.3010\\
+1.2753&amp;-0.2010&amp;-0.1606\\
+-0.4015&amp;0.9666&amp;-1.1481\\
+-1.1589&amp;0.3255&amp;-0.6315\\
+-2.8400&amp;-0.7849&amp;-1.4096
+\end{bmatrix}
+</div>
+<p>This is essentially the small example used in Raschka's book.</p>
+<p>Suppose:</p>
+<div class="math block">
+\text{input IDs}=[2,3,5,1]
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-46">ID 2</h5>
+<div class="math block">
+W_E[2]
+=
+[1.2753,-0.2010,-0.1606]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-47">ID 3</h5>
+<div class="math block">
+W_E[3]
+=
+[-0.4015,0.9666,-1.1481]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-48">ID 5</h5>
+<div class="math block">
+W_E[5]
+=
+[-2.8400,-0.7849,-1.4096]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-49">ID 1</h5>
+<div class="math block">
+W_E[1]
+=
+[0.9178,1.5810,1.3010]
+</div>
+<p>So:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1.2753&amp;-0.2010&amp;-0.1606\\
+-0.4015&amp;0.9666&amp;-1.1481\\
+-2.8400&amp;-0.7849&amp;-1.4096\\
+0.9178&amp;1.5810&amp;1.3010
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{X\in\mathbb R^{4\times3}}
+</div>
+<p>The book gives this exact lookup behavior and resulting <span class="math inline">4\times3</span> matrix example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-50">1.2.10 Why Are These Vectors Random Initially?</h3>
+<p>This is extremely important.</p>
+<p>At the beginning, the embedding matrix is generally initialized from small random values.</p>
+<p>So initially, there is no reason for:</p>
+<pre><code class="language-text">cat
+</code></pre>
+<p>to have a useful relationship with:</p>
+<pre><code class="language-text">dog
+</code></pre>
+<p>The model has to <strong>learn</strong> those representations.</p>
+<p>Raschka explicitly states that the embedding weights are initialized and later optimized as part of LLM training.</p>
+<p>So:</p>
+<div class="math block">
+W_E^{(0)}
+</div>
+<p>is the initial embedding matrix.</p>
+<p>After training:</p>
+<div class="math block">
+W_E^{(*)}
+</div>
+<p>is the learned embedding matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-51">1.2.11 The Embeddings Are Trainable Parameters</h3>
+<p>This connects directly to our Step 0.6 on gradients.</p>
+<p>Suppose:</p>
+<div class="math block">
+W_E\in\mathbb R^{|V|\times d}
+</div>
+<p>The loss is:</p>
+<div class="math block">
+L
+</div>
+<p>Backpropagation calculates:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_E}
+</div>
+<p>Then gradient descent updates it:</p>
+<div class="math block">
+W_E
+\leftarrow
+W_E-\eta\frac{\partial L}{\partial W_E}
+</div>
+<p>So the embedding matrix is not a fixed dictionary.</p>
+<p>It is a <strong>learned part of the neural network</strong>.</p>
+<p>The Transformer slides also emphasize that <span class="math inline">W_E</span> is learned end-to-end using the same next-token loss used for the rest of the model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-52">1.2.12 One-Hot Encoding Connection</h3>
+<p>There is another mathematically beautiful way to understand embedding lookup.</p>
+<p>Suppose the vocabulary contains 5 tokens and token ID is 2.</p>
+<p>One-hot encoding gives:</p>
+<div class="math block">
+e_2=
+[0,0,1,0,0]
+</div>
+<p>Now multiply:</p>
+<div class="math block">
+e_2W_E
+</div>
+<p>where:</p>
+<div class="math block">
+e_2\in\mathbb R^{1\times5}
+</div>
+<p>and</p>
+<div class="math block">
+W_E\in\mathbb R^{5\times d}
+</div>
+<p>Then:</p>
+<div class="math block">
+e_2W_E=W_E[2]
+</div>
+<p>because the one-hot vector selects exactly one row.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Embedding lookup}
+\equiv
+\text{one-hot vector}\times W_E
+}
+</div>
+<p>conceptually.</p>
+<p>But explicitly creating a giant one-hot vector is wasteful.</p>
+<p>So frameworks use an efficient lookup operation.</p>
+<p>Raschka explains this equivalence directly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-53">1.2.13 Why Embeddings Are Better Than Raw IDs</h3>
+<p>Suppose:</p>
+<pre><code class="language-text">cat  = 100
+dog  = 101
+car  = 102
+</code></pre>
+<p>The integer IDs suggest:</p>
+<div class="math block">
+101-100=1
+</div>
+<p>But this difference has no semantic interpretation.</p>
+<p>After embedding:</p>
+<div class="math block">
+E(\text{cat})=[0.7,0.2,-0.1,\ldots]
+</div>
+<div class="math block">
+E(\text{dog})=[0.65,0.25,-0.05,\ldots]
+</div>
+<div class="math block">
+E(\text{car})=[-0.4,0.8,0.9,\ldots]
+</div>
+<p>Now the geometry of the vectors can encode useful relationships.</p>
+<p>For example:</p>
+<div class="math block">
+\cos(E(\text{cat}),E(\text{dog}))
+</div>
+<p>could be relatively high.</p>
+<p>This idea connects directly to our earlier discussion of vectors and dot products.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-54">1.2.14 But There Is an Important Modern-LM Nuance</h3>
+<p>A token embedding by itself is <strong>not necessarily contextual</strong>.</p>
+<p>Consider:</p>
+<pre><code class="language-text">bank
+</code></pre>
+<p>in:</p>
+<blockquote>
+<p><code>I deposited money in the bank.</code></p>
+</blockquote>
+<p>and:</p>
+<blockquote>
+<p><code>We sat beside the river bank.</code></p>
+</blockquote>
+<p>The initial embedding lookup for <code>&quot;bank&quot;</code> is the same token vector.</p>
+<p>But after passing through the Transformer, the representations can differ because the surrounding context is different.</p>
+<p>So think:</p>
+<div class="math block">
+\boxed{
+\text{Token embedding}
+=
+\text{initial representation}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Transformer hidden state}
+=
+\text{contextual representation}
+}
+</div>
+<p>This distinction becomes crucial when we reach self-attention.</p>
+<p>Raschka distinguishes the learned input embeddings from contextualized representations produced later by the Transformer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-55">1.2.15 Where BPE Enters</h3>
+<p>Now we return to the tokenization question.</p>
+<p>A simple word tokenizer has a problem with rare or unseen words.</p>
+<p>Suppose our vocabulary has:</p>
+<pre><code class="language-text">play
+playing
+played
+</code></pre>
+<p>but encounters:</p>
+<pre><code class="language-text">playfulness
+</code></pre>
+<p>A word-level tokenizer may not know that whole word.</p>
+<p>BPE instead works with smaller reusable units.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">playfulness
+   ↓
+play + ful + ness
+</code></pre>
+<p>The exact segmentation is determined by the learned tokenizer vocabulary/merges.</p>
+<p>Raschka's book explains that GPT-family models use BPE-style tokenization and presents BPE after the simpler tokenizer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-56">1.2.16 The Main Idea Behind BPE</h3>
+<p>You don't need to memorize the implementation yet. Understand the intuition first.</p>
+<p>Start with smaller pieces.</p>
+<p>Suppose the data contains:</p>
+<pre><code class="language-text">low
+lower
+lowest
+</code></pre>
+<p>The tokenizer notices frequent pieces such as:</p>
+<pre><code class="language-text">l
+o
+w
+e
+r
+s
+t
+</code></pre>
+<p>and repeatedly merges frequent neighboring pieces.</p>
+<p>For example, conceptually:</p>
+<div class="math block">
+l+o\rightarrow lo
+</div>
+<div class="math block">
+lo+w\rightarrow low
+</div>
+<div class="math block">
+low+e\rightarrow lowe
+</div>
+<p>and so on.</p>
+<p>The final tokenizer vocabulary contains reusable subword units.</p>
+<p>This gives a compromise:</p>
+<div class="math block">
+\boxed{
+\text{character-level flexibility}
+\quad+\quad
+\text{word-level efficiency}
+}
+</div>
+<p>Raschka notes that GPT-2 and GPT-3 and the original ChatGPT model used BPE tokenization, and uses <code>tiktoken</code> to demonstrate it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-57">1.2.17 Why Subwords Are So Useful</h3>
+<p>Imagine we encounter:</p>
+<pre><code class="language-text">unbelievability
+</code></pre>
+<p>A word-level tokenizer may treat it as one unknown item.</p>
+<p>A subword tokenizer can potentially decompose it into reusable components.</p>
+<p>That means the model can represent previously unseen combinations using pieces it has already encountered.</p>
+<p>This is particularly important for:</p>
+<ul>
+<li>rare words,</li>
+<li>names,</li>
+<li>technical terminology,</li>
+<li>morphology,</li>
+<li>new combinations.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-58">1.2.18 Special Tokens</h3>
+<p>The tokenizer can also contain tokens whose purpose is structural rather than linguistic.</p>
+<p>The book discusses:</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-59">BOS</h5>
+<p>Beginning of sequence.</p>
+<div class="math block">
+[\text{BOS},x_1,x_2,\ldots]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-60">EOS</h5>
+<p>End of sequence.</p>
+<div class="math block">
+[x_1,x_2,\ldots,\text{EOS}]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-61">PAD</h5>
+<p>Used to make sequences in a batch the same length.</p>
+<p>For example:</p>
+<pre><code class="language-text">Sequence A:
+[I, like, AI]
+
+Sequence B:
+[I, really, like, AI]
+
+after padding:
+
+[I, like, AI, PAD]
+[I, really, like, AI]
+</code></pre>
+<p>The book also discusses <code>&lt;|endoftext|&gt;</code> and how special-token handling depends on the tokenizer/model.</p>
+<p>The important lesson is:</p>
+<blockquote>
+<p><strong>Not every token represents ordinary natural-language content. Some tokens help the model structure sequences.</strong></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-62">1.2.19 Complete Representation Pipeline</h3>
+<p>Let's put everything together.</p>
+<p>Take:</p>
+<pre><code class="language-text">&quot;I love AI.&quot;
+</code></pre>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-63">Stage 1 — Raw text</h5>
+<div class="math block">
+\text{&quot;I love AI.&quot;}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-64">Stage 2 — Tokenization</h5>
+<p>Conceptually:</p>
+<div class="math block">
+[\text{&quot;I&quot;},\text{&quot;love&quot;},\text{&quot;AI&quot;},\text{&quot;.&quot;}]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-65">Stage 3 — Token IDs</h5>
+<p>Suppose:</p>
+<div class="math block">
+[17,42,815,9]
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-66">Stage 4 — Embedding lookup</h5>
+<div class="math block">
+X=
+\begin{bmatrix}
+W_E[17]\\
+W_E[42]\\
+W_E[815]\\
+W_E[9]
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+X\in\mathbb R^{4\times d}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-67">Stage 5</h5>
+<p>Now this matrix enters the Transformer.</p>
+<p>But there's a problem.</p>
+<p>The Transformer currently sees:</p>
+<pre><code class="language-text">vector
+vector
+vector
+vector
+</code></pre>
+<p>How does it know which vector is first, second, third, fourth?</p>
+<p>This brings us to the next concept:</p>
+<div class="math block">
+\boxed{\text{POSITION}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-68">1.2.20 Batch Shapes</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=2
+</div>
+<div class="math block">
+T=5
+</div>
+<div class="math block">
+d=768
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-69">Token IDs</h5>
+<div class="math block">
+\boxed{[2,5]}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-70">Embeddings</h5>
+<div class="math block">
+\boxed{[2,5,768]}
+</div>
+<p>Interpretation:</p>
+<pre><code class="language-text">2 sequences
+ ×
+5 tokens each
+ ×
+768 numbers per token
+</code></pre>
+<p>For example:</p>
+<pre><code class="language-text">Token IDs
+
+[B,T]
+
+       5 tokens
+    ┌─────────────┐
+ B=2│ 17 42 81 9 5│
+    │ 23 11 72 4 8│
+    └─────────────┘
+</code></pre>
+<p>After embedding:</p>
+<pre><code class="language-text">[B,T,d]
+
+2 × 5 × 768
+</code></pre>
+<p>Each integer has been replaced by a 768-dimensional vector.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-71">1.2.21 Executable PyTorch Example</h3>
+<p>Let's reproduce the central idea ourselves.</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
+vocab_size = 6
+embedding_dim = 3
+
+# ---------------------------------------------------------
+# Input token IDs
+# Four tokens
+# ---------------------------------------------------------
+input_ids = torch.tensor([2, 3, 5, 1])
+
+# ---------------------------------------------------------
+# Create learnable embedding table
+# Shape = [vocab_size, embedding_dim]
+#         [6, 3]
+# ---------------------------------------------------------
+embedding = nn.Embedding(
+    num_embeddings=vocab_size,
+    embedding_dim=embedding_dim
+)
+
+print(&quot;Embedding matrix:&quot;)
+print(embedding.weight)
+
+print(&quot;\nEmbedding matrix shape:&quot;)
+print(embedding.weight.shape)
+
+# ---------------------------------------------------------
+# Lookup embeddings
+# ---------------------------------------------------------
+output = embedding(input_ids)
+
+print(&quot;\nInput IDs:&quot;)
+print(input_ids)
+
+print(&quot;\nOutput embeddings:&quot;)
+print(output)
+
+print(&quot;\nOutput shape:&quot;)
+print(output.shape)
+</code></pre>
+<p>Expected shape:</p>
+<pre><code class="language-text">Embedding matrix:
+[6, 3]
+
+Input IDs:
+[4]
+
+Output:
+[4, 3]
+</code></pre>
+<p>So:</p>
+<div class="math block">
+[4]
+\rightarrow
+[4,3]
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-72">1.2.22 Batch Example</h3>
+<p>Now:</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+vocab_size = 10000
+embedding_dim = 768
+
+# Two sequences, five tokens each
+input_ids = torch.tensor([
+    [10, 25, 17, 42, 91],
+    [13, 81,  5, 72,  6]
+])
+
+embedding = nn.Embedding(
+    num_embeddings=vocab_size,
+    embedding_dim=embedding_dim
+)
+
+X = embedding(input_ids)
+
+print(&quot;Input shape :&quot;, input_ids.shape)
+print(&quot;Output shape:&quot;, X.shape)
+</code></pre>
+<p>The shapes are:</p>
+<pre><code class="language-text">Input:
+[2, 5]
+
+Embedding:
+[10000, 768]
+
+Output:
+[2, 5, 768]
+</code></pre>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+[B,T]
+\rightarrow
+[B,T,d]
+}
+</div>
+<p>This is the tensor that will enter the Transformer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-73">1.2.23 Why Is the Embedding Matrix So Large?</h3>
+<p>This is a useful parameter-count connection.</p>
+<p>If:</p>
+<div class="math block">
+|V|=50,000
+</div>
+<p>and:</p>
+<div class="math block">
+d=4,096
+</div>
+<p>then:</p>
+<div class="math block">
+\text{parameters in }W_E
+=
+50,000\times4,096
+</div>
+<div class="math block">
+=204,800,000
+</div>
+<p>So the embedding table alone contains about:</p>
+<div class="math block">
+\boxed{205\text{ million parameters}}
+</div>
+<p>This is why vocabulary size and hidden dimension matter substantially in model size.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-74">1.2.24 A Crucial Distinction: Token IDs vs Embeddings vs Hidden States</h3>
+<p>Do not mix these three.</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-75">Token ID</h5>
+<div class="math block">
+17
+</div>
+<p>A discrete integer index.</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-76">Token embedding</h5>
+<div class="math block">
+[0.32,-0.81,0.14,\ldots]
+</div>
+<p>A learned vector from <span class="math inline">W_E</span>.</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-77">Contextual hidden state</h5>
+<div class="math block">
+h_t
+=
+[0.71,0.12,-0.35,\ldots]
+</div>
+<p>after Transformer processing.</p>
+<p>So:</p>
+<pre><code class="language-text">ID
+ ↓ lookup
+embedding
+ ↓ Transformer
+contextual hidden state
+</code></pre>
+<p>This distinction will be essential for understanding Q/K/V.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-78">1.2.25 Where the Learning Happens</h3>
+<p>The complete forward path is now:</p>
+<div class="math block">
+\text{text}
+\rightarrow
+\text{token IDs}
+\rightarrow
+W_E
+\rightarrow
+X
+\rightarrow
+\text{Transformer}
+\rightarrow
+H
+\rightarrow
+Z
+\rightarrow
+\text{softmax}
+\rightarrow
+P
+\rightarrow
+L
+</div>
+<p>During backpropagation:</p>
+<div class="math block">
+L
+\rightarrow
+Z
+\rightarrow
+H
+\rightarrow
+X
+\rightarrow
+W_E
+</div>
+<p>So the embedding table itself receives gradients.</p>
+<p>That means the model learns:</p>
+<blockquote>
+<p>&quot;What numerical representation should this token have so that, together with the rest of the network, next-token prediction improves?&quot;</p>
+</blockquote>
+<p>That is much deeper than simply assigning fixed meanings to words.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-79">1.2.26 Source Mapping</h3>
+<p>For this step, the primary grounding is:</p>
+<p><strong>Transformer slides:</strong> explicitly show tokens being converted into embeddings through</p>
+<div class="math block">
+W_E\in\mathbb R^{|V|\times d}
+</div>
+<p>and describe <span class="math inline">W_E</span> as learned end-to-end through the next-token objective.</p>
+<p><strong>Raschka, Chapter 2:</strong> provides the detailed progression:</p>
+<div class="math block">
+\text{raw text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\text{special tokens}
+\rightarrow
+\text{BPE}
+\rightarrow
+\text{embedding vectors}
+</div>
+<p>and gives executable Python/PyTorch examples for these stages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-80">1.2.27 The Mental Model You Should Now Have</h3>
+<p>Memorize this pipeline conceptually, not just mechanically:</p>
+<pre><code class="language-text">                    TOKENIZATION
+raw text ──────────────────────────→ tokens
+                                      │
+                                      ▼
+                                  TOKEN IDs
+                                      │
+                                      ▼
+                              embedding lookup
+                                      │
+                                      ▼
+                          vectors in R^d
+                                      │
+                                      ▼
+                              Transformer
+</code></pre>
+<p>Or mathematically:</p>
+<div class="math block">
+\boxed{
+x_t
+\in\{0,\ldots,|V|-1\}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+e_t=W_E[x_t]
+}
+</div>
+<p>then for a sequence:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb R^{T\times d}
+}
+</div>
+<p>and for a batch:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb R^{B\times T\times d}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-81">1.2.28 One More Important Connection</h3>
+<p>Look back at Step 0.1.</p>
+<p>We learned:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>Now we know where <span class="math inline">X</span> actually comes from.</p>
+<p>It is <strong>not magical</strong>.</p>
+<p>It comes from:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\boxed{W_E\text{ lookup}}
+\rightarrow
+X
+}
+</div>
+<p>Therefore the beginning of the Transformer computation is:</p>
+<div class="math block">
+X
+\rightarrow
+Q=XW_Q
+</div>
+<div class="math block">
+X
+\rightarrow
+K=XW_K
+</div>
+<div class="math block">
+X
+\rightarrow
+V=XW_V
+</div>
+<p>And now we are ready to answer the next major question:</p>
+<blockquote>
+<p><strong>How can the Transformer know that token 4 should pay attention to token 1, but not token 5?</strong></p>
+</blockquote>
+<p>Before that, we need to give the model a notion of <strong>position</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-2-i9-82">STEP 1.2 MASTER CHECK</h3>
+<p>Answer these before we continue.</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-83">Q1</h5>
+<p>Why can't we use token IDs directly as meaningful numerical features?</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-84">Q2</h5>
+<p>If</p>
+<div class="math block">
+W_E\in\mathbb R^{50,000\times768}
+</div>
+<p>and the input has 128 tokens, what is the shape of the embedding output?</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-85">Q3</h5>
+<p>Given:</p>
+<div class="math block">
+W_E\in\mathbb R^{10\times4}
+</div>
+<p>and token IDs:</p>
+<div class="math block">
+[3,7,1]
+</div>
+<p>what operation produces the embedding sequence?</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-86">Q4</h5>
+<p>Why are embedding vectors initially not meaningful?</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-87">Q5</h5>
+<p>Explain why:</p>
+<div class="math block">
+\text{Embedding lookup}
+</div>
+<p>is mathematically equivalent to:</p>
+<div class="math block">
+\text{one-hot vector}\times W_E
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-88">Q6</h5>
+<p>What's the difference between:</p>
+<div class="math block">
+\text{token ID}
+</div>
+<div class="math block">
+\text{token embedding}
+</div>
+<p>and</p>
+<div class="math block">
+\text{contextual hidden state}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-89">Q7</h5>
+<p>Why does BPE/subword tokenization solve a problem that pure word-level tokenization has?</p>
+<h5 id="v3-heading-chunk-les-step-1-2-i9-90">Q8</h5>
+<p>Complete this:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+W_E
+\rightarrow
+?
+\rightarrow
+\text{Transformer}
+}
+</div>
+<hr />
+</section>

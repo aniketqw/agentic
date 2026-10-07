@@ -1,0 +1,260 @@
+<section class="chunk" id="chunk-app-f" data-id="app-f"><p><a id="app-f"></a></p>
+<h1>Appendix F — Verification Report: Correctness and Completeness</h1>
+<p><em>Every check below was run by script against your slide decks (11 PDFs) and the three books. It lists what was found, what was fixed in this version, and what was left as-is. The limits of each check are stated.</em></p>
+<h2>F.1 What was checked</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Slide coverage</strong>: each of the 296 slides compared with the lessons (specific numbers, rare terms, topic searches, manual confirmation)</td>
+<td><strong>42 slides are not taught anywhere</strong> (MiniLLM deck: 24 of 35). They are added in <a href="#app-g">Appendix G</a>.</td>
+</tr>
+<tr>
+<td><strong>Numbers attributed to a slide or deck</strong> (56) exist in the decks</td>
+<td>48 found; the other 8 are the lessons' own examples, labelled “illustrative” in the text, or section numbers.</td>
+</tr>
+<tr>
+<td><strong>Arithmetic</strong> in the formulas: every numeric equality that can be evaluated (594)</td>
+<td><strong>585 consistent.</strong> The 9 flagged were parser artifacts (unit labels like “GB”, chained rows). <strong>No arithmetic error found.</strong> One passage (Step 5.28) first writes a placeholder “74.?” and corrects itself two lines later to 75.0%, which is right (3758/5010 = 0.7501).</td>
+</tr>
+<tr>
+<td><strong>Numbers inside cited sentences</strong> (112) found in the cited source</td>
+<td>104 found. 6 of the 8 misses are in one lesson (Step 5.24) whose citations named the wrong deck (fixed, see F.2) and which mixes in its own illustrative numbers; the other 2 are a derived difference (40.9 − 40.0 = 0.9) and IndicSentiment's per-language test size (probably in an image table).</td>
+</tr>
+<tr>
+<td><strong>Mis-cited decks</strong>: for 326 slide-deck citations, did the cited paragraph match the cited deck?</td>
+<td><strong>1 lesson was wrong throughout</strong> (Step 5.24, 26 tags; fixed). The other flags were short generic sentences; reviewed and judged correct.</td>
+</tr>
+<tr>
+<td><strong>Book citations</strong>: 599 cited claims against the cited book's vocabulary</td>
+<td>None below the threshold. This is a weak test; it catches mis-citation, not subtle errors.</td>
+</tr>
+<tr>
+<td><strong>Key DeepSeek-book facts</strong> (671B/37B, E4M3/E5M2, DualPipe, MLA, MTP, tokenizer/data)</td>
+<td>All present in the book text. Lessons' “k = 8, N = 64” expert examples are labelled hypotheticals, not book claims.</td>
+</tr>
+<tr>
+<td><strong>LaTeX validity</strong>: all 21,634 formulas rendered with KaTeX (the engine ChatGPT uses)</td>
+<td>21,621 rendered; <strong>13 had LaTeX slips in the chat</strong> (fixed, see F.2). <strong>All 21634 now render.</strong></td>
+</tr>
+</tbody>
+</table>
+<h2>F.2 Corrections applied in this version</h2>
+<p><strong>Citations.</strong> Step 5.24 (ReTool results) cited <code>deepseekmath-slides</code> on all 26 of its tags; every number there is from <code>retool-slides</code> (e.g. 79.1% → 51.4%). The tags were corrected. Separately, 189 sub-references that the first draft resolved through a global lookup (which is not reliable, because the chat reuses citation ids across messages) are now resolved only from each message's own references, and 434 unresolved sub-references were dropped rather than guessed. This is why tag counts are slightly lower than in v1.</p>
+<p><strong>Formulas</strong> (13 repairs; each is listed so you can see exactly what changed):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">#</th>
+<th>Lesson</th>
+<th>What was wrong in the chat text</th>
+<th>Before → after</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td><a href="#les-step-2-5-i25">Step 2.5</a></td>
+<td>added 1 missing closing brace</td>
+<td><code>\boxed{ p</code> → <code>\boxed{ p }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td><a href="#les-step-2-5-i25">Step 2.5</a></td>
+<td>escaped #/_ or ≠ inside \text{}</td>
+<td><code>\boxed{ \text{Decoder ≠ model}. }</code> → <code>\boxed{ \text{Decoder }\neq\text{ model}. }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td><a href="#les-step-3-6b-i32">Step 3.6B</a></td>
+<td>typo fixed: \frac2.0}{5} → \frac{2.0}{5}</td>
+<td><code>= \frac2.0}{5} = 0.4.</code> → <code>= \frac{2.0}{5} = 0.4.</code></td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td><a href="#les-step-3-6b-i32">Step 3.6B</a></td>
+<td>added 1 missing closing brace</td>
+<td><code>…and their scales efficiently?”} }</code> → <code>…and their scales efficiently?”} }</code> (closing <code>}</code> was missing; added)</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td><a href="#les-step-4-5-i37">Step 4.5</a></td>
+<td>typo fixed: \boxed9} → \boxed{9}</td>
+<td><code>\text{prompt\_len}-1 = 10-1 = \boxed9}.</code> → <code>\text{prompt\_len}-1 = 10-1 = \boxed{9}.</code></td>
+</tr>
+<tr>
+<td style="text-align:right">6</td>
+<td><a href="#les-step-4-7-i39">Step 4.7</a></td>
+<td>escaped #/_ or ≠ inside \text{}</td>
+<td><code>\boxed{ \text{Attempt #3 gives us rich teacher information} </code> → <code>\boxed{ \text{Attempt \#3 gives us rich teacher information}</code></td>
+</tr>
+<tr>
+<td style="text-align:right">7</td>
+<td><a href="#les-step-5-14-i55">Step 5.14</a></td>
+<td>escaped #/_ or ≠ inside \text{}</td>
+<td><code>\boxed{ \text{answer_logits} }</code> → <code>\boxed{ \text{answer\_logits} }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">8</td>
+<td><a href="#les-step-5-14-i55">Step 5.14</a></td>
+<td>escaped #/_ or ≠ inside \text{}</td>
+<td><code>\boxed{ \text{answer_targets} }</code> → <code>\boxed{ \text{answer\_targets} }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">9</td>
+<td><a href="#les-step-5-14-i55">Step 5.14</a></td>
+<td>escaped #/_ or ≠ inside \text{}</td>
+<td><code>\boxed{ \text{cross_entropy} }</code> → <code>\boxed{ \text{cross\_entropy} }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">10</td>
+<td><a href="#les-step-5-24-i65">Step 5.24</a></td>
+<td>escaped % (LaTeX comment char)</td>
+<td><code>\boxed{ \text{98% is universally optimal} }</code> → <code>\boxed{ \text{98\% is universally optimal} }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">11</td>
+<td><a href="#les-step-5-32-i73">Step 5.32</a></td>
+<td>added 1 missing closing brace</td>
+<td><code>\boxed{ \text{language}</code> → <code>\boxed{ \text{language} }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">12</td>
+<td><a href="#les-step-5-37-i78">Step 5.37</a></td>
+<td>added 1 missing closing brace</td>
+<td><code>\boxed{ \text{RoPE adds only }64</code> → <code>\boxed{ \text{RoPE adds only }64 }</code></td>
+</tr>
+<tr>
+<td style="text-align:right">13</td>
+<td><a href="#les-step-5-38-i79">Step 5.38</a></td>
+<td>added 1 missing closing brace</td>
+<td><code>\boxed{ \text{total capacity}\uparrow</code> → <code>\boxed{ \text{total capacity}\uparrow }</code></td>
+</tr>
+</tbody>
+</table>
+<h2>F.3 Completeness against the slides</h2>
+<table>
+<thead>
+<tr>
+<th>Slide deck</th>
+<th style="text-align:right">Slides</th>
+<th style="text-align:right">Not taught (in Appendix G)</th>
+<th style="text-align:right">Taught in the lessons</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>transformers-slides</td>
+<td style="text-align:right">20</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">20</td>
+</tr>
+<tr>
+<td>decoding-sampling-slides</td>
+<td style="text-align:right">22</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">17</td>
+</tr>
+<tr>
+<td>peft-slides</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">8</td>
+</tr>
+<tr>
+<td>quantization-slides</td>
+<td style="text-align:right">56</td>
+<td style="text-align:right">7</td>
+<td style="text-align:right">49</td>
+</tr>
+<tr>
+<td>minillm-slides</td>
+<td style="text-align:right">35</td>
+<td style="text-align:right">24</td>
+<td style="text-align:right">11</td>
+</tr>
+<tr>
+<td>rl-grpo-slides</td>
+<td style="text-align:right">34</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">32</td>
+</tr>
+<tr>
+<td>deepseekmath-slides</td>
+<td style="text-align:right">23</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">22</td>
+</tr>
+<tr>
+<td>deepseek-r1-slides</td>
+<td style="text-align:right">21</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">20</td>
+</tr>
+<tr>
+<td>retool-slides</td>
+<td style="text-align:right">19</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">19</td>
+</tr>
+<tr>
+<td>indicxtreme-slides</td>
+<td style="text-align:right">28</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">26</td>
+</tr>
+<tr>
+<td>indicgenbench-slides</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">30</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td style="text-align:right"><strong>296</strong></td>
+<td style="text-align:right"><strong>42</strong></td>
+<td style="text-align:right"><strong>254</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>What “taught” means here.</strong> A slide counts as taught if its topic appears in a lesson. Several slides are taught with the lesson's <em>own</em> numbers rather than the slide's (for example the Transformer worked example and the symmetric/asymmetric quantization examples). Those are left as they are; they are not errors.</p>
+<p><strong>What the chat claimed vs. what it did.</strong> The chat's own audit (R11–R21, R29–R30, R44–R48) said floating-point formats, subnormals and MiniLLM's reverse-KL objective were already covered. They were not: “subnormal”, “mode-seeking” (as a lesson), “SeqKD” and “exposure bias” do not appear in any lesson. Step 0.3 introduces forward/reverse KL and mentions MiniLLM only as motivation.</p>
+<h2>F.4 Completeness against the books</h2>
+<p>Method: for each book section, the share of its <em>specific</em> vocabulary (terms found in at most three sections of that book) that appears in this document. It measures how much of a section's content the document touches, not whether every point is explained.</p>
+<table>
+<thead>
+<tr>
+<th>Book</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>Build a DeepSeek Model</em></td>
+<td>Median section <strong>71%</strong>. Chapters: 1 → 53%, 2 → 63%, <strong>3 → 52%</strong>, 4 → 72%, 5 → 74%, 6 → 76%, 7 → 79%, 8 → 71%. Thinnest sections: RoPE oscillation frequencies and sinusoidal waves (3.9.2, 3.10.1), rotating query/key vectors (3.11.2), the cost of decoupling (3.14.3), and the “empirical head-to-head” sections (3.17, 4.6).</td>
+</tr>
+<tr>
+<td><em>Build a Reasoning Model</em></td>
+<td>Median section 57%. Lowest: hardware/setup (2.3), the high-level GRPO procedure (6.2.2), answer normalisation and grading (3.5, 3.7). The GRPO mathematics itself is covered through the slides and the DeepSeek book.</td>
+</tr>
+<tr>
+<td><em>Build a Large Language Model</em></td>
+<td>Median section 56%. Lowest: data-loader and fine-tuning plumbing (6.2–6.4, 7.4, 7.8). The architecture chapters are covered.</td>
+</tr>
+</tbody>
+</table>
+<p>The books were used as grounding sources for the slide topics, not taught chapter by chapter, so these figures are expected to be lower than the slide coverage.</p>
+<h2>F.5 Limits of this verification</h2>
+<ul>
+<li>Numbers were checked against each slide's <strong>text layer</strong>. Some slides carry tables as images, so those numbers could not be checked automatically.</li>
+<li>Arithmetic was checked only where an equation was purely numeric (594 cases). Calculations involving matrices, vectors or symbols were not recomputed.</li>
+<li>Explanations (as opposed to numbers) were checked by sampling and by the source-citation tests above, not line by line.</li>
+<li>Where the chat stated a fact from outside your materials (for example IndicSentiment's per-language test size), it was not flagged unless it contradicted a source.</li>
+</ul>
+<hr />
+</section>

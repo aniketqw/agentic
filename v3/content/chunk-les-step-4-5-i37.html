@@ -1,0 +1,1412 @@
+<section class="chunk" id="chunk-les-step-4-5-i37" data-id="les-step-4-5-i37"><details class="audit-card" id="audit-full-chunk-les-step-4-5-i37" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-4-5-i37-1">Motivation</h4><p>Turn a synthetic prompt-response example into correctly shifted and masked supervised targets.</p><h4 id="v3-heading-chunk-les-step-4-5-i37-2">Prerequisites</h4><ul><li>Autoregressive conditional likelihood</li><li>SFT response masking</li><li>Data validation and held-out evaluation</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-3">Notation and units</h4><ul><li>x prompt; y=(y1…ym) retained teacher response</li><li>L=-sum log Pstudent(yt|x, y&lt;t)/m</li><li>N samples; k candidates/prompt; p candidate acceptance</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-4">Assumptions</h4><ul><li>Synthetic data is explicitly distinguished from ground truth</li><li>Reported DeepSeek experiments are historical source results, not reruns</li><li>IID acceptance only for binomial toy calculations</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-5">Step-by-step derivation</h4><ol><li>For full token list t0…tN-1, use input t[:-1] and target t[1:], producing N-1 predictions.</li><li>If prompt length P≥1, first response token is tP, located at target index P-1.</li><li>Keep the entire prompt in input context; exclude prompt-target positions from CE, not from attention context.</li><li>Response targets count=N-P; mask padding separately in batched examples and include EOS according to the chosen format.</li><li>Reject empty responses and invalid boundaries; prompt length 0 requires a BOS/context policy to supervise the first token.</li><li>Mean-of-example losses gives equal example weight; global token mean gives long responses more weight. Declare the chosen reduction.</li><li>For 100 total tokens with 80 prompt and 20 answer, unmasked shifted targets count 99, response fraction 20/99;20/100 is only a rough pre-shift illustration.</li></ol><h4 id="v3-heading-chunk-les-step-4-5-i37-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-5-i37-7">Boundary indexing</h5><p>Given: tokens[0,1,2,0,1,2], P3</p><ol><li>input[0,1,2,0,1]; target[1,2,0,1,2].</li><li>First response target index 2; answer targets[0,1,2].</li></ol><p>Answer: None</p><p>Verification: peft_distillation / P45-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-5-i37-8">Masked CE from actual logits</h5><p>Given: Above tokens; answer logit rows[2,1,0],[0,2,1],[1,0,2]</p><ol><li>Each response target has logit2 and alternatives1,0.</li><li>CE=log(e²+e+1)-2=.4076059644.</li><li>Prompt-row logits do not enter loss; independently enumerate selected rows.</li></ol><p>Answer: 0.4076059644443804</p><p>Verification: peft_distillation / P45-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-4-5-i37-9">Corrections and source qualifications</h4><ul><li>heading: 19.; text: With 100 prompt and 20 response tokens, shifting yields 119 targets, including 20 response targets: 16.8067%. The ratio 20/120 is an unshifted illustration.</li><li>heading: 20.; text: With 80 prompt and 20 answer tokens, the shifted response fraction is 20/99=20.2020%. Prompt masking retains all 20 answer targets.</li><li>heading: Step 4.5 numerical bank; text: Q3 has 60 prompt and 20 response tokens, producing 79 targets; response fraction 20/79=25.3165%. Masked loss uses all 20 response targets. Q1 ln4=1.3862943611; Q2 mean=ln2=.6931471806; Q4 attention ratio=16; Q5 training count=6670.</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-10">Mastery answers and retained exercise context</h4><ol><li>Q1 ln4=1.3862943611; Q2 mean NLL[.5,.5,.25,1]=ln2=.6931471806; Q3 shifted response fraction 20/79=25.3164557%, mask all 20 targets; Q4 quadratic ratio 16; Q5 train 6670.</li><li>Prompt 10 + answer 6→16 tokens,15 targets; first answer index 9; retained positions 9…14; prompt_len50→index 49.</li><li>Three-token probabilities[.8,.5,.25]mean loss.7675283643; model target shapes: 99 predictions with 100 original tokens; max 42005and mean 2946 are source observations, not rerun.</li><li>40. Exam numerical: shifted positions
+Suppose the original sequence contains:
+
+10
+
+prompt tokens and:
+
+6
+
+answer tokens.
+Total:
+
+16.
+
+After shifting:
+
+15
+
+predictions.
+The number of answer targets is:
+
+\boxed6.
+
+The answer begins at:
+
+\text{prompt\_len}-1
+=
+10-1
+=
+\boxed{9}.
+
+So answer targets occupy shifted target positions:
+
+9,10,11,12,13,14.</li><li>Step 4.5 numerical bank
+Q1 — Cross-entropy
+Correct teacher token probability:
+
+P=0.25.
+
+Find the token loss.
+
+-\ln(0.25)=\boxed{1.386}.
+
+
+Q2 — Sequence loss
+Probabilities:
+
+[0.5,0.5,0.25,1].
+
+
+L=
+-\frac14[
+\ln0.5+\ln0.5+\ln0.25+\ln1]
+
+
+=
+\frac{0.693+0.693+1.386+0}{4}
+
+
+\boxed{L\approx0.693}.
+
+
+Q3 — Prompt masking
+Prompt:
+
+60\text{ tokens}
+
+Answer:
+
+20\text{ tokens}.
+
+Without masking, only:
+
+\frac{20}{80}=25\%
+
+of positions correspond to teacher response.
+With answer-only loss:
+
+\boxed{100\%}
+
+of the loss signal targets the response.
+
+Q4 — Attention scaling with sequence length
+
+N:1024\rightarrow4096.
+
+Quadratic work ratio:
+
+\left(\frac{4096}{1024}\right)^2
+=
+4^2
+=
+\boxed{16}.
+
+
+Q5 — Dataset split
+Starting:
+
+12,000.
+
+After filtering:
+
+6,695.
+
+Validation:
+
+25.
+
+Training:
+
+\boxed{6,670}.</li></ol><h4 id="v3-heading-chunk-les-step-4-5-i37-11">Edge cases and remaining gaps</h4><ul><li>Answer correctness alone does not certify every reasoning step</li><li>Teacher trace style does not prove internal mechanism replication</li><li>Long-trace filtering changes the data distribution</li><li>Distillation is not guaranteed to preserve every capability</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-12">Connections and progression</h4><ul><li>RL strengthens a teacher; offline SFT transfers selected behavior; validation tests transfer rather than imitation alone</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-13">Exact source support</h4><ul><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 308, 309, 312, 313, 314, 315, 316, 317, 318, 319, 320 · Length filtering, split, loss selection, evaluation and training-loop listings</li></ul><h4 id="v3-heading-chunk-les-step-4-5-i37-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (74)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 4.5 — DeepSeek-R1 Distillation: Turning a Teacher Reasoning Trace into the Student’s Training Signal</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>1. Start with one teacher-generated example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>2. Tokenize the complete sequence</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3. Why do we shift the sequence?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>4. Why is this shift necessary?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>5. Tensor shapes</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Input</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>6. The model is predicting a distribution at every position</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>7. Sequence-level loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>8. BUT there is a crucial problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>9. Prompt masking</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>10. Why does the answer start at prompt_len - 1?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>11. Concrete example of the indexing</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>12. Numerical next-token loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>13. Numerical sequence loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>14. The student is learning the entire reasoning sequence</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>15. Complete single-example loss implementation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>16. Understand every line</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Line 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Line 2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Lines 3–7</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Line 8</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Line 9</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Lines 10–11</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Final line</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>17. Why cross_entropy can handle this directly</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>18. Source numerical example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>19. Why answer-only loss matters mathematically</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>20. Numerical question — effect of prompt masking</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>21. The training example becomes</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>22. This distinction is extremely important</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>23. Validation loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>24. Training loss vs validation loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Training loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Validation loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>25. Full training loop</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>26. Why gradient clipping appears</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>27. Important: there is no teacher forward pass during each student update here</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Classical:</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>R1 hard distillation:</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>28. Data-generation stage vs training stage</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Phase A — expensive teacher stage</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Phase B — student training</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>29. Sequence-length filtering</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>30. Why sequence length matters</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>31. Numerical question — sequence-length scaling</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>32. Dataset splitting</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>33. Full end-to-end numerical pipeline</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>34. The student&#x27;s actual objective</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>35. Compare the equations one final time</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Classical soft KD</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>DeepSeek-R1 hard distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>36. One subtle point about &lt;think&gt;</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>37. Exam trap: hard distillation does NOT mean one-token classification</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>38. Exam trap: teacher-generated text is not necessarily the prompt</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>39. Exam trap: prompt_len - 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>40. Exam numerical: shifted positions</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>41. Full mental model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>42. Source-backed implementation summary</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>43. The most important formulas from this step</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Autoregressive target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Token loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Answer-only sequence loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Shift</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Answer start</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Training update</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 4.5 numerical bank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q1 — Cross-entropy</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q2 — Sequence loss</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q3 — Prompt masking</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q4 — Attention scaling with sequence length</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q5 — Dataset split</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>44. One final conceptual distinction</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-5-i37"><div class="v3-route-top"><span>Early R1-distillation mechanism; revisit after Part 8</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-5-i37" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-4-i36">← Previous lesson</a> · <a href="#chunk-les-step-4-6-i38">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-4-4-i36">Step 4.4 — DeepSeek-R1 Distillation: Why It Uses Text/Reasoning Traces Instead of Classical Soft-KL Distillation</a></p><p><strong>This lesson:</strong> Step 4.5 — DeepSeek-R1 Distillation: Turning a Teacher Reasoning Trace into the Student’s Training Signal</p><p>Revisit the teacher pipeline in <a href="#chunk-part-8">Part 8</a>.</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-5-i37"></a></p>
+<h2>Step 4.5 — DeepSeek-R1 Distillation: Turning a Teacher Reasoning Trace into the Student’s Training Signal</h2>
+<p><em>Plan node: I5 · chat order #37</em></p>
+<p>Now we move from the <strong>idea</strong> of R1 hard distillation to the actual mechanics.</p>
+<p>The central question is:</p>
+<blockquote>
+<p><strong>Once the teacher has generated a reasoning trace, exactly how does that text become tensors, targets, loss, and finally a gradient update?</strong></p>
+</blockquote>
+<p>The supplied <em>Build a Reasoning Model (From Scratch)</em> chapter gives this pipeline explicitly: tokenize the teacher-generated example, split prompt from answer, shift input/target sequences by one token, compute cross-entropy only on the answer tokens, and train the smaller pretrained model with that loss. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-15">1. Start with one teacher-generated example</h3>
+<p>Imagine the teacher produces:</p>
+<pre><code class="language-text">Prompt:
+Compute -49/7.
+
+Teacher response:
+The answer is \boxed{-7}
+</code></pre>
+<p>The important point is that the student does <strong>not</strong> receive:</p>
+<div class="math block">
+P_T(v)
+</div>
+<p>for every vocabulary token.</p>
+<p>Instead, it receives the sequence itself.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+(x,\;y_T)
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">x</span> = prompt</li>
+<li><span class="math inline">y_T</span> = teacher-generated reasoning/answer</li>
+</ul>
+<p>The student is then trained exactly like an autoregressive language model on that synthetic supervised example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-16">2. Tokenize the complete sequence</h3>
+<p>Suppose, purely for illustration, tokenization gives:</p>
+<div class="math block">
+[\texttt{P1},\texttt{P2},\texttt{P3},
+\texttt{A1},\texttt{A2},\texttt{A3}]
+</div>
+<p>where:</p>
+<div class="math block">
+[\texttt{P1},\texttt{P2},\texttt{P3}]
+</div>
+<p>are prompt tokens and:</p>
+<div class="math block">
+[\texttt{A1},\texttt{A2},\texttt{A3}]
+</div>
+<p>are teacher-answer tokens.</p>
+<p>Let the total sequence be:</p>
+<div class="math block">
+T=6.
+</div>
+<p>Let:</p>
+<div class="math block">
+\boxed{\text{prompt\_len}=3}.
+</div>
+<p>The chapter stores both the token IDs and the prompt length so it can later determine which positions belong to the teacher answer. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-17">3. Why do we shift the sequence?</h3>
+<p>This is fundamental to autoregressive language modeling.</p>
+<p>The model sees:</p>
+<pre><code class="language-text">P1 P2 P3 A1 A2
+</code></pre>
+<p>and should predict:</p>
+<pre><code class="language-text">P2 P3 A1 A2 A3
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{input} = \text{all tokens except last}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{target} = \text{all tokens except first}
+}
+</div>
+<p>Mathematically:</p>
+<div class="math block">
+\text{input\_ids}
+=
+[t_1,t_2,\ldots,t_{N-1}]
+</div>
+<div class="math block">
+\text{target\_ids}
+=
+[t_2,t_3,\ldots,t_N].
+</div>
+<p>The chapter's actual code is:</p>
+<pre><code class="language-python">input_ids = tok[:-1].unsqueeze(0)
+target_ids = tok[1:]
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-18">4. Why is this shift necessary?</h3>
+<p>Suppose:</p>
+<div class="math block">
+[t_1,t_2,t_3,t_4]
+</div>
+<p>is:</p>
+<pre><code class="language-text">The capital of Germany
+</code></pre>
+<p>The model should learn:</p>
+<div class="math block">
+P(t_2|t_1)
+</div>
+<div class="math block">
+P(t_3|t_1,t_2)
+</div>
+<div class="math block">
+P(t_4|t_1,t_2,t_3).
+</div>
+<p>Therefore:</p>
+<pre><code class="language-text">INPUT              TARGET
+The       →         capital
+The capital →      of
+The capital of →   Germany
+</code></pre>
+<p>This is precisely the ordinary next-token objective you studied earlier.</p>
+<p>So R1 hard distillation does <strong>not</strong> invent a new autoregressive loss.</p>
+<p>It reuses:</p>
+<div class="math block">
+\boxed{
+\text{next-token cross-entropy}
+}
+</div>
+<p>but with teacher-generated sequences as the reference data. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-19">5. Tensor shapes</h3>
+<p>Suppose:</p>
+<div class="math block">
+N=100
+</div>
+<p>tokens in the combined prompt + teacher response.</p>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-20">Input</h5>
+<div class="math block">
+\boxed{
+[1,99]
+}
+</div>
+<p>because the final token is removed.</p>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-21">Target</h5>
+<div class="math block">
+\boxed{
+[99]
+}
+</div>
+<p>The model produces:</p>
+<div class="math block">
+\boxed{
+[1,99,V]
+}
+</div>
+<p>where <span class="math inline">V</span> is vocabulary size.</p>
+<p>For example, if:</p>
+<div class="math block">
+V=151{,}000,
+</div>
+<p>then:</p>
+<div class="math block">
+[1,99,151000].
+</div>
+<p>The chapter's example similarly discusses logits over a vocabulary of roughly 151K tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-22">6. The model is predicting a distribution at every position</h3>
+<p>For every position <span class="math inline">t</span>:</p>
+<div class="math block">
+z_t
+=
+[z_{t,1},z_{t,2},...,z_{t,V}]
+</div>
+<p>is the student’s vocabulary logit vector.</p>
+<p>Then:</p>
+<div class="math block">
+P_S(y_t|context)
+=
+\operatorname{softmax}(z_t).
+</div>
+<p>Cross-entropy asks:</p>
+<blockquote>
+<p>How much probability did the student assign to the teacher's actual next token?</p>
+</blockquote>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_t=-\log P_S(y_t|context)
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-23">7. Sequence-level loss</h3>
+<p>For a sequence with <span class="math inline">N</span> target tokens:</p>
+<div class="math block">
+\boxed{
+L
+=
+-\frac{1}{N}
+\sum_{t=1}^{N}
+\log P_S(y_t|y_{&lt;t},x)
+}
+</div>
+<p>This is the negative average token log probability.</p>
+<p>The chapter explicitly connects cross-entropy to the negative average log probability and explains that lower cross-entropy corresponds to greater confidence in the reference tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-24">8. BUT there is a crucial problem</h3>
+<p>Suppose the full sequence is:</p>
+<pre><code class="language-text">Prompt:
+What is 2 + 2?
+
+Answer:
+4
+</code></pre>
+<p>Should the model be penalized because it is not good at predicting the <strong>prompt tokens</strong>?</p>
+<p>No.</p>
+<p>The prompt is provided to the model.</p>
+<p>We are not asking the student to learn:</p>
+<div class="math block">
+\text{“reproduce the prompt.”}
+</div>
+<p>We are asking it to learn:</p>
+<div class="math block">
+\boxed{
+\text{“produce the teacher's response given the prompt.”}
+}
+</div>
+<p>Therefore the chapter uses an <strong>answer-only loss</strong>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-25">9. Prompt masking</h3>
+<p>This is one of the most important implementation details.</p>
+<p>Suppose:</p>
+<pre><code class="language-text">Prompt tokens:
+[P1 P2 P3]
+
+Answer tokens:
+[A1 A2 A3]
+</code></pre>
+<p>The shifted training structure is:</p>
+<pre><code class="language-text">Input:   P1  P2  P3  A1  A2
+Target:  P2  P3  A1  A2  A3
+</code></pre>
+<p>But we only calculate loss on:</p>
+<pre><code class="language-text">Target positions:
+             A1  A2  A3
+</code></pre>
+<p>The prompt target positions:</p>
+<pre><code class="language-text">P2  P3
+</code></pre>
+<p>are ignored.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-26">10. Why does the answer start at <code>prompt_len - 1</code>?</h3>
+<p>This often looks strange in code.</p>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt\_len}=3.
+</div>
+<p>The original tokens are:</p>
+<div class="math block">
+[t_0,t_1,t_2,t_3,t_4,t_5].
+</div>
+<p>Prompt:</p>
+<div class="math block">
+[t_0,t_1,t_2].
+</div>
+<p>Answer begins at:</p>
+<div class="math block">
+t_3.
+</div>
+<p>After shifting:</p>
+<pre><code class="language-text">input:
+t0 t1 t2 t3 t4
+
+target:
+t1 t2 t3 t4 t5
+</code></pre>
+<p>The target corresponding to the <strong>first answer token <span class="math inline">t_3</span></strong> comes from input position:</p>
+<div class="math block">
+t_2.
+</div>
+<p>That is index:</p>
+<div class="math block">
+\boxed{\text{prompt\_len}-1}.
+</div>
+<p>So the chapter uses:</p>
+<pre><code class="language-python">answer_start = max(prompt_len - 1, 0)
+</code></pre>
+<p>and then selects:</p>
+<pre><code class="language-python">answer_logits = logits[answer_start:]
+answer_targets = target_ids[answer_start:]
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-27">11. Concrete example of the indexing</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt\_len}=4.
+</div>
+<p>Original:</p>
+<div class="math block">
+[t_0,t_1,t_2,t_3,t_4,t_5,t_6]
+</div>
+<p>Prompt:</p>
+<div class="math block">
+t_0,t_1,t_2,t_3
+</div>
+<p>Answer:</p>
+<div class="math block">
+t_4,t_5,t_6.
+</div>
+<p>Shift:</p>
+<div class="math block">
+input=[t_0,t_1,t_2,t_3,t_4,t_5]
+</div>
+<div class="math block">
+target=[t_1,t_2,t_3,t_4,t_5,t_6].
+</div>
+<p>Now the first target answer token is:</p>
+<div class="math block">
+t_4.
+</div>
+<p>It occurs at target index:</p>
+<div class="math block">
+3.
+</div>
+<p>And:</p>
+<div class="math block">
+\text{prompt\_len}-1=4-1=3.
+</div>
+<p>Exactly.</p>
+<p>This is the reason the code slices at:</p>
+<div class="math block">
+\boxed{\text{prompt\_len}-1}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-28">12. Numerical next-token loss</h3>
+<p>Suppose for one teacher token:</p>
+<div class="math block">
+P_S(y_t)=0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_t=-\log(0.8).
+</div>
+<p>Using natural logarithm:</p>
+<div class="math block">
+L_t\approx0.223.
+</div>
+<p>If:</p>
+<div class="math block">
+P_S(y_t)=0.2,
+</div>
+<p>then:</p>
+<div class="math block">
+L_t=-\log(0.2)
+\approx1.609.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{higher probability on teacher token}
+\Rightarrow
+\text{lower loss}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-29">13. Numerical sequence loss</h3>
+<p>Suppose the teacher answer contains three target tokens with probabilities:</p>
+<div class="math block">
+[0.8,0.5,0.25].
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+-\frac13
+[
+\log(0.8)
++
+\log(0.5)
++
+\log(0.25)
+].
+</div>
+<p>Compute:</p>
+<div class="math block">
+-\log(0.8)\approx0.223
+</div>
+<div class="math block">
+-\log(0.5)\approx0.693
+</div>
+<div class="math block">
+-\log(0.25)\approx1.386.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L
+=
+\frac{0.223+0.693+1.386}{3}
+</div>
+<div class="math block">
+=
+\frac{2.302}{3}
+</div>
+<div class="math block">
+\boxed{L\approx0.767}.
+</div>
+<p>This is the teacher-response training loss for that example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-30">14. The student is learning the <em>entire reasoning sequence</em></h3>
+<p>Suppose the teacher generated:</p>
+<pre><code class="language-text">First isolate x.
+Subtract 2x.
+Add 9.
+Therefore x = 83.
+</code></pre>
+<p>Then each token becomes a training target.</p>
+<p>The student learns:</p>
+<div class="math block">
+P_S(y_1|x)
+</div>
+<p>then:</p>
+<div class="math block">
+P_S(y_2|x,y_1)
+</div>
+<p>then:</p>
+<div class="math block">
+P_S(y_3|x,y_1,y_2)
+</div>
+<p>and so forth.</p>
+<p>So the sequence of reasoning acts as a sequence of supervised targets.</p>
+<p>That is why the chapter describes hard distillation as teaching the student to reproduce teacher-generated reasoning traces. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-31">15. Complete single-example loss implementation</h3>
+<p>The source gives:</p>
+<pre><code class="language-python">def compute_example_loss(model, example, device):
+    token_ids = example[&quot;token_ids&quot;]
+    prompt_len = example[&quot;prompt_len&quot;]
+
+    input_ids = torch.tensor(
+        token_ids[:-1],
+        dtype=torch.long,
+        device=device
+    ).unsqueeze(0)
+
+    target_ids = torch.tensor(
+        token_ids[1:],
+        dtype=torch.long,
+        device=device
+    )
+
+    logits = model(input_ids).squeeze(0)
+
+    answer_start = max(prompt_len - 1, 0)
+
+    answer_logits = logits[answer_start:]
+    answer_targets = target_ids[answer_start:]
+
+    loss = torch.nn.functional.cross_entropy(
+        answer_logits,
+        answer_targets
+    )
+
+    return loss
+</code></pre>
+<p>This is the source's Listing 8.11. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-32">16. Understand every line</h3>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-33">Line 1</h5>
+<pre><code class="language-python">token_ids = example[&quot;token_ids&quot;]
+</code></pre>
+<p>Retrieve the complete:</p>
+<div class="math block">
+[\text{prompt}+\text{teacher answer}]
+</div>
+<p>sequence.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-34">Line 2</h5>
+<pre><code class="language-python">prompt_len = example[&quot;prompt_len&quot;]
+</code></pre>
+<p>Remember where the teacher answer starts.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-35">Lines 3–7</h5>
+<p>Create shifted:</p>
+<div class="math block">
+\boxed{input}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{target}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-36">Line 8</h5>
+<pre><code class="language-python">logits = model(input_ids)
+</code></pre>
+<p>Student predicts the next token at every position.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-37">Line 9</h5>
+<pre><code class="language-python">answer_start = prompt_len - 1
+</code></pre>
+<p>Locate the first prediction whose target is a teacher-answer token.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-38">Lines 10–11</h5>
+<p>Keep only:</p>
+<div class="math block">
+\boxed{\text{answer logits}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{answer target tokens}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-39">Final line</h5>
+<pre><code class="language-python">cross_entropy(answer_logits, answer_targets)
+</code></pre>
+<p>Calculate:</p>
+<div class="math block">
+\boxed{
+-\frac1N\sum_t\log P_S(y_t|context)
+}
+</div>
+<p>over the teacher answer only.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-40">17. Why <code>cross_entropy</code> can handle this directly</h3>
+<p>You do <strong>not</strong> need to manually calculate:</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\log
+</div>
+<p>followed by:</p>
+<div class="math block">
+-\log p.
+</div>
+<p>PyTorch's:</p>
+<pre><code class="language-python">F.cross_entropy(logits, targets)
+</code></pre>
+<p>implements the required computation efficiently.</p>
+<p>The chapter explicitly notes that this produces the same core quantity as the earlier negative-average-log-probability calculation and is the preferred implementation for training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-41">18. Source numerical example</h3>
+<p>The chapter reports that for one example, the negative average log probability is:</p>
+<div class="math block">
+\boxed{1.68}
+</div>
+<p>and the directly computed cross-entropy also gives approximately:</p>
+<div class="math block">
+\boxed{1.68}.
+</div>
+<p>This demonstrates that the custom probability calculation and PyTorch cross-entropy are representing the same training objective. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-5-i37-0" data-full-review="added"><p>Correction: With 100 prompt and 20 response tokens, shifting yields 119 targets, including 20 response targets: 16.8067%. The ratio 20/120 is an unshifted illustration.</p><p><a href="#audit-full-chunk-les-step-4-5-i37">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-5-i37-42">19. Why answer-only loss matters mathematically</h3>
+<p>Suppose the prompt contains 100 tokens and the answer contains 20.</p>
+<p>If we calculated loss over all 120:</p>
+<div class="math block">
+L_{\text{all}}
+=
+-\frac1{120}
+\sum_{t=1}^{120}\log p_t.
+</div>
+<p>The prompt tokens would consume:</p>
+<div class="math block">
+\frac{100}{120}=83.3\%
+</div>
+<p>of the loss positions.</p>
+<p>The actual teacher response would contribute only:</p>
+<div class="math block">
+\frac{20}{120}=16.7\%.
+</div>
+<p>That is the opposite of what we want.</p>
+<p>We care about:</p>
+<div class="math block">
+\boxed{\text{learning the teacher response}}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{\text{learning to reproduce the supplied prompt}}.
+</div>
+<p>This explains the chapter's explicit prompt masking. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-5-i37-1" data-full-review="added"><p>Correction: With 80 prompt and 20 answer tokens, the shifted response fraction is 20/99=20.2020%. Prompt masking retains all 20 answer targets.</p><p><a href="#audit-full-chunk-les-step-4-5-i37">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-5-i37-43">20. Numerical question — effect of prompt masking</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt}=80\text{ tokens}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{answer}=20\text{ tokens}.
+</div>
+<p>Without masking, answer tokens account for:</p>
+<div class="math block">
+\frac{20}{100}=20\%.
+</div>
+<p>With answer-only loss:</p>
+<div class="math block">
+\boxed{100\%}
+</div>
+<p>of the optimization signal comes from the response.</p>
+<p>This is a very useful interview explanation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-44">21. The training example becomes</h3>
+<p>Conceptually:</p>
+<pre><code class="language-text">                    Complete sequence
+                           |
+             +-------------+-------------+
+             |                           |
+          Prompt                       Answer
+             |                           |
+         context only                TRAIN HERE
+             |                           |
+             +-------------+-------------+
+                           |
+                      Student logits
+                           |
+                    Cross-entropy
+                           |
+                        backward
+                           |
+                    update student
+</code></pre>
+<p>The prompt is not discarded from the model input.</p>
+<p>This is crucial.</p>
+<p>We <strong>use the prompt as context</strong>, but <strong>do not use its positions as the optimization targets</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-45">22. This distinction is extremely important</h3>
+<p>Do not say:</p>
+<blockquote>
+<p>“We remove the prompt.”</p>
+</blockquote>
+<p>That is wrong.</p>
+<p>We:</p>
+<div class="math block">
+\boxed{\text{keep prompt in the input}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{mask prompt positions in the loss}}.
+</div>
+<p>The student therefore learns:</p>
+<div class="math block">
+\boxed{
+P(\text{answer}\mid\text{prompt})
+}
+</div>
+<p>which is exactly what we need.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-46">23. Validation loss</h3>
+<p>The source then wraps the single-example calculation inside an evaluation function.</p>
+<p>Conceptually:</p>
+<div class="math block">
+L_{\text{val}}
+=
+\frac1M
+\sum_{i=1}^{M}
+L_i.
+</div>
+<p>This lets us measure how well the student predicts held-out teacher-generated responses.</p>
+<p>The chapter emphasizes that validation loss is generally a cleaner indicator of generalization because it is computed on held-out examples without updating weights. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-47">24. Training loss vs validation loss</h3>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-48">Training loss</h5>
+<p>Computed on examples being used for optimization.</p>
+<p>It can fluctuate.</p>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-49">Validation loss</h5>
+<p>Computed on held-out examples.</p>
+<p>It is more useful for judging whether improvement generalizes.</p>
+<p>The chapter's example gives:</p>
+<div class="math block">
+\text{Train loss}\approx0.98
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Validation loss}\approx1.02
+</div>
+<p>on a small subset during evaluation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-50">25. Full training loop</h3>
+<p>Once the loss function exists, training becomes conventional deep learning.</p>
+<p>The chapter's structure is essentially:</p>
+<pre><code class="language-text">Initialize model + optimizer
+        ↓
+for each epoch
+        ↓
+shuffle training examples
+        ↓
+for each example
+        ↓
+zero gradients
+        ↓
+compute answer-only CE loss
+        ↓
+loss.backward()
+        ↓
+(optional) clip gradients
+        ↓
+optimizer.step()
+        ↓
+periodically evaluate validation loss
+        ↓
+save checkpoint
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-51">26. Why gradient clipping appears</h3>
+<p>The supplied implementation uses:</p>
+<div class="math block">
+\boxed{\text{gradient clipping}}
+</div>
+<p>with:</p>
+<div class="math block">
+\text{grad\_clip\_norm}=1.0
+</div>
+<p>in its example training run. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+\|\nabla\|&gt;c
+\Rightarrow
+\text{rescale gradient to norm }c.
+</div>
+<p>This helps prevent unusually large updates from destabilizing training.</p>
+<p>The chapter connects this specifically to occasional examples producing unusually large gradients. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-52">27. Important: there is no teacher forward pass during each student update here</h3>
+<p>Compare this with classical soft KD.</p>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-53">Classical:</h5>
+<pre><code class="language-text">prompt
+  ├──&gt; teacher logits
+  └──&gt; student logits
+              ↓
+             KL
+</code></pre>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-54">R1 hard distillation:</h5>
+<pre><code class="language-text">teacher generated dataset
+            ↓
+        saved text
+            ↓
+        student SFT
+</code></pre>
+<p>Once the dataset has already been generated, the teacher is not needed in the student's training loop.</p>
+<p>This is one of the core practical differences emphasized by the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-55">28. Data-generation stage vs training stage</h3>
+<p>This gives us two separate computational phases.</p>
+<h4 id="v3-heading-chunk-les-step-4-5-i37-56">Phase A — expensive teacher stage</h4>
+<div class="math block">
+\text{prompt}
+\rightarrow
+\text{teacher generation}
+\rightarrow
+\text{verification}
+\rightarrow
+\text{filtering}
+</div>
+<h4 id="v3-heading-chunk-les-step-4-5-i37-57">Phase B — student training</h4>
+<div class="math block">
+\text{curated examples}
+\rightarrow
+\text{student}
+\rightarrow
+CE
+\rightarrow
+\text{gradient update}.
+</div>
+<p>This separation makes the architecture much easier to scale and reason about.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-58">29. Sequence-length filtering</h3>
+<p>There is another engineering issue.</p>
+<p>The chapter reports:</p>
+<div class="math block">
+\text{average total length}=2946\text{ tokens}
+</div>
+<p>for the initial examples, with an extreme maximum of:</p>
+<div class="math block">
+42005
+</div>
+<p>tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Training on extremely long examples can be expensive.</p>
+<p>So the example filters sequences to:</p>
+<div class="math block">
+\boxed{\text{maximum length}=2048}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-59">30. Why sequence length matters</h3>
+<p>Transformer computation has strong dependence on sequence length.</p>
+<p>For a self-attention layer, the attention matrix has shape:</p>
+<div class="math block">
+N\times N.
+</div>
+<p>So increasing:</p>
+<div class="math block">
+N
+</div>
+<p>increases attention-related work roughly quadratically.</p>
+<p>Therefore filtering:</p>
+<div class="math block">
+42005
+\rightarrow
+2048
+</div>
+<p>is not a small engineering tweak.</p>
+<p>It can drastically reduce computational cost.</p>
+<p>The source specifically presents maximum sequence length as one of the practical constraints that makes this example feasible on smaller hardware. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-60">31. Numerical question — sequence-length scaling</h3>
+<p>Suppose attention-related work is approximated by:</p>
+<div class="math block">
+O(N^2).
+</div>
+<p>Compare:</p>
+<div class="math block">
+N_1=1024
+</div>
+<p>and:</p>
+<div class="math block">
+N_2=2048.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{N_2^2}{N_1^2}
+=
+\left(\frac{2048}{1024}\right)^2
+=
+2^2
+=
+\boxed4.
+</div>
+<p>So doubling sequence length approximately quadruples the quadratic attention component.</p>
+<p>This is a classic exam numerical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-61">32. Dataset splitting</h3>
+<p>The source's example performs a shuffle and keeps a small validation split.</p>
+<p>It gives:</p>
+<div class="math block">
+\boxed{6670\text{ training examples}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{25\text{ validation examples}}
+</div>
+<p>for that particular filtered subset. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The tiny validation set is deliberately chosen for the lightweight instructional experiment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-62">33. Full end-to-end numerical pipeline</h3>
+<p>Suppose you start with:</p>
+<div class="math block">
+12,000
+</div>
+<p>teacher-generated examples.</p>
+<p>After length filtering:</p>
+<div class="math block">
+6,695
+</div>
+<p>remain.</p>
+<p>Then:</p>
+<div class="math block">
+25
+</div>
+<p>are held out for validation.</p>
+<p>Therefore training set:</p>
+<div class="math block">
+6695-25
+=
+\boxed{6670}.
+</div>
+<p>These are the exact numbers reported in the source's example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-63">34. The student's actual objective</h3>
+<p>Now we can write the final DeepSeek-R1 hard-distillation objective much more precisely:</p>
+<p>For a teacher-generated response:</p>
+<div class="math block">
+y_1,y_2,\dots,y_N
+</div>
+<p>conditioned on prompt <span class="math inline">x</span>,</p>
+<div class="math block">
+\boxed{
+L_{\text{R1-distill}}
+=
+-\frac1N
+\sum_{t=1}^{N}
+\log
+P_S(y_t\mid x,y_{&lt;t})
+}
+</div>
+<p>where <span class="math inline">N</span> refers to the target response positions being trained.</p>
+<p>And importantly:</p>
+<div class="math block">
+\boxed{
+\text{prompt tokens are context, not loss targets}
+}
+</div>
+<p>according to the supplied implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-64">35. Compare the equations one final time</h3>
+<h4 id="v3-heading-chunk-les-step-4-5-i37-65">Classical soft KD</h4>
+<div class="math block">
+\boxed{
+L=
+\alpha CE(z_S,y)
++
+(1-\alpha)T^2
+KL(P_T^T\|P_S^T)
+}
+</div>
+<p>Teacher logits required.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-5-i37-66">DeepSeek-R1 hard distillation</h4>
+<div class="math block">
+\boxed{
+L=
+-\frac1N
+\sum_t
+\log
+P_S(y_t|x,y_{&lt;t})
+}
+</div>
+<p>Teacher-generated tokens required.</p>
+<p>Not teacher logits.</p>
+<p>Not temperature.</p>
+<p>Not KL.</p>
+<p>This distinction is the mathematical heart of the two methods. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-67">36. One subtle point about <code>&lt;think&gt;</code></h3>
+<p>The source's practical setup uses explicit reasoning markers:</p>
+<pre><code class="language-text">&lt;think&gt;
+...
+&lt;/think&gt;
+</code></pre>
+<p>and the chapter includes an exercise comparing training with and without these tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So these tokens can become part of the sequence representation and therefore part of what the student learns to reproduce.</p>
+<p>The important conceptual point is:</p>
+<div class="math block">
+\boxed{
+\text{reasoning format can itself become part of the learned behavior}
+}
+</div>
+<p>The source tests this explicitly through its exercise. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-68">37. Exam trap: hard distillation does NOT mean one-token classification</h3>
+<p>Hard distillation in this context still means:</p>
+<div class="math block">
+\boxed{\text{autoregressive token prediction}}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{\text{one classification decision}}.
+</div>
+<p>At each position:</p>
+<div class="math block">
+\text{student}
+\rightarrow
+V\text{-dimensional logits}
+\rightarrow
+\text{one teacher token target}.
+</div>
+<p>Repeated over the entire reasoning sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-69">38. Exam trap: teacher-generated text is not necessarily the prompt</h3>
+<p>The prompt is:</p>
+<div class="math block">
+x.
+</div>
+<p>Teacher response is:</p>
+<div class="math block">
+y_T.
+</div>
+<p>Student training is:</p>
+<div class="math block">
+\boxed{
+P_S(y_T|x)
+}
+</div>
+<p>not:</p>
+<div class="math block">
+P_S(x|x).
+</div>
+<p>That is why prompt masking exists.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-70">39. Exam trap: <code>prompt_len - 1</code></h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt\_len}=50.
+</div>
+<p>Then first answer prediction occurs at:</p>
+<div class="math block">
+\boxed{49}
+</div>
+<p>in the shifted logits/target indexing convention.</p>
+<p>Not 50.</p>
+<p>Because prediction at position 49 corresponds to target token 50 in the original sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-71">40. Exam numerical: shifted positions</h3>
+<p>Suppose the original sequence contains:</p>
+<div class="math block">
+10
+</div>
+<p>prompt tokens and:</p>
+<div class="math block">
+6
+</div>
+<p>answer tokens.</p>
+<p>Total:</p>
+<div class="math block">
+16.
+</div>
+<p>After shifting:</p>
+<div class="math block">
+15
+</div>
+<p>predictions.</p>
+<p>The number of answer targets is:</p>
+<div class="math block">
+\boxed6.
+</div>
+<p>The answer begins at:</p>
+<div class="math block">
+\text{prompt\_len}-1
+=
+10-1
+=
+\boxed{9}.
+</div>
+<p>So answer targets occupy shifted target positions:</p>
+<div class="math block">
+9,10,11,12,13,14.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-72">41. Full mental model</h3>
+<p>At this point, you should visualize R1 distillation as:</p>
+<pre><code class="language-text">                STRONG TEACHER
+                      |
+                      v
+            Generate reasoning trace
+                      |
+                      v
+             Verify correctness
+                      |
+                      v
+               Quality filter
+                      |
+                      v
+              Teacher text
+                      |
+                   tokenize
+                      |
+                      v
+        [prompt tokens + answer tokens]
+                      |
+            +---------+---------+
+            |                   |
+            v                   v
+        input_ids           target_ids
+        t[:-1]              t[1:]
+            |                   |
+            +---------+---------+
+                      |
+                 Student LLM
+                      |
+                   logits
+                      |
+            answer-only slice
+                      |
+                      v
+             cross_entropy
+                      |
+                      v
+                 backward
+                      |
+                      v
+              update student
+</code></pre>
+<p>That is the complete mechanism.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-73">42. Source-backed implementation summary</h3>
+<p>The supplied chapter's concrete implementation therefore has these stages:</p>
+<div class="math block">
+\boxed{
+\text{load pretrained base model}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{tokenized teacher-generated examples}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{filter by maximum sequence length}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{train/validation split}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{shift input and target}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{mask prompt; keep answer positions}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{cross-entropy}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{backpropagation + optimizer update}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{validation loss + checkpoint}
+}
+</div>
+<p>This is the actual student-training pipeline described by the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-74">43. The most important formulas from this step</h3>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-75">Autoregressive target</h5>
+<div class="math block">
+\boxed{
+y_t=\text{next token after the current context}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-76">Token loss</h5>
+<div class="math block">
+\boxed{
+L_t=-\log P_S(y_t|context)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-77">Answer-only sequence loss</h5>
+<div class="math block">
+\boxed{
+L=
+-\frac1N
+\sum_t\log P_S(y_t|x,y_{&lt;t})
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-78">Shift</h5>
+<div class="math block">
+\boxed{
+input=t[:-1],\qquad target=t[1:]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-79">Answer start</h5>
+<div class="math block">
+\boxed{
+\text{answer\_start}=\text{prompt\_len}-1
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-80">Training update</h5>
+<div class="math block">
+\boxed{
+\theta_S
+\leftarrow
+\theta_S-\eta\nabla_{\theta_S}L
+}
+</div>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-4-5-i37-2" data-full-review="added"><p>Correction: Q3 has 60 prompt and 20 response tokens, producing 79 targets; response fraction 20/79=25.3165%. Masked loss uses all 20 response targets. Q1 ln4=1.3862943611; Q2 mean=ln2=.6931471806; Q4 attention ratio=16; Q5 training count=6670.</p><p><a href="#audit-full-chunk-les-step-4-5-i37">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-4-5-i37-81">Step 4.5 numerical bank</h3>
+<h5 id="v3-heading-chunk-les-step-4-5-i37-82">Q1 — Cross-entropy</h5>
+<p>Correct teacher token probability:</p>
+<div class="math block">
+P=0.25.
+</div>
+<p>Find the token loss.</p>
+<div class="math block">
+-\ln(0.25)=\boxed{1.386}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-83">Q2 — Sequence loss</h5>
+<p>Probabilities:</p>
+<div class="math block">
+[0.5,0.5,0.25,1].
+</div>
+<div class="math block">
+L=
+-\frac14[
+\ln0.5+\ln0.5+\ln0.25+\ln1]
+</div>
+<div class="math block">
+=
+\frac{0.693+0.693+1.386+0}{4}
+</div>
+<div class="math block">
+\boxed{L\approx0.693}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-84">Q3 — Prompt masking</h5>
+<p>Prompt:</p>
+<div class="math block">
+60\text{ tokens}
+</div>
+<p>Answer:</p>
+<div class="math block">
+20\text{ tokens}.
+</div>
+<p>Without masking, only:</p>
+<div class="math block">
+\frac{20}{80}=25\%
+</div>
+<p>of positions correspond to teacher response.</p>
+<p>With answer-only loss:</p>
+<div class="math block">
+\boxed{100\%}
+</div>
+<p>of the loss signal targets the response.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-85">Q4 — Attention scaling with sequence length</h5>
+<div class="math block">
+N:1024\rightarrow4096.
+</div>
+<p>Quadratic work ratio:</p>
+<div class="math block">
+\left(\frac{4096}{1024}\right)^2
+=
+4^2
+=
+\boxed{16}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-5-i37-86">Q5 — Dataset split</h5>
+<p>Starting:</p>
+<div class="math block">
+12,000.
+</div>
+<p>After filtering:</p>
+<div class="math block">
+6,695.
+</div>
+<p>Validation:</p>
+<div class="math block">
+25.
+</div>
+<p>Training:</p>
+<div class="math block">
+\boxed{6,670}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-5-i37-87">44. One final conceptual distinction</h3>
+<p>There are actually <strong>three different things</strong> we have now learned:</p>
+<div class="math block">
+\boxed{\text{SFT}}
+</div>
+<p>Train on reference text.</p>
+<div class="math block">
+\boxed{\text{Classical soft KD}}
+</div>
+<p>Train on reference text <strong>plus teacher probability distributions</strong>.</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1 hard distillation}}
+</div>
+<p>Use teacher-generated reasoning traces as synthetic SFT data, after verification/filtering.</p>
+<p>So DeepSeek-R1 distillation is best thought of as:</p>
+<div class="math block">
+\boxed{
+\text{high-quality synthetic reasoning SFT}
+}
+</div>
+<p>rather than as:</p>
+<div class="math block">
+\boxed{
+\text{classical temperature/KL knowledge distillation}
+}
+</div>
+<p>The source explicitly makes this distinction. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

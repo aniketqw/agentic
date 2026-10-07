@@ -1,0 +1,196 @@
+"""Deterministic CPU teaching reconstruction; NumPy only, no model downloads.
+
+Functions expose the actual mechanics of the inherited MiniDeepSeek lessons.
+This is not a reproduction of a 130M-parameter training run or production V3.
+"""
+from dataclasses import dataclass
+import math
+import re
+import numpy as np
+
+def softmax(x):
+    """Normalize the final axis after subtracting its maximum."""
+    x = np.asarray(x, dtype=float)
+    y = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    return y / np.sum(y, axis=-1, keepdims=True)
+
+def ce(logits, targets):
+    """Mean next-token negative log likelihood over all supplied positions."""
+    z = np.asarray(logits, dtype=float)
+    t = np.asarray(targets, dtype=int)
+    if z.shape[:-1] != t.shape or t.size == 0:
+        raise ValueError('nonempty logits and target positions must align')
+    if np.any(t < 0) or np.any(t >= z.shape[-1]):
+        raise ValueError('target outside vocabulary')
+    a = z - z.max(axis=-1, keepdims=True)
+    lp = a - np.log(np.exp(a).sum(axis=-1, keepdims=True))
+    return float(-np.take_along_axis(lp, t[..., None], -1).mean())
+
+def pack(stories, eot, vocab):
+    """Append one EOT per already-tokenized document; prevent uint16 overflow."""
+    ids = [i for story in stories for i in [*story, eot]]
+    if not 0 < vocab <= 65536 or any(not 0 <= i < vocab for i in ids):
+        raise ValueError('vocabulary/token cannot be represented safely')
+    return np.asarray(ids, dtype=np.uint16)
+
+def batch(stream, starts, length):
+    """Extract X[i:i+T] and Y[i+1:i+T+1], expanding storage IDs to int64."""
+    if length < 1 or not starts or any(i < 0 or i + length >= len(stream) for i in starts):
+        raise ValueError('each start needs T+1 tokens')
+    return tuple(np.stack([stream[i+shift:i+shift+length] for i in starts]).astype(np.int64)
+                 for shift in (0, 1))
+
+@dataclass
+class Args:
+    d: int = 4
+    heads: int = 2
+    latent: int = 2
+    rope_dim: int = 2
+    experts: int = 3
+    top_k: int = 2
+    hidden: int = 6
+    vocab: int = 9
+    layers: int = 2
+    max_length: int = 32
+    def validate(self):
+        if min(self.d,self.heads,self.latent,self.rope_dim,self.experts,self.hidden,self.vocab,self.layers,self.max_length)<1:
+            raise ValueError('dimensions must be positive')
+        if self.d % self.heads or self.rope_dim % 2 or not 1 <= self.top_k <= self.experts:
+            raise ValueError('head divisibility, even RoPE width, and valid top-k required')
+        return self
+
+def rope(x, offset=0, max_length=32):
+    """Rotate adjacent coordinate pairs at absolute positions, retaining norm."""
+    x = np.asarray(x, dtype=float)
+    width, length = x.shape[-1], x.shape[-2]
+    if width % 2 or offset < 0 or offset+length > max_length:
+        raise ValueError('even width and in-range absolute positions required')
+    theta = 10000.0 ** (-np.arange(0, width, 2)/width)
+    angle = np.arange(offset, offset+length)[:,None]*theta
+    pairs = x.reshape(*x.shape[:-1], width//2,2)
+    z = pairs[...,0]+1j*pairs[...,1]
+    z = z * np.exp(1j*angle)
+    return np.stack((z.real,z.imag),axis=-1).reshape(x.shape)
+
+def norm(x, eps=1e-5):
+    """Population-variance LayerNorm, unit gain and zero bias for the toy."""
+    return (x-x.mean(-1,keepdims=True))/np.sqrt(x.var(-1,keepdims=True)+eps)
+
+def gelu(x):
+    """Exact x*Phi(x); avoids confusing it with the tanh approximation."""
+    return x*.5*(1+np.vectorize(math.erf)(x/math.sqrt(2)))
+
+class Attention:
+    """Mini-book split content/position scores and (latent, rotated-key) cache."""
+    def __init__(self, args, rng):
+        self.a=args
+        def w(i,o): return rng.normal(0,.2,(i,o))
+        self.q=w(args.d,args.d); self.down=w(args.d,args.latent)
+        self.upk=w(args.latent,args.d); self.upv=w(args.latent,args.d)
+        self.qr=w(args.d,args.heads*args.rope_dim); self.kr=w(args.d,args.heads*args.rope_dim)
+        self.out=w(args.d,args.d)
+    def __call__(self,x,past=None):
+        b,s,d=x.shape; a=self.a; h=a.heads; dh=d//h
+        offset=0 if past is None else past[0].shape[1]
+        def split(y,width): return y.reshape(b,s,h,width).transpose(0,2,1,3)
+        q=split(x@self.q,dh); c=x@self.down
+        qr=rope(split(x@self.qr,a.rope_dim),offset,a.max_length)
+        kr=rope(split(x@self.kr,a.rope_dim),offset,a.max_length)
+        if past is not None:
+            c=np.concatenate((past[0],c),axis=1)
+            kr=np.concatenate((past[1],kr),axis=2)
+        length=c.shape[1]
+        k=(c@self.upk).reshape(b,length,h,dh).transpose(0,2,1,3)
+        v=(c@self.upv).reshape(b,length,h,dh).transpose(0,2,1,3)
+        scores=q@k.swapaxes(-1,-2)/math.sqrt(dh)+qr@kr.swapaxes(-1,-2)/math.sqrt(a.rope_dim)
+        allowed=np.arange(length)[None,:] <= (offset+np.arange(s))[:,None]
+        weights=softmax(np.where(allowed,scores,-np.inf))
+        y=(weights@v).transpose(0,2,1,3).reshape(b,s,d)@self.out
+        return y,(c,kr),{'q':q,'k':k,'v':v,'qr':qr,'kr':kr,'weights':weights,'scores':scores}
+
+class MoE:
+    """One shared GELU expert plus weighted top-k experts; stable index ties."""
+    def __init__(self,args,rng):
+        self.a=args; self.bias=np.zeros(args.experts)
+        self.gate=rng.normal(0,.2,(args.d,args.experts))
+        self.w1=rng.normal(0,.2,(args.experts+1,args.d,args.hidden))
+        self.w2=rng.normal(0,.2,(args.experts+1,args.hidden,args.d))
+    def expert(self,x,i): return gelu(x@self.w1[i])@self.w2[i]
+    def __call__(self,x,training=False):
+        flat=x.reshape(-1,self.a.d); scores=flat@self.gate+self.bias
+        indices=np.argsort(-scores,axis=-1,kind='stable')[:,:self.a.top_k]
+        gates=softmax(np.take_along_axis(scores,indices,-1))
+        result=self.expert(flat,self.a.experts)
+        for token in range(len(flat)):
+            for rank,expert in enumerate(indices[token]):
+                result[token]+=gates[token,rank]*self.expert(flat[token],expert)
+        counts=np.bincount(indices.ravel(),minlength=self.a.experts)
+        if training:
+            avg=len(flat)*self.a.top_k/self.a.experts
+            self.bias+=.01*np.tanh((avg-counts)/(avg+1e-6))
+        return result.reshape(x.shape),{'indices':indices,'gates':gates,'counts':counts}
+
+class Block:
+    def __init__(self,args,rng): self.attention=Attention(args,rng);self.moe=MoE(args,rng)
+    def __call__(self,x,past=None):
+        update,cache,trace=self.attention(norm(x),past)
+        h=x+update; ff,routing=self.moe(norm(h))
+        return h+ff,cache,{'attention':trace,'attention_update':update,'h':h,'ff':ff,'routing':routing}
+
+class Mini:
+    """Two blocks, final LayerNorm and untied vocabulary head; no dropout."""
+    def __init__(self,args=Args(),seed=7):
+        self.a=args.validate(); rng=np.random.default_rng(seed)
+        self.embed=rng.normal(0,.3,(args.vocab,args.d))
+        self.blocks=[Block(args,rng) for _ in range(args.layers)]
+        self.head=rng.normal(0,.2,(args.d,args.vocab))
+    def __call__(self,ids,past=None):
+        ids=np.asarray(ids,dtype=int)
+        if ids.ndim!=2 or ids.size==0 or np.any(ids<0) or np.any(ids>=self.a.vocab):
+            raise ValueError('nonempty [B,S] vocabulary indices required')
+        x=self.embed[ids];caches=[];traces=[]
+        for i,block in enumerate(self.blocks):
+            x,c,t=block(x,None if past is None else past[i]);caches.append(c);traces.append(t)
+        h=norm(x)
+        return h@self.head,caches,{'h':h,'blocks':traces}
+
+def mtp_alignment(ids,depth):
+    """Explicit in-input convention: base i consumes x[i+k], predicts x[i+k+1].
+    Stage k keeps S-k-1 base positions; previously refined h is PREFIX-sliced
+    to this length, never repeatedly truncated by an absolute depth count.
+    """
+    ids=np.asarray(ids);s=ids.shape[1];length=s-depth-1
+    if depth<1 or length<1: raise ValueError('no valid farther target')
+    return ids[:,depth:depth+length],ids[:,depth+1:depth+1+length],length
+
+def advantages(rewards,eps=1e-8):
+    """Same-prompt population standardization; equal-reward group has zeros."""
+    r=np.asarray(rewards,float)
+    if len(r)<2: raise ValueError('group requires at least two completions')
+    return (r-r.mean())/(r.std(ddof=0)+eps)
+
+def surrogate(ratio,adv,clip=.2):
+    """PPO objective to maximize; clipping is an incentive bound, not a constraint."""
+    r=np.asarray(ratio);a=np.asarray(adv)
+    return np.minimum(r*a,np.clip(r,1-clip,1+clip)*a)
+
+def verify(text,gold):
+    """Toy protocol: exactly one final-line finite number; reject ambiguous markers."""
+    hits=re.findall(r'^Final answer:\s*([-+]?\d+(?:\.\d+)?)\s*$',text,re.M)
+    return int(len(hits)==1 and float(hits[0])==float(gold))
+
+def kd(student,teacher,label,T=3,alpha=.3):
+    """Single-position classical KD and analytic student-logit gradient."""
+    if T<=0 or not 0<=alpha<=1: raise ValueError('valid temperature and weight required')
+    p=softmax(np.asarray(teacher)/T);q=softmax(np.asarray(student)/T)
+    kl=float(np.sum(p*(np.log(p)-np.log(q))))
+    hard=ce(np.asarray(student)[None,:],np.asarray([label]))
+    grad=alpha*(softmax(student)-np.eye(len(student))[label])+(1-alpha)*T*(q-p)
+    return alpha*hard+(1-alpha)*T*T*kl,grad,{'teacher':p,'student':q,'hard':hard,'kl':kl,'scaled_soft':T*T*kl}
+
+def lr(iteration,warmup=200,end=5000,peak=3e-4):
+    if iteration<0 or not 0<warmup<end: raise ValueError('valid schedule required')
+    if iteration<warmup: return peak*iteration/warmup
+    if iteration>=end:return peak/10
+    f=.5*(1+math.cos(math.pi*(iteration-warmup)/(end-warmup)))
+    return peak/10+f*(peak-peak/10)

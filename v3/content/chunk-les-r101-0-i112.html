@@ -1,0 +1,1005 @@
+<section class="chunk" id="chunk-les-r101-0-i112" data-id="les-r101-0-i112"><details class="audit-card" id="audit-full-chunk-les-r101-0-i112" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-r101-0-i112-1">Motivation</h4><p>Turn correct forward/loss mechanics into reproducible parameter learning with controlled schedules, evaluation and recovery state.</p><h4 id="v3-heading-chunk-les-r101-0-i112-2">Prerequisites</h4><ul><li>Gradient descent and AdamW</li><li>Batch/target alignment</li><li>Train/eval and automatic differentiation</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-3">Notation and units</h4><ul><li>B*T positions/update</li><li>K microbatches per optimizer update</li><li>eta_t: scheduled learning rate</li><li>g_t: gradient of declared mean loss</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-4">Assumptions</h4><ul><li>Source ordinary loop performs one update per batch</li><li>Companion demonstrates actual head-only SGD, not full-model AdamW</li><li>Equal-size microbatches in accumulation example</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-5">Step-by-step derivation</h4><ol><li>Read data metadata, validate vocabulary and context against model configuration, instantiate model and optimizer.</li><li>At step t set eta_t: linear warmup eta_peak*t/200; then cosine interpolate eta_peak to eta_peak/10 between200 and5000.</li><li>Zero stale gradients, compute aligned main/MTP loss, backpropagate, and update parameters with optimizer state.</li><li>If accumulating K equal-size microbatches, divide each mean loss by K before backward and step once. Unequal valid-token counts need token-count weighting instead.</li><li>For AdamW use moving averages of gradients/squared gradients plus decoupled weight decay; schedule state, moment buffers and bias-correction count belong to recovery.</li><li>Evaluation uses eval mode and disabled gradients on held-out data; estimate mean loss with specified token/batch weighting.</li><li>A best-validation checkpoint and periodic recovery checkpoint have different selection criteria. Reproducible resume also needs RNG/sampler/scaler/schedule/best-loss state in addition to listed weights and optimizer.</li><li>Mixed precision must be chosen for the actual device: source GPU BF16/FP16 autocast is not a complete production FP8 pipeline.</li></ol><h4 id="v3-heading-chunk-les-r101-0-i112-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-r101-0-i112-7">Schedule boundary/midpoint</h5><p>Given: peak3e-4,warmup200,end5000</p><ol><li>t100 is half warmup</li><li>t2600 is halfway through cosine decay</li><li>End reaches minimum3e-5</li></ol><p>Answer: eta100=.00015; eta2600=.000165; eta5000=.00003</p><p>Verification: mini_deepseek_integration / MD113-LR-2600 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r101-0-i112-8">Executed learning update</h5><p>Given: Tiny model fixed trunk, six labels; SGD lr.05</p><ol><li>Compute head gradient H-transpose(P-onehot)/6</li><li>Compare gradients with central finite differences</li><li>Subtract.05*gradient</li></ol><p>Answer: CE 2.4511738356008177 → 2.415129534126279</p><p>Verification: mini_deepseek_integration / MD113-LEARNING · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r101-0-i112-9">Accumulation</h5><p>Given: Three equal2-token microbatches</p><ol><li>Compute each2-token mean gradient</li><li>Average3 gradients</li><li>Compare with6-token mean gradient</li></ol><p>Answer: Identical full-batch and accumulated head gradients</p><p>Verification: mini_deepseek_integration / MD113-ACCUM · passing independent check</p></div><h4 id="v3-heading-chunk-les-r101-0-i112-10">Corrections and source qualifications</h4><ul><li>heading: 36. Checkpointing; text: The shown checkpoint is useful but insufficient for exact resume: also preserve RNG states, scheduler/step convention, best-validation score, gradient-scaler state if used, and data sampling provenance. Ensure val_loss is defined at every periodic save.</li><li>heading: 2. Configuration comes first; text: Device/precision compatibility must be checked. A fallback string float16 does not establish an effective CPU mixed-precision path; keep CPU float32 unless the actual backend supports and validates another choice.</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-11">Mastery answers and retained exercise context</h4><ol><li>6144 prediction positions appear per source batch, not6144 unique corpus tokens.</li><li>Gradients accumulate by default, hence zero_grad or deliberately scaled accumulation.</li><li>eval changes module behavior; no_grad separately disables graph tracking.</li><li>The best checkpoint is selected by held-out loss; periodic files are recovery points.</li><li>At100 the learning rate is1.5e-4; at200 it reaches3e-4.</li></ol><h4 id="v3-heading-chunk-les-r101-0-i112-12">Edge cases and remaining gaps</h4><ul><li>A same-batch loss reduction is an optimization check, not generalization evidence.</li><li>Claimed130M requires actual full configuration/parameter counting.</li><li>Full GPU mixed-precision run and complete training are not executed here.</li><li>Loss batchmean versus tokenmean changes with padding and MTP lengths.</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-13">Connections and progression</h4><ul><li>Validation guards against fitting alone</li><li>Checkpoint state makes continuation reviewable</li><li>Scaling beyond a single device adds synchronization and communication constraints</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 335, 336, 337, 338, 339, 340, 341 · Original lesson mechanisms and source-specific implementation; corrections separately identify derivations and implementation gaps.</li></ul><h4 id="v3-heading-chunk-les-r101-0-i112-15">Executable code and explained functions</h4><p>file: companion.py; checker: check_companion.py; evidence: evidence.json; outputs: outputs.json; scope: Executed deterministic NumPy teaching reconstruction; original PyTorch and full training are separate.</p><p><a href="#audit-full-code-mini_deepseek_integration">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (45)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R101.0 — train.py: Turning MiniDeepSeek Into a Learning System</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>1. First understand the role of train.py</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>2. Configuration comes first</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>3. Mixed precision</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>4. get_batch() is the bridge from disk to model</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>5. Constructing X</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6. Constructing Y</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>7. A tiny example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>8. Batch shape</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>9. Why convert uint16 to int64?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>10. GPU transfer optimization</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>11. Learning-rate scheduling</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>12. Phase 1 — Warmup</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>13. Why warmup?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>14. Phase 2 — Cosine decay</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>15. What does cosine decay do?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>16. A subtle source detail: min_lr branch</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>17. Now initialize the actual model</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>18. Important distinction from ModelArgs</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>19. Instantiate the model</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>20. AdamW</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>21. The heart of training</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>22. Step 1 — Update learning rate</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>23. Step 2 — Training mode</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>24. Step 3 — Get (X,Y)</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>25. Step 4 — Forward pass</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>26. What happens inside the model?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>27. Step 5 — Zero gradients</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>28. Step 6 — Backpropagation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>29. Step 7 — AdamW update</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>30. Why repeat 5000 times?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>31. Validation is different from training</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>32. Why model.eval()?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>33. Why torch.no_grad()?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>34. Why average 100 validation batches?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>35. Training loss vs validation loss</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Training loss</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Validation loss</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>36. Checkpointing</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>37. Best checkpoint</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>38. Periodic checkpoint</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>39. Why save optimizer state?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>40. Full training pipeline</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>41. The complete learning equation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>42. One very important distinction</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-r101-0-i112"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r101-0-i112" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r100-9-i111">← Previous lesson</a> · <a href="#chunk-les-r102-0-i117">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r100-9-i111">R100.9 — MiniDeepSeek: The Complete Top-Level Forward Pass</a></p><p><strong>This lesson:</strong> R101.0 — train.py: Turning MiniDeepSeek Into a Learning System</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r101-0-i112"></a></p>
+<h3 id="v3-heading-chunk-les-r101-0-i112-16">R101.0 — <code>train.py</code>: Turning MiniDeepSeek Into a Learning System</h3>
+<p><em>Plan node: A6 · chat order #112</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We have finished the <strong>model itself</strong>. The next question is:</p>
+<blockquote>
+<p><strong>How does this architecture actually learn its parameters from TinyStories?</strong></p>
+</blockquote>
+<p>The source now moves to Chapter 6.3, where <code>train.py</code> connects the dataset, model, optimizer, mixed precision, learning-rate schedule, evaluation, and checkpointing into one training system. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The complete training loop is:</p>
+<div class="math block">
+\boxed{
+\text{Batch}
+\rightarrow
+\text{Forward}
+\rightarrow
+\text{Loss}
+\rightarrow
+\text{Backward}
+\rightarrow
+\text{Optimizer Update}
+}
+</div>
+<p>repeated thousands of times.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-17">1. First understand the role of <code>train.py</code></h4>
+<p>We already have:</p>
+<pre><code class="language-text">prepare.py
+    ↓
+TinyStories
+    ↓
+train.bin / val.bin / meta.json
+</code></pre>
+<p>and:</p>
+<pre><code class="language-text">model.py
+    ↓
+MiniDeepSeek
+</code></pre>
+<p><code>train.py</code> connects them:</p>
+<pre><code class="language-text">                 ┌──────────────┐
+                 │ train.bin    │
+                 │ val.bin      │
+                 └──────┬───────┘
+                        │
+                        ▼
+                   get_batch()
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ MiniDeepSeek │
+                 └──────┬───────┘
+                        │
+                        ▼
+                      Loss
+                        │
+                        ▼
+                    backward()
+                        │
+                        ▼
+                    AdamW
+                        │
+                        ▼
+                 Updated weights
+</code></pre>
+<p>The source describes <code>train.py</code> as responsible for loading the data, initializing <code>MiniDeepSeek</code>, and running the optimization loop. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-r101-0-i112-1" data-full-review="added"><p>Correction: Device/precision compatibility must be checked. A fallback string float16 does not establish an effective CPU mixed-precision path; keep CPU float32 unless the actual backend supports and validates another choice.</p><p><a href="#audit-full-chunk-les-r101-0-i112">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-r101-0-i112-18">2. Configuration comes first</h4>
+<p>The source begins with system and training configuration.</p>
+<p>Important values are:</p>
+<pre><code class="language-python">device = 'cuda' if torch.cuda.is_available() else 'cpu'
+</code></pre>
+<pre><code class="language-python">dtype = (
+    'bfloat16'
+    if torch.cuda.is_available()
+    and torch.cuda.is_bf16_supported()
+    else 'float16'
+)
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">max_iters = 5000
+eval_interval = 250
+log_interval = 20
+eval_iters = 100
+
+batch_size = 24
+block_size = 256
+</code></pre>
+<p>with AdamW settings:</p>
+<pre><code class="language-python">learning_rate = 3e-4
+weight_decay = 0.1
+beta1 = 0.9
+beta2 = 0.95
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>These parameters answer different questions:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>batch_size=24</code></td>
+<td>24 sequences per training step</td>
+</tr>
+<tr>
+<td><code>block_size=256</code></td>
+<td>256 tokens per sequence</td>
+</tr>
+<tr>
+<td><code>max_iters=5000</code></td>
+<td>maximum training iterations</td>
+</tr>
+<tr>
+<td><code>learning_rate=3e-4</code></td>
+<td>optimizer step scale</td>
+</tr>
+<tr>
+<td><code>weight_decay=0.1</code></td>
+<td>AdamW regularization</td>
+</tr>
+<tr>
+<td><code>eval_interval=250</code></td>
+<td>evaluate periodically</td>
+</tr>
+<tr>
+<td><code>eval_iters=100</code></td>
+<td>validation batches used for average loss</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-19">3. Mixed precision</h4>
+<p>The source uses PyTorch <code>autocast</code> for mixed-precision training. Depending on GPU support, it chooses BF16 or FP16. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{some computation in lower precision}
+}
+</div>
+<p>while other operations remain in higher precision where necessary.</p>
+<p>This connects directly to the FP8/mixed-precision discussion we already completed.</p>
+<p>But note the distinction:</p>
+<div class="math block">
+\boxed{
+\text{Chapter 6 train.py}
+\neq
+\text{DeepSeek-V3 FP8 training system}.
+}
+</div>
+<p>This mini-project uses:</p>
+<div class="math block">
+BF16/FP16
+</div>
+<p>through <code>autocast</code>.</p>
+<p>It is <strong>not</strong> implementing the complete FP8 training infrastructure we studied earlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-20">4. <code>get_batch()</code> is the bridge from disk to model</h4>
+<p>The source's <code>get_batch()</code> opens:</p>
+<pre><code class="language-python">np.memmap(
+    os.path.join(data_dir, f'{split}.bin'),
+    dtype=np.uint16,
+    mode='r'
+)
+</code></pre>
+<p>Then it randomly selects starting positions:</p>
+<pre><code class="language-python">ix = torch.randint(
+    len(data) - block_size,
+    (batch_size,)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is important.</p>
+<p>We do <strong>not</strong> load all of <code>train.bin</code> into GPU memory.</p>
+<p>Instead, we randomly sample windows from the large flat token stream.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-21">5. Constructing <code>X</code></h4>
+<p>For every random starting index <span class="math inline">i</span>:</p>
+<pre><code class="language-python">x = data[i:i+block_size]
+</code></pre>
+<p>So if:</p>
+<div class="math block">
+block\_size=256,
+</div>
+<p>we take:</p>
+<div class="math block">
+t_i,t_{i+1},...,t_{i+255}.
+</div>
+<p>This becomes one training input.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-22">6. Constructing <code>Y</code></h4>
+<p>The target is shifted by one position:</p>
+<pre><code class="language-python">y = data[i+1:i+1+block_size]
+</code></pre>
+<p>So:</p>
+<pre><code class="language-text">X:
+t₁ t₂ t₃ t₄ t₅ ...
+
+Y:
+t₂ t₃ t₄ t₅ t₆ ...
+</code></pre>
+<p>Therefore the model learns:</p>
+<div class="math block">
+P(t_{j+1}\mid t_1,\ldots,t_j).
+</div>
+<p>This is the core <strong>next-token prediction objective</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-23">7. A tiny example</h4>
+<p>Suppose the token sequence is:</p>
+<pre><code class="language-text">[10, 25, 91, 7, 42]
+</code></pre>
+<p>and:</p>
+<div class="math block">
+block\_size=4.
+</div>
+<p>Then:</p>
+<pre><code class="language-text">X = [10, 25, 91, 7]
+Y = [25, 91, 7, 42]
+</code></pre>
+<p>The model is therefore trained on four predictions:</p>
+<div class="math block">
+10\rightarrow25
+</div>
+<div class="math block">
+25\rightarrow91
+</div>
+<div class="math block">
+91\rightarrow7
+</div>
+<div class="math block">
+7\rightarrow42.
+</div>
+<p>That's why the target is shifted exactly one position.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-24">8. Batch shape</h4>
+<p>The source uses:</p>
+<div class="math block">
+batch\_size=24
+</div>
+<p>and:</p>
+<div class="math block">
+block\_size=256.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+X:[24,256]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+Y:[24,256].
+}
+</div>
+<p>There are:</p>
+<div class="math block">
+24\times256
+=
+\boxed{6144}
+</div>
+<p>token prediction positions in one training batch.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-25">9. Why convert <code>uint16</code> to <code>int64</code>?</h4>
+<p>The dataset was stored as:</p>
+<pre><code class="language-python">np.uint16
+</code></pre>
+<p>because the vocabulary size fits inside 16 bits.</p>
+<p>But when PyTorch uses token IDs for embeddings and cross-entropy, the source converts the slices:</p>
+<pre><code class="language-python">.astype(np.int64)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the flow is:</p>
+<div class="math block">
+\boxed{
+disk:\ uint16
+\rightarrow
+PyTorch:\ int64
+}
+</div>
+<p>This is a storage representation versus computation representation distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-26">10. GPU transfer optimization</h4>
+<p>When CUDA is available:</p>
+<pre><code class="language-python">x.pin_memory().to(
+    device,
+    non_blocking=True
+)
+</code></pre>
+<p>is used. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The source identifies pinned memory as a performance optimization for faster CPU-RAM → GPU-VRAM transfer.</p>
+<p>So:</p>
+<pre><code class="language-text">CPU RAM
+   │
+   │ pinned memory
+   ▼
+GPU VRAM
+</code></pre>
+<p>The important idea is that this changes <strong>data-transfer efficiency</strong>, not the model's mathematical objective.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-27">11. Learning-rate scheduling</h4>
+<p>Now comes a very important training concept:</p>
+<div class="math block">
+\boxed{
+\text{learning rate is not fixed}.
+}
+</div>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+\text{linear warmup}
+\rightarrow
+\text{cosine decay}
+}
+</div>
+<p>with a minimum learning rate.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-28">12. Phase 1 — Warmup</h4>
+<p>The source sets:</p>
+<div class="math block">
+warmup\_iters=200.
+</div>
+<p>For:</p>
+<div class="math block">
+it&lt;200,
+</div>
+<p>the learning rate is:</p>
+<div class="math block">
+\boxed{
+LR(it)
+=
+learning\_rate
+\times
+\frac{it}{200}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+learning\_rate=3\times10^{-4}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So approximately:</p>
+<p>At iteration 0:</p>
+<div class="math block">
+LR=0
+</div>
+<p>At iteration 100:</p>
+<div class="math block">
+LR=1.5\times10^{-4}
+</div>
+<p>At iteration 200:</p>
+<div class="math block">
+LR=3\times10^{-4}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-29">13. Why warmup?</h4>
+<p>The source's explanation is:</p>
+<blockquote>
+<p>Early in training, the weights are still random.</p>
+</blockquote>
+<p>A large update immediately can be unstable.</p>
+<p>So instead:</p>
+<div class="math block">
+0
+\rightarrow
+small
+\rightarrow
+medium
+\rightarrow
+peak.
+</div>
+<p>Conceptually:</p>
+<pre><code class="language-text">learning rate
+    ↑
+    │           ______
+    │          /
+    │         /
+    │        /
+    │_______/________________→ iteration
+            200
+          warmup
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-30">14. Phase 2 — Cosine decay</h4>
+<p>After warmup, the source computes:</p>
+<div class="math block">
+decay\_ratio
+=
+\frac{it-warmup\_iters}
+{lr\_decay\_iters-warmup\_iters}.
+</div>
+<p>Then:</p>
+<div class="math block">
+coeff
+=
+\frac12
+\left(
+1+\cos(\pi\cdot decay\_ratio)
+\right).
+</div>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+LR
+=
+min\_lr
++
+coeff
+(learning\_rate-min\_lr)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+min\_lr=\frac{learning\_rate}{10}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-31">15. What does cosine decay do?</h4>
+<p>At the beginning of decay:</p>
+<div class="math block">
+coeff\approx1
+</div>
+<p>so:</p>
+<div class="math block">
+LR\approx learning\_rate.
+</div>
+<p>Near the end:</p>
+<div class="math block">
+coeff\approx0
+</div>
+<p>so:</p>
+<div class="math block">
+LR\approx min\_lr.
+</div>
+<p>Thus:</p>
+<pre><code class="language-text">LR
+↑
+│       ────────╮
+│               ╲
+│                ╲
+│                 ╲
+│                  ╲____
+│
+└────────────────────────→ iteration
+       warmup       decay
+</code></pre>
+<p>The source describes this as allowing larger updates earlier and smaller updates as training approaches a good solution. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-32">16. A subtle source detail: <code>min_lr</code> branch</h4>
+<p>The source explicitly notes something interesting.</p>
+<p>It sets:</p>
+<div class="math block">
+lr\_decay\_iters=max\_iters.
+</div>
+<p>The main loop stops at <code>max_iters</code>, so:</p>
+<pre><code class="language-python">if it &gt; lr_decay_iters:
+</code></pre>
+<p>normally never fires.</p>
+<p>Thus that branch is mainly a defensive guard for possible later extension/resumption.</p>
+<p>The source also notes that setting:</p>
+<div class="math block">
+lr\_decay\_iters\approx0.9\cdot max\_iters
+</div>
+<p>would make the cooldown actually occur before the main loop ends. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-33">17. Now initialize the actual model</h4>
+<p>The source loads:</p>
+<pre><code class="language-python">meta.json
+</code></pre>
+<p>and obtains:</p>
+<pre><code class="language-python">vocab_size = meta['vocab_size']
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Then it creates a specific training configuration:</p>
+<div class="math block">
+d_{\text{model}}=768
+</div>
+<div class="math block">
+n_{\text{layers}}=12
+</div>
+<div class="math block">
+n_{\text{heads}}=12
+</div>
+<p>with:</p>
+<div class="math block">
+vocab\_size=50,257
+</div>
+<p>from the data metadata, and:</p>
+<div class="math block">
+max\_seq\_len=block\_size.
+</div>
+<p>The source calls this a roughly:</p>
+<div class="math block">
+\boxed{130M\text{-parameter}}
+</div>
+<p>&quot;flagship&quot; MiniDeepSeek configuration for training on TinyStories. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-34">18. Important distinction from <code>ModelArgs</code></h4>
+<p>Earlier we saw defaults such as:</p>
+<div class="math block">
+d_{\text{model}}=512,\quad n_{\text{layers}}=8.
+</div>
+<p>Those were <strong>default configuration values</strong>.</p>
+<p>Here, <code>train.py</code> overrides important values:</p>
+<div class="math block">
+\boxed{
+768,\ 12,\ 12
+}
+</div>
+<p>for the actual training run described by the source.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\texttt{ModelArgs defaults}
+\neq
+\texttt{training configuration}.
+}
+</div>
+<p>This is an important implementation distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-35">19. Instantiate the model</h4>
+<p>The source then does:</p>
+<pre><code class="language-python">model = MiniDeepSeek(model_args)
+model.to(device)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<pre><code class="language-text">ModelArgs
+   ↓
+MiniDeepSeek(...)
+   ↓
+CPU / GPU
+</code></pre>
+<p>It also counts parameters:</p>
+<pre><code class="language-python">total_params = sum(
+    p.numel()
+    for p in model.parameters()
+)
+</code></pre>
+<p>and prints the approximate number of millions of parameters. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-36">20. AdamW</h4>
+<p>Next:</p>
+<pre><code class="language-python">optimizer = torch.optim.AdamW(
+    model.parameters(),
+    lr=learning_rate,
+    weight_decay=weight_decay,
+    betas=(beta1, beta2)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The optimizer's job is:</p>
+<div class="math block">
+\boxed{
+\text{convert gradients into parameter updates}.
+}
+</div>
+<p>The training flow is therefore:</p>
+<div class="math block">
+\boxed{
+\theta
+\xrightarrow{\text{forward}}
+L
+\xrightarrow{\text{backward}}
+\nabla_\theta L
+\xrightarrow{\text{AdamW}}
+\theta'
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-37">21. The heart of training</h4>
+<p>The source's main loop is:</p>
+<pre><code class="language-python">for iter_num in range(max_iters):
+</code></pre>
+<p>with:</p>
+<div class="math block">
+max\_iters=5000.
+</div>
+<p>Each iteration is essentially:</p>
+<pre><code class="language-text">1. Calculate LR
+       ↓
+2. Get training batch
+       ↓
+3. Forward pass
+       ↓
+4. Get loss
+       ↓
+5. Zero gradients
+       ↓
+6. Backward pass
+       ↓
+7. AdamW update
+</code></pre>
+<p>Let's trace it carefully.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-38">22. Step 1 — Update learning rate</h4>
+<p>The loop calls:</p>
+<pre><code class="language-python">lr = get_lr(iter_num)
+</code></pre>
+<p>and then updates every optimizer parameter group:</p>
+<pre><code class="language-python">param_group['lr'] = lr
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So each iteration can use a different learning rate.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-39">23. Step 2 — Training mode</h4>
+<p>The source calls:</p>
+<pre><code class="language-python">model.train()
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This tells PyTorch that we're performing training.</p>
+<p>This matters for components whose behavior differs between training and evaluation, such as dropout.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-40">24. Step 3 — Get <code>(X,Y)</code></h4>
+<pre><code class="language-python">X, Y = get_batch('train')
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+X:[24,256]
+</div>
+<div class="math block">
+Y:[24,256].
+</div>
+<p>The batch is then passed to the model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-41">25. Step 4 — Forward pass</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">with ctx:
+    outputs = model(X, targets=Y)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The critical detail is:</p>
+<pre><code class="language-python">targets=Y
+</code></pre>
+<p>Therefore our <code>MiniDeepSeek.forward()</code> chooses:</p>
+<div class="math block">
+\boxed{\text{training path}}
+</div>
+<p>rather than the cached inference path.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-42">26. What happens inside the model?</h4>
+<p>We already derived this:</p>
+<div class="math block">
+X
+\rightarrow
+Embedding
+\rightarrow
+12\times TransformerBlock
+\rightarrow
+h_{\text{main}}
+</div>
+<p>then:</p>
+<div class="math block">
+h_{\text{main}}
+\rightarrow
+LM\ head
+\rightarrow
+L_{\text{main}}
+</div>
+<p>and:</p>
+<div class="math block">
+h_{\text{main}}
+\rightarrow
+MTP_1
+\rightarrow
+MTP_2
+\rightarrow\cdots
+\rightarrow
+L_{\text{MTP}}.
+</div>
+<p>The model returns:</p>
+<pre><code class="language-python">outputs['loss']
+</code></pre>
+<p>which is the combined training objective.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-43">27. Step 5 — Zero gradients</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">optimizer.zero_grad(set_to_none=True)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We need this because gradients accumulate in PyTorch by default.</p>
+<p>Without clearing them:</p>
+<div class="math block">
+g_t
+</div>
+<p>would accumulate with previous iterations' gradients.</p>
+<p>We instead want the gradient corresponding to the current batch.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-44">28. Step 6 — Backpropagation</h4>
+<p>Then:</p>
+<pre><code class="language-python">loss.backward()
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This computes:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta L
+}
+</div>
+<p>for the trainable parameters.</p>
+<p>So gradients flow backward through:</p>
+<pre><code class="language-text">total loss
+   ↓
+MTP losses + main loss
+   ↓
+LM head
+   ↓
+Transformer blocks
+   ↓
+MoE / Attention / RoPE-related operations
+   ↓
+Embedding
+</code></pre>
+<p>The important conceptual point is that the loss does not directly change the parameters.</p>
+<p>It first produces gradients.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-45">29. Step 7 — AdamW update</h4>
+<p>Finally:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now AdamW uses the gradients and its optimizer state to modify:</p>
+<div class="math block">
+\theta.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\theta_{t+1}
+=
+Optimizer(
+\theta_t,\nabla_\theta L_t
+)
+}
+</div>
+<p>and the model has learned a tiny amount from this batch.</p>
+<p>Then the loop starts again.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-46">30. Why repeat 5000 times?</h4>
+<p>One batch only contains:</p>
+<div class="math block">
+6144
+</div>
+<p>token positions.</p>
+<p>The dataset is much larger.</p>
+<p>So training repeatedly draws different random windows:</p>
+<pre><code class="language-text">Iteration 1 → random windows
+Iteration 2 → different random windows
+Iteration 3 → different random windows
+...
+Iteration 5000
+</code></pre>
+<p>Over many iterations, the parameters gradually encode statistical patterns in the dataset.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-47">31. Validation is different from training</h4>
+<p>Every:</p>
+<div class="math block">
+250
+</div>
+<p>iterations, the source evaluates the model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>It calls:</p>
+<pre><code class="language-python">model.eval()
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">with torch.no_grad():
+</code></pre>
+<p>The purpose is to measure performance on:</p>
+<div class="math block">
+\boxed{\text{validation data}}
+</div>
+<p>rather than update the model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-48">32. Why <code>model.eval()</code>?</h4>
+<p>Training mode may activate training-specific behavior.</p>
+<p>Evaluation mode tells PyTorch:</p>
+<div class="math block">
+\boxed{
+\text{evaluate rather than train}.
+}
+</div>
+<p>Again, this is a framework-level behavior distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-49">33. Why <code>torch.no_grad()</code>?</h4>
+<p>During validation, we don't need:</p>
+<div class="math block">
+\nabla_\theta L.
+</div>
+<p>We're not updating the model.</p>
+<p>Therefore keeping the computational graph would be unnecessary overhead.</p>
+<p>So:</p>
+<pre><code class="language-python">with torch.no_grad():
+</code></pre>
+<p>prevents gradient tracking during validation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-50">34. Why average 100 validation batches?</h4>
+<p>The source sets:</p>
+<div class="math block">
+eval\_iters=100.
+</div>
+<p>It computes a loss for each validation batch:</p>
+<div class="math block">
+L_1,L_2,\ldots,L_{100}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}
+=
+\frac1{100}
+\sum_{i=1}^{100}L_i.
+}
+</div>
+<p>This gives a more stable estimate than relying on one random validation batch.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-51">35. Training loss vs validation loss</h4>
+<p>These answer different questions.</p>
+<h6 id="v3-heading-chunk-les-r101-0-i112-52">Training loss</h6>
+<div class="math block">
+\boxed{
+\text{How well is the model fitting the training data?}
+}
+</div>
+<h6 id="v3-heading-chunk-les-r101-0-i112-53">Validation loss</h6>
+<div class="math block">
+\boxed{
+\text{How well does the learned model perform on held-out data?}
+}
+</div>
+<p>A useful conceptual pattern is:</p>
+<pre><code class="language-text">training loss  ↓
+validation loss ↓
+</code></pre>
+<p>which suggests learning and generalization.</p>
+<p>But if:</p>
+<pre><code class="language-text">training loss  ↓↓↓
+validation loss ↑
+</code></pre>
+<p>that suggests the model is increasingly fitting training data while generalization worsens.</p>
+<p>The source uses validation loss specifically as the criterion for its best checkpoint. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-r101-0-i112-0" data-full-review="added"><p>Correction: The shown checkpoint is useful but insufficient for exact resume: also preserve RNG states, scheduler/step convention, best-validation score, gradient-scaler state if used, and data sampling provenance. Ensure val_loss is defined at every periodic save.</p><p><a href="#audit-full-chunk-les-r101-0-i112">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-r101-0-i112-54">36. Checkpointing</h4>
+<p>The checkpoint dictionary contains:</p>
+<pre><code class="language-python">checkpoint = {
+    'model': model.state_dict(),
+    'optimizer': optimizer.state_dict(),
+    'model_args': model_args,
+    'iter_num': iter_num,
+    'val_loss': val_loss.item(),
+}
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is important.</p>
+<p>A checkpoint is <strong>not merely model weights</strong>.</p>
+<p>It also preserves training state information.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-55">37. Best checkpoint</h4>
+<p>Whenever:</p>
+<div class="math block">
+val\_loss &lt; best\_val\_loss,
+</div>
+<p>the source updates:</p>
+<div class="math block">
+best\_val\_loss
+</div>
+<p>and saves:</p>
+<pre><code class="language-text">best_ckpt.pt
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+best\_ckpt.pt
+=
+\text{best validation performance observed so far}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-56">38. Periodic checkpoint</h4>
+<p>Separately, every:</p>
+<div class="math block">
+500
+</div>
+<p>iterations, the source writes:</p>
+<pre><code class="language-text">ckpt_iter_500.pt
+ckpt_iter_1000.pt
+ckpt_iter_1500.pt
+...
+</code></pre>
+<p>according to the shown checkpointing logic. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is independent of whether the current validation loss is the best.</p>
+<p>Why?</p>
+<p>Because it provides regular recovery points.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-57">39. Why save optimizer state?</h4>
+<p>Suppose we only save:</p>
+<pre><code class="language-python">model.state_dict()
+</code></pre>
+<p>and restart training later.</p>
+<p>We would recover the model's parameters, but not necessarily the optimizer's internal state.</p>
+<p>The source therefore saves:</p>
+<pre><code class="language-python">optimizer.state_dict()
+</code></pre>
+<p>as part of the checkpoint. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is important for resuming training rather than merely loading a model for inference.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-58">40. Full training pipeline</h4>
+<p>Now we can connect everything from the entire chapter:</p>
+<pre><code class="language-text">TinyStories
+    ↓
+prepare.py
+    ↓
+GPT-2 BPE
+    ↓
+flat token stream
+    ↓
+train.bin / val.bin / meta.json
+    ↓
+get_batch()
+    ↓
+X, Y
+    ↓
+MiniDeepSeek
+    │
+    ├── Embedding
+    ├── Transformer blocks
+    │      ├── MLA
+    │      ├── RoPE
+    │      └── MoE
+    │
+    ├── Main LM head
+    │
+    └── MTP chain
+    ↓
+Combined loss
+    ↓
+backward()
+    ↓
+Gradients
+    ↓
+AdamW
+    ↓
+Updated parameters
+    ↓
+repeat
+</code></pre>
+<p>And periodically:</p>
+<pre><code class="language-text">                 validation
+                     ↓
+                 val_loss
+                  ↙     ↘
+             best?       periodic?
+               ↓             ↓
+        best_ckpt.pt    ckpt_iter_*.pt
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-59">41. The complete learning equation</h4>
+<p>Everything we've done can be compressed into:</p>
+<div class="math block">
+\boxed{
+\theta_{t+1}
+=
+\operatorname{AdamW}
+\left(
+\theta_t,
+\nabla_\theta
+\left[
+L_{\text{main}}
++
+L_{\text{MTP}}
+\right]
+\right)
+}
+</div>
+<p>with a learning rate:</p>
+<div class="math block">
+LR_t=
+\begin{cases}
+\text{linear warmup}, &amp; t&lt;200\\
+\text{cosine decay}, &amp; 200\le t\le5000.
+\end{cases}
+</div>
+<p>That is the <strong>engine that turns the architecture into a trained model</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-0-i112-60">42. One very important distinction</h4>
+<p>At this point, we have a complete <strong>single-GPU training system</strong>.</p>
+<p>The source explicitly says that this is enough to train the MiniDeepSeek model, but real DeepSeek-V3 was trained on a massive multi-GPU cluster. The text therefore transitions next to:</p>
+<div class="math block">
+\boxed{\text{DualPipe Parallelism}}
+</div>
+<p>and first introduces the core ideas of distributing deep-learning workloads across multiple GPUs. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the conceptual transition is:</p>
+<div class="math block">
+\boxed{
+\text{single GPU}
+\rightarrow
+\text{distributed training}
+}
+</div>
+<p>and that is where <strong>parallelism becomes the next major layer of the system</strong>.</p>
+<hr />
+</section>

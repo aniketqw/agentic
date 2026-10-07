@@ -1,0 +1,946 @@
+<section class="chunk" id="chunk-les-step-1-6-i13" data-id="les-step-1-6-i13"><details class="audit-card" id="audit-full-chunk-les-step-1-6-i13" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-6-i13-1">Motivation</h4><p>Control dimension-driven score variance before normalization, making score comparisons less extreme under a clear statistical model.</p><h4 id="v3-heading-chunk-les-step-1-6-i13-2">Prerequisites</h4><ul><li>Dot products</li><li>Variance of independent sums</li><li>Softmax derivative</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-3">Notation and units</h4><ul><li>S=QK^T/sqrt(d_k)</li><li>A_ij row coefficient</li><li>d_k is Q/K head width</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-4">Assumptions</h4><ul><li>Components zero-mean unit-variance and independent across c; Q and K components independent for variance derivation</li><li>Scaling is an architecture choice, not a guarantee for every learned distribution</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-5">Step-by-step derivation</h4><ol><li>Let s=sum_c q_c k_c. Under the stated independence, E[q_c k_c]=0 and Var(q_c k_c)=E[q_c²]E[k_c²]=1.</li><li>Cross-coordinate covariance vanishes under independence, so Var(s)=sum 1=d_k and SD=sqrt(d_k).</li><li>Dividing by sqrt(d_k) gives unit variance; dividing by d_k gives variance 1/d_k, which shrinks with width.</li><li>The row-softmax Jacobian is diag(a)-aa^T. Near one-hot distributions, many of its entries approach zero; the effect on the full loss gradient depends on the downstream objective.</li><li>For raw [2,3], weights [.2689414214,.7310585786]; [20,30] gives [.0000453979,.9999546021]. Their ordering matches but concentration differs.</li><li>Scaled book scores [1.2705,1.8524,1.8111,1.0795,.5577,1.5440]/sqrt(2) normalize across six keys before weighted V aggregation; source values are rounded, not regenerated weights.</li></ol><h4 id="v3-heading-chunk-les-step-1-6-i13-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-6-i13-7">softmax_[2, 3]_T1</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Let s=sum_c q_c k_c. Under the stated independence, E[q_c k_c]=0 and Var(q_c k_c)=E[q_c²]E[k_c²]=1.</li><li>Cross-coordinate covariance vanishes under independence, so Var(s)=sum 1=d_k and SD=sqrt(d_k).</li><li>Dividing by sqrt(d_k) gives unit variance; dividing by d_k gives variance 1/d_k, which shrinks with width.</li><li>The row-softmax Jacobian is diag(a)-aa^T. Near one-hot distributions, many of its entries approach zero; the effect on the full loss gradient depends on the downstream objective.</li><li>For raw [2,3], weights [.2689414214,.7310585786]; [20,30] gives [.0000453979,.9999546021]. Their ordering matches but concentration differs.</li><li>Scaled book scores [1.2705,1.8524,1.8111,1.0795,.5577,1.5440]/sqrt(2) normalize across six keys before weighted V aggregation; source values are rounded, not regenerated weights.</li></ol><p>Answer: 0.2689414213699951; 0.7310585786300049</p><p>Verification: foundations_decoding / softmax_[2, 3]_T1 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-6-i13-8">softmax_[20, 30]_T1</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Let s=sum_c q_c k_c. Under the stated independence, E[q_c k_c]=0 and Var(q_c k_c)=E[q_c²]E[k_c²]=1.</li><li>Cross-coordinate covariance vanishes under independence, so Var(s)=sum 1=d_k and SD=sqrt(d_k).</li><li>Dividing by sqrt(d_k) gives unit variance; dividing by d_k gives variance 1/d_k, which shrinks with width.</li><li>The row-softmax Jacobian is diag(a)-aa^T. Near one-hot distributions, many of its entries approach zero; the effect on the full loss gradient depends on the downstream objective.</li><li>For raw [2,3], weights [.2689414214,.7310585786]; [20,30] gives [.0000453979,.9999546021]. Their ordering matches but concentration differs.</li><li>Scaled book scores [1.2705,1.8524,1.8111,1.0795,.5577,1.5440]/sqrt(2) normalize across six keys before weighted V aggregation; source values are rounded, not regenerated weights.</li></ol><p>Answer: 4.5397868702434395e-05; 0.9999546021312976</p><p>Verification: foundations_decoding / softmax_[20, 30]_T1 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-1-6-i13-9">Corrections and source qualifications</h4><ul><li>heading: 1.6.5; text: A saturated softmax has small Jacobian entries; this does not by itself prove softmax-plus-cross-entropy gradients vanish, since they simplify to p-y.</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-10">Mastery answers and retained exercise context</h4><ol><li>Q1: SD is 8 versus 2 under assumptions.</li><li>Q2: each independent product has variance 1; sum variance is 64.</li><li>Q3: SD is the square root of variance.</li><li>Q4: many softmax Jacobian entries become tiny; full objective still matters.</li><li>Q5: sqrt(d_k) normalizes SD; d_k would over-shrink variance.</li><li>Q6: all [8,8].</li><li>Q7: division by a positive constant preserves order.</li><li>Q8: normalized permitted-key coefficient for query i.</li><li>Q9: use these coefficients to combine transmitted value vectors.</li><li>Q10: compare each query with all keys, divide scores by head-width square root, normalize each query row, then take its weighted average of values.</li></ol><h4 id="v3-heading-chunk-les-step-1-6-i13-11">Edge cases and remaining gaps</h4><ul><li>Correlated/nonzero-mean learned Q/K can violate the unit-variance model.</li><li>Softmax saturation does not imply every composite training gradient vanishes: softmax plus CE has p-y.</li><li>Scaling preserves ranking for a positive factor but changes probabilities.</li><li>Apply the scaling per head, not by the entire model width unless it equals head width.</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-12">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-13">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 172, 173, 174, 175, 176 · scores, square-root scaling, softmax and value aggregation</li><li>Understanding_Attention_Handbook_01.pdf · physical PDF pages 8, 9, 11 · compatibility, variance rationale and aggregation</li><li>transformers-slides(1).pdf · physical PDF pages 8 · scaled dot product</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-14">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (54)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.6 — Attention Scores → Why Divide by \sqrt{d_k}?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.1 Start With the Raw Score</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.2 The Hidden Problem: The Dimension Controls the Size</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Important source distinction</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.3 Let&#x27;s See What Happens as d_k Gets Larger</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.4 Why Is a Large Score Range Bad for Softmax?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.5 Why Is Saturation Bad?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.6 The Solution</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.7 Why Specifically \sqrt{d_k}, Not d_k?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.8 Compare d_k=4 vs d_k=64</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>d_k=4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>d_k=64</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.9 Now Use the Exact Example From the Book</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.10 Scale Every Score</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Score 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Score 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Score 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Score 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Score 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Score 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.11 Now Softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.12 What Changed Conceptually?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.13 Why Do the Weights Sum to 1?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.14 Why Row-Wise?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.15 Think of Each Row as a Budget</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.16 What Comes After Softmax?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.17 Why Does AV Work?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.18 The Big Picture of One Attention Row</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.19 Why the Name &quot;Scaled Dot-Product Attention&quot;?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Dot-product</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Scaled</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Attention</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.20 One Formula Contains Everything</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1. Compare</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. Control scale</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. Turn scores into normalized weights</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>4. Use those weights to mix information</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.6.21 A Very Important Numerical Insight</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.22 An Important Property</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.23 Connection to Our Earlier Temperature Concept</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.24 Tensor Shapes — Complete This Step</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.25 Batch Version</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.6.26 The Full Story So Far</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.6 Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-T06" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T06 — Why scale by the square root of key width?</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T05">← Previous audit card</a> · <a href="#audit-T07">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-6-i13-15">Why this matters</h4><p>Large raw dot products can produce sharply saturated softmax weights. Scaling controls their characteristic size under a useful initialization model.</p><p><strong>Prerequisites:</strong> <a href="#audit-F07">Expectation and population variance</a>, <a href="#audit-T03">Three projections: Q, K, and V</a></p><h4 id="v3-heading-chunk-les-step-1-6-i13-16">Symbols, shapes and assumptions</h4><p>For this variance derivation assume independent coordinate products qrkr, with q and k independent, each mean zero and variance one. Learned activations need not satisfy these assumptions exactly.</p><h4 id="v3-heading-chunk-les-step-1-6-i13-17">Derivation or mechanism</h4><ol><li>Each qrkr has mean zero and second moment one.</li><li>Independent coordinate products make Var(Σqrkr)=dk.</li><li>Dividing the dot product by √dk divides its variance by dk, giving one under the stated assumptions.</li></ol><div class="math block" data-tex="\mathrm{Var}(q^\top k)=d_k,\qquad\mathrm{Var}(q^\top k/\sqrt{d_k})=1">\mathrm{Var}(q^\top k)=d_k,\qquad\mathrm{Var}(q^\top k/\sqrt{d_k})=1</div><h4 id="v3-heading-chunk-les-step-1-6-i13-18">Worked numerical</h4><p>For dk=4, the raw score variance is 4 in this model. Dividing the score by 2 changes its variance to 4/2²=1. The statement is about variance across random coordinates, not a guarantee that every numerical score equals one.</p><h4 id="v3-heading-chunk-les-step-1-6-i13-19">Edge cases and limits</h4><ul><li>Correlation, nonzero means, or different variances change the derivation.</li><li>Scaling does not guarantee unsaturated softmax for every trained input.</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-20">Connections</h4><ul><li>F03 shows how score differences affect softmax.</li><li>T04 applies the scale before masking and normalization.</li></ul><h4 id="v3-heading-chunk-les-step-1-6-i13-21">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 8 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 173, 174 · §3.4</li><li><a href="https://arxiv.org/html/1706.03762v7" rel="noopener noreferrer">§3.2.1 scaling rationale</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-6-i13-22">Executable companion and checking evidence</h4><p>Functions: <code>attention</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T06-scaling. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-6-i13"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-6-i13" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-5-i12">← Previous lesson</a> · <a href="#chunk-les-step-1-7-i14">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-5-i12">Step 1.5 — Q, K, V: Why Are There Three Different Vectors?</a></p><p><strong>This lesson:</strong> Step 1.6 — Attention Scores → Why Divide by \sqrt{d_k}?</p><p><strong>Source references:</strong> <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-13">Understanding_Attention_Handbook_01</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-6-i13"></a></p>
+<h2>Step 1.6 — Attention Scores → Why Divide by <span class="math inline">\sqrt{d_k}</span>?</h2>
+<p><em>Plan node: I1 · chat order #13</em></p>
+<p>We now have the core self-attention objects:</p>
+<div class="math block">
+Q=XW_Q,\qquad K=XW_K,\qquad V=XW_V
+</div>
+<p>and we know what they mean:</p>
+<div class="math block">
+Q=\text{query representations}
+</div>
+<div class="math block">
+K=\text{key representations}
+</div>
+<div class="math block">
+V=\text{value representations}
+</div>
+<p>The next operation is:</p>
+<div class="math block">
+\boxed{S=QK^T}
+</div>
+<p>These are the <strong>raw attention scores</strong>.</p>
+<p>The next question is one of the most important mathematical questions in Transformers:</p>
+<blockquote>
+<p><strong>Why don't we directly apply softmax to <span class="math inline">QK^T</span>? Why do we divide by <span class="math inline">\sqrt{d_k}</span>?</strong></p>
+</blockquote>
+<p>Your Transformer slides explicitly state that the scaling keeps scores in a healthy range so softmax does not saturate.</p>
+<p>Raschka gives the same rationale: as the key/query dimension becomes large, dot products can become large; softmax then behaves more like a step function, producing very small gradients.</p>
+<p>We will now derive <strong>why</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-23">1.6.1 Start With the Raw Score</h3>
+<p>For query <span class="math inline">q_i</span> and key <span class="math inline">k_j</span>:</p>
+<div class="math block">
+\boxed{
+s_{ij}=q_i^Tk_j
+}
+</div>
+<p>If:</p>
+<div class="math block">
+q_i,k_j\in\mathbb R^{d_k}
+</div>
+<p>then:</p>
+<div class="math block">
+q_i^Tk_j
+=
+\sum_{r=1}^{d_k}q_{ir}k_{jr}
+</div>
+<p>So a dot product is actually a <strong>sum of <span class="math inline">d_k</span> individual products</strong>.</p>
+<p>For example, if <span class="math inline">d_k=4</span>:</p>
+<div class="math block">
+q^Tk
+=
+q_1k_1+q_2k_2+q_3k_3+q_4k_4
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-24">1.6.2 The Hidden Problem: The Dimension Controls the Size</h3>
+<p>Suppose the components of <span class="math inline">q</span> and <span class="math inline">k</span> are roughly:</p>
+<div class="math block">
+\mathbb E[q_r]=0
+</div>
+<div class="math block">
+\mathbb E[k_r]=0
+</div>
+<p>and:</p>
+<div class="math block">
+\operatorname{Var}(q_r)\approx1
+</div>
+<div class="math block">
+\operatorname{Var}(k_r)\approx1
+</div>
+<p>with the usual simplifying independence assumption.</p>
+<p>Then:</p>
+<div class="math block">
+q_rk_r
+</div>
+<p>has approximately:</p>
+<div class="math block">
+\operatorname{Var}(q_rk_r)=1.
+</div>
+<p>Since:</p>
+<div class="math block">
+q^Tk=\sum_{r=1}^{d_k}q_rk_r
+</div>
+<p>the variance of the sum is approximately:</p>
+<div class="math block">
+\operatorname{Var}(q^Tk)
+\approx d_k.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{Std}(q^Tk)\approx\sqrt{d_k}
+}
+</div>
+<p>This is the key mathematical observation.</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-25">Important source distinction</h5>
+<p>The <strong>uploaded Transformer slides/book explicitly give the scaling and its purpose</strong>, but the variance derivation above is a supplementary mathematical derivation explaining the reason behind that choice. The source itself says scaling prevents softmax saturation and small gradients.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-26">1.6.3 Let's See What Happens as <span class="math inline">d_k</span> Gets Larger</h3>
+<p>Imagine:</p>
+<div class="math block">
+d_k=4
+</div>
+<p>Then the standard deviation of the raw dot product is roughly:</p>
+<div class="math block">
+\sqrt{4}=2
+</div>
+<p>Now:</p>
+<div class="math block">
+d_k=64
+</div>
+<p>gives:</p>
+<div class="math block">
+\sqrt{64}=8
+</div>
+<p>And:</p>
+<div class="math block">
+d_k=1024
+</div>
+<p>gives:</p>
+<div class="math block">
+\sqrt{1024}=32
+</div>
+<p>So larger query/key dimensions naturally produce a wider range of dot-product scores.</p>
+<p>That creates trouble for softmax.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-27">1.6.4 Why Is a Large Score Range Bad for Softmax?</h3>
+<p>Recall:</p>
+<div class="math block">
+\operatorname{softmax}(s_i)
+=
+\frac{e^{s_i}}{\sum_j e^{s_j}}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+s=[1,2,3]
+</div>
+<p>Softmax gives a reasonably distributed result.</p>
+<p>But consider:</p>
+<div class="math block">
+s=[1,20,40]
+</div>
+<p>Then:</p>
+<div class="math block">
+e^{40}
+</div>
+<p>is enormously larger than:</p>
+<div class="math block">
+e^{20}
+</div>
+<p>which is enormously larger than:</p>
+<div class="math block">
+e^1.
+</div>
+<p>So softmax becomes approximately:</p>
+<div class="math block">
+[0,0,1].
+</div>
+<p>The distribution becomes extremely sharp.</p>
+<p>This is called <strong>softmax saturation</strong>.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-1-6-i13-0" data-full-review="added"><p>Correction: A saturated softmax has small Jacobian entries; this does not by itself prove softmax-plus-cross-entropy gradients vanish, since they simplify to p-y.</p><p><a href="#audit-full-chunk-les-step-1-6-i13">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-1-6-i13-28">1.6.5 Why Is Saturation Bad?</h3>
+<p>The model needs gradients to learn.</p>
+<p>For softmax:</p>
+<div class="math block">
+p_i=\frac{e^{s_i}}{\sum_j e^{s_j}}
+</div>
+<p>the derivative is:</p>
+<div class="math block">
+\boxed{
+\frac{\partial p_i}{\partial s_j}
+=
+p_i(\delta_{ij}-p_j)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\delta_{ij}
+=
+\begin{cases}
+1&amp;i=j\\
+0&amp;i\neq j
+\end{cases}
+</div>
+<p>Now suppose:</p>
+<div class="math block">
+p=[0.00001,0.00001,0.99998]
+</div>
+<p>For the winning class:</p>
+<div class="math block">
+p_3\approx1
+</div>
+<p>so:</p>
+<div class="math block">
+p_3(1-p_3)\approx0.
+</div>
+<p>For the losing classes:</p>
+<div class="math block">
+p_i\approx0.
+</div>
+<p>Therefore their gradients are also tiny.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{very large score differences}
+\rightarrow
+\text{softmax saturation}
+\rightarrow
+\text{tiny gradients}
+}
+</div>
+<p>This is exactly the training problem highlighted in Raschka's explanation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-29">1.6.6 The Solution</h3>
+<p>If the raw dot product has standard deviation approximately:</p>
+<div class="math block">
+\sqrt{d_k},
+</div>
+<p>we can normalize it by dividing by:</p>
+<div class="math block">
+\sqrt{d_k}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+s_{ij}
+=
+\frac{q_i^Tk_j}{\sqrt{d_k}}
+}
+</div>
+<p>and in matrix form:</p>
+<div class="math block">
+\boxed{
+S=
+\frac{QK^T}{\sqrt{d_k}}
+}
+</div>
+<p>This keeps the score variance approximately around a constant scale under the simplified assumptions.</p>
+<p>That prevents the score magnitudes from growing simply because the head dimension became larger.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-30">1.6.7 Why Specifically <span class="math inline">\sqrt{d_k}</span>, Not <span class="math inline">d_k</span>?</h3>
+<p>This is a common interview question.</p>
+<p>We established:</p>
+<div class="math block">
+\operatorname{Var}(q^Tk)\approx d_k.
+</div>
+<p>To normalize a random variable's scale, divide by its standard deviation:</p>
+<div class="math block">
+\sqrt{\operatorname{Var}(q^Tk)}
+\approx\sqrt{d_k}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{variance}\sim d_k
+\quad\Rightarrow\quad
+\text{standard deviation}\sim\sqrt{d_k}
+}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+\boxed{
+\frac{q^Tk}{\sqrt{d_k}}
+}
+</div>
+<p>is the natural scaling.</p>
+<p>This is the deeper mathematical reason behind the familiar formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-31">1.6.8 Compare <span class="math inline">d_k=4</span> vs <span class="math inline">d_k=64</span></h3>
+<p>Suppose the raw scores are roughly:</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-32"><span class="math inline">d_k=4</span></h5>
+<p>Typical magnitude:</p>
+<div class="math block">
+\sim2
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-33"><span class="math inline">d_k=64</span></h5>
+<p>Typical magnitude:</p>
+<div class="math block">
+\sim8
+</div>
+<p>Without scaling, softmax sees much larger numbers for <span class="math inline">d_k=64</span>.</p>
+<p>With scaling:</p>
+<div class="math block">
+\frac{8}{\sqrt{64}}
+=
+\frac8{8}
+=
+1
+</div>
+<p>So we bring the scale back to approximately the same range.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{scaling removes the artificial dependence on head dimension}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-34">1.6.9 Now Use the Exact Example From the Book</h3>
+<p>Recall from Step 1.5:</p>
+<div class="math block">
+q_2^T K
+=
+[1.2705,\;1.8524,\;1.8111,\;1.0795,\;0.5577,\;1.5440]
+</div>
+<p>The example uses:</p>
+<div class="math block">
+d_k=2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\sqrt{d_k}
+=
+\sqrt2
+\approx1.4142.
+</div>
+<p>We divide every score by this value.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-35">1.6.10 Scale Every Score</h3>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-36">Score 1</h5>
+<div class="math block">
+\frac{1.2705}{\sqrt2}
+\approx0.8984
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-37">Score 2</h5>
+<div class="math block">
+\frac{1.8524}{\sqrt2}
+\approx1.3098
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-38">Score 3</h5>
+<div class="math block">
+\frac{1.8111}{\sqrt2}
+\approx1.2806
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-39">Score 4</h5>
+<div class="math block">
+\frac{1.0795}{\sqrt2}
+\approx0.7633
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-40">Score 5</h5>
+<div class="math block">
+\frac{0.5577}{\sqrt2}
+\approx0.3944
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-41">Score 6</h5>
+<div class="math block">
+\frac{1.5440}{\sqrt2}
+\approx1.0918
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+S_{\text{scaled}}
+\approx
+[0.8984,\;1.3098,\;1.2806,\;0.7633,\;0.3944,\;1.0918]
+}
+</div>
+<p>Raschka uses precisely this scaling step before applying softmax.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-42">1.6.11 Now Softmax</h3>
+<p>Next:</p>
+<div class="math block">
+A=\operatorname{softmax}(S_{\text{scaled}})
+</div>
+<p>giving approximately:</p>
+<div class="math block">
+\boxed{
+A=
+[0.1500,\;0.2264,\;0.2199,\;0.1311,\;0.0906,\;0.1820]
+}
+</div>
+<p>The book reports these attention weights for the worked example.</p>
+<p>Check:</p>
+<div class="math block">
+0.1500+0.2264+0.2199+0.1311+0.0906+0.1820
+\approx1.
+</div>
+<p>So now we have a proper normalized weighting distribution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-43">1.6.12 What Changed Conceptually?</h3>
+<p>Before scaling:</p>
+<div class="math block">
+q_i^Tk_j
+</div>
+<p>means:</p>
+<blockquote>
+<p>raw compatibility between query <span class="math inline">i</span> and key <span class="math inline">j</span>.</p>
+</blockquote>
+<p>After scaling:</p>
+<div class="math block">
+\frac{q_i^Tk_j}{\sqrt{d_k}}
+</div>
+<p>we have the same compatibility idea but on a numerically controlled scale.</p>
+<p>After softmax:</p>
+<div class="math block">
+a_{ij}
+=
+\operatorname{softmax}
+\left(
+\frac{q_i^Tk_j}{\sqrt{d_k}}
+\right)
+</div>
+<p>we have normalized attention weights.</p>
+<p>So the progression is:</p>
+<div class="math block">
+\boxed{
+\text{raw compatibility}
+\rightarrow
+\text{scaled compatibility}
+\rightarrow
+\text{normalized weight}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-44">1.6.13 Why Do the Weights Sum to 1?</h3>
+<p>Softmax guarantees:</p>
+<div class="math block">
+a_{ij}\geq0
+</div>
+<p>and:</p>
+<div class="math block">
+\sum_j a_{ij}=1.
+</div>
+<p>Therefore each row of:</p>
+<div class="math block">
+A
+</div>
+<p>is a distribution over the keys available to that query.</p>
+<p>Your Transformer slides explicitly describe this: every row is turned into a probability-like normalized distribution whose entries sum to 1.</p>
+<p>A useful terminology distinction:</p>
+<blockquote>
+<p>These are <strong>attention weights</strong>. They behave mathematically like a distribution, but they are not necessarily calibrated probabilities of a real-world event.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-45">1.6.14 Why Row-Wise?</h3>
+<p>Take:</p>
+<div class="math block">
+S\in\mathbb R^{n\times n}.
+</div>
+<p>Rows correspond to queries.</p>
+<p>Columns correspond to keys.</p>
+<p>So:</p>
+<div class="math block">
+S_{ij}
+</div>
+<p>means:</p>
+<blockquote>
+<p>compatibility of query position <span class="math inline">i</span> with key position <span class="math inline">j</span>.</p>
+</blockquote>
+<p>We therefore normalize <strong>within each row</strong>:</p>
+<div class="math block">
+A_{i,:}
+=
+\operatorname{softmax}(S_{i,:}).
+</div>
+<p>That gives each query its own attention budget:</p>
+<div class="math block">
+\sum_jA_{ij}=1.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-46">1.6.15 Think of Each Row as a Budget</h3>
+<p>Suppose:</p>
+<div class="math block">
+A_{2,:}
+=
+[0.1,0.6,0.2,0.1].
+</div>
+<p>The current query says:</p>
+<pre><code class="language-text">10% → token 1
+60% → token 2
+20% → token 3
+10% → token 4
+</code></pre>
+<p>So the query allocates its entire attention budget:</p>
+<div class="math block">
+10+60+20+10=100\%.
+</div>
+<p>Then these weights are used to mix the corresponding values.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-47">1.6.16 What Comes After Softmax?</h3>
+<p>Now we finally use <span class="math inline">V</span>.</p>
+<p>The output for query <span class="math inline">i</span> is:</p>
+<div class="math block">
+\boxed{
+o_i=\sum_j a_{ij}v_j
+}
+</div>
+<p>In matrix form:</p>
+<div class="math block">
+\boxed{
+O=AV
+}
+</div>
+<p>So the full chain becomes:</p>
+<div class="math block">
+\boxed{
+Q,K,V
+\rightarrow
+QK^T
+\rightarrow
+\frac{QK^T}{\sqrt{d_k}}
+\rightarrow
+\operatorname{softmax}
+\rightarrow
+AV
+}
+</div>
+<p>Your Transformer slides give exactly:</p>
+<div class="math block">
+S=\frac{QK^T}{\sqrt{d_k}},
+\qquad
+A=\operatorname{softmax}(S),
+\qquad
+O=AV.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-48">1.6.17 Why Does <span class="math inline">AV</span> Work?</h3>
+<p>Suppose:</p>
+<div class="math block">
+A_i=[0.2,0.5,0.3]
+</div>
+<p>and:</p>
+<div class="math block">
+v_1=[1,0]
+</div>
+<div class="math block">
+v_2=[0,2]
+</div>
+<div class="math block">
+v_3=[3,1].
+</div>
+<p>Then:</p>
+<div class="math block">
+o_i
+=
+0.2v_1+0.5v_2+0.3v_3
+</div>
+<p>Compute each component:</p>
+<p>First:</p>
+<div class="math block">
+0.2(1)+0.5(0)+0.3(3)
+=
+1.1
+</div>
+<p>Second:</p>
+<div class="math block">
+0.2(0)+0.5(2)+0.3(1)
+=
+1.3
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+o_i=[1.1,1.3]
+}
+</div>
+<p>So attention literally creates a <strong>weighted combination of values</strong>.</p>
+<p>Raschka describes the resulting context vector as a weighted sum of the value vectors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-49">1.6.18 The Big Picture of One Attention Row</h3>
+<p>For a single query:</p>
+<pre><code class="language-text">q_i
+ │
+ ├──── dot ──── k_1 → score
+ ├──── dot ──── k_2 → score
+ ├──── dot ──── k_3 → score
+ └──── dot ──── k_n → score
+                    ↓
+              divide by √d_k
+                    ↓
+                  softmax
+                    ↓
+        [a_i1, a_i2, ..., a_in]
+                    ↓
+        weighted sum of values
+                    ↓
+                   o_i
+</code></pre>
+<p>That is self-attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-50">1.6.19 Why the Name &quot;Scaled Dot-Product Attention&quot;?</h3>
+<p>Now the name makes complete sense.</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-51">Dot-product</h5>
+<p>Because:</p>
+<div class="math block">
+q_i^Tk_j
+</div>
+<p>is used to calculate compatibility.</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-52">Scaled</h5>
+<p>Because:</p>
+<div class="math block">
+\frac{q_i^Tk_j}{\sqrt{d_k}}
+</div>
+<p>is used instead of the raw dot product.</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-53">Attention</h5>
+<p>Because the resulting normalized weights determine how much information each token receives from the others.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{Scaled Dot-Product Attention}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-54">1.6.20 One Formula Contains Everything</h3>
+<p>The complete single-head attention equation is:</p>
+<div class="math block">
+\boxed{
+\operatorname{Attention}(Q,K,V)
+=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)V
+}
+</div>
+<p>This is not a formula you should memorize blindly.</p>
+<p>Now you can reconstruct it:</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-55">1. Compare</h5>
+<div class="math block">
+QK^T
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-56">2. Control scale</h5>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-57">3. Turn scores into normalized weights</h5>
+<div class="math block">
+\operatorname{softmax}(\cdot)
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-58">4. Use those weights to mix information</h5>
+<div class="math block">
+(\cdot)V
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{match}
+\rightarrow
+\text{scale}
+\rightarrow
+\text{normalize}
+\rightarrow
+\text{retrieve/mix}
+}
+</div>
+<p>The attention handbook gives the same decomposition and emphasizes that keys determine the weights while values provide the content being mixed. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-59">1.6.21 A Very Important Numerical Insight</h3>
+<p>Suppose two scores are:</p>
+<div class="math block">
+s_1=2,\qquad s_2=3.
+</div>
+<p>Their difference is:</p>
+<div class="math block">
+1.
+</div>
+<p>Softmax is sensitive to this difference.</p>
+<p>But suppose the scores become:</p>
+<div class="math block">
+s_1=20,\qquad s_2=30.
+</div>
+<p>The difference is now:</p>
+<div class="math block">
+10.
+</div>
+<p>Then softmax overwhelmingly favors the second.</p>
+<p>Scaling reduces the magnitude of the scores so that these comparisons don't become unnecessarily extreme as <span class="math inline">d_k</span> grows.</p>
+<p>So the scaling is <strong>not changing which score is larger in a basic positive-scalar sense</strong>.</p>
+<p>It is controlling how sharply softmax responds to those differences.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-60">1.6.22 An Important Property</h3>
+<p>Because:</p>
+<div class="math block">
+\sqrt{d_k}&gt;0,
+</div>
+<p>dividing by it does not change the ordering:</p>
+<div class="math block">
+q_i^Tk_1&gt;q_i^Tk_2
+</div>
+<p>still implies:</p>
+<div class="math block">
+\frac{q_i^Tk_1}{\sqrt{d_k}}
+&gt;
+\frac{q_i^Tk_2}{\sqrt{d_k}}.
+</div>
+<p>So scaling does <strong>not</strong> change the ranking of matches.</p>
+<p>It changes the <strong>temperature-like sharpness</strong> of the softmax response.</p>
+<p>This is why we can say:</p>
+<blockquote>
+<p>the scale stabilizes the distribution without fundamentally changing the relative ordering of the raw compatibility scores.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-61">1.6.23 Connection to Our Earlier Temperature Concept</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+\operatorname{softmax}(z/T)
+</div>
+<p>where:</p>
+<ul>
+<li>smaller <span class="math inline">T</span> → sharper distribution,</li>
+<li>larger <span class="math inline">T</span> → flatter distribution.</li>
+</ul>
+<p>Now:</p>
+<div class="math block">
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)
+</div>
+<p>can mathematically be viewed as applying a fixed scaling to the score vector.</p>
+<p>So increasing <span class="math inline">d_k</span> without compensation would make scores larger in typical magnitude and therefore make softmax sharper.</p>
+<p>Dividing by <span class="math inline">\sqrt{d_k}</span> offsets that effect.</p>
+<p>This is a useful connection between the probability foundation and attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-62">1.6.24 Tensor Shapes — Complete This Step</h3>
+<p>Given:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<div class="math block">
+W_Q,W_K\in\mathbb R^{d\times d_k}
+</div>
+<div class="math block">
+W_V\in\mathbb R^{d\times d_v}
+</div>
+<p>we have:</p>
+<div class="math block">
+Q,K\in\mathbb R^{n\times d_k}
+</div>
+<div class="math block">
+V\in\mathbb R^{n\times d_v}
+</div>
+<p>Then:</p>
+<div class="math block">
+QK^T
+:
+(n\times d_k)(d_k\times n)
+\rightarrow
+n\times n
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+\in\mathbb R^{n\times n}
+</div>
+<p>Then:</p>
+<div class="math block">
+A\in\mathbb R^{n\times n}
+</div>
+<p>Finally:</p>
+<div class="math block">
+AV
+:
+(n\times n)(n\times d_v)
+\rightarrow
+n\times d_v
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+O\in\mathbb R^{n\times d_v}
+}
+</div>
+<p>The same shape progression is given in your Transformer mathematical cheat sheet and Transformer slides. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-63">1.6.25 Batch Version</h3>
+<p>With batch size <span class="math inline">B</span>:</p>
+<div class="math block">
+X\in\mathbb R^{B\times n\times d}.
+</div>
+<p>Then usually:</p>
+<div class="math block">
+Q,K\in\mathbb R^{B\times n\times d_k}
+</div>
+<div class="math block">
+V\in\mathbb R^{B\times n\times d_v}
+</div>
+<p>and:</p>
+<div class="math block">
+QK^T
+</div>
+<p>becomes a batched matrix multiplication producing:</p>
+<div class="math block">
+\boxed{
+B\times n\times n
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+B\times n\times n
+\rightarrow
+B\times n\times d_v.
+</div>
+<p>Later, when we introduce multiple heads, this becomes something like:</p>
+<div class="math block">
+\boxed{
+B\times h\times n\times d_k
+}
+</div>
+<p>which is why tensor-shape understanding is so important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-64">1.6.26 The Full Story So Far</h3>
+<p>We have now gone from raw text all the way to contextual information mixing:</p>
+<div class="math block">
+\boxed{
+\text{text}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{tokens}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{token IDs}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{token embeddings}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{position-aware representations}
+</div>
+<p>↓</p>
+<div class="math block">
+X
+</div>
+<p>↓</p>
+<div class="math block">
+Q=XW_Q,\quad
+K=XW_K,\quad
+V=XW_V
+</div>
+<p>↓</p>
+<div class="math block">
+QK^T
+</div>
+<p>↓</p>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>↓</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>↓</p>
+<div class="math block">
+A
+</div>
+<p>↓</p>
+<div class="math block">
+AV
+</div>
+<p>↓</p>
+<div class="math block">
+O
+</div>
+<p>↓</p>
+<div class="math block">
+\text{residual addition}
+</div>
+<p>The only missing piece for a <strong>decoder-only language model</strong> is a major one:</p>
+<blockquote>
+<p><strong>We must prevent a token from looking at the future.</strong></p>
+</blockquote>
+<p>For example, when predicting token 4, token 4 must not be able to use token 5.</p>
+<p>That is the <strong>causal mask</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-6-i13-65">Step 1.6 Master Check</h3>
+<p>Try these without looking back.</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-66">Q1</h5>
+<p>If:</p>
+<div class="math block">
+q,k\in\mathbb R^{64}
+</div>
+<p>why is the typical scale of:</p>
+<div class="math block">
+q^Tk
+</div>
+<p>larger than when:</p>
+<div class="math block">
+q,k\in\mathbb R^4?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-67">Q2</h5>
+<p>Under the usual zero-mean, unit-variance independent-component assumption, derive:</p>
+<div class="math block">
+\operatorname{Var}(q^Tk)\approx d_k.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-68">Q3</h5>
+<p>Why does this imply a standard deviation of approximately:</p>
+<div class="math block">
+\sqrt{d_k}?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-69">Q4</h5>
+<p>Why does softmax saturation cause a training problem?</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-70">Q5</h5>
+<p>Why do we divide by:</p>
+<div class="math block">
+\sqrt{d_k}
+</div>
+<p>rather than <span class="math inline">d_k</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-71">Q6</h5>
+<p>For:</p>
+<div class="math block">
+Q\in\mathbb R^{8\times64}
+</div>
+<p>and:</p>
+<div class="math block">
+K\in\mathbb R^{8\times64},
+</div>
+<p>what are the shapes of:</p>
+<div class="math block">
+QK^T,\quad
+\frac{QK^T}{\sqrt{64}},
+\quad
+A?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-72">Q7</h5>
+<p>Why doesn't scaling change the ranking of the scores?</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-73">Q8</h5>
+<p>What does:</p>
+<div class="math block">
+A_{ij}
+</div>
+<p>mean?</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-74">Q9</h5>
+<p>Why do we multiply:</p>
+<div class="math block">
+AV
+</div>
+<p>after softmax?</p>
+<h5 id="v3-heading-chunk-les-step-1-6-i13-75">Q10</h5>
+<p>Explain the complete equation:</p>
+<div class="math block">
+\boxed{
+\operatorname{Attention}(Q,K,V)
+=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)V
+}
+</div>
+<p>in plain English <strong>without using the word &quot;attention&quot; in the explanation</strong>.</p>
+<hr />
+</section>

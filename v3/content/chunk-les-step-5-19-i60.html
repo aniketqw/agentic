@@ -1,0 +1,1312 @@
+<section class="chunk" id="chunk-les-step-5-19-i60" data-id="les-step-5-19-i60"><details class="audit-card" id="audit-full-chunk-les-step-5-19-i60" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-19-i60-1">Motivation</h4><p>Distillation limits and adaptive compute: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-19-i60-2">Prerequisites</h4><ul><li>capacity</li><li>teacher quality</li><li>attention complexity</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-5">Step-by-step derivation</h4><ol><li>The student absorbs a subset of sampled, curated teacher behavior and may combine it with capabilities already present in its own base model.</li><li>A teacher ceiling is an intuition, not a universal theorem: better optimization, task specialization, external data or pre-existing student knowledge can let a student exceed a teachers measured score.</li><li>Different benchmark scores cannot measure capacity on a common scale. An83.9 MATH versus16.9 coding gap compares task-specific accuracies, not67 points of missing knowledge.</li><li>Doubling length quadruples dense attention-score pair count, while total model runtime also contains linear projections, MLP and hardware-dependent terms.</li><li>Adaptive reasoning budgets trade tokens for quality; savings must be measured alongside accuracy, latency and tool/verification cost.</li><li>Distillation, reward-based refinement and inference-time search act at different stages and can be combined. Process rewards remain noisy and hard to define, not automatically superior.</li></ol><h4 id="v3-heading-chunk-les-step-5-19-i60-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-19-i60-7">Adaptive budget</h5><p>Given: 80easy tasks500tokens;20hard tasks4000tokens</p><ol><li>Adaptive80*500+20*4000.</li><li>Fixed100*4000.</li><li>Savings1-adaptive/fixed.</li></ol><p>Answer: 120000versus400000;70%token savings</p><p>Verification: rl_retool / adaptive_budget · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-19-i60-8">Attention pairs</h5><p>Given: sequence2000to4000</p><ol><li>Compare4000 squared with2000 squared.</li><li>Other compute terms need not scale identically.</li></ol><p>Answer: 4times attention-score pair count</p><p>Verification: rl_retool / quadratic_pairs · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-19-i60-9">Corrections and source qualifications</h4><ul><li>heading: 5.19.8 The teacher-ceiling intuition; text: Teacher knowledge is not a formal universal upper bound on student benchmark score: base student knowledge, specialization, curation and optimization can exceed a teacher’s measured result. The no-new-information intuition is only conditional on the stipulated data and training setup.</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-10">Mastery answers and retained exercise context</h4><ol><li>N 1 cross-benchmarkgap 67 points; N 2 nominalratio 447.3333; N 3 teachergap 7.2 points; N 4 distillversusRLgap 25.6 points.</li><li>N 5 doubledlengthmeans 4 timesdenseattentionpaircount; N 6 adaptive 120000 versus 400000,saving 280000 tokensor 70%.</li><li>Capacitylimitsdependondomain; teacherceilingisnotuniversallaw; teacherstyleandfamilycompatibilityareconfoundedfactors; processrewardandRLrefinementarepossibleextensions.</li></ol><h4 id="v3-heading-chunk-les-step-5-19-i60-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-12">Connections and progression</h4><ul><li>Previous lesson builds Distillation evaluation.</li><li>Next lesson develops Strategic external computation.</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493 · Distillation limits and future directions</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 326, 327, 328, 329 · Adaptive inference and future reasoning directions</li></ul><h4 id="v3-heading-chunk-les-step-5-19-i60-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (75)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.19 — Limits of Distillation + Future Directions</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.1 First limitation — Student capacity</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.2 Capacity gap is not simply “small model = bad”</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.3 Why does task structure matter?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Mathematics</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Coding</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.4 A very useful mental model</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.5 The source&#x27;s practical student-size guidance</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.6 Numerical: coding gap</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.7 Second limitation — Knowledge frontier</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.8 The teacher-ceiling intuition</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.9 But there is an important nuance</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.10 Three different ceilings</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Teacher ceiling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Data ceiling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Student ceiling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.11 Where can information be lost?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.12 Third limitation — Teacher quality matters</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.13 Teacher-student compatibility also matters</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.14 Numerical: teacher improvement</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.15 Fourth limitation — Dataset coverage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.16 Dataset composition is therefore a tradeoff</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.17 Fifth limitation — Long reasoning traces cost compute</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.18 Numerical: doubling sequence length</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.19 Future direction 1 — Better reasoning teachers</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.20 Why doesn&#x27;t this stop at one student?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.21 Future direction 2 — Inference-time scaling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.22 Think of a reasoning budget</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.23 Why is adaptive inference valuable?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.24 Numerical: fixed vs adaptive budget</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.25 Future direction 3 — Process rewards</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.26 Outcome reward vs process reward</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Outcome supervision</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Process supervision</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.27 Why process reward could help</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.28 Future direction 4 — Reasoning inside agents</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.29 Why does this require new rewards?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.30 Multi-reward training</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.19.31 Distillation still matters in agents</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.32 The future combined recipe</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.33 Why combine distillation and RL?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Distillation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.34 Why this can be better than RL-from-scratch</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.35 This also explains the earlier 32B result</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.19.36 But distillation is not “better than RL” universally</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.37 A final conceptual map</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.38 Training-time vs inference-time</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>Training-time</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>Inference-time</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.39 Numerical: training vs inference</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.19.40 The complete reasoning-model ecosystem</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.41 Numerical Bank — Step 5.19</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N1 — Capacity gap</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N2 — Teacher/student compression</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N3 — Teacher performance gap</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N4 — Distillation vs RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N5 — Sequence-length scaling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>N6 — Adaptive inference</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.42 Five exam questions you should be able to answer</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>1. Why can&#x27;t a 1.5B model absorb everything from a 671B teacher?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>2. Why can&#x27;t distillation alone guarantee a capability beyond the teacher?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>3. Why does the base model matter?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>4. Why are process rewards interesting?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5. Why combine distillation with RL?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.19.43 The final lesson of the entire distillation chapter</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Master formula sheet for the complete distillation block</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Classical KD</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>R1 text distillation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Sequence shifting</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Answer-only indexing</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Gradient of CE</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Optimization</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Dense-attention sequence complexity</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Where we stand in the overall course</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-19-i60"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-19-i60" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-18-i59">← Previous lesson</a> · <a href="#chunk-les-step-5-20-i61">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-18-i59">Step 5.18 — Evaluating the Distilled Reasoning Model</a></p><p><strong>This lesson:</strong> Step 5.19 — Limits of Distillation + Future Directions</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-19-i60"></a></p>
+<h2>Step 5.19 — Limits of Distillation + Future Directions</h2>
+<p><em>Plan node: I8 · chat order #60</em></p>
+<p>We have reached the final conceptual part of the distillation block.</p>
+<p>So far we established:</p>
+<div class="math block">
+\text{Teacher}
+\rightarrow
+\text{high-quality traces}
+\rightarrow
+\text{curated dataset}
+\rightarrow
+\text{student SFT}
+\rightarrow
+\text{smaller reasoning model}.
+</div>
+<p>Now we need to understand the opposite question:</p>
+<blockquote>
+<p><strong>What can distillation NOT do?</strong></p>
+</blockquote>
+<p>This is where we introduce the two most important boundaries:</p>
+<div class="math block">
+\boxed{\text{Capacity frontier}}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\text{Knowledge frontier}}.
+</div>
+<p>The source then connects these limitations to the future of reasoning models: better teachers, inference-time scaling, richer process rewards, and multi-reward agent training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-15">5.19.1 First limitation — Student capacity</h3>
+<p>The first problem is simple:</p>
+<div class="math block">
+\boxed{
+\text{Teacher is more capable than student}
+}
+</div>
+<p>A student has fewer parameters and therefore a smaller representational budget.</p>
+<p>Suppose the teacher has learned:</p>
+<div class="math block">
+R_1,R_2,\ldots,R_{1000}
+</div>
+<p>useful reasoning patterns.</p>
+<p>A tiny student may only be able to represent a subset:</p>
+<div class="math block">
+R_1,R_2,\ldots,R_{300}.
+</div>
+<p>The remaining patterns may be:</p>
+<ul>
+<li>poorly represented,</li>
+<li>generalized incorrectly,</li>
+<li>or simply not retained.</li>
+</ul>
+<p>This is what the source calls the <strong>capacity gap</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-16">5.19.2 Capacity gap is not simply “small model = bad”</h3>
+<p>This distinction matters.</p>
+<p>A small model can be excellent on a narrow task while being poor on another.</p>
+<p>The source's 1.5B example demonstrates this:</p>
+<div class="math block">
+\boxed{83.9\%\text{ on MATH-500}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{16.9\%\text{ on LiveCodeBench}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the model has enough capacity for many mathematical patterns but not enough to represent the huge diversity required for coding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-17">5.19.3 Why does task structure matter?</h3>
+<p>The source's explanation is:</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-18">Mathematics</h5>
+<p>Often contains relatively structured solution patterns:</p>
+<div class="math block">
+\text{identify problem type}
+\rightarrow
+\text{select technique}
+\rightarrow
+\text{calculate}
+\rightarrow
+\text{verify}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-19">Coding</h5>
+<p>Requires a much wider space involving:</p>
+<div class="math block">
+\text{syntax}
++
+\text{APIs}
++
+\text{design patterns}
++
+\text{error handling}
++
+\text{program structures}
++\cdots
+</div>
+<p>The source therefore argues that mathematical reasoning can compress more effectively than complex coding behavior. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-20">5.19.4 A very useful mental model</h3>
+<p>Think of student capacity as a bottleneck:</p>
+<div class="math block">
+\boxed{
+\text{teacher information}
+\xrightarrow{\text{capacity bottleneck}}
+\text{student representation}
+}
+</div>
+<p>If:</p>
+<div class="math block">
+C_S&lt;C_T
+</div>
+<p>where <span class="math inline">C_S</span> is student capacity and <span class="math inline">C_T</span> is the effective complexity of the teacher's behavior, some information will not transfer perfectly.</p>
+<p>This is a conceptual model, not a formally defined capacity equation from the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-21">5.19.5 The source's practical student-size guidance</h3>
+<p>The source gives a practical rule of thumb:</p>
+<div class="math block">
+\boxed{1.5B\text{–}3B}
+</div>
+<p>for narrow, well-defined reasoning domains.</p>
+<div class="math block">
+\boxed{7B\text{–}14B}
+</div>
+<p>as a useful range for broader reasoning involving math and coding.</p>
+<div class="math block">
+\boxed{32B\text{–}70B}
+</div>
+<p>for near-teacher-quality behavior across many domains, at significantly higher hardware cost. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>These should be treated as <strong>source-specific practical guidelines</strong>, not universal laws.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-22">5.19.6 Numerical: coding gap</h3>
+<p>For the 1.5B model:</p>
+<div class="math block">
+\text{Math}=83.9
+</div>
+<div class="math block">
+\text{Code}=16.9.
+</div>
+<p>Difference:</p>
+<div class="math block">
+83.9-16.9
+=
+\boxed{67.0\text{ points}}.
+</div>
+<p>That is a huge capability imbalance.</p>
+<p>This is the clearest numerical demonstration of the capacity gap in the supplied material. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-23">5.19.7 Second limitation — Knowledge frontier</h3>
+<p>Now the deeper limitation.</p>
+<p>Suppose the teacher cannot solve a class of problems.</p>
+<p>Then during rejection sampling:</p>
+<div class="math block">
+\text{incorrect teacher responses}
+\rightarrow
+\text{rejected}.
+</div>
+<p>Therefore the final distilled dataset contains no successful teacher demonstrations for that capability.</p>
+<p>The source describes this as a <strong>knowledge frontier</strong>:</p>
+<div class="math block">
+\boxed{
+\text{student cannot simply inherit a capability that the teacher never successfully demonstrated}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-19-i60-0" data-full-review="added"><p>Correction: Teacher knowledge is not a formal universal upper bound on student benchmark score: base student knowledge, specialization, curation and optimization can exceed a teacher’s measured result. The no-new-information intuition is only conditional on the stipulated data and training setup.</p><p><a href="#audit-full-chunk-les-step-5-19-i60">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-19-i60-24">5.19.8 The teacher-ceiling intuition</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{Teacher accuracy}=90\%.
+</div>
+<p>Can a student trained only on that teacher's successful demonstrations be expected to systematically become:</p>
+<div class="math block">
+\boxed{99\%}
+</div>
+<p>through ordinary distillation alone?</p>
+<p>Not as a consequence of distillation itself.</p>
+<p>The training data is derived from teacher behavior.</p>
+<p>So distillation is primarily:</p>
+<div class="math block">
+\boxed{\text{transfer/compression}}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{\text{frontier discovery}}.
+</div>
+<p>The source explicitly states that advancing beyond the teacher's boundary requires more powerful base models and/or larger-scale RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-25">5.19.9 But there is an important nuance</h3>
+<p>The source itself later cites research that makes the claim more precise.</p>
+<p>It discusses a 2025 study arguing that teacher distillation can improve <strong>capability</strong> when the teacher introduces knowledge that was absent from the base student. It distinguishes this from simply transferring reasoning patterns that the base model already knows. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the stronger conceptual statement is:</p>
+<div class="math block">
+\boxed{
+\text{Distillation can transfer information the student does not have}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{distillation is not, by itself, a reliable mechanism for pushing beyond the teacher's available knowledge frontier}
+}.
+</div>
+<p>That is a more precise interpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-26">5.19.10 Three different ceilings</h3>
+<p>You should now distinguish:</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-27">Teacher ceiling</h5>
+<p>How capable is the teacher?</p>
+<div class="math block">
+C_T
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-28">Data ceiling</h5>
+<p>How much of the teacher's useful behavior was successfully captured and curated?</p>
+<div class="math block">
+C_D
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-29">Student ceiling</h5>
+<p>How much can the student represent?</p>
+<div class="math block">
+C_S
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Student performance}
+\lesssim
+\min(C_T,C_D,C_S)
+}
+</div>
+<p>This is a useful <strong>conceptual bound</strong>, not a theorem stated in the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-30">5.19.11 Where can information be lost?</h3>
+<p>At least four places:</p>
+<div class="math block">
+\boxed{
+\text{Teacher}
+\rightarrow
+\text{generation}
+}
+</div>
+<p>Some good behavior may never be sampled.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{generation}
+\rightarrow
+\text{filtering}
+}
+</div>
+<p>Some useful but difficult-to-verify behavior may be rejected.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{dataset}
+\rightarrow
+\text{student}
+}
+</div>
+<p>The student may fail to absorb some patterns.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+\text{student training}
+\rightarrow
+\text{deployment behavior}
+}
+</div>
+<p>The learned behavior may not always appear under a particular inference strategy.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{distillation is an information bottleneck at multiple stages}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-31">5.19.12 Third limitation — Teacher quality matters</h3>
+<p>Suppose Student A receives:</p>
+<div class="math block">
+\text{Teacher A traces}.
+</div>
+<p>Student B receives:</p>
+<div class="math block">
+\text{Teacher B traces}.
+</div>
+<p>Even if:</p>
+<div class="math block">
+\text{student architecture}
+</div>
+<p>is identical, the final performance can differ substantially.</p>
+<p>The source's small Qwen3 experiments show this clearly:</p>
+<p>DeepSeek-R1 teacher run:</p>
+<div class="math block">
+33.6\%\text{ MATH-500}
+</div>
+<p>at epoch 3.</p>
+<p>The Qwen3 235B-A22B teacher run:</p>
+<div class="math block">
+45.0\%\text{ MATH-500}
+</div>
+<p>at epoch 1 in the reported experiment.</p>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{better teacher supervision}
+\rightarrow
+\text{better potential student}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-32">5.19.13 Teacher-student compatibility also matters</h3>
+<p>The source suggests that the Qwen3-teacher run may benefit because:</p>
+<ul>
+<li>teacher and student are in the same family,</li>
+<li>tokenizer conventions align,</li>
+<li>prompting conventions align,</li>
+<li>response style is more compatible.</li>
+</ul>
+<p>This can make the teacher outputs easier for the student to imitate. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So we can think of an additional factor:</p>
+<div class="math block">
+\boxed{
+\text{teacher quality}
++
+\text{teacher-student compatibility}
+}
+</div>
+<p>affecting transfer efficiency.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-33">5.19.14 Numerical: teacher improvement</h3>
+<p>DeepSeek-R1 student result:</p>
+<div class="math block">
+33.6\%.
+</div>
+<p>Qwen3-teacher student result:</p>
+<div class="math block">
+45.0\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+45.0-33.6
+=
+\boxed{11.4\text{ percentage points}}.
+</div>
+<p>This comparison should not be interpreted as a pure teacher-size experiment, because the setups also differ in teacher family/data characteristics. The source itself attributes part of the difference to family alignment. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-34">5.19.15 Fourth limitation — Dataset coverage</h3>
+<p>Suppose a student training set contains:</p>
+<div class="math block">
+75\%
+</div>
+<p>math + code.</p>
+<p>That is excellent for reasoning transfer.</p>
+<p>But the student may receive relatively less direct supervision for:</p>
+<ul>
+<li>creative writing,</li>
+<li>translation,</li>
+<li>general conversation,</li>
+<li>factual QA.</li>
+</ul>
+<p>That is why the source deliberately keeps:</p>
+<div class="math block">
+178K
+</div>
+<p>general-purpose examples in the larger dataset.</p>
+<p>The objective is to avoid creating a narrow specialist. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-35">5.19.16 Dataset composition is therefore a tradeoff</h3>
+<p>Increasing reasoning data gives:</p>
+<div class="math block">
+\boxed{\text{more reasoning specialization}}
+</div>
+<p>but reducing general data may risk:</p>
+<div class="math block">
+\boxed{\text{less general-purpose behavior}}.
+</div>
+<p>So the dataset must solve:</p>
+<div class="math block">
+\boxed{
+\text{reasoning quality}
+\leftrightarrow
+\text{general usability}
+}
+</div>
+<p>This is an important system-design problem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-36">5.19.17 Fifth limitation — Long reasoning traces cost compute</h3>
+<p>The source's dataset averages:</p>
+<div class="math block">
+5,355
+</div>
+<p>tokens per sample. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Long traces mean:</p>
+<div class="math block">
+\text{more tokens}
+\rightarrow
+\text{more forward/backward computation}.
+</div>
+<p>And standard dense attention has approximately:</p>
+<div class="math block">
+O(N^2)
+</div>
+<p>attention complexity.</p>
+<p>So:</p>
+<div class="math block">
+N\uparrow
+\Rightarrow
+\text{cost}\uparrow.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{better reasoning supervision}
+}
+</div>
+<p>can conflict with:</p>
+<div class="math block">
+\boxed{
+\text{training efficiency}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-37">5.19.18 Numerical: doubling sequence length</h3>
+<p>Suppose:</p>
+<div class="math block">
+N=2,000.
+</div>
+<p>Now double it:</p>
+<div class="math block">
+N'=4,000.
+</div>
+<p>Under the simple dense-attention quadratic model:</p>
+<div class="math block">
+\frac{(4000)^2}{(2000)^2}
+=
+\left(\frac{4000}{2000}\right)^2
+=
+\boxed{4}.
+</div>
+<p>So the attention-score computation scales by roughly:</p>
+<div class="math block">
+\boxed{4\times}
+</div>
+<p>under this simplified complexity model.</p>
+<p>This is why reasoning traces cannot simply be made arbitrarily long.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-38">5.19.19 Future direction 1 — Better reasoning teachers</h3>
+<p>The source says the broad future pattern remains:</p>
+<div class="math block">
+\boxed{
+\text{stronger reasoning teacher}
+\rightarrow
+\text{higher-quality traces}
+\rightarrow
+\text{smaller students}
+}.
+</div>
+<p>This creates a self-reinforcing architecture:</p>
+<div class="math block">
+\boxed{
+\text{improve teacher}
+\rightarrow
+\text{improve data}
+\rightarrow
+\text{improve students}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-39">5.19.20 Why doesn't this stop at one student?</h3>
+<p>Because the dataset is reusable.</p>
+<p>Once you have:</p>
+<div class="math block">
+D_T
+</div>
+<p>the teacher-generated dataset, you can train:</p>
+<div class="math block">
+S_1,S_2,S_3,\ldots,S_N.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{one expensive teacher process}
+\rightarrow
+\text{many deployment-oriented models}
+}
+</div>
+<p>which was one of the major economic benefits we covered earlier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-40">5.19.21 Future direction 2 — Inference-time scaling</h3>
+<p>This is a different idea.</p>
+<p>So far we've changed the model <strong>during training</strong>.</p>
+<p>Inference-time scaling asks:</p>
+<blockquote>
+<p>Can we change how much reasoning computation the model uses depending on the problem?</p>
+</blockquote>
+<p>The source points out that not every task deserves the same reasoning budget. Some need only short responses, while difficult tasks benefit from longer multi-step reasoning.</p>
+<p>So instead of:</p>
+<div class="math block">
+\boxed{
+\text{fixed reasoning budget}
+}
+</div>
+<p>we want:</p>
+<div class="math block">
+\boxed{
+\text{adaptive reasoning budget}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-41">5.19.22 Think of a reasoning budget</h3>
+<p>Suppose each problem receives a token budget <span class="math inline">B</span>.</p>
+<p>For easy task:</p>
+<div class="math block">
+B=100.
+</div>
+<p>For medium task:</p>
+<div class="math block">
+B=500.
+</div>
+<p>For hard task:</p>
+<div class="math block">
+B=4000.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+B=f(\text{difficulty})
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+B=\text{constant}.
+</div>
+<p>This is an example of <strong>inference-time scaling</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-42">5.19.23 Why is adaptive inference valuable?</h3>
+<p>Suppose 80% of tasks are easy.</p>
+<p>If every task gets:</p>
+<div class="math block">
+4000
+</div>
+<p>reasoning tokens, you waste compute.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{easy}\rightarrow\text{short}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{hard}\rightarrow\text{long}
+}
+</div>
+<p>This improves the compute/quality tradeoff.</p>
+<p>The source presents this as a future direction at the application layer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-43">5.19.24 Numerical: fixed vs adaptive budget</h3>
+<p>Suppose 100 questions:</p>
+<div class="math block">
+80\text{ easy},
+\quad
+20\text{ hard}.
+</div>
+<p>Fixed budget:</p>
+<div class="math block">
+4,000
+</div>
+<p>tokens each.</p>
+<p>Total:</p>
+<div class="math block">
+100\times4000
+=
+\boxed{400,000}
+</div>
+<p>reasoning tokens.</p>
+<p>Adaptive budget:</p>
+<p>Easy:</p>
+<div class="math block">
+500
+</div>
+<p>Hard:</p>
+<div class="math block">
+4,000.
+</div>
+<p>Total:</p>
+<div class="math block">
+80(500)+20(4000)
+</div>
+<div class="math block">
+=40,000+80,000
+</div>
+<div class="math block">
+=\boxed{120,000}.
+</div>
+<p>So the adaptive strategy uses:</p>
+<div class="math block">
+\frac{120,000}{400,000}
+=
+0.30.
+</div>
+<p>That is:</p>
+<div class="math block">
+\boxed{70\%}
+</div>
+<p>less reasoning-token budget in this illustrative scenario.</p>
+<p>This is a general example, not a source-reported measurement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-44">5.19.25 Future direction 3 — Process rewards</h3>
+<p>Earlier in GRPO, we focused mainly on final-answer reward:</p>
+<div class="math block">
+\boxed{
+R=R_{\text{final correctness}}
+}.
+</div>
+<p>But suppose a response has:</p>
+<pre><code class="language-text">Step 1: correct
+Step 2: correct
+Step 3: wrong
+Step 4: accidentally correct final answer
+</code></pre>
+<p>A final-answer verifier may give:</p>
+<div class="math block">
+R=1.
+</div>
+<p>But the reasoning process contains an error.</p>
+<p>The source therefore identifies <strong>process rewards</strong> as a future direction: evaluate intermediate reasoning rather than only the final answer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-45">5.19.26 Outcome reward vs process reward</h3>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-46">Outcome supervision</h5>
+<div class="math block">
+\boxed{
+\text{Did the final answer match?}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-47">Process supervision</h5>
+<div class="math block">
+\boxed{
+\text{Were the intermediate steps sound?}
+}
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+R_{\text{total}}
+=
+R_{\text{outcome}}
++
+\lambda R_{\text{process}}.
+</div>
+<p>This equation is a general conceptual formulation; the source discusses process rewards but does not prescribe this exact universal equation in the section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-48">5.19.27 Why process reward could help</h3>
+<p>Suppose two solutions both produce:</p>
+<div class="math block">
+\boxed{42}.
+</div>
+<p>Solution A uses:</p>
+<div class="math block">
+\text{correct reasoning}
+\rightarrow
+42.
+</div>
+<p>Solution B contains:</p>
+<div class="math block">
+\text{wrong step}
+\rightarrow
+\text{compensating mistake}
+\rightarrow
+42.
+</div>
+<p>A final-answer-only reward treats them identically.</p>
+<p>A process-aware reward could distinguish:</p>
+<div class="math block">
+\boxed{
+A&gt;B
+}
+</div>
+<p>because A uses a more reliable strategy.</p>
+<p>This may encourage models to learn robust reasoning rather than lucky trajectories.</p>
+<p>The source explicitly identifies this as an area for improvement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-49">5.19.28 Future direction 4 — Reasoning inside agents</h3>
+<p>The source then extends reasoning beyond isolated math/code benchmarks.</p>
+<p>A reasoning model can become the engine inside an agent that must:</p>
+<div class="math block">
+\text{plan}
+\rightarrow
+\text{call tools}
+\rightarrow
+\text{observe result}
+\rightarrow
+\text{recover from failure}
+\rightarrow
+\text{continue}.
+</div>
+<p>This is a much harder problem.</p>
+<p>Now the model is not simply solving:</p>
+<div class="math block">
+q\rightarrow answer.
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+q
+\rightarrow
+plan
+\rightarrow
+tool
+\rightarrow
+observation
+\rightarrow
+new plan
+\rightarrow
+tool
+\rightarrow
+final outcome
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-50">5.19.29 Why does this require new rewards?</h3>
+<p>Math correctness alone cannot measure:</p>
+<div class="math block">
+\text{tool selection}.
+</div>
+<p>It also cannot measure:</p>
+<div class="math block">
+\text{whether retrieval was useful}.
+</div>
+<p>Nor:</p>
+<div class="math block">
+\text{whether the agent recovered from an API failure}.
+</div>
+<p>The source therefore describes the need for richer reward signals such as:</p>
+<ul>
+<li>successful tool use,</li>
+<li>information retrieval,</li>
+<li>policy compliance,</li>
+<li>broader task success.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-51">5.19.30 Multi-reward training</h3>
+<p>Instead of:</p>
+<div class="math block">
+R=R_{\text{math}}
+</div>
+<p>an agent might need:</p>
+<div class="math block">
+\boxed{
+R=
+w_1R_{\text{task}}
++
+w_2R_{\text{tool}}
++
+w_3R_{\text{retrieval}}
++
+w_4R_{\text{policy}}
+}
+</div>
+<p>This is a conceptual representation of the source's <strong>multi-reward training</strong> direction.</p>
+<p>The challenge is that the objectives may conflict.</p>
+<p>For example:</p>
+<div class="math block">
+\text{fast response}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{more careful verification}.
+</div>
+<p>Or:</p>
+<div class="math block">
+\text{tool usage}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{cost}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-52">5.19.31 Distillation still matters in agents</h3>
+<p>Why?</p>
+<p>Because agent reasoning can become expensive.</p>
+<p>A huge teacher might be excellent at:</p>
+<div class="math block">
+\text{planning}
++
+\text{tool calling}
++
+\text{recovery}
++
+\text{long workflows}.
+</div>
+<p>But deploying the huge teacher for every interaction may be costly.</p>
+<p>So again:</p>
+<div class="math block">
+\boxed{
+\text{strong agentic teacher}
+\rightarrow
+\text{rich traces}
+\rightarrow
+\text{smaller agentic student}
+}
+</div>
+<p>is attractive.</p>
+<p>The source explicitly says distillation is likely to remain important for transferring richer behaviors into smaller, easier-to-deploy systems.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-53">5.19.32 The future combined recipe</h3>
+<p>Now the entire book's strategy becomes:</p>
+<div class="math block">
+\boxed{
+\text{Pretraining}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{SFT}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{RL / GRPO}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{strong teacher}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{distillation}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{student RLVR}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{inference-time scaling}
+}
+</div>
+<p>This is not necessarily one fixed production recipe; the source proposes combining these methods as a practical next step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-54">5.19.33 Why combine distillation and RL?</h3>
+<p>Because they solve different problems.</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-55">Distillation</h5>
+<p>Good at:</p>
+<div class="math block">
+\boxed{
+\text{transferring known successful behavior}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-56">RL</h5>
+<p>Good at:</p>
+<div class="math block">
+\boxed{
+\text{searching / optimizing behavior under reward}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Distill first}
+\rightarrow
+\text{RL refine later}
+}
+</div>
+<p>can be more attractive than asking a small model to discover everything from scratch.</p>
+<p>The source explicitly proposes this combination as a practical next experiment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-57">5.19.34 Why this can be better than RL-from-scratch</h3>
+<p>Suppose a small model starts with:</p>
+<div class="math block">
+\text{baseline reasoning ability}=20.
+</div>
+<p>Distillation gives it:</p>
+<div class="math block">
+\text{strong reasoning initialization}=70.
+</div>
+<p>Then RL could potentially optimize it further:</p>
+<div class="math block">
+70\rightarrow75\rightarrow78.
+</div>
+<p>The exact numbers are illustrative.</p>
+<p>The idea is:</p>
+<div class="math block">
+\boxed{
+\text{distillation provides a better starting policy}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{RL performs further optimization/exploration}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-58">5.19.35 This also explains the earlier 32B result</h3>
+<p>We previously saw:</p>
+<div class="math block">
+\text{32B distilled}=72.6\%
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{32B RL-only}=47.0\%.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That experiment strongly supports the idea that <strong>training initialization and supervision matter enormously</strong> at this scale.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-59">5.19.36 But distillation is not “better than RL” universally</h3>
+<p>This is important.</p>
+<p>The source explicitly says:</p>
+<div class="math block">
+\boxed{
+\text{distillation and RL complement each other}
+}
+</div>
+<p>rather than declaring one universally superior. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Use distillation when you have:</p>
+<div class="math block">
+\boxed{\text{strong teacher behavior to transfer}}
+</div>
+<p>Use RL when you need:</p>
+<div class="math block">
+\boxed{\text{further optimization or potentially new behavior}}
+</div>
+<p>and the reward signal is reliable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-60">5.19.37 A final conceptual map</h3>
+<p>Think of the three techniques as three different operations:</p>
+<div class="math block">
+\boxed{\textbf{RL}}
+</div>
+<p><strong>Discover / strengthen</strong></p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\textbf{Distillation}}
+</div>
+<p><strong>Transfer / compress</strong></p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\textbf{Inference-time scaling}}
+</div>
+<p><strong>Spend more or less computation per problem</strong></p>
+<p>These operate at different stages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-61">5.19.38 Training-time vs inference-time</h3>
+<p>This is a very important exam distinction.</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-62">Training-time</h5>
+<p>Parameters change:</p>
+<div class="math block">
+\boxed{
+\theta\rightarrow\theta'
+}
+</div>
+<p>Examples:</p>
+<ul>
+<li>SFT,</li>
+<li>RL,</li>
+<li>distillation.</li>
+</ul>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-63">Inference-time</h5>
+<p>Parameters remain fixed:</p>
+<div class="math block">
+\boxed{
+\theta=\text{constant}
+}
+</div>
+<p>but computation changes.</p>
+<p>Examples:</p>
+<ul>
+<li>self-consistency,</li>
+<li>longer reasoning budgets,</li>
+<li>self-refinement.</li>
+</ul>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{distillation}=training-time
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{inference scaling}=deployment-time
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-64">5.19.39 Numerical: training vs inference</h3>
+<p>Suppose a model has:</p>
+<div class="math block">
+10B
+</div>
+<p>parameters.</p>
+<p>During inference-time scaling, asking it to reason for:</p>
+<div class="math block">
+1000
+</div>
+<p>tokens instead of:</p>
+<div class="math block">
+500
+</div>
+<p>tokens does <strong>not</strong> change the:</p>
+<div class="math block">
+10B
+</div>
+<p>parameters.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{model size unchanged}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{compute per query increases}
+}.
+</div>
+<p>This distinction is fundamental.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-65">5.19.40 The complete reasoning-model ecosystem</h3>
+<p>We can now see the entire progression:</p>
+<div class="math block">
+\boxed{
+\text{Base LLM}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{SFT}
+
+↓
+
+\boxed{
+\text{instruction-following model}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{RL / GRPO}
+
+↓
+
+\boxed{
+\text{reasoning-optimized teacher}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{rejection sampling}
+
+↓
+
+\boxed{
+\text{high-quality reasoning dataset}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{distillation}
+
+↓
+
+\boxed{
+\text{small reasoning student}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{optional RL refinement}
+
+↓
+
+\boxed{
+\text{stronger specialized student}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{inference-time scaling}
+
+↓
+
+\boxed{
+\text{adaptive deployment}
+}.
+</div>
+<p>That is the complete conceptual story.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-66">5.19.41 Numerical Bank — Step 5.19</h3>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-67">N1 — Capacity gap</h5>
+<div class="math block">
+83.9-16.9
+=
+\boxed{67.0\text{ points}}
+</div>
+<p>for the 1.5B model's MATH vs LiveCodeBench results. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-19-i60-68">N2 — Teacher/student compression</h5>
+<div class="math block">
+671B/1.5B
+=
+\boxed{447.3\times}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-19-i60-69">N3 — Teacher performance gap</h5>
+<div class="math block">
+79.8-72.6
+=
+\boxed{7.2\text{ AIME points}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-19-i60-70">N4 — Distillation vs RL</h5>
+<div class="math block">
+72.6-47.0
+=
+\boxed{25.6\text{ AIME points}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-19-i60-71">N5 — Sequence-length scaling</h5>
+<div class="math block">
+2000\rightarrow4000
+</div>
+<p>gives:</p>
+<div class="math block">
+(4000/2000)^2
+=
+\boxed{4\times}
+</div>
+<p>quadratic attention scaling.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-19-i60-72">N6 — Adaptive inference</h5>
+<p>100 tasks:</p>
+<div class="math block">
+80\text{ easy},20\text{ hard}
+</div>
+<p>with budgets:</p>
+<div class="math block">
+500,\;4000.
+</div>
+<p>Total:</p>
+<div class="math block">
+80(500)+20(4000)
+=
+\boxed{120,000}
+</div>
+<p>tokens.</p>
+<p>Fixed 4000:</p>
+<div class="math block">
+\boxed{400,000}.
+</div>
+<p>Savings:</p>
+<div class="math block">
+400,000-120,000
+=
+\boxed{280,000}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{70\%}.
+</div>
+<p>Illustrative calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-73">5.19.42 Five exam questions you should be able to answer</h3>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-74">1. Why can't a 1.5B model absorb everything from a 671B teacher?</h5>
+<p>Because the student's finite capacity creates a bottleneck; different domains have different compression difficulty. The source demonstrates this through the large math-versus-coding gap. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-75">2. Why can't distillation alone guarantee a capability beyond the teacher?</h5>
+<p>Because the distilled dataset is generated from teacher behavior, and the source frames distillation as transferring existing capabilities rather than being the primary mechanism for pushing the reasoning frontier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-76">3. Why does the base model matter?</h5>
+<p>Because the student already has pretrained representations before distillation. The compatibility of tokenizer, prompting style, and pretrained capabilities can affect how easily it absorbs teacher behavior. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-77">4. Why are process rewards interesting?</h5>
+<p>Because final-answer rewards can treat a correct final answer as equally good even when intermediate reasoning is unreliable. Process rewards attempt to evaluate intermediate reasoning quality.</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-78">5. Why combine distillation with RL?</h5>
+<p>Because distillation can provide successful teacher behavior efficiently, while RL can subsequently optimize or explore behavior under a reward signal. The source explicitly recommends combining the techniques experimentally.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-79">5.19.43 The final lesson of the entire distillation chapter</h3>
+<p>The source's final message can be reduced to:</p>
+<div class="math block">
+\boxed{
+\text{Scale creates the frontier}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{Distillation spreads the frontier}
+}.
+</div>
+<p>A huge teacher can be expensive to train and deploy.</p>
+<p>A distilled student can take some of the teacher's successful behavior and put it into a much smaller model.</p>
+<p>But three things limit the result:</p>
+<div class="math block">
+\boxed{
+\text{student capacity}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{teacher/data quality}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{teacher knowledge frontier}
+}.
+</div>
+<p>And future reasoning systems increasingly combine:</p>
+<div class="math block">
+\boxed{
+\text{RL}
++
+\text{distillation}
++
+\text{adaptive inference}
++
+\text{process-aware rewards}
++
+\text{agentic tool use}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-80">Master formula sheet for the complete distillation block</h3>
+<p>You should now have these equations mentally connected:</p>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-81">Classical KD</h5>
+<div class="math block">
+p_T^T=\operatorname{softmax}(z_T/T)
+</div>
+<div class="math block">
+p_S^T=\operatorname{softmax}(z_S/T)
+</div>
+<div class="math block">
+L_{\text{KD}}
+=
+\alpha L_{\text{hard}}
++
+\beta T^2D_{KL}(p_T^T\|p_S^T).
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-82">R1 text distillation</h5>
+<div class="math block">
+\boxed{
+L_{\text{R1-distill}}
+=
+-\frac1N
+\sum_t
+\log P_S(y_t|x,y_{&lt;t})
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-83">Sequence shifting</h5>
+<div class="math block">
+\boxed{
+X=t[:-1],\qquad Y=t[1:]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-84">Answer-only indexing</h5>
+<div class="math block">
+\boxed{
+s=P-1
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-85">Gradient of CE</h5>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial z_j}
+=
+p_j-\mathbf 1[j=y]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-86">Optimization</h5>
+<div class="math block">
+\boxed{
+\theta\leftarrow\text{Optimizer}(\theta,\nabla_\theta L)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-19-i60-87">Dense-attention sequence complexity</h5>
+<div class="math block">
+\boxed{O(N^2)}
+</div>
+<p>These are now one connected system rather than isolated formulas.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-19-i60-88">Where we stand in the overall course</h3>
+<p>We have now completed the entire <strong>DeepSeek/RL/Distillation block</strong> conceptually:</p>
+<div class="math block">
+\boxed{
+\text{RL}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{DeepSeekMath}
+\rightarrow
+\text{R1-Zero}
+\rightarrow
+\text{R1}
+\rightarrow
+\text{R1-Distill}
+}
+</div>
+<p>and we have covered both the mathematics and the implementation mechanics.</p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-b3">B.3 — R1 Distillation: Behaviour, Implementation, Evidence (book view)</a> — <em>R1 distillation (book view)</em>  ·  <a href="#app-b4">B.4 — Master Integration: Transformer → DeepSeek-R1-Distill</a> — <em>Master integration</em></p>
+</blockquote>
+<hr />
+</section>

@@ -1,0 +1,1777 @@
+<section class="chunk" id="chunk-les-step-3-6b-i32" data-id="les-step-3-6b-i32"><details class="audit-card" id="audit-full-chunk-les-step-3-6b-i32" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-1">Motivation</h4><p>Separate storage containers, quantization-aware optimization and architectures designed for ultra-low-bit arithmetic.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-2">Prerequisites</h4><ul><li>Block metadata accounting</li><li>Quantization/dequantization</li><li>Derivative of rounding and surrogate gradients</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-3">Notation and units</h4><ul><li>GGUF container versus Q4_K tensor encoding</li><li>gamma=mean absolute W; ternary RoundClip(W/(gamma+epsilon),-1,1)</li><li>STE is a surrogate derivative, not the exact derivative of rounding</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-4">Assumptions</h4><ul><li>Ties-to-even examples use NumPy rounding</li><li>Scale metadata must be counted</li><li>Performance needs kernels/hardware suited to low-bit arithmetic</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-5">Step-by-step derivation</h4><ol><li>Nested block scales trade local precision against metadata. Effective bits=(payload+scale bits)/weight count.</li><li>QAT forward applies fake quantization and reconstructs floats; backward uses a declared gradient surrogate such as STE.</li><li>Literal round derivative is zero almost everywhere, so ordinary finite differences of rounded forward cannot validate an STE gradient.</li><li>Binary weights select ±input; ternary adds a skip state, but scaling, accumulation and non-linear layers still cost arithmetic.</li><li>Ternary entropy upper bound log2(3)=1.5849625 assumes three equally likely states and efficient packing; naive fixed-width codes need 2bits.</li><li>Absmean normalization plus clipping constrains every code to{-1,0,1}; zero tensors need epsilon or a special case. Mean centering alone does not guarantee half of values lie on each side.</li></ol><h4 id="v3-heading-chunk-les-step-3-6b-i32-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-6b-i32-7">Ternary with rounding declared</h5><p>Given: W[.1,.2,-.3,1,-.4], gamma.4</p><ol><li>Normalized [.25,.5,-.75,2.5,-1].</li><li>Ties-to-even round gives[0,0,-1,2,-1]; clip gives[0,0,-1,1,-1].</li><li>Half-away-from-zero instead makes.5→1, yielding inherited[0,1,-1,1,-1].</li></ol><p>Answer: {&#x27;gamma&#x27;: 0.4, &#x27;codes&#x27;: [0, 0, -1, 1, -1]}</p><p>Verification: peft_distillation / P36B-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-6b-i32-8">Ternary matvec</h5><p>Given: x[4,7,3,9,2], codes[1,0,-1,1,0]</p><ol><li>Select4, drop7, subtract3, add9, drop2.</li><li>Sum 10; include dequantization scales for physical-valued output.</li></ol><p>Answer: 10</p><p>Verification: peft_distillation / P36B-app · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-6b-i32-9">Q4_K style accounting</h5><p>Given: Example256weights,144 bytes total</p><ol><li>144×8=1152 bits.</li><li>1152/256=4.5 bits/weight; whole-file headers/tensor mixtures add separate overhead.</li></ol><p>Answer: 4.5</p><p>Verification: peft_distillation / P36B-storage · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-3-6b-i32-10">Corrections and source qualifications</h4><ul><li>heading: 23.; text: Subtracting the mean centers values but does not guarantee half positive and half negative. A highly skewed weight distribution can violate that intuition.</li><li>heading: 36.; text: Declare rounding ties. NumPy/PyTorch ties-to-even maps .5→0 and 2.5→2, yielding [0,0,-1,1,-1]. The inherited [0,1,-1,1,-1] uses half-away-from-zero.</li><li>heading: 35.; text: Use RoundClip(W/(gamma+epsilon),-1,1) for clipping and all-zero protection. Absmean quantization does not guarantee most weights are zero.</li><li>heading: 47.; text: With ties-to-even, [-2,1,.5,0,-1.5] rounds to [-2,1,0,0,-2], then clamps to [-1,1,0,0,-1]. Positive .5→1 assumes another rule.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-11">Mastery answers and retained exercise context</h4><ol><li>Cumulative Q1–Q12: scale 3.96875; code 8; reconstruction 2.0157480315; clipping trades bulk resolution for tail distortion; dynamic runtime; static offline; output reconstruction; fake quantization; binary±1; ternary-1/0/1; log2(3)=1.5849625; dot product-1.</li><li>Other exam questions: effective Q4_K tensor4.5 bits, not exactly 4; QAT adapts to the quantizer; binary dot[2,5,4]with[1,-1,1]=1; ternary[6,3,8,5]with[1,0,-1,1]=3.</li><li>42. Exam question — GGUF
+Question
+A Q4_K model is advertised as “4-bit.”
+Does that necessarily mean:
+
+4.000\text{ bits/weight}?
+
+Answer
+
+\boxed{\text{No}}
+
+Because scale and metadata overhead contribute additional storage.
+The supplied deck reports Q4_K at approximately:
+
+\boxed{4.5\text{ bits/weight}}
+
+after its scale representation is accounted for. (Source: quantization-slides)</li><li>43. Exam question — QAT
+Why can QAT outperform naive PTQ at the same bit-width?
+Because:
+
+\boxed{
+\text{QAT lets optimization adapt to quantization noise}
+}
+
+while PTQ does:
+
+\boxed{
+\text{train first, quantize afterward}
+}
+
+The deck&#x27;s explanation is that QAT can move optimization toward wider minima that tolerate the quantization perturbation. (Source: quantization-slides)</li><li>44. Exam question — BitNet 1-bit
+If:
+
+w_q\in\{-1,+1\}
+
+and:
+
+x=[2,5,4]
+
+with:
+
+w_q=[+1,-1,+1],
+
+compute:
+
+w_q^Tx.
+
+
+=1(2)-1(5)+1(4)
+
+
+=2-5+4
+
+
+\boxed{1}.</li><li>45. Exam question — BitNet b1.58
+Suppose:
+
+x=[6,3,8,5]
+
+and:
+
+w_q=[+1,0,-1,+1].
+
+Then:
+
+w_q^Tx
+=
+6+0-8+5
+
+
+\boxed{3}.
+
+The multiplication has reduced to:
+
+\boxed{6-8+5}.</li><li>46. Exam question — why 1.58?
+Three possible values:
+
+\{-1,0,+1\}
+
+therefore:
+
+N=3.
+
+Information required:
+
+\log_2(3)
+\approx
+\boxed{1.585}.
+
+Hence:
+
+\boxed{\text{1.58 bits}}
+
+The supplied slide uses exactly this reasoning. (Source: quantization-slides)</li><li>47. Exam question — absmean quantization
+Given:
+
+W=[-2,1,0.5,0,-1.5].
+
+First:
+
+\alpha
+=
+\frac{2+1+0.5+0+1.5}{5}
+=
+\frac5{5}
+=
+1.
+
+Then:
+
+W/\alpha
+=
+[-2,1,0.5,0,-1.5].
+
+Round to ternary:
+
+[-2,1,1,0,-2].
+
+Clip/restrict to:
+
+\{-1,0,+1\}
+
+giving:
+
+\boxed{[-1,+1,+1,0,-1]}.
+
+This illustrates the basic absmean-to-ternary idea from the deck. (Source: quantization-slides)</li><li>51. Cumulative Quantization Exam Bank
+At this point, you should be able to solve these without notes:
+Q1. INT8 symmetric quantization with \max|x|=32:
+
+s=\frac{127}{32}
+=
+\boxed{3.96875}.
+
+Q2. If x=2.1:
+
+x_q=\operatorname{round}(2.1\times 3.96875)
+=
+\boxed{8}.
+
+Q3. Dequantize:
+
+8/3.96875
+\approx
+\boxed{2.016}.
+
+Q4. Why might clipping improve INT4 MSE?
+
+\boxed{\text{it sacrifices extreme-value accuracy to improve resolution for the bulk}}
+
+Q5. Dynamic quantization:
+
+\boxed{\text{activation range recomputed at inference}}
+
+Q6. Static quantization:
+
+\boxed{\text{activation range determined using offline calibration}}
+
+Q7. GPTQ minimizes:
+
+\boxed{\|WX-\hat WX\|^2}
+
+rather than merely:
+
+\boxed{\|W-\hat W\|^2}.
+
+Q8. QAT:
+
+\boxed{\text{training includes simulated quantization}}
+
+Q9. BitNet:
+
+\boxed{W_q\in\{-1,+1\}}
+
+Q10. b1.58:
+
+\boxed{W_q\in\{-1,0,+1\}}
+
+Q11.
+
+\log_2 3\approx\boxed{1.58}.
+
+Q12. A ternary dot product:
+
+[1,0,-1]^T[4,8,5]
+
+is:
+
+4+0-5
+=
+\boxed{-1}.
+
+
+One source-boundary note
+The supplied quantization deck does not develop AWQ. It does, however, provide a reading list including GPTQ, LLM.int8!, GGUF/K-quants, BitNet, and b1.58. (Source: quantization-slides) So I have not silently inserted a full AWQ lesson here and treated it as if it were part of the slides.
+Quantization section is now grounded end-to-end
+We have covered:
+
+\boxed{
+\begin{aligned}
+&amp;\text{FP32/FP16}\\
+&amp;\downarrow\\
+&amp;\text{INT8 / INT4}\\
+&amp;\downarrow\\
+&amp;\text{symmetric / asymmetric}\\
+&amp;\downarrow\\
+&amp;\text{outliers}\\
+&amp;\downarrow\\
+&amp;\text{clipping + calibration}\\
+&amp;\downarrow\\
+&amp;\text{dynamic / static}\\
+&amp;\downarrow\\
+&amp;\text{GPTQ}\\
+&amp;\downarrow\\
+&amp;\text{GGUF / K-quants}\\
+&amp;\downarrow\\
+&amp;\text{QAT}\\
+&amp;\downarrow\\
+&amp;\text{BitNet 1-bit}\\
+&amp;\downarrow\\
+&amp;\text{BitNet b1.58}
+\end{aligned}
+}
+
+And alongside that:
+
+\boxed{
+\text{LoRA}
+\rightarrow
+\text{QLoRA}
+}
+
+➜ Extra / deeper material in the appendix: A.4 — FP8 Training and Quantization — FP8 (DeepSeek) quantization</li></ol><h4 id="v3-heading-chunk-les-step-3-6b-i32-12">Edge cases and remaining gaps</h4><ul><li>Zero codes do not guarantee sparse-kernel speedup</li><li>Wider-minimum intuition is not a theorem in every parameterization</li><li>Toy quantizer is not GGUF encoding, QAT autograd or BitNet training</li><li>Actual packing can exceed entropy bound</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-13">Connections and progression</h4><ul><li>QLoRA adapts frozen low-bit bases; BitNet trains a low-bit architecture from the outset</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-14">Exact source support</h4><ul><li>quantization-slides(1).pdf · physical PDF pages 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55 · Nested K-quants, fake quantization, binary and ternary pipeline</li><li>The Era of 1-bit LLMs (arXiv:2402.17764v1) · Primary §2 RoundClip with epsilon and absmean · https://arxiv.org/html/2402.17764v1</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-15">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (69)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>1. First: what problem is GGUF trying to solve?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>2. GGUF is a format, not simply “another 4-bit algorithm”</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>3. Why two levels of blocks?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>4. Then GGUF does something clever with the scales</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>5. Visualize the nesting</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>6. Why not use one scale for every weight?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>7. Q4_K does not mean exactly 4 bits per parameter</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>8. Numerical example: effective bits/weight</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>9. Compare Q4_K and Q2_K conceptually</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>10. GGUF vs QLoRA double quantization</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>QLoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>GGUF K-quants</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>11. Now move to QAT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>12. PTQ</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>13. QAT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>14. What is “fake quantization”?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>15. Why do this?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>16. Wide minima vs narrow minima</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>17. Why QAT can produce more robust weights</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>18. But how can gradients pass through rounding?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>19. Numerical QAT example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>20. PTQ vs QAT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>21. Now: BitNet</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>22. BitNet 1-bit weights</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>23. How are the 1-bit weights produced?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>24. Numerical BitNet example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>25. But 1-bit weights alone aren&#x27;t enough</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>26. Why INT8 activations instead of 1-bit?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>27. BitLinear pipeline mathematically</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>28. Why is this computationally interesting?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>29. Numerical 1-bit dot product</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>30. Now BitNet b1.58</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>31. Why is it called 1.58 bits?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>32. Why does zero matter?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>33. Ternary dot-product example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>34. This is why the computation can become addition/subtraction</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>35. How are b1.58 weights quantized?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>36. Numerical b1.58 example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>37. Why does zero create sparsity?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>38. Numerical storage comparison</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>FP16</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>1-bit</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Information-theoretic ternary</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>39. Important conceptual distinction: QLoRA vs BitNet</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>QLoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>BitNet</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>40. Important conceptual distinction: GPTQ vs BitNet</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>GPTQ</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>BitNet</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>41. Complete quantization map</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>42. Exam question — GGUF</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>Question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Answer</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>43. Exam question — QAT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>44. Exam question — BitNet 1-bit</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>45. Exam question — BitNet b1.58</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>46. Exam question — why 1.58?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>47. Exam question — absmean quantization</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>48. The single most important comparison table</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>49. The complete hierarchy you should remember</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>50. Master formulas for this step</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>GGUF/K-quants</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>QAT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>BitNet 1-bit</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>BitNet b1.58</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td>Original pretrained/back-end program unexecuted; source-reported experiment is not a local reproduction.</td></tr><tr><td>51. Cumulative Quantization Exam Bank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>One source-boundary note</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Quantization section is now grounded end-to-end</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><aside class="audit-card" data-continuation="added" id="audit-finding-E08-chunk-les-step-3-6b-i32"><h3 id="v3-heading-chunk-les-step-3-6b-i32-16">QAT scale learning and wide-minimum intuition need qualifications</h3><p>Status: algorithm_family_qualification; concrete_backend_pending</p><p>QAT is a family: observer-estimated/frozen scales and explicitly learned-scale methods are different implementations. Fake quantization in a forward pass does not prove convergence to a wide minimum, and rounding has zero derivative almost everywhere unless a surrogate rule is supplied. Treat wide-minimum discussion as intuition; identify observers, rounding, clipping, STE and training schedule for executable behavior.</p><p><a href="https://docs.pytorch.org/ao/stable/workflows/qat.html">Primary/official source</a> · Concrete torchao QAT workflow; compare supplied quantization slides44–47</p><p>Remaining evidence: Version-pin and execute a specific QAT backend before certifying its scale/gradient behavior.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><details class="audit-card" id="audit-Q07" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> Q07 — GGUF container versus quantized block overhead</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>A nominal four-bit weight code does not imply four total stored bits per weight.</p><p><strong>Prerequisites:</strong> <a href="#audit-Q01">Quantization scale units and rounding</a></p><h4 id="v3-heading-chunk-les-step-3-6b-i32-17">Notation and assumptions</h4><p>Container metadata and tensor block encoding are separate. Fixture:256weights,4bits each,128bits block metadata, full blocks.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-18">Derivation and mechanism</h4><ol><li>Count integer payload bits.</li><li>Add per-block scales/offsets and other block fields.</li><li>Divide by real weight count; account for file metadata/alignment separately.</li></ol><h4 id="v3-heading-chunk-les-step-3-6b-i32-19">Worked example</h4><p>256×4+128=1152bits=144bytes per block;1152/256=4.5bits/weight. This reproduces the slide43 arithmetic under its declared block assumptions.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-20">Limitations</h4><ul><li>GGUF is a file format, not one quantization algorithm.</li><li>Concrete Q4_K structures/revisions and partial blocks need direct implementation inspection.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-21">Connections to later concepts</h4><ul><li>Q08 separately counts nested scale metadata; a container label alone does not establish those fields.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-22">Source support</h4><ul><li>quantization-slides(1).pdf · physical PDF pages 41, 42, 43 · Quantization lecture</li><li><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" rel="noopener noreferrer">GGUF file structure; quantized block sizes are implementation-specific</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-23">Executed code and evidence</h4><p>Functions: storage_bits. Passed checks: Quant-block-overhead</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-Q09" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> Q09 — QAT forward quantization versus surrogate gradients</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>A rounding operation needs an explicitly chosen surrogate if gradient-based training is to update its inputs.</p><p><strong>Prerequisites:</strong> <a href="#audit-Q01">Quantization scale units and rounding</a>, <a href="#audit-F06">Chain rule and scalar gradients</a></p><h4 id="v3-heading-chunk-les-step-3-6b-i32-24">Notation and assumptions</h4><p>Scalar squared reconstruction loss; fake quantization uses step.1/range[-3,3]. Chosen STE derivative is1 inside real clip interval and0 outside.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-25">Derivation and mechanism</h4><ol><li>Quantize/dequantize in the forward calculation.</li><li>The true rounding map is locally constant away from boundaries.</li><li>Backward uses the declared surrogate; it is not the derivative of the true discontinuous operation.</li></ol><h4 id="v3-heading-chunk-les-step-3-6b-i32-26">Worked example</h4><p>w.23,target.5→reconstructed.2. True local derivative of the rounded output is0. Identity STE produces loss gradient2(.2-.5)=-.6. Outside clip interval, this chosen STE returns0.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-27">Limitations</h4><ul><li>Other STEs and learned-scale gradients differ.</li><li>This educational derivative does not execute or certify a particular torchao QAT backend.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-28">Connections to later concepts</h4><ul><li>F06 differentiates the chosen surrogate computation; it must not be confused with the discontinuous rounded forward map.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-29">Source support</h4><ul><li>quantization-slides(1).pdf · physical PDF pages 44, 45, 46, 47 · Quantization lecture</li><li><a href="https://docs.pytorch.org/ao/stable/workflows/qat.html" rel="noopener noreferrer">Prepare/convert workflow; backend-specific observers and quantizers</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-30">Executed code and evidence</h4><p>Functions: fake_quant_ste_gradient, affine_quantize. Passed checks: QAT-STE, QAT-true-local-derivative, QAT-clipped-STE</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-Q10" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> Q10 — Ternary1.58-bit terminology and physical storage</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Separate three-symbol information content from the physical storage/compute implementation.</p><p><strong>Prerequisites:</strong> <a href="#audit-Q01">Quantization scale units and rounding</a>, <a href="#audit-Q07">GGUF container versus quantized block overhead</a></p><h4 id="v3-heading-chunk-les-step-3-6b-i32-31">Notation and assumptions</h4><p>Toy absmean scaling and round/clip codes{-1,0,1}. This is a forward teaching quantizer; gradients and activation quantization are separate.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-32">Derivation and mechanism</h4><ol><li>Compute a positive weight scale as mean absolute value.</li><li>Normalize, round and clip to three symbols.</li><li>Reconstruct with the scale; account for actual packed codes and metadata.</li></ol><h4 id="v3-heading-chunk-les-step-3-6b-i32-33">Worked example</h4><p>Weights[-.9,-.1,.1,.9] have scale.5, codes[-1,0,0,1], reconstructions[-.5,0,0,.5]. log2(3)≈1.584963ideal bits/symbol; literal fixed-width storage typically needs a packing contract, not a fractional bit cell.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-34">Limitations</h4><ul><li>Ternary zeros distinguish this from the original two-symbol1-bit rule.</li><li>Not a replicated BitNet training result or proof of hardware acceleration.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-35">Connections to later concepts</h4><ul><li>Q07 distinguishes theoretical symbol bits from stored block bytes and metadata.</li></ul><h4 id="v3-heading-chunk-les-step-3-6b-i32-36">Source support</h4><ul><li>quantization-slides(1).pdf · physical PDF pages 54, 55 · Quantization lecture</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-6b-i32-37">Executed code and evidence</h4><p>Functions: ternary_weights. Passed checks: Ternary-codes, Ternary-symbol-entropy</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-6b-i32"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-6b-i32" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-3-6-i31">← Previous lesson</a> · <a href="#v3-quantization">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-6-i31">Step 3.6 — Advanced Quantization: Clipping, Calibration, Dynamic/Static Quantization, and GPTQ</a></p><p><strong>This lesson:</strong> Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</p><p><strong>Source references:</strong> <a href="#source-7">quantization-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-6b-i32"></a></p>
+<h2>Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</h2>
+<p><em>Plan node: I4 · chat order #32</em></p>
+<p>We now finish the major quantization section.</p>
+<p>So far we established:</p>
+<div class="math block">
+\text{FP32/FP16}
+\rightarrow
+\text{INT8/INT4}
+\rightarrow
+\text{calibration}
+\rightarrow
+\text{GPTQ}
+</div>
+<p>Now the supplied quantization deck moves into four related but distinct ideas:</p>
+<div class="math block">
+\boxed{
+\text{GGUF/K-quants}
+\rightarrow
+\text{QAT}
+\rightarrow
+\text{BitNet 1-bit}
+\rightarrow
+\text{BitNet b1.58}
+}
+</div>
+<p>The crucial thing is that these are <strong>not interchangeable</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-38">1. First: what problem is GGUF trying to solve?</h3>
+<p>We already learned block-wise quantization.</p>
+<p>Suppose:</p>
+<div class="math block">
+W=
+[B_1,B_2,B_3,\ldots]
+</div>
+<p>and each block gets its own scale:</p>
+<div class="math block">
+s_1,s_2,s_3,\ldots
+</div>
+<p>This is better than giving the entire tensor one scale.</p>
+<p>But now imagine a large model.</p>
+<p>Every block has:</p>
+<div class="math block">
+\boxed{\text{quantized weights}+\text{scale}}
+</div>
+<p>So we have introduced metadata overhead.</p>
+<p>GGUF's <strong>K-quants</strong> organize this information more efficiently using <strong>two nested levels</strong>. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-39">2. GGUF is a format, not simply “another 4-bit algorithm”</h3>
+<p>This distinction is important.</p>
+<p>Think of:</p>
+<div class="math block">
+\boxed{\text{GGUF}}
+</div>
+<p>as a model-file/storage format used by the llama.cpp ecosystem.</p>
+<p>Inside that format, you can have different quantization schemes such as:</p>
+<div class="math block">
+\boxed{\text{Q2\_K},\text{ Q4\_K},\text{ Q6\_K},\ldots}
+</div>
+<p>The supplied deck specifically discusses the K-quant family within GGUF. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<blockquote>
+<p><strong>GGUF is the container/format; Q4_K, Q6_K, etc. are quantization levels/schemes within it.</strong></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-40">3. Why two levels of blocks?</h3>
+<p>Ordinary block quantization:</p>
+<pre><code class="language-text">Large tensor
+    |
+    +--- Block 1 -&gt; scale s1
+    |
+    +--- Block 2 -&gt; scale s2
+    |
+    +--- Block 3 -&gt; scale s3
+</code></pre>
+<p>GGUF K-quants:</p>
+<pre><code class="language-text">Large super-block
+       |
+       +--- sub-block 1 -&gt; scale s1
+       |
+       +--- sub-block 2 -&gt; scale s2
+       |
+       +--- sub-block 3 -&gt; scale s3
+       |
+       +--- ...
+</code></pre>
+<p>The supplied deck describes a <strong>super-block</strong> containing several <strong>sub-blocks</strong>, with each sub-block receiving its own scale. <em>(Source: quantization-slides)</em></p>
+<p>Why?</p>
+<p>Because we want:</p>
+<div class="math block">
+\boxed{\text{fine-grained scaling}}
+</div>
+<p>without the overhead of having completely independent full-precision scale information for every tiny piece.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-41">4. Then GGUF does something clever with the scales</h3>
+<p>Suppose:</p>
+<div class="math block">
+s_1,s_2,s_3,\ldots
+</div>
+<p>are the sub-block scales.</p>
+<p>Why store every <span class="math inline">s_i</span> as a full-precision number?</p>
+<p>GGUF can quantize the sub-block scales themselves.</p>
+<p>So:</p>
+<div class="math block">
+s_i
+\rightarrow
+s_i^{q}.
+</div>
+<p>But to reconstruct them, we need another scale:</p>
+<div class="math block">
+s_{\text{super}}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{weights}
+\rightarrow
+\text{sub-block scales}
+\rightarrow
+\text{super-block scale}
+}
+</div>
+<p>The deck explicitly describes this as a second level of quantization and compares the idea to QLoRA's double quantization. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-42">5. Visualize the nesting</h3>
+<p>Think:</p>
+<pre><code class="language-text">                 SUPER-BLOCK
+        ┌──────────────────────────┐
+        │                          │
+        │  Sub-block 1             │
+        │  weights + q(scale)      │
+        │                          │
+        │  Sub-block 2             │
+        │  weights + q(scale)      │
+        │                          │
+        │  Sub-block 3             │
+        │  weights + q(scale)      │
+        │                          │
+        │  Super-block scale        │
+        └──────────────────────────┘
+</code></pre>
+<p>This provides two levels of granularity:</p>
+<div class="math block">
+\boxed{\text{local scale}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{global/super-block scale}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-43">6. Why not use one scale for every weight?</h3>
+<p>Because that would require:</p>
+<div class="math block">
+N_{\text{weights}}
+</div>
+<p>scales.</p>
+<p>If we have:</p>
+<div class="math block">
+7\times10^9
+</div>
+<p>weights, that would be ridiculous metadata overhead.</p>
+<p>One scale per huge block is too coarse.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{nested blocks}
+}
+</div>
+<p>provide a compromise between:</p>
+<div class="math block">
+\text{precision}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{metadata overhead}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-44">7. Q4_K does not mean exactly 4 bits per parameter</h3>
+<p>This is an excellent exam trap.</p>
+<p>The nominal weight code is:</p>
+<div class="math block">
+4\text{ bits}.
+</div>
+<p>But we must also count:</p>
+<ul>
+<li>sub-block scale information,</li>
+<li>super-block scale information,</li>
+<li>other format overhead.</li>
+</ul>
+<p>Therefore the effective cost can be larger.</p>
+<p>The supplied deck specifically reports:</p>
+<div class="math block">
+\boxed{\text{Q4\_K}\approx4.5\text{ bits/weight}}
+</div>
+<p>once scale overhead is included. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{4\text{-bit weight code}\neq4.000\text{ bits/weight overall}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-45">8. Numerical example: effective bits/weight</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+1000
+</div>
+<p>weights and the total encoded file information works out to:</p>
+<div class="math block">
+4500
+</div>
+<p>bits.</p>
+<p>Then:</p>
+<div class="math block">
+\frac{4500}{1000}
+=
+\boxed{4.5\text{ bits/weight}}.
+</div>
+<p>That is the correct way to think about practical quantization cost.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-46">9. Compare Q4_K and Q2_K conceptually</h3>
+<p>Nominally:</p>
+<div class="math block">
+Q2_K\rightarrow2\text{ bits}
+</div>
+<div class="math block">
+Q4_K\rightarrow4\text{ bits}
+</div>
+<div class="math block">
+Q6_K\rightarrow6\text{ bits}.
+</div>
+<p>But the actual effective cost includes scale/metadata overhead.</p>
+<p>Therefore lower nominal bit-width does not automatically imply a simple exact:</p>
+<div class="math block">
+2,\ 4,\ 6
+</div>
+<p>bits/weight in the stored file.</p>
+<p>The supplied deck explicitly frames K-quants as trading weight bit-width against how finely scales are represented. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-47">10. GGUF vs QLoRA double quantization</h3>
+<p>This is another easy place to get confused.</p>
+<p>Both use:</p>
+<div class="math block">
+\boxed{\text{quantize the quantization constants}}
+</div>
+<p>but they are not the same implementation.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-48">QLoRA</h5>
+<p>Uses double quantization for its quantization constants in its 4-bit training approach.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-49">GGUF K-quants</h5>
+<p>Use nested sub-block/super-block scale quantization for efficient model storage.</p>
+<p>The supplied deck explicitly says the idea is analogous, but applied in a different integer-format context. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{same high-level idea, different systems}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-50">11. Now move to QAT</h3>
+<p>So far, our quantization discussion has mostly been:</p>
+<div class="math block">
+\boxed{\text{train first}\rightarrow\text{quantize afterward}}
+</div>
+<p>This is:</p>
+<div class="math block">
+\boxed{\text{PTQ = Post-Training Quantization}}
+</div>
+<p>The supplied deck now introduces:</p>
+<div class="math block">
+\boxed{\text{QAT = Quantization-Aware Training}}
+</div>
+<p>The difference is fundamental.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-51">12. PTQ</h3>
+<p>Suppose training produces:</p>
+<div class="math block">
+W^*.
+</div>
+<p>Then we quantize:</p>
+<div class="math block">
+W^*
+\rightarrow
+Q(W^*).
+</div>
+<p>The model never experienced that quantization during training.</p>
+<p>So:</p>
+<pre><code class="language-text">TRAIN
+  ↓
+FP model
+  ↓
+finished
+  ↓
+QUANTIZE
+  ↓
+INT8 / INT4 model
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-52">13. QAT</h3>
+<p>QAT says:</p>
+<blockquote>
+<p>Let training know that quantization is coming.</p>
+</blockquote>
+<p>Conceptually:</p>
+<pre><code class="language-text">TRAINING
+   |
+   +--&gt; quantization simulation
+   |
+   +--&gt; model learns
+   |
+   +--&gt; quantization-aware weights
+   |
+   ↓
+DEPLOYABLE LOW-BIT MODEL
+</code></pre>
+<p>The deck says QAT trains the network while accounting for the quantization grid rather than imposing the grid only after training. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-53">14. What is “fake quantization”?</h3>
+<p>This is the key mechanism.</p>
+<p>Suppose:</p>
+<div class="math block">
+x
+</div>
+<p>is FP32.</p>
+<p>We calculate:</p>
+<div class="math block">
+x_q=\operatorname{round}(sx)
+</div>
+<p>and then immediately reconstruct:</p>
+<div class="math block">
+\hat x=\frac{x_q}{s}.
+</div>
+<p>So the training graph sees:</p>
+<div class="math block">
+x
+\rightarrow
+Q(x)
+\rightarrow
+D(Q(x)).
+</div>
+<p>The result is not kept compressed permanently.</p>
+<p>It's a <strong>simulation of what low-bit inference will do</strong>.</p>
+<p>The supplied slides call this a “fake” quantization step. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-54">15. Why do this?</h3>
+<p>Suppose normal training finds:</p>
+<div class="math block">
+W^*.
+</div>
+<p>Imagine <span class="math inline">W^*</span> lies in a very narrow low-loss region.</p>
+<p>After quantization:</p>
+<div class="math block">
+W^*\rightarrow Q(W^*)
+</div>
+<p>the small rounding perturbation may push the parameters outside that good region.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{low training loss before quantization}}
+</div>
+<p>does not guarantee:</p>
+<div class="math block">
+\boxed{\text{low loss after quantization}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-55">16. Wide minima vs narrow minima</h3>
+<p>Imagine the loss landscape:</p>
+<pre><code class="language-text">Loss
+ ^
+ |             narrow minimum
+ |                 \/
+ |                /  \
+ |      wide     /    \
+ |     minimum  /      \
+ |       \______/        \
+ +----------------------------&gt; weights
+</code></pre>
+<p>A narrow minimum is sensitive to small changes.</p>
+<p>A wide minimum is more tolerant.</p>
+<p>Quantization introduces a perturbation:</p>
+<div class="math block">
+W\rightarrow W+\epsilon.
+</div>
+<p>A wide minimum can remain low-loss:</p>
+<div class="math block">
+L(W+\epsilon)\approx L(W).
+</div>
+<p>A narrow minimum may become:</p>
+<div class="math block">
+L(W+\epsilon)\gg L(W).
+</div>
+<p>The supplied deck uses exactly this wide-vs-narrow-minimum intuition. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-56">17. Why QAT can produce more robust weights</h3>
+<p>Because during training the model repeatedly sees the quantization effect.</p>
+<p>Therefore optimization is encouraged toward parameter regions where:</p>
+<div class="math block">
+\boxed{\text{quantization perturbations hurt less}}
+</div>
+<p>The supplied slides state that QAT can steer training toward wider minima that tolerate quantization. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{QAT learns weights that are friendly to the quantization grid}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{learn first and hope quantization doesn't break them}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-57">18. But how can gradients pass through rounding?</h3>
+<p>This is where implementation becomes subtle.</p>
+<p>The exact rounding function:</p>
+<div class="math block">
+\operatorname{round}(x)
+</div>
+<p>has zero derivative almost everywhere and is therefore not directly useful for ordinary gradient descent.</p>
+<p>The deck does not develop the detailed derivative approximation, but it explains the practical mechanism: forward computation experiences quantization/dequantization while gradients continue in higher precision. <em>(Source: quantization-slides)</em></p>
+<p>The common implementation concept is a <strong>straight-through estimator (STE)</strong>.</p>
+<p>For studying the supplied deck, remember:</p>
+<div class="math block">
+\boxed{
+\text{forward sees rounding}
+\quad+\quad
+\text{backward still permits gradient flow}
+}
+</div>
+<p>rather than trying to differentiate the literal integer rounding operation normally.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-58">19. Numerical QAT example</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=0.83
+</div>
+<p>and:</p>
+<div class="math block">
+s=10.
+</div>
+<p>Quantize:</p>
+<div class="math block">
+x_q=\operatorname{round}(8.3)=8.
+</div>
+<p>Dequantize:</p>
+<div class="math block">
+\hat x=\frac8{10}=0.8.
+</div>
+<p>So the forward pass effectively uses:</p>
+<div class="math block">
+\boxed{0.8}
+</div>
+<p>instead of:</p>
+<div class="math block">
+0.83.
+</div>
+<p>The training process therefore experiences the same type of perturbation that deployment will encounter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-59">20. PTQ vs QAT</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>PTQ</th>
+<th>QAT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quantization introduced</td>
+<td>after training</td>
+<td>during training</td>
+</tr>
+<tr>
+<td>Training sees quantization effects</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Calibration/training overhead</td>
+<td>lower</td>
+<td>higher</td>
+</tr>
+<tr>
+<td>Can adapt weights to quantization</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Goal</td>
+<td>compress a finished model</td>
+<td>train a model robust to low-bit representation</td>
+</tr>
+</tbody>
+</table>
+<p>The supplied deck explicitly contrasts the two in terms of whether the model “knew” the quantization was coming. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-60">21. Now: BitNet</h3>
+<p>We have:</p>
+<div class="math block">
+\text{QAT}
+</div>
+<p>but BitNet takes the idea much further.</p>
+<p>The deck describes BitNet as:</p>
+<blockquote>
+<p><strong>QAT taken to its extreme</strong></p>
+</blockquote>
+<p>Instead of taking an ordinary FP16 Linear layer and later quantizing it, BitNet replaces the Linear layer with a <strong>BitLinear</strong> layer whose weights are trained to live in extremely low precision from the beginning. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Linear}
+\rightarrow
+\text{BitLinear}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-61">22. BitNet 1-bit weights</h3>
+<p>The first BitNet idea is:</p>
+<div class="math block">
+\boxed{
+W_q\in\{-1,+1\}
+}
+</div>
+<p>instead of ordinary floating-point weights.</p>
+<p>So every weight is represented by one of just two values:</p>
+<div class="math block">
+-1
+</div>
+<p>or:</p>
+<div class="math block">
++1.
+</div>
+<p>The supplied deck calls this 1-bit weight quantization. <em>(Source: quantization-slides)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-6b-i32-0" data-full-review="added"><p>Correction: Subtracting the mean centers values but does not guarantee half positive and half negative. A highly skewed weight distribution can violate that intuition.</p><p><a href="#audit-full-chunk-les-step-3-6b-i32">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-6b-i32-62">23. How are the 1-bit weights produced?</h3>
+<p>The deck uses:</p>
+<div class="math block">
+\boxed{
+w_q=\operatorname{Sign}(w-\alpha)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\alpha=\operatorname{mean}(w).
+</div>
+<p>So we first center weights around their mean.</p>
+<p>Then:</p>
+<div class="math block">
+w-\alpha
+</div>
+<p>is positive or negative.</p>
+<p>The sign function gives:</p>
+<div class="math block">
+\operatorname{Sign}(x)=
+\begin{cases}
++1,&amp;x\ge0\\
+-1,&amp;x&lt;0
+\end{cases}
+</div>
+<p>according to the stated convention.</p>
+<p>The supplied slides explain that subtracting the mean centers the weights so that approximately half lie on either side before collapsing them to <span class="math inline">-1/+1</span>. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-63">24. Numerical BitNet example</h3>
+<p>Suppose:</p>
+<div class="math block">
+W=
+[0.8,\ 0.2,\ -0.1,\ 0.5,\ -0.4].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\alpha=
+\frac{0.8+0.2-0.1+0.5-0.4}{5}
+</div>
+<div class="math block">
+=
+\frac{1.0}{5}
+=
+0.2.
+</div>
+<p>Center:</p>
+<div class="math block">
+W-\alpha
+=
+[0.6,\ 0,\ -0.3,\ 0.3,\ -0.6].
+</div>
+<p>Sign:</p>
+<div class="math block">
+W_q=
+[+1,+1,-1,+1,-1].
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+[0.8,0.2,-0.1,0.5,-0.4]
+\rightarrow
+[1,1,-1,1,-1]
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-64">25. But 1-bit weights alone aren't enough</h3>
+<p>The deck doesn't simply say:</p>
+<blockquote>
+<p>“Everything becomes 1 bit.”</p>
+</blockquote>
+<p>Instead, it uses different precisions for different pieces.</p>
+<p>The supplied BitLinear pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{FP16 input}
+\rightarrow
+\text{LayerNorm}
+\rightarrow
+\text{INT8 activations}
+\rightarrow
+\text{1-bit weights}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{matmul}
+\rightarrow
+\text{dequantize}
+\rightarrow
+\text{FP16 output}
+}
+</div>
+<p>The deck explicitly gives this pipeline. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-65">26. Why INT8 activations instead of 1-bit?</h3>
+<p>Because activations change with every input.</p>
+<p>The deck gives the intuition that activations carry more information and therefore are retained at a finer precision than the weights. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W:\text{1-bit}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+X:\text{INT8}
+}
+</div>
+<p>This is asymmetric precision by design.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-66">27. BitLinear pipeline mathematically</h3>
+<p>Conceptually:</p>
+<div class="math block">
+X
+\rightarrow
+X_q
+</div>
+<p>and:</p>
+<div class="math block">
+W
+\rightarrow
+W_q.
+</div>
+<p>Then:</p>
+<div class="math block">
+Y_q=X_qW_q.
+</div>
+<p>Finally recover a higher-precision result:</p>
+<div class="math block">
+Y_{\text{deq}}
+</div>
+<p>using the relevant scales.</p>
+<p>The deck states that the product is dequantized back to FP16 before leaving the BitLinear layer. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-67">28. Why is this computationally interesting?</h3>
+<p>Now suppose:</p>
+<div class="math block">
+w_q\in\{-1,+1\}.
+</div>
+<p>Consider a dot product:</p>
+<div class="math block">
+y=\sum_i w_i x_i.
+</div>
+<p>Since:</p>
+<div class="math block">
+w_i\in\{-1,+1\},
+</div>
+<p>every term becomes:</p>
+<div class="math block">
+w_ix_i=
+\begin{cases}
++x_i,&amp;w_i=+1\\
+-x_i,&amp;w_i=-1.
+\end{cases}
+</div>
+<p>So we no longer need a conventional multiplication for the weight.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
++x_i\quad\text{or}\quad-x_i
+}
+</div>
+<p>followed by accumulation.</p>
+<p>This is the key intuition behind low-bit/bitwise computation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-68">29. Numerical 1-bit dot product</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=[3,5,2,7]
+</div>
+<p>and:</p>
+<div class="math block">
+w=[+1,-1,+1,-1].
+</div>
+<p>Ordinary multiplication:</p>
+<div class="math block">
+(+1)(3)+(-1)(5)+(1)(2)+(-1)(7)
+</div>
+<div class="math block">
+=3-5+2-7
+</div>
+<div class="math block">
+=\boxed{-7}.
+</div>
+<p>Notice:</p>
+<ul>
+<li><span class="math inline">+1\times3=3</span></li>
+<li><span class="math inline">-1\times5=-5</span></li>
+<li><span class="math inline">+1\times2=2</span></li>
+<li><span class="math inline">-1\times7=-7</span></li>
+</ul>
+<p>The multiplication by the binary weight itself is trivial.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{multiply-by-weight becomes sign selection}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-69">30. Now BitNet b1.58</h3>
+<p>The next step is even more interesting.</p>
+<p>Instead of:</p>
+<div class="math block">
+\{-1,+1\},
+</div>
+<p>BitNet b1.58 uses:</p>
+<div class="math block">
+\boxed{
+\{-1,0,+1\}
+}
+</div>
+<p>for the quantized weights.</p>
+<p>The supplied deck explains that this adds the zero value, creating three possible states. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-70">31. Why is it called 1.58 bits?</h3>
+<p>Three possible states require:</p>
+<div class="math block">
+\log_2(3)
+</div>
+<p>bits to represent information theoretically.</p>
+<p>Compute:</p>
+<div class="math block">
+\log_2(3)\approx1.58496.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\log_2 3\approx1.58
+}
+</div>
+<p>Hence the name:</p>
+<div class="math block">
+\boxed{\text{BitNet b1.58}}.
+</div>
+<p>The supplied deck explicitly gives this reasoning. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-71">32. Why does zero matter?</h3>
+<p>Suppose:</p>
+<div class="math block">
+w_i=0.
+</div>
+<p>Then:</p>
+<div class="math block">
+w_ix_i=0.
+</div>
+<p>The input contributes nothing to the dot product.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{0}
+</div>
+<p>acts like a natural “skip this contribution” state.</p>
+<p>This creates a potentially sparse computation.</p>
+<p>The deck explicitly connects the ternary weight representation to additions, subtractions, and dropped terms. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-72">33. Ternary dot-product example</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=[4,7,3,9,2]
+</div>
+<p>and:</p>
+<div class="math block">
+w=[+1,0,-1,+1,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+y
+=
+(+1)(4)
++(0)(7)
++(-1)(3)
++(+1)(9)
++(0)(2)
+</div>
+<div class="math block">
+=
+4+0-3+9+0
+</div>
+<div class="math block">
+=\boxed{10}.
+</div>
+<p>No meaningful multiplication remains:</p>
+<div class="math block">
+\boxed{4-3+9}
+</div>
+<p>with the zero-weight positions dropped.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-73">34. This is why the computation can become addition/subtraction</h3>
+<p>For:</p>
+<div class="math block">
+w_i\in\{-1,0,+1\},
+</div>
+<p>we have:</p>
+<div class="math block">
+w_ix_i
+\in
+\{-x_i,0,+x_i\}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+w_ix_i=
++x_i,\ -x_i,\ \text{or nothing}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{dot product}\rightarrow
+\text{additions + subtractions + skips}
+}
+</div>
+<p>The deck explicitly describes this as the multiplication disappearing. <em>(Source: quantization-slides)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-6b-i32-2" data-full-review="added"><p>Correction: Use RoundClip(W/(gamma+epsilon),-1,1) for clipping and all-zero protection. Absmean quantization does not guarantee most weights are zero.</p><p><a href="#audit-full-chunk-les-step-3-6b-i32">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-6b-i32-74">35. How are b1.58 weights quantized?</h3>
+<p>The deck changes the normalization strategy here.</p>
+<p>Earlier BitNet uses a mean-centering approach.</p>
+<p>For b1.58, the supplied deck gives <strong>absmean quantization</strong>.</p>
+<p>Define:</p>
+<div class="math block">
+\boxed{
+\alpha=
+\operatorname{mean}(|w|)
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+w_q=
+\operatorname{round}
+\left(
+\frac{w}{\alpha}
+\right)
+}
+</div>
+<p>and because the result is restricted to the ternary set:</p>
+<div class="math block">
+\boxed{
+w_q\in\{-1,0,+1\}
+}
+</div>
+<p>The supplied slide specifically states that dividing by the mean absolute weight causes most values to round to <span class="math inline">0</span>, while larger values round to <span class="math inline">\pm1</span>. <em>(Source: quantization-slides)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-6b-i32-1" data-full-review="added"><p>Correction: Declare rounding ties. NumPy/PyTorch ties-to-even maps .5→0 and 2.5→2, yielding [0,0,-1,1,-1]. The inherited [0,1,-1,1,-1] uses half-away-from-zero.</p><p><a href="#audit-full-chunk-les-step-3-6b-i32">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-6b-i32-75">36. Numerical b1.58 example</h3>
+<p>Take:</p>
+<div class="math block">
+W=[0.1,\ 0.2,\ -0.3,\ 1.0,\ -0.4].
+</div>
+<p>Calculate mean absolute value:</p>
+<div class="math block">
+\alpha
+=
+\frac{
+|0.1|+|0.2|+|{-0.3}|+|1.0|+|{-0.4}|
+}{5}
+</div>
+<div class="math block">
+=
+\frac{0.1+0.2+0.3+1.0+0.4}{5}
+</div>
+<div class="math block">
+=
+\frac{2.0}{5}
+=
+0.4.
+</div>
+<p>Now divide:</p>
+<div class="math block">
+W/\alpha
+=
+[0.25,\ 0.5,\ -0.75,\ 2.5,\ -1].
+</div>
+<p>Round:</p>
+<div class="math block">
+[0,\ 1,\ -1,\ 3,\ -1].
+</div>
+<p>But b1.58 restricts the values to:</p>
+<div class="math block">
+\{-1,0,+1\}.
+</div>
+<p>So values beyond <span class="math inline">+1</span> are clipped to <span class="math inline">+1</span>:</p>
+<div class="math block">
+\boxed{
+W_q=[0,1,-1,1,-1]
+}
+</div>
+<p>under the simple clipped-ternary interpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-76">37. Why does zero create sparsity?</h3>
+<p>Suppose:</p>
+<div class="math block">
+W/\alpha
+</div>
+<p>contains many values such as:</p>
+<div class="math block">
+0.1,\ 0.2,\ -0.3,\ 0.4.
+</div>
+<p>These are near zero.</p>
+<p>Rounding them to the ternary grid gives:</p>
+<div class="math block">
+0.
+</div>
+<p>So many weights become:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<p>The deck explicitly notes this as a sparsifying side effect of absmean ternary quantization. <em>(Source: quantization-slides)</em></p>
+<p>Thus b1.58 offers:</p>
+<div class="math block">
+\boxed{
+\text{low precision}
++
+\text{potential sparsity}
++
+\text{simple arithmetic}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-77">38. Numerical storage comparison</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+1,000,000,000
+</div>
+<p>weights.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-78">FP16</h5>
+<div class="math block">
+16\text{ bits/weight}
+</div>
+<p>so:</p>
+<div class="math block">
+16\times10^9\text{ bits}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{2\text{ GB}}
+</div>
+<p>ignoring metadata.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-79">1-bit</h5>
+<div class="math block">
+1\times10^9\text{ bits}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{125\text{ MB}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-80">Information-theoretic ternary</h5>
+<div class="math block">
+1.585\text{ bits/weight}
+</div>
+<p>so:</p>
+<div class="math block">
+1.585\times10^9\text{ bits}
+</div>
+<p>approximately:</p>
+<div class="math block">
+\boxed{198\text{ MB}}.
+</div>
+<p>Actual implementation storage is affected by packing and additional scaling information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-81">39. Important conceptual distinction: QLoRA vs BitNet</h3>
+<p>They look similar because both involve low-bit weights.</p>
+<p>But they solve different problems.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-82">QLoRA</h5>
+<div class="math block">
+\boxed{
+\text{existing pretrained model}
++
+\text{4-bit frozen storage}
++
+\text{LoRA training}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-83">BitNet</h5>
+<div class="math block">
+\boxed{
+\text{architecture/training designed around ultra-low-bit weights}
+}
+</div>
+<p>The supplied deck explicitly describes BitNet as replacing ordinary Linear layers with BitLinear layers and training them in the low-bit regime from the outset. <em>(Source: quantization-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{QLoRA = PEFT + quantized base}
+}
+</div>
+<p>whereas:</p>
+<div class="math block">
+\boxed{
+\text{BitNet = low-bit model architecture/training}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-84">40. Important conceptual distinction: GPTQ vs BitNet</h3>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-85">GPTQ</h5>
+<p>Post-training:</p>
+<div class="math block">
+\boxed{
+\text{already-trained model}
+\rightarrow
+\text{carefully quantized model}
+}
+</div>
+<p>using calibration data and output-error-aware compensation.</p>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-86">BitNet</h5>
+<p>Training itself is designed around low-bit weights:</p>
+<div class="math block">
+\boxed{
+\text{training and low-bit representation are integrated}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{GPTQ adapts an existing model to quantization}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{BitNet trains the model in the low-bit regime}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-87">41. Complete quantization map</h3>
+<p>Now the whole section becomes much easier to organize.</p>
+<pre><code class="language-text">FP32 / FP16 model
+        |
+        +------------------------------+
+        |                              |
+        ▼                              ▼
+      PTQ                            QAT
+        |                              |
+        |                         train with
+        |                      quantization effects
+        |
+        +------&gt; INT8 / INT4
+        |
+        +------&gt; GPTQ
+        |
+        +------&gt; GGUF / K-quants
+        |
+        +------&gt; other PTQ methods
+
+
+QAT extreme
+     |
+     ▼
+   BitNet
+     |
+     +------&gt; 1-bit {-1,+1}
+     |
+     +------&gt; b1.58 {-1,0,+1}
+</code></pre>
+<p>And separately:</p>
+<pre><code class="language-text">Pretrained LLM
+      |
+      ▼
+    LoRA
+      |
+      ▼
+   QLoRA
+      |
+      +--&gt; 4-bit base
+      +--&gt; LoRA adapters
+      +--&gt; NF4
+      +--&gt; double quantization
+      +--&gt; paged optimizers
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-88">42. Exam question — GGUF</h3>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-89">Question</h5>
+<p>A Q4_K model is advertised as “4-bit.”</p>
+<p>Does that necessarily mean:</p>
+<div class="math block">
+4.000\text{ bits/weight}?
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-90">Answer</h5>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<p>Because scale and metadata overhead contribute additional storage.</p>
+<p>The supplied deck reports Q4_K at approximately:</p>
+<div class="math block">
+\boxed{4.5\text{ bits/weight}}
+</div>
+<p>after its scale representation is accounted for. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-91">43. Exam question — QAT</h3>
+<p>Why can QAT outperform naive PTQ at the same bit-width?</p>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{QAT lets optimization adapt to quantization noise}
+}
+</div>
+<p>while PTQ does:</p>
+<div class="math block">
+\boxed{
+\text{train first, quantize afterward}
+}
+</div>
+<p>The deck's explanation is that QAT can move optimization toward wider minima that tolerate the quantization perturbation. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-92">44. Exam question — BitNet 1-bit</h3>
+<p>If:</p>
+<div class="math block">
+w_q\in\{-1,+1\}
+</div>
+<p>and:</p>
+<div class="math block">
+x=[2,5,4]
+</div>
+<p>with:</p>
+<div class="math block">
+w_q=[+1,-1,+1],
+</div>
+<p>compute:</p>
+<div class="math block">
+w_q^Tx.
+</div>
+<div class="math block">
+=1(2)-1(5)+1(4)
+</div>
+<div class="math block">
+=2-5+4
+</div>
+<div class="math block">
+\boxed{1}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-93">45. Exam question — BitNet b1.58</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=[6,3,8,5]
+</div>
+<p>and:</p>
+<div class="math block">
+w_q=[+1,0,-1,+1].
+</div>
+<p>Then:</p>
+<div class="math block">
+w_q^Tx
+=
+6+0-8+5
+</div>
+<div class="math block">
+\boxed{3}.
+</div>
+<p>The multiplication has reduced to:</p>
+<div class="math block">
+\boxed{6-8+5}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-94">46. Exam question — why 1.58?</h3>
+<p>Three possible values:</p>
+<div class="math block">
+\{-1,0,+1\}
+</div>
+<p>therefore:</p>
+<div class="math block">
+N=3.
+</div>
+<p>Information required:</p>
+<div class="math block">
+\log_2(3)
+\approx
+\boxed{1.585}.
+</div>
+<p>Hence:</p>
+<div class="math block">
+\boxed{\text{1.58 bits}}
+</div>
+<p>The supplied slide uses exactly this reasoning. <em>(Source: quantization-slides)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-6b-i32-3" data-full-review="added"><p>Correction: With ties-to-even, [-2,1,.5,0,-1.5] rounds to [-2,1,0,0,-2], then clamps to [-1,1,0,0,-1]. Positive .5→1 assumes another rule.</p><p><a href="#audit-full-chunk-les-step-3-6b-i32">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-6b-i32-95">47. Exam question — absmean quantization</h3>
+<p>Given:</p>
+<div class="math block">
+W=[-2,1,0.5,0,-1.5].
+</div>
+<p>First:</p>
+<div class="math block">
+\alpha
+=
+\frac{2+1+0.5+0+1.5}{5}
+=
+\frac5{5}
+=
+1.
+</div>
+<p>Then:</p>
+<div class="math block">
+W/\alpha
+=
+[-2,1,0.5,0,-1.5].
+</div>
+<p>Round to ternary:</p>
+<div class="math block">
+[-2,1,1,0,-2].
+</div>
+<p>Clip/restrict to:</p>
+<div class="math block">
+\{-1,0,+1\}
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{[-1,+1,+1,0,-1]}.
+</div>
+<p>This illustrates the basic absmean-to-ternary idea from the deck. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-96">48. The single most important comparison table</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>When quantized?</th>
+<th>Main objective/idea</th>
+<th>Typical representation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic PTQ</td>
+<td>after training</td>
+<td>reduce representation cost</td>
+<td>INT8/INT4</td>
+</tr>
+<tr>
+<td>Calibration</td>
+<td>before deployment</td>
+<td>choose good quantization range</td>
+<td>scale/zero-point</td>
+</tr>
+<tr>
+<td>GPTQ</td>
+<td>after training</td>
+<td>minimize output damage</td>
+<td>often INT4</td>
+</tr>
+<tr>
+<td>GGUF K-quants</td>
+<td>model storage</td>
+<td>efficient nested block/scale encoding</td>
+<td>Q2_K/Q4_K/Q6_K</td>
+</tr>
+<tr>
+<td>QAT</td>
+<td>during training</td>
+<td>learn weights robust to quantization</td>
+<td>low-bit deployment target</td>
+</tr>
+<tr>
+<td>BitNet</td>
+<td>during low-bit training</td>
+<td>extremely low-bit weights</td>
+<td>1-bit</td>
+</tr>
+<tr>
+<td>BitNet b1.58</td>
+<td>during low-bit training</td>
+<td>ternary weights</td>
+<td><span class="math inline">-1,0,+1</span></td>
+</tr>
+<tr>
+<td>QLoRA</td>
+<td>during PEFT</td>
+<td>quantized frozen base + trainable LoRA</td>
+<td>4-bit base + LoRA</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-97">49. The complete hierarchy you should remember</h3>
+<p>At the broadest level:</p>
+<div class="math block">
+\boxed{
+\text{Quantization}
+=
+\text{represent numbers with fewer bits}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{PTQ}
+}
+</div>
+<p>means:</p>
+<div class="math block">
+\text{train}\rightarrow\text{quantize}.
+</div>
+<p>Advanced PTQ:</p>
+<div class="math block">
+\boxed{
+\text{GPTQ}
+}
+</div>
+<p>asks:</p>
+<div class="math block">
+\text{“How can I quantize while minimizing output damage?”}
+</div>
+<p>GGUF asks:</p>
+<div class="math block">
+\boxed{
+\text{“How can I organize low-bit weights and their scales efficiently?”}
+}
+</div>
+<p>QAT asks:</p>
+<div class="math block">
+\boxed{
+\text{“Can training itself adapt to the quantization grid?”}
+}
+</div>
+<p>BitNet asks:</p>
+<div class="math block">
+\boxed{
+\text{“Can the model operate with extremely low-bit weights from the start?”}
+}
+</div>
+<p>And b1.58 goes:</p>
+<div class="math block">
+\boxed{
+\{-1,+1\}
+\rightarrow
+\{-1,0,+1\}
+}
+</div>
+<p>so multiplication by the weight becomes:</p>
+<div class="math block">
+\boxed{
++x,\ -x,\ \text{or skip}
+}
+</div>
+<p>The quantization deck explicitly develops this progression from nested GGUF scales through QAT and then BitNet/b1.58. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-98">50. Master formulas for this step</h3>
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-99">GGUF/K-quants</h5>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{super-block}
+\rightarrow
+\text{sub-blocks}
+\rightarrow
+\text{quantized sub-block scales}
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-100">QAT</h5>
+<p>Forward:</p>
+<div class="math block">
+\boxed{
+x\rightarrow Q(x)\rightarrow D(Q(x))
+}
+</div>
+<p>Training:</p>
+<div class="math block">
+\boxed{
+\text{forward sees quantization}
++
+\text{backward uses a gradient approximation}
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-101">BitNet 1-bit</h5>
+<div class="math block">
+\boxed{
+\alpha=\operatorname{mean}(W)
+}
+</div>
+<div class="math block">
+\boxed{
+W_q=\operatorname{Sign}(W-\alpha)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+W_q\in\{-1,+1\}
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6b-i32-102">BitNet b1.58</h5>
+<div class="math block">
+\boxed{
+\alpha=\operatorname{mean}(|W|)
+}
+</div>
+<div class="math block">
+\boxed{
+W_q=
+\operatorname{round}\left(\frac{W}{\alpha}\right)
+}
+</div>
+<p>restricted to:</p>
+<div class="math block">
+\boxed{
+W_q\in\{-1,0,+1\}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\log_2 3\approx1.58
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-103">51. Cumulative Quantization Exam Bank</h3>
+<p>At this point, you should be able to solve these without notes:</p>
+<p><strong>Q1.</strong> INT8 symmetric quantization with <span class="math inline">\max|x|=32</span>:</p>
+<div class="math block">
+s=\frac{127}{32}
+=
+\boxed{3.96875}.
+</div>
+<p><strong>Q2.</strong> If <span class="math inline">x=2.1</span>:</p>
+<div class="math block">
+x_q=\operatorname{round}(2.1\times3.96875)
+=
+\boxed{8}.
+</div>
+<p><strong>Q3.</strong> Dequantize:</p>
+<div class="math block">
+8/3.96875
+\approx
+\boxed{2.016}.
+</div>
+<p><strong>Q4.</strong> Why might clipping improve INT4 MSE?</p>
+<div class="math block">
+\boxed{\text{it sacrifices extreme-value accuracy to improve resolution for the bulk}}
+</div>
+<p><strong>Q5.</strong> Dynamic quantization:</p>
+<div class="math block">
+\boxed{\text{activation range recomputed at inference}}
+</div>
+<p><strong>Q6.</strong> Static quantization:</p>
+<div class="math block">
+\boxed{\text{activation range determined using offline calibration}}
+</div>
+<p><strong>Q7.</strong> GPTQ minimizes:</p>
+<div class="math block">
+\boxed{\|WX-\hat WX\|^2}
+</div>
+<p>rather than merely:</p>
+<div class="math block">
+\boxed{\|W-\hat W\|^2}.
+</div>
+<p><strong>Q8.</strong> QAT:</p>
+<div class="math block">
+\boxed{\text{training includes simulated quantization}}
+</div>
+<p><strong>Q9.</strong> BitNet:</p>
+<div class="math block">
+\boxed{W_q\in\{-1,+1\}}
+</div>
+<p><strong>Q10.</strong> b1.58:</p>
+<div class="math block">
+\boxed{W_q\in\{-1,0,+1\}}
+</div>
+<p><strong>Q11.</strong></p>
+<div class="math block">
+\log_2 3\approx\boxed{1.58}.
+</div>
+<p><strong>Q12.</strong> A ternary dot product:</p>
+<div class="math block">
+[1,0,-1]^T[4,8,5]
+</div>
+<p>is:</p>
+<div class="math block">
+4+0-5
+=
+\boxed{-1}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-6b-i32-104">One source-boundary note</h4>
+<p>The supplied quantization deck does <strong>not</strong> develop AWQ. It does, however, provide a reading list including GPTQ, LLM.int8!, GGUF/K-quants, BitNet, and b1.58. <em>(Source: quantization-slides)</em> So I have not silently inserted a full AWQ lesson here and treated it as if it were part of the slides.</p>
+<h3 id="v3-heading-chunk-les-step-3-6b-i32-105">Quantization section is now grounded end-to-end</h3>
+<p>We have covered:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+&amp;\text{FP32/FP16}\\
+&amp;\downarrow\\
+&amp;\text{INT8 / INT4}\\
+&amp;\downarrow\\
+&amp;\text{symmetric / asymmetric}\\
+&amp;\downarrow\\
+&amp;\text{outliers}\\
+&amp;\downarrow\\
+&amp;\text{clipping + calibration}\\
+&amp;\downarrow\\
+&amp;\text{dynamic / static}\\
+&amp;\downarrow\\
+&amp;\text{GPTQ}\\
+&amp;\downarrow\\
+&amp;\text{GGUF / K-quants}\\
+&amp;\downarrow\\
+&amp;\text{QAT}\\
+&amp;\downarrow\\
+&amp;\text{BitNet 1-bit}\\
+&amp;\downarrow\\
+&amp;\text{BitNet b1.58}
+\end{aligned}
+}
+</div>
+<p>And alongside that:</p>
+<div class="math block">
+\boxed{
+\text{LoRA}
+\rightarrow
+\text{QLoRA}
+}
+</div>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-a4">A.4 — FP8 Training and Quantization</a> — <em>FP8 (DeepSeek) quantization</em></p>
+</blockquote>
+<hr />
+</section>

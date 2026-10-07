@@ -1,0 +1,220 @@
+"""Small CPU decoder with explicit forward/backward functions (NumPy float64).
+
+Teaching configuration: causal pre-LayerNorm, exact erf GELU, separate output
+weights, bias-free attention projections, learned FFN biases, learned additive
+positions, no dropout, no KV cache or padding. This
+reconstructs the mathematics; it does not execute the inherited PyTorch model.
+All matrices multiply row vectors on the right. Run this file for a two-block
+training trace and the inherited full-block numerical, with complete outputs.
+"""
+import json
+import math
+import numpy as np
+
+
+def softmax(z):
+    """Normalize the last axis after subtracting its finite maximum."""
+    z = np.asarray(z, dtype=np.float64)
+    m = np.max(z, axis=-1, keepdims=True)
+    if not np.all(np.isfinite(m)) or np.any(np.isnan(z)):
+        raise ValueError('Each row needs a finite permitted logit; no NaNs')
+    e = np.exp(z - m)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+def gelu(x):
+    """Exact x*Phi(x), distinct from the book's tanh approximation."""
+    x = np.asarray(x, dtype=np.float64)
+    return x * .5 * (1 + np.vectorize(math.erf, otypes=[float])(x / math.sqrt(2)))
+
+
+def gelu_grad(x):
+    """Derivative Phi(x)+x*phi(x), used by the FFN backward pass."""
+    return .5 * (1 + np.vectorize(math.erf, otypes=[float])(x / math.sqrt(2))) + x * np.exp(-x*x/2) / math.sqrt(2*math.pi)
+
+
+def ln_forward(x, gamma, beta, eps=1e-5):
+    """Population variance over model features, separately for every token."""
+    if eps < 0: raise ValueError('epsilon must be nonnegative')
+    c = x - x.mean(axis=-1, keepdims=True)
+    var = np.mean(c*c, axis=-1, keepdims=True)
+    if np.any(var + eps <= 0): raise ValueError('zero variance needs positive epsilon')
+    inv = 1 / np.sqrt(var + eps)
+    u = c * inv
+    return u * gamma + beta, (u, inv, gamma)
+
+
+def ln_backward(g, cache):
+    """Chain rule including feature-mean and variance dependencies."""
+    u, inv, gamma = cache
+    v = g * gamma
+    dx = inv * (v - v.mean(axis=-1, keepdims=True) - u * np.mean(v*u, axis=-1, keepdims=True))
+    axes = tuple(range(g.ndim - 1))
+    return dx, np.sum(g*u, axis=axes), np.sum(g, axis=axes)
+
+
+def linear_grads(x, g):
+    """Sum the outer products and bias contributions over batch and tokens."""
+    return x.reshape(-1, x.shape[-1]).T @ g.reshape(-1, g.shape[-1]), g.sum(axis=(0, 1))
+
+
+def mha_forward(x, p, prefix, heads):
+    """Project, split heads, scale scores, apply causal mask, mix, project."""
+    b, n, d = x.shape
+    if not isinstance(heads, int) or heads <= 0 or d % heads:
+        raise ValueError('heads must be positive and divide model width')
+    k = d // heads
+    q, key, val = [((x @ p[prefix+w]).reshape(b,n,heads,k).transpose(0,2,1,3)) for w in ['Wq','Wk','Wv']]
+    allowed = np.tri(n, dtype=bool)
+    scores = q @ key.swapaxes(-1,-2) / math.sqrt(k)
+    a = softmax(np.where(allowed, scores, -np.inf))
+    per_head = a @ val
+    joined = per_head.transpose(0,2,1,3).reshape(b,n,d)
+    out = joined @ p[prefix+'Wo']
+    return out, (x,q,key,val,a,joined,heads), {'Q':q,'K':key,'V':val,'scaled_scores':scores,'causal_weights':a,'joined':joined,'output':out}
+
+
+def mha_backward(g, cache, p, prefix):
+    """Backpropagate through AV, row softmax, scaled QK^T and all branches."""
+    x,q,key,val,a,joined,heads = cache
+    b,n,d = x.shape; k = d//heads
+    grads = {prefix+'Wo': linear_grads(joined, g)[0]}
+    go = (g @ p[prefix+'Wo'].T).reshape(b,n,heads,k).transpose(0,2,1,3)
+    ga = go @ val.swapaxes(-1,-2)
+    gv = a.swapaxes(-1,-2) @ go
+    gs = a * (ga - np.sum(ga*a, axis=-1, keepdims=True))
+    gq = gs @ key / math.sqrt(k)
+    gk = gs.swapaxes(-1,-2) @ q / math.sqrt(k)
+    dx = np.zeros_like(x)
+    for name,v in zip(['Wq','Wk','Wv'],[gq,gk,gv]):
+        v = v.transpose(0,2,1,3).reshape(b,n,d)
+        grads[prefix+name] = linear_grads(x,v)[0]
+        dx += v @ p[prefix+name].T
+    return dx, grads
+
+
+def block_forward(x, p, prefix, heads, eps=1e-5):
+    """H=X+MHA(LN1(X)); Y=H+FFN(LN2(H)), with row-oriented FFN weights."""
+    u,c1 = ln_forward(x,p[prefix+'g1'],p[prefix+'b1'],eps)
+    attention,ca,trace = mha_forward(u,p,prefix,heads)
+    h = x + attention
+    v,c2 = ln_forward(h,p[prefix+'g2'],p[prefix+'b2'],eps)
+    z = v @ p[prefix+'W1'] + p[prefix+'f1']
+    a = gelu(z)
+    ffn = a @ p[prefix+'W2'] + p[prefix+'f2']
+    y = h + ffn
+    cache = (u,c1,ca,h,v,c2,z,a)
+    return y,cache, {'ln1':u,'attention':trace,'first_residual':h,'ln2':v,'ffn_pre_activation':z,'ffn_activation':a,'ffn_output':ffn,'output':y}
+
+
+def block_backward(g, cache, p, prefix):
+    """Accumulate the direct residual gradients before each normalization."""
+    u,c1,ca,h,v,c2,z,a = cache
+    grads = {}
+    grads[prefix+'W2'],grads[prefix+'f2'] = linear_grads(a,g)
+    gz = (g @ p[prefix+'W2'].T) * gelu_grad(z)
+    grads[prefix+'W1'],grads[prefix+'f1'] = linear_grads(v,gz)
+    gh,grads[prefix+'g2'],grads[prefix+'b2'] = ln_backward(gz @ p[prefix+'W1'].T,c2)
+    gh += g
+    gu,ag = mha_backward(gh,ca,p,prefix); grads.update(ag)
+    dx,grads[prefix+'g1'],grads[prefix+'b1'] = ln_backward(gu,c1)
+    return dx + gh,grads
+
+
+def init_parameters(vocab=6, context=4, width=4, hidden=8, layers=2, seed=7):
+    """Deterministic illustrative weights; no pretrained parameters or tokenizer."""
+    if min(vocab,context,width,hidden,layers) <= 0: raise ValueError('positive sizes required')
+    rng = np.random.default_rng(seed)
+    p = {'E':rng.normal(0,.3,(vocab,width)), 'P':rng.normal(0,.05,(context,width)),
+         'gf':np.ones(width),'bf':np.zeros(width),'U':rng.normal(0,.2,(width,vocab))}
+    for i in range(layers):
+        pre = f'L{i}.'
+        for name in ['Wq','Wk','Wv','Wo']: p[pre+name] = rng.normal(0,.15,(width,width))
+        p[pre+'W1'] = rng.normal(0,.15,(width,hidden)); p[pre+'W2'] = rng.normal(0,.15,(hidden,width))
+        for name in ['g1','g2']:p[pre+name] = np.ones(width)
+        for name in ['b1','b2','f2']:p[pre+name] = np.zeros(width)
+        p[pre+'f1'] = np.zeros(hidden)
+    return p
+
+
+def forward(ids, p, layers=2, heads=2, eps=1e-5):
+    """Token and position lookup, independent blocks, final norm, logits."""
+    ids = np.asarray(ids)
+    if ids.ndim != 2 or 0 in ids.shape or not np.issubdtype(ids.dtype,np.integer):
+        raise ValueError('nonempty integer token IDs of shape [B,T] required')
+    if np.any(ids < 0) or np.any(ids >= len(p['E'])):raise ValueError('token ID outside vocabulary')
+    n = ids.shape[1]
+    if n > len(p['P']):raise ValueError('sequence exceeds learned position table')
+    x = p['E'][ids] + p['P'][:n]
+    traces = {'embedded_with_position':x}; caches = []
+    for i in range(layers):
+        x,c,t = block_forward(x,p,f'L{i}.',heads,eps);caches.append(c);traces[f'block_{i}'] = t
+    normalized,cf = ln_forward(x,p['gf'],p['bf'],eps)
+    logits = normalized @ p['U']
+    traces.update(final_normalized=normalized,logits=logits,probabilities=softmax(logits))
+    return logits,(ids,caches,normalized,cf),traces
+
+
+def loss_and_grad(ids, targets, p, layers=2, heads=2, eps=1e-5):
+    """Mean next-token CE from stable logits, plus every analytic gradient."""
+    logits,cache,trace = forward(ids,p,layers,heads,eps)
+    ids,caches,normalized,cf = cache
+    targets = np.asarray(targets)
+    if targets.shape != ids.shape or not np.issubdtype(targets.dtype,np.integer):raise ValueError('integer targets must match IDs')
+    if np.any(targets < 0) or np.any(targets >= logits.shape[-1]):raise ValueError('target outside vocabulary')
+    z = logits - logits.max(axis=-1,keepdims=True)
+    lp = z - np.log(np.exp(z).sum(axis=-1,keepdims=True))
+    b,n = targets.shape
+    loss = -lp[np.arange(b)[:,None],np.arange(n)[None,:],targets].mean()
+    dz = np.exp(lp)
+    dz[np.arange(b)[:,None],np.arange(n)[None,:],targets] -= 1
+    dz /= targets.size
+    grads = {'U':linear_grads(normalized,dz)[0]}
+    dx,grads['gf'],grads['bf'] = ln_backward(dz @ p['U'].T,cf)
+    for i in reversed(range(layers)):
+        dx,g = block_backward(dx,caches[i],p,f'L{i}.');grads.update(g)
+    grads['E'] = np.zeros_like(p['E']);np.add.at(grads['E'],ids,dx)
+    grads['P'] = np.zeros_like(p['P']);grads['P'][:n] = dx.sum(axis=0)
+    assert set(grads) == set(p)
+    trace.update(loss=float(loss),input_gradient=dx,gradients=grads)
+    return float(loss),grads,trace
+
+
+def inherited_block(eps=0):
+    """Reconstruct lesson 1.12 exactly (GELU unrounded; epsilon declared)."""
+    p = {}
+    for name in ['Wq','Wk','Wv','Wo']:p[name] = np.eye(2)
+    for name in ['g1','g2']:p[name] = np.ones(2)
+    for name in ['b1','b2','f2']:p[name] = np.zeros(2)
+    p['f1'] = np.zeros(4)
+    p['W1'] = np.array([[1,0,1,-1],[0,1,1,1]],dtype=float)
+    p['W2'] = np.array([[1,0],[0,1],[1,0],[0,1]],dtype=float)
+    return block_forward(np.array([[[1.,3.],[2.,4.]]]),p,'',2,eps)[2]
+
+
+def jsonable(x):
+    """Convert finite arrays and scalar outputs to portable JSON."""
+    if isinstance(x,np.ndarray):return x.tolist()
+    if isinstance(x,dict):return {k:jsonable(v) for k,v in x.items()}
+    if isinstance(x,(list,tuple)):return [jsonable(v) for v in x]
+    if isinstance(x,np.generic):return x.item()
+    return x
+
+
+def demonstration():
+    """Full trace plus five simultaneous SGD updates on one toy batch."""
+    # The four-token sequence [0,1,0,2] gives shifted inputs and targets.
+    ids = np.array([[0,1,0]]);targets = np.array([[1,0,2]])
+    p = init_parameters()
+    loss,g,trace = loss_and_grad(ids,targets,p)
+    losses = [loss]
+    for _ in range(5):
+        p = {k:p[k]-.05*g[k] for k in p}
+        loss,g,_ = loss_and_grad(ids,targets,p);losses.append(loss)
+    return jsonable({'configuration':{'dtype':'float64','seed':7,'B':1,'T':3,'d':4,'heads':2,'d_ff':8,'layers':2,'vocabulary':6,'epsilon':1e-5,'GELU':'exact erf','dropout':0,'output_weights':'separate'},
+       'inputs':ids,'targets':targets,'trace_before_training':trace,'sgd_learning_rate':.05,'sgd_losses':losses,
+       'inherited_block_epsilon_0':inherited_block(0),'inherited_block_epsilon_1e_5':inherited_block(1e-5)})
+
+
+if __name__ == '__main__':
+    print(json.dumps(demonstration(),indent=2,allow_nan=False))

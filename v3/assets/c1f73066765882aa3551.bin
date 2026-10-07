@@ -1,0 +1,405 @@
+"""Small deterministic CPU teaching mechanisms, not a production training system.
+
+Row-vector convention: x @ W. Each fixture declares its own algorithm variant.
+No external packages are needed to run this companion.
+"""
+import math
+import json
+from collections import Counter
+
+
+def softmax(z):
+    """Finite logits -> positive probabilities, using a stable common shift."""
+    if not z or not all(math.isfinite(v) for v in z):
+        raise ValueError('Need nonempty finite logits')
+    m = max(z); e = [math.exp(v-m) for v in z]; total = sum(e)
+    return [v/total for v in e]
+
+
+def bpe_train(words, steps):
+    """Toy character BPE, weighted words; lexical tie break, explicit end marker.
+
+    Not a byte-level GPT tokenizer. Returned merges are applied in learned order.
+    """
+    seqs = {tuple(w)+('</w>',): n for w,n in words.items()}; merges=[]
+    for _ in range(steps):
+        counts=Counter()
+        for seq,n in seqs.items():
+            for a,b in zip(seq,seq[1:]): counts[(a,b)]+=n
+        if not counts: break
+        pair=min(counts, key=lambda p:(-counts[p],p)); merges.append(pair)
+        updated={}
+        for seq,n in seqs.items():
+            merged=bpe_apply(seq,[pair]); updated[merged]=updated.get(merged,0)+n
+        seqs=updated
+    return {'merges':merges,'segmented_words':[(list(s),n) for s,n in seqs.items()]}
+
+
+def bpe_apply(tokens, merges):
+    """Apply ranked adjacent pair merges without crossing the supplied sequence."""
+    tokens=list(tokens)
+    for pair in merges:
+        out=[];i=0
+        while i<len(tokens):
+            if i+1<len(tokens) and tuple(tokens[i:i+2])==tuple(pair):
+                out.append(tokens[i]+tokens[i+1]);i+=2
+            else: out.append(tokens[i]);i+=1
+        tokens=out
+    return tuple(tokens)
+
+
+def rope(x, position, base=10000.):
+    """Rotate adjacent coordinate pairs; even dimension, angle p*base^(-2i/d)."""
+    if len(x)%2 or len(x)==0 or base<=0: raise ValueError('Even positive width and base required')
+    out=[]
+    for i in range(0,len(x),2):
+        a=position*base**(-i/len(x));c=math.cos(a);s=math.sin(a)
+        out.extend([x[i]*c-x[i+1]*s,x[i]*s+x[i+1]*c])
+    return out
+
+
+def rmsnorm(x, eps=1e-6, gain=None):
+    """Normalize final feature vector by sqrt(mean(square)+eps); no centering."""
+    if not x or eps<0: raise ValueError('Invalid vector/epsilon')
+    gain=[1.]*len(x) if gain is None else gain
+    if len(gain)!=len(x): raise ValueError('Gain shape mismatch')
+    d=math.sqrt(sum(v*v for v in x)/len(x)+eps)
+    if d==0: raise ValueError('Zero denominator')
+    return [v*g/d for v,g in zip(x,gain)]
+
+
+def matmul(a,b):
+    """Rectangular m*n times n*p -> m*p."""
+    if not a or not b or not a[0] or not b[0] or any(len(r)!=len(a[0]) for r in a) or any(len(r)!=len(b[0]) for r in b) or len(a[0])!=len(b):
+        raise ValueError('Matrix shape mismatch')
+    return [[sum(a[i][k]*b[k][j] for k in range(len(b))) for j in range(len(b[0]))] for i in range(len(a))]
+
+
+def swiglu(x,gate,up,down):
+    """SwiGLU: SiLU(xW_gate) elementwise xW_up, then W_down; no biases."""
+    g=matmul(x,gate);u=matmul(x,up)
+    if len(g[0])!=len(u[0]): raise ValueError('Gate/up shape mismatch')
+    def silu(v):
+        sig=1/(1+math.exp(-v)) if v>=0 else math.exp(v)/(1+math.exp(v))
+        return v*sig
+    return matmul([[silu(a)*b for a,b in zip(ga,ua)] for ga,ua in zip(g,u)],down)
+
+
+def parameter_count(vocab,d,ffn,layers,tied=True,gated=False):
+    """Bias-free MHA decoder, two per-block RMS gains and final gain; no learned positions."""
+    if any(type(v)!=int or v<=0 for v in [vocab,d,ffn,layers]): raise ValueError('Positive integer dimensions')
+    return vocab*d*(1 if tied else 2)+layers*(4*d*d+(3 if gated else 2)*d*ffn+2*d)+d
+
+
+def truncate(p, method, value):
+    """Explicit deterministic support rules; includes boundary token for top-p/typical."""
+    if not p or any(v<0 or not math.isfinite(v) for v in p) or abs(sum(p)-1)>1e-8: raise ValueError('PMF required')
+    order=sorted(range(len(p)),key=lambda i:(-p[i],i))
+    if method=='top-k':
+        if type(value)!=int or not 1<=value<=len(p): raise ValueError('Invalid k')
+        keep=order[:value]
+    elif method in ['top-p','typical']:
+        if not 0<value<=1: raise ValueError('Mass must be in (0,1]')
+        if method=='typical':
+            h=-sum(v*math.log(v) for v in p if v)
+            order=sorted(range(len(p)),key=lambda i:(abs(-math.log(p[i])-h) if p[i]>0 else math.inf,i))
+        keep=[];total=0
+        for i in order:
+            keep.append(i);total+=p[i]
+            if total>=value-1e-15:break
+    elif method=='min-p':
+        if not 0<=value<=1:raise ValueError('Ratio must be in [0,1]')
+        keep=[i for i in order if p[i]>=value*max(p)]
+    else: raise ValueError('Unknown filter')
+    total=sum(p[i] for i in keep)
+    return {'kept_ids':keep,'retained_mass':total,'probabilities':[p[i]/total if i in keep else 0 for i in range(len(p))]}
+
+
+def sample(p,u):
+    """Inverse-CDF draw for supplied uniform variate 0<=u<1; half-open bins."""
+    if not 0<=u<1 or any(v<0 for v in p) or abs(sum(p)-1)>1e-8:raise ValueError('Invalid draw/PMF')
+    total=0
+    for i,v in enumerate(p):
+        total+=v
+        if u<total:return i
+    return len(p)-1
+
+
+def beam_fixture(width):
+    """Exact supplied two-step beam example; fixed length, no EOS/length penalty."""
+    first={'bright':.5,'sunny':.35,'cold':.15}
+    nexts={'bright':{'outside':.5,'today':.3,'again':.2},'sunny':{'outside':.95,'today':.03,'again':.02},'cold':{'outside':.4,'today':.4,'again':.2}}
+    beams=sorted([(k,math.log(v)) for k,v in first.items()],key=lambda x:(-x[1],x[0]))[:width]
+    candidates=[(prefix+' '+k,score+math.log(v)) for prefix,score in beams for k,v in nexts[prefix].items()]
+    return [(s,math.exp(logp)) for s,logp in sorted(candidates,key=lambda x:(-x[1],x[0]))[:width]]
+
+
+def gnmt_score(logp,length,alpha):
+    """Wu length-penalty variant, not the distinct length^alpha convention."""
+    if length<1:raise ValueError('Positive length')
+    return logp/(((5+length)/6)**alpha)
+
+
+def repetition(z,seen,penalty,sign_aware=True):
+    """Unique-token penalty; negative seen logits multiplied in sign-aware variant."""
+    if penalty<=0:raise ValueError('Positive penalty')
+    return [v*penalty if sign_aware and v<0 and i in seen else v/penalty if i in seen else v for i,v in enumerate(z)]
+
+
+def contrastive(p,similarity,alpha):
+    """One contrastive-search candidate score; similarity is precomputed max cosine."""
+    if len(p)!=len(similarity) or not 0<=alpha<=1:raise ValueError('Invalid candidate data')
+    scores=[(1-alpha)*a-alpha*b for a,b in zip(p,similarity)]
+    return {'scores':scores,'selected':max(range(len(scores)),key=lambda i:scores[i])}
+
+
+def mirostat_update(mu,surprise_bits,target_bits,eta):
+    """Mirostat feedback update only; does not implement full adaptive sampler."""
+    return mu-eta*(surprise_bits-target_bits)
+
+
+def lora(x,w,b,a,alpha):
+    """Row-input orientation B:din*r, A:r*dout; frozen W plus alpha/r BA."""
+    rank=len(a);delta=matmul(b,a);scale=alpha/rank
+    merged=[[v+scale*d for v,d in zip(row,dr)] for row,dr in zip(w,delta)]
+    base=matmul(x,w);branch=matmul(matmul(x,b),a)
+    return {'delta':delta,'merged':merged,'separate_output':[[v+scale*d for v,d in zip(row,dr)] for row,dr in zip(base,branch)],'merged_output':matmul(x,merged)}
+
+
+def affine_quantize(x,step,zero,qmin,qmax):
+    """Dequantization step units; Python nearest-even rounding and explicit clipping."""
+    if step<=0 or qmin>qmax or type(zero)!=int:raise ValueError('Invalid quantizer')
+    q=[max(qmin,min(qmax,round(v/step)+zero)) for v in x]
+    return {'codes':q,'reconstructed':[step*(v-zero) for v in q]}
+
+
+def float_decode(sign,exponent,mantissa,ebits,mbits):
+    """IEEE-style binary field teaching decoder; not vendor FP8 E4M3FN."""
+    bias=2**(ebits-1)-1
+    if sign not in [0,1] or not 0<=exponent<2**ebits or not 0<=mantissa<2**mbits:raise ValueError('Invalid fields')
+    if exponent==2**ebits-1:return math.copysign(math.inf,(-1)**sign) if mantissa==0 else math.nan
+    sig=mantissa/2**mbits if exponent==0 else 1+mantissa/2**mbits
+    return (-1)**sign*sig*2.**((1-bias) if exponent==0 else exponent-bias)
+
+
+def gptq_compensate(w,inverse_h,q,quantized):
+    """One constrained quadratic compensation step on the current free coordinates."""
+    error=w[q]-quantized;denom=inverse_h[q][q]
+    if denom<=0:raise ValueError('Positive diagonal required')
+    return [v-error*inverse_h[j][q]/denom for j,v in enumerate(w)]
+
+
+def kl(p,q):
+    """Exact categorical KL(p||q), natural logs, defined support behavior."""
+    if len(p)!=len(q) or abs(sum(p)-1)>1e-8 or abs(sum(q)-1)>1e-8 or any(v<0 for v in p+q):raise ValueError('Normalized PMFs')
+    if any(a>0 and b==0 for a,b in zip(p,q)):return math.inf
+    return sum(a*math.log(a/b) for a,b in zip(p,q) if a)
+
+
+def reverse_kl_gradient(z,teacher):
+    """Exact finite-support gradient wrt student logits; teacher fixed positive."""
+    q=softmax(z)
+    if len(z)!=len(teacher) or any(p<=0 or not math.isfinite(p) for p in teacher) or abs(sum(teacher)-1)>1e-8:raise ValueError('Matching positive teacher PMF')
+    v=[math.log(a/b) for a,b in zip(q,teacher)];mean=sum(a*b for a,b in zip(q,v))
+    return [a*(b-mean) for a,b in zip(q,v)]
+
+
+def kd_loss(student,teacher,target,temperature,hard_weight):
+    """Classical one-token KD variant: alpha hard CE +(1-alpha) T² forward KL."""
+    if temperature<=0 or not math.isfinite(temperature) or not 0<=hard_weight<=1 or len(student)!=len(teacher) or not 0<=target<len(student):raise ValueError('Invalid KD configuration')
+    p=softmax([v/temperature for v in teacher]);q=softmax([v/temperature for v in student])
+    hard=-math.log(softmax(student)[target]);soft=temperature**2*kl(p,q)
+    return {'hard_ce':hard,'scaled_kl':soft,'total':hard_weight*hard+(1-hard_weight)*soft}
+
+
+def advantages(rewards,eps=1e-4,sample_std=False):
+    """Group-standardized rewards; explicit population/sample denominator."""
+    n=len(rewards)
+    if not n or eps<0 or sample_std and n<2:raise ValueError('Insufficient rewards or invalid epsilon')
+    mean=sum(rewards)/n;std=math.sqrt(sum((v-mean)**2 for v in rewards)/(n-1 if sample_std else n))
+    if std+eps==0:raise ValueError('Zero spread requires positive epsilon or a separate skip rule')
+    return {'mean':mean,'std':std,'advantages':[(v-mean)/(std+eps) for v in rewards]}
+
+
+def clipped_surrogate(ratio,advantage,eps):
+    """PPO/GRPO maximization surrogate; loss negates this, before reductions/KL."""
+    clipped=min(1+eps,max(1-eps,ratio))
+    return min(ratio*advantage,clipped*advantage)
+
+
+def kl_sample(log_current,log_reference):
+    """Per-sample log ratio and nonnegative k3 estimator, for declared current-policy draws."""
+    d=log_reference-log_current
+    return {'log_ratio':-d,'k3':math.expm1(d)-d}
+
+
+def importance_expectation(target,proposal,values):
+    """Exact finite sum under proposal with target/proposal weights; not self-normalized."""
+    if len(target)!=len(proposal) or len(target)!=len(values):raise ValueError('Shape mismatch')
+    if any(v<0 for v in target+proposal) or abs(sum(target)-1)>1e-8 or abs(sum(proposal)-1)>1e-8:raise ValueError('Normalized PMFs required')
+    if any(t>0 and p<=0 for t,p in zip(target,proposal)):raise ValueError('Missing proposal support')
+    return sum(p*(t/p)*v for t,p,v in zip(target,proposal,values) if p)
+
+
+def cache_bytes(batch,length,layers,kv_heads,head_dim,bytes_per_element):
+    """K plus V storage only; excludes allocator, Q, weights, attention workspace."""
+    return 2*batch*length*layers*kv_heads*head_dim*bytes_per_element
+
+
+def routed_output(x,expert_weights,logits,k,shared_weight=None):
+    """Tiny linear experts, softmax scores, top-k selected-renormalized routing."""
+    p=softmax(logits);selected=sorted(range(len(p)),key=lambda i:(-p[i],i))[:k]
+    mass=sum(p[i] for i in selected);weights=[p[i]/mass for i in selected]
+    outs=[matmul([x],expert_weights[i])[0] for i in selected]
+    y=[sum(a*v[j] for a,v in zip(weights,outs)) for j in range(len(x))]
+    if shared_weight is not None:y=[a+b for a,b in zip(y,matmul([x],shared_weight)[0])]
+    return {'selected':selected,'weights':weights,'output':y}
+
+
+def balance_loss(assignments,router_probabilities,experts,coefficient=1.):
+    """Switch-style top-1 auxiliary illustration, not every DeepSeek balancing variant."""
+    n=len(assignments);f=[assignments.count(i)/n for i in range(experts)]
+    p=[sum(row[i] for row in router_probabilities)/n for i in range(experts)]
+    return coefficient*experts*sum(a*b for a,b in zip(f,p))
+
+
+def mtp_alignment(tokens,horizon):
+    """Base=next token, depth k target=t+k+1; teacher-forced prefix extends to t+k."""
+    if type(horizon)!=int or horizon<0:raise ValueError('Nonnegative integer depth')
+    return [{'position':t,'visible_through':t+horizon,'target_position':t+horizon+1,'target':tokens[t+horizon+1]} for t in range(len(tokens)-horizon-1)]
+
+
+def weighted_gradient(grads,valid_tokens):
+    """Aggregate per-microbatch token-mean gradients into a global valid-token mean."""
+    total=sum(valid_tokens)
+    if total<=0 or len(grads)!=len(valid_tokens):raise ValueError('Invalid microbatches')
+    return [sum(g[j]*n for g,n in zip(grads,valid_tokens))/total for j in range(len(grads[0]))]
+
+
+def majority(votes):
+    """Count canonical answer strings, lexical tie break, no correctness guarantee."""
+    counts=Counter(votes)
+    if not counts:raise ValueError('No answers')
+    return min(counts,key=lambda v:(-counts[v],v))
+
+
+def pass_at_k(n,c,k):
+    """Unbiased combinatorial estimator given c successes among n sampled candidates."""
+    if not 0<=c<=n or not 1<=k<=n:raise ValueError('Invalid n,c,k')
+    return 1-(math.comb(n-c,k)/math.comb(n,k) if n-c>=k else 0.)
+
+
+def token_f1(prediction,gold):
+    """Toy whitespace/multiset token F1; benchmark normalization is a separate contract."""
+    p=Counter(prediction.split());g=Counter(gold.split());overlap=sum((p&g).values())
+    if not sum(p.values()) or not sum(g.values()):return float(p==g)
+    precision=overlap/sum(p.values());recall=overlap/sum(g.values())
+    return 2*precision*recall/(precision+recall) if overlap else 0.
+
+
+def mla_content(query,latent,up_key,up_value):
+    """Content-only absorption equivalence, one head, no RoPE or causal mask."""
+    def transpose(x):return [list(r) for r in zip(*x)]
+    expanded_keys=matmul(latent,up_key)
+    expanded_values=matmul(latent,up_value)
+    scores=matmul(query,transpose(expanded_keys))
+    absorbed_scores=matmul(matmul(query,transpose(up_key)),transpose(latent))
+    weights=[softmax([v/math.sqrt(len(query[0])) for v in row]) for row in scores]
+    return {'expanded_scores':scores,'absorbed_scores':absorbed_scores,
+      'expanded_output':matmul(weights,expanded_values),'absorbed_output':matmul(matmul(weights,latent),up_value)}
+
+
+def speculative_distribution(target,proposal):
+    """Exact one-step speculative rejection distribution on a categorical support."""
+    if len(target)!=len(proposal) or any(v<0 for v in target+proposal) or abs(sum(target)-1)>1e-8 or abs(sum(proposal)-1)>1e-8:raise ValueError('Matching categorical PMFs')
+    accepted=[min(p,q) for p,q in zip(target,proposal)];rejection=1-sum(accepted)
+    residual=[max(p-q,0) for p,q in zip(target,proposal)];mass=sum(residual)
+    corrected=[a+rejection*r/mass if mass>0 else a for a,r in zip(accepted,residual)]
+    return {'accepted_mass':sum(accepted),'residual':residual,'final_distribution':corrected}
+
+
+def fp8_finite_values(format_name):
+    """Enumerate positive finite E4M3FN or IEEE-style E5M2 values; excludes NaN/inf."""
+    if format_name=='E4M3FN':e,m,bias=4,3,7
+    elif format_name=='E5M2':e,m,bias=5,2,15
+    else:raise ValueError('Unsupported explicit FP8 variant')
+    values=[]
+    for exponent in range(2**e):
+        for mantissa in range(2**m):
+            if format_name=='E4M3FN' and exponent==15 and mantissa==7:continue
+            if format_name=='E5M2' and exponent==31:continue
+            v=(mantissa/2**m if exponent==0 else 1+mantissa/2**m)*2.**(1-bias if exponent==0 else exponent-bias)
+            values.append(v)
+    return sorted(set(values))
+
+
+def bitnet_reconstruct(integer_product,weight_scale,activation_absmax,activation_qmax):
+    """Declared reciprocal-scale recovery: latent signed weight times integer activation."""
+    return integer_product*weight_scale*activation_absmax/activation_qmax
+
+
+def storage_bits(weights,bits,metadata_bits_per_block,block_size):
+    """Payload plus complete-block metadata; this fixture assumes exactly full blocks."""
+    if weights%block_size:raise ValueError('Full blocks required by this fixture')
+    return weights*bits+(weights//block_size)*metadata_bits_per_block
+
+
+def zero_memory(parameters,world,stage,param_bytes=2,grad_bytes=2,optimizer_bytes=12):
+    """Ideal per-rank model-state bytes, no activation/temporary buffers or offload."""
+    if stage not in [0,1,2,3] or world<1:raise ValueError('Invalid stage/world')
+    return parameters*((param_bytes/world if stage>=3 else param_bytes)+(grad_bytes/world if stage>=2 else grad_bytes)+(optimizer_bytes/world if stage>=1 else optimizer_bytes))
+
+
+def pipeline_bubble(microbatches,stages):
+    """Simplified balanced fill/drain model; not a DualPipe timing simulation."""
+    return (stages-1)/(microbatches+stages-1)
+
+
+def masked_mean(values,mask):
+    """Only positions with mask1 contribute; values need not be token losses."""
+    if len(values)!=len(mask) or any(v not in [0,1] for v in mask) or sum(mask)==0:raise ValueError('Nonempty binary mask')
+    return sum(v*m for v,m in zip(values,mask))/sum(mask)
+
+
+def fake_quant_ste_gradient(w,target,step,qmin,qmax):
+    """Chosen identity-inside/clamp-zero-outside STE on squared scalar reconstruction loss."""
+    reconstructed=affine_quantize([w],step,0,qmin,qmax)['reconstructed'][0]
+    surrogate=1 if qmin*step<=w<=qmax*step else 0
+    return 2*(reconstructed-target)*surrogate
+
+
+def ternary_weights(w):
+    """Declared absmean-round-clip ternary toy, nearest-even ties; no training."""
+    scale=sum(abs(v) for v in w)/len(w)
+    if scale==0:return {'scale':0,'codes':[0]*len(w),'reconstructed':[0]*len(w)}
+    codes=[min(1,max(-1,round(v/scale))) for v in w]
+    return {'scale':scale,'codes':codes,'reconstructed':[v*scale for v in codes]}
+
+
+def fixtures():
+    p=[.5,.3,.15,.05]
+    return {'bpe':bpe_train({'low':5,'lower':2},3),'rope':rope([1,0,0,1],2),
+      'rmsnorm':rmsnorm([1,3],eps=0),
+      'swiglu':swiglu([[1,2]],[[1,0],[0,1]],[[2,1],[0,1]],[[1,0],[0,1]]),
+      'parameters':{'tied':parameter_count(10,4,8,2),'untied':parameter_count(10,4,8,2,False),'gated':parameter_count(10,4,8,2,True,True)},
+      'filters':{k:truncate(p,k,v) for k,v in [('top-k',2),('top-p',.75),('min-p',.4),('typical',.5)]},
+      'beam':{'greedy':beam_fixture(1),'beam2':beam_fixture(2)},
+      'length':{'short':gnmt_score(2*math.log(.6),2,.6),'long':gnmt_score(4*math.log(.75),4,.6)},
+      'repetition':{'sign_aware':repetition([2,-2,1],{0,1},2),'literal_division':repetition([2,-2,1],{0,1},2,False)},
+      'contrastive':contrastive([.6,.4],[.95,.1],.5),'mirostat':mirostat_update(8,6,4,.1),
+      'lora':lora([[1,1,1]],[[2,1],[0,1],[1,2]],[[1],[1],[0]],[[1,2]],2),
+      'quantization':affine_quantize([-2,-.6,0,.6,2],.5,0,-3,3),
+      'gptq':gptq_compensate([.42,.3],[[2,1],[1,1]],0,3/7),
+      'kd':kd_loss([1,2],[2,1],1,2,.3),
+      'reverse_kl_gradient':reverse_kl_gradient([.4,-.1,.8],[.7,.2,.1]),
+      'advantages':{'population':advantages([1,1,1,0],0),'sample':advantages([1,1,1,0],0,True)},
+      'clipping':[clipped_surrogate(1.5,2,.2),clipped_surrogate(.5,-2,.2),clipped_surrogate(1.5,-2,.2)],
+      'cache_bytes':{'mha':cache_bytes(1,1024,32,32,128,2),'gqa':cache_bytes(1,1024,32,8,128,2),'mqa':cache_bytes(1,1024,32,1,128,2)},
+      'mtp_alignment':mtp_alignment([10,11,12,13,14],1),
+      'mla':mla_content([[1,2],[3,4]],[[1,0],[0,1],[2,1]],[[1,2],[3,4]],[[2,0],[0,3]]),
+      'speculative':speculative_distribution([.2,.8],[.7,.3]),
+      'zero_bytes':{str(s):zero_memory(1000,4,s) for s in [0,1,2,3]}}
+
+
+if __name__=='__main__':
+    print(json.dumps(fixtures(),indent=2))

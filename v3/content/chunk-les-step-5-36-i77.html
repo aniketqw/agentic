@@ -1,0 +1,1270 @@
+<section class="chunk" id="chunk-les-step-5-36-i77" data-id="les-step-5-36-i77"><details class="audit-card" id="audit-full-chunk-les-step-5-36-i77" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-36-i77-1">Motivation</h4><p>Explain why autoregressive reuse helps compute but grows persistent cache memory.</p><h4 id="v3-heading-chunk-les-step-5-36-i77-2">Prerequisites</h4><ul><li>Causal attention, stable row softmax andmatrix shapes</li><li>Row-versuscolumn convention; matrix associativity andtranspose identities</li><li>Bytes per element, batch, layer/head dimensions; RoPErotations</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-3">Notation and units</h4><ul><li>B=batch, L=layers, T=cached tokens, Hkv=KV heads, dh=head width, bc=bytes per cache element</li><li>Row convention: X[T, D], Wdown[D, dc], WUK[dc, dh], WUV[dc, dv]</li><li>MLA cache stores cKV[T, dc] and decoupled position key[T, dR]</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-4">Assumptions</h4><ul><li>Decoder-only causal inference with fixed weights, deterministic evaluation and consistent positions</li><li>No quantization, padding overhead, cache fragmentation, beam duplication orallocatorcost unless specified</li><li>Each attentionhead has its own softmax; equal absorption uses the same factorized weights</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-5">Step-by-step derivation</h4><ol><li>At decode step t, the newquery attends to historical keys/values. Causal old hidden states remain unchanged only with fixed weights and position mapping; cache their per-layer K/V.</li><li>Uncached full prefix attention has O(t²)score work perstep; cached one-query attention has O(t)perstep. Summed over N generated positions, cached score work is still O(N²), not O(N)total.</li><li>Count K/V elements:2×B×L×T×Hkv×dh. Multiplybc for bytes. MHAHkv=Hq; GQA shares several query heads per KV head; MQA uses one KV head.</li><li>Pure MLA caches one joint latent dc per position; production decoupled RoPE also caches dR position key. Storage width dc+dR replaces2Hkv dh for the stated comparison.</li><li>Use both decimal GB=bytes/10^9and binary GiB=bytes/2^30; specify actual cache dtype, which can differ from weight dtype.</li><li>Saving Q historically is usually unnecessary for one-query decode, but training and multi-query prefill have different activation requirements.</li></ol><h4 id="v3-heading-chunk-les-step-5-36-i77-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-36-i77-7">MHA versus MLA cache</h5><p>Given: B1, L60, T4096, Hkv128, dh128, bc2, dc512, dR64</p><ol><li>MHAwidth2×128×128=32768.</li><li>MHAbytes1×60×4096×32768×2=16,106,127,360=15GiB.</li><li>MLAbytes1×60×4096×576×2=283,115,520≈0.26367GiB.</li><li>Ratio32768/576=56.88888889.</li></ol><p>Answer: MHA15GiB; MLA0.263671875GiB;56.89×width reduction</p><p>Verification: indic_mla_moe / mla.mha_cache_bytes · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-36-i77-8">GQAcomparison</h5><p>Given: 128queryheads;8KV heads; equal head width</p><ol><li>Only KV head count enters cache formula.</li><li>MHA/GQA cache width ratio128/8=16.</li></ol><p>Answer: 16×cache width difference for those assumptions</p><p>Verification: indic_mla_moe / mla.mha_gqa_ratio · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-36-i77-9">Corrections and source qualifications</h4><ul><li>heading: 5.36.1; text: Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-10">Mastery answers and retained exercise context</h4><ol><li>Why cache K/V but not past Q? Current decode query needs old retrievable history, not old query computations.</li><li>Does cache make generation linear overall? One attention step is linear in history; all N steps sum to quadratic attention work.</li><li>Why include B and L? Every sequence/layer has its own cache; omitting them yields a unit-local estimate.</li><li>Does MoE shrink KV cache? No; it changes FFN conditional computation.</li><li>Inherited exercise 5.36.40 Numerical bank: Level 1 For: n=32,\quad g=8, cache reduction: \boxed{4\times}. Level 2 For: n=128,\quad h=128, MHA K+V dimension: 2(128)(128) = \boxed{32,768}. Level 3 MLA latent dimension: 512. Reduction: 32768/512 = \boxed{64\times}. Level 4 MHA cache: 48\text{ MB} MLA: 12\text{ MB}. Reduction: \boxed{4\times}. Level 5 DeepSeek-style model: 61\text{ layers},\quad128\text{ heads},\quad h=128,\quad s=100000. The supplied book reports roughly: \boxed{400\text{ GB}} for the standard MHA KV cache for one sequence under its stated assumptions. (Source: Build a DeepSeek Model (From Scratch))</li></ol><h4 id="v3-heading-chunk-les-step-5-36-i77-11">Edge cases and remaining gaps</h4><ul><li>Low-rank compression is an architectural restriction; algebraic absorption is exact within that architecture, not proof ofequality to arbitrary dense attention</li><li>Smaller persistent cache does not by itself measure latency, training memory or total model weight storage</li><li>No pretrained checkpoint or accelerator cache benchmark wasrun</li><li>Caching fails after weights change or if bidirectional/position-dependent old hidden states change; itmust be invalidated.</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-12">Connections and progression</h4><ul><li>MLA latent absorption follows; MoE addresses different weight/compute bottlenecks.</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 61, 69, 70, 74, 78, 80, 82, 92, 99, 170 · Cachelogic, storage formula, MQA/GQA and MLA widths</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-14">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (59)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.36 — DeepSeek Architecture: From KV Cache to MLA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.36.1 The original problem: autoregressive generation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.2 What happens with naive attention?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.3 The key observation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.4 KV Cache idea</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.5 Why this speeds up generation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.6 Exam numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.7 But there is a catch</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.8 Where does the memory come from?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.9 Understand every symbol</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.10 Numerical KV-memory example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.11 Why sequence length hurts so much in practice</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.12 DeepSeek-scale example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.13 First attempted solution: MQA</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.14 MQA memory reduction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.15 But why is MQA not the final solution?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.16 So MQA creates a trade-off</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.17 Second solution: GQA</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.18 MQA and MHA become special cases of GQA</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.19 Numerical GQA example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</td></tr><tr><td>5.36.20 Visualize the three architectures</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>MHA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>GQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.36.21 The unresolved problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.22 DeepSeek&#x27;s different question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.23 Core MLA idea</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.24 Down-projection</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.25 What actually gets cached?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.26 Up-projection reconstructs K and V</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.27 Wait — didn&#x27;t we just add more computation?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.28 The key engineering trick: head diversity returns</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.29 So what did MLA actually compress?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.30 Toy numerical example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.31 The actual DeepSeek-scale comparison in the book</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.32 Why is this such a big deal?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.33 Another reported empirical result</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.34 What does that experiment show?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>MHA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>GQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MLA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.36.35 Numerical comparison of cache sizes</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.36 Important distinction: toy experiment vs DeepSeek-scale theory</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.37 The next problem: position</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.38 What you should remember from today&#x27;s step</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.36.39 Exam master formulas</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Standard MHA KV cache</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>GQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MHA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MLA concept</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.36.40 Numerical bank</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Level 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Level 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.36.41 Final conceptual picture</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-A01" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A01 — KV cache MHA, GQA and MQA accounting</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Autoregressive decoding stores past keys/values; changing the number of KV heads changes this memory term.</p><p><strong>Prerequisites:</strong> <a href="#audit-T11">Multiple heads: split, attend, concatenate, project</a></p><h4 id="v3-heading-chunk-les-step-5-36-i77-15">Notation and assumptions</h4><p>Batch B, cached length S, L layers, hKV KV heads, width dh, b bytes per element. Count both K and V; query heads may exceed KV heads.</p><h4 id="v3-heading-chunk-les-step-5-36-i77-16">Derivation and mechanism</h4><ol><li>One K or V token uses hKV×dh elements per layer.</li><li>Multiply by sequence length, layers and batch.</li><li>Multiply by2 and storage bytes. State MiB/GiB versus decimal units.</li></ol><div class="math block">M_{KV}=2BSLh_{KV}d_hb</div><h4 id="v3-heading-chunk-les-step-5-36-i77-17">Worked example</h4><p>B1,S1024,L32,dh128,b2: MHA32KVheads→512MiB; GQA8→128MiB; MQA1→16MiB. These exclude weights, workspaces and allocator overhead.</p><h4 id="v3-heading-chunk-les-step-5-36-i77-18">Limitations</h4><ul><li>This is ordinary KV storage, not MLA latent-cache accounting.</li><li>Cache sharing, padding, paged allocators and quantization metadata alter observed memory.</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-19">Connections to later concepts</h4><ul><li>A06 replaces expanded KV storage with a latent representation; its positional cache component must also be counted.</li></ul><h4 id="v3-heading-chunk-les-step-5-36-i77-20">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 28, 29, 30, 31, 32 · Chapter2 cache motivation and accounting</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-36-i77-21">Executed code and evidence</h4><p>Functions: cache_bytes. Passed checks: KV-MHA, KV-GQA, KV-MQA</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-36-i77"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-36-i77" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-35-i76">← Previous lesson</a> · <a href="#chunk-les-step-5-37-i78">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-8-i15">Step 1.8 — Multi-Head Attention (MHA)</a></p><p><strong>This lesson:</strong> Step 5.36 — DeepSeek Architecture: From KV Cache to MLA</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-36-i77"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-36-i77-22">Step 5.36 — DeepSeek Architecture: From KV Cache to MLA</h3>
+<p><em>Plan node: A1 · chat order #77</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-8-i15">Step 1.8 — Multi-Head Attention (MHA)</a> · <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now move into the <strong>architecture side of DeepSeek</strong>.</p>
+<p>This is the next logical piece after the RL, distillation, and Indic-language sections because the DeepSeek book organizes its architecture as a sequence of engineering problems:</p>
+<div class="math block">
+\boxed{
+\text{KV Cache}
+\rightarrow
+\text{MLA}
+\rightarrow
+\text{MoE}
+\rightarrow
+\text{MTP + FP8}
+\rightarrow
+\text{training}
+\rightarrow
+\text{RL}
+\rightarrow
+\text{distillation}
+}
+</div>
+<p>The supplied DeepSeek book explicitly presents this four-stage roadmap, with Stage 1 being the KV-cache foundation and Stage 2 beginning with Multi-Head Latent Attention. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We will start from first principles, even though we have already seen KV caching earlier, because now we need to understand <strong>why MLA exists</strong>.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-36-i77-0" data-full-review="added"><p>Correction: Cache complexity should state per decoding step versus all generated steps: O(t)single-step attention still sums to O(N²)over N steps; cache does not make all generation O(N).</p><p><a href="#audit-full-chunk-les-step-5-36-i77">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-36-i77-23">5.36.1 The original problem: autoregressive generation</h4>
+<p>An LLM generates:</p>
+<div class="math block">
+\boxed{
+x_1\rightarrow x_2\rightarrow x_3\rightarrow\cdots
+}
+</div>
+<p>one token at a time.</p>
+<p>Suppose the current sequence is:</p>
+<div class="math block">
+[x_1,x_2,x_3,x_4].
+</div>
+<p>The model predicts:</p>
+<div class="math block">
+x_5.
+</div>
+<p>Then the sequence becomes:</p>
+<div class="math block">
+[x_1,x_2,x_3,x_4,x_5].
+</div>
+<p>The model predicts:</p>
+<div class="math block">
+x_6.
+</div>
+<p>Then:</p>
+<div class="math block">
+[x_1,x_2,x_3,x_4,x_5,x_6].
+</div>
+<p>And so on.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-24">5.36.2 What happens with naive attention?</h4>
+<p>For every new token, standard self-attention would recompute Key and Value representations for all previous tokens.</p>
+<p>Suppose at step 4 we have:</p>
+<div class="math block">
+K_1,K_2,K_3,K_4
+</div>
+<p>and:</p>
+<div class="math block">
+V_1,V_2,V_3,V_4.
+</div>
+<p>At the next step, naive computation calculates them again for:</p>
+<div class="math block">
+K_1,\ldots,K_5
+</div>
+<p>and:</p>
+<div class="math block">
+V_1,\ldots,V_5.
+</div>
+<p>So the model repeatedly performs work on information that has not changed.</p>
+<p>The book describes this repeated historical recomputation as the inference bottleneck. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-25">5.36.3 The key observation</h4>
+<p>For causal decoding:</p>
+<div class="math block">
+\boxed{
+K_i,V_i
+}
+</div>
+<p>for an old token do not change merely because a new token arrived.</p>
+<p>So why recompute them?</p>
+<p>We can calculate:</p>
+<div class="math block">
+K_i=X_iW_K
+</div>
+<p>and:</p>
+<div class="math block">
+V_i=X_iW_V
+</div>
+<p>once.</p>
+<p>Then store them.</p>
+<p>That is the:</p>
+<div class="math block">
+\boxed{\text{KV Cache}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-26">5.36.4 KV Cache idea</h4>
+<p>At generation step <span class="math inline">t</span>:</p>
+<div class="math block">
+\boxed{
+K_{\le t},V_{\le t}
+}
+</div>
+<p>are stored.</p>
+<p>When token <span class="math inline">t+1</span> arrives, we calculate only its new:</p>
+<div class="math block">
+K_{t+1}
+</div>
+<p>and:</p>
+<div class="math block">
+V_{t+1},
+</div>
+<p>then append them to the cache.</p>
+<p>So:</p>
+<div class="math block">
+K_{\text{cache}}
+\leftarrow
+[K_{\text{cache}};K_{t+1}]
+</div>
+<p>and:</p>
+<div class="math block">
+V_{\text{cache}}
+\leftarrow
+[V_{\text{cache}};V_{t+1}].
+</div>
+<p>The book explicitly describes the cache as being maintained independently at each layer and attention head. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-27">5.36.5 Why this speeds up generation</h4>
+<p>Without KV caching:</p>
+<div class="math block">
+\boxed{
+\text{recompute old K/V every step}
+}
+</div>
+<p>With caching:</p>
+<div class="math block">
+\boxed{
+\text{compute old K/V once, reuse thereafter}
+}
+</div>
+<p>So the repeated historical projection work disappears.</p>
+<p>The book gives an actual GPT-2 experiment:</p>
+<div class="math block">
+\text{100 generated tokens}
+</div>
+<p>without cache:</p>
+<div class="math block">
+\boxed{30.9818\text{ s}}
+</div>
+<p>with cache:</p>
+<div class="math block">
+\boxed{6.1630\text{ s}}.
+</div>
+<p>Reported speedup:</p>
+<div class="math block">
+\frac{30.9818}{6.1630}
+\approx
+\boxed{5.03\times}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-28">5.36.6 Exam numerical</h4>
+<p>If an uncached implementation requires:</p>
+<div class="math block">
+25\text{ s}
+</div>
+<p>and cached inference requires:</p>
+<div class="math block">
+5\text{ s},
+</div>
+<p>then:</p>
+<div class="math block">
+\text{speedup}
+=
+\frac{25}{5}
+=
+\boxed{5\times}.
+</div>
+<p>Percentage time reduction:</p>
+<div class="math block">
+\frac{25-5}{25}\times100
+=
+\boxed{80\%}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-29">5.36.7 But there is a catch</h4>
+<p>Caching saves:</p>
+<div class="math block">
+\boxed{\text{computation}}
+</div>
+<p>but consumes:</p>
+<div class="math block">
+\boxed{\text{memory}}.
+</div>
+<p>The book explicitly calls this the:</p>
+<div class="math block">
+\boxed{\text{“dark side” of the KV Cache}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-30">5.36.8 Where does the memory come from?</h4>
+<p>For each past token we store:</p>
+<div class="math block">
+\boxed{K}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{V}.
+</div>
+<p>If the model has:</p>
+<ul>
+<li><span class="math inline">l</span> layers,</li>
+<li>batch size <span class="math inline">b</span>,</li>
+<li>sequence length <span class="math inline">s</span>,</li>
+<li><span class="math inline">n</span> heads,</li>
+<li>head dimension <span class="math inline">h</span>,</li>
+</ul>
+<p>then for standard MHA the source gives the scaling:</p>
+<div class="math block">
+\boxed{
+\text{KV memory}
+\propto
+l\times b\times s\times n\times h\times2\times\text{bytes/value}
+}
+</div>
+<p>where the first factor <span class="math inline">2</span> corresponds to:</p>
+<div class="math block">
+\boxed{K+V}.
+</div>
+<p>The book's formula uses another factor of 2 because its example assumes 16-bit values:</p>
+<div class="math block">
+\boxed{2\text{ bytes/value}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus the source's MHA form can be written as:</p>
+<div class="math block">
+\boxed{
+M_{\text{MHA}}
+=
+l\,b\,s\,n\,h\,(2)(2)
+}
+</div>
+<p>bytes,</p>
+<p>under the source's FP16/bfloat16-style 2-byte assumption.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-31">5.36.9 Understand every symbol</h4>
+<div class="math block">
+l
+</div>
+<p>= number of Transformer layers.</p>
+<div class="math block">
+b
+</div>
+<p>= batch size.</p>
+<div class="math block">
+s
+</div>
+<p>= context/sequence length.</p>
+<div class="math block">
+n
+</div>
+<p>= number of attention heads.</p>
+<div class="math block">
+h
+</div>
+<p>= dimension per head.</p>
+<p>First:</p>
+<div class="math block">
+2
+</div>
+<p>= two things stored:</p>
+<div class="math block">
+K,V.
+</div>
+<p>Second:</p>
+<div class="math block">
+2
+</div>
+<p>= two bytes per 16-bit value.</p>
+<p>This distinction is very important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-32">5.36.10 Numerical KV-memory example</h4>
+<p>Suppose:</p>
+<div class="math block">
+l=32
+</div>
+<div class="math block">
+b=1
+</div>
+<div class="math block">
+s=4096
+</div>
+<div class="math block">
+n=32
+</div>
+<div class="math block">
+h=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+n h
+=
+32\times128
+=
+4096.
+</div>
+<p>So:</p>
+<div class="math block">
+M
+=
+32\times1\times4096\times4096\times2\times2.
+</div>
+<p>Compute:</p>
+<div class="math block">
+32\times4096\times4096
+=
+536,870,912.
+</div>
+<p>Then:</p>
+<div class="math block">
+536,870,912\times4
+=
+2,147,483,648\text{ bytes}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{2.00\text{ GiB}}.
+</div>
+<p>That is for only:</p>
+<div class="math block">
+\boxed{1\text{ sequence}}
+</div>
+<p>under this illustrative architecture.</p>
+<p>This demonstrates why long-context inference can become memory-heavy.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-33">5.36.11 Why sequence length hurts so much in practice</h4>
+<p>The cache size scales linearly with:</p>
+<div class="math block">
+s.
+</div>
+<p>So if:</p>
+<div class="math block">
+s\rightarrow2s,
+</div>
+<p>then:</p>
+<div class="math block">
+M\rightarrow2M.
+</div>
+<p>If:</p>
+<div class="math block">
+s\rightarrow4s,
+</div>
+<p>then:</p>
+<div class="math block">
+M\rightarrow4M.
+</div>
+<p>This is <strong>cache memory</strong>, not the quadratic self-attention compute formula we studied earlier.</p>
+<p>Don't mix those two.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-34">5.36.12 DeepSeek-scale example</h4>
+<p>The book gives a DeepSeek-V3-scale architecture:</p>
+<div class="math block">
+61\text{ layers}
+</div>
+<div class="math block">
+128\text{ heads}
+</div>
+<div class="math block">
+h=128
+</div>
+<p>and:</p>
+<div class="math block">
+s=100,000.
+</div>
+<p>It reports approximately:</p>
+<div class="math block">
+\boxed{400\text{ GB}}
+</div>
+<p>of KV cache for one sequence under standard MHA assumptions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the motivation for architectural innovation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-35">5.36.13 First attempted solution: MQA</h4>
+<p>The obvious idea is:</p>
+<blockquote>
+<p>Why store a separate <span class="math inline">K,V</span> for every head?</p>
+</blockquote>
+<p>Multi-Query Attention answers:</p>
+<div class="math block">
+\boxed{
+\text{all query heads share one K/V pair}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So instead of:</p>
+<div class="math block">
+K_1,K_2,\ldots,K_n
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{K_{\text{shared}}}
+</div>
+<p>and similarly:</p>
+<div class="math block">
+\boxed{V_{\text{shared}}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-36">5.36.14 MQA memory reduction</h4>
+<p>Standard MHA scales with:</p>
+<div class="math block">
+n.
+</div>
+<p>MQA scales with:</p>
+<div class="math block">
+1.
+</div>
+<p>So the theoretical KV-cache reduction is:</p>
+<div class="math block">
+\boxed{n\times}.
+</div>
+<p>For:</p>
+<div class="math block">
+n=32,
+</div>
+<p>MQA can reduce the K/V head-related cache factor by:</p>
+<div class="math block">
+\boxed{32\times}.
+</div>
+<p>That is a huge memory saving.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-37">5.36.15 But why is MQA not the final solution?</h4>
+<p>Because MHA's strength comes partly from:</p>
+<div class="math block">
+\boxed{
+\text{head specialization}
+}.
+</div>
+<p>Head 1 may learn:</p>
+<div class="math block">
+\text{local syntax}.
+</div>
+<p>Head 2:</p>
+<div class="math block">
+\text{long-range relation}.
+</div>
+<p>Head 3:</p>
+<div class="math block">
+\text{semantic association}.
+</div>
+<p>and so forth.</p>
+<p>With MQA:</p>
+<div class="math block">
+K_1=K_2=\cdots=K_n
+</div>
+<p>and:</p>
+<div class="math block">
+V_1=V_2=\cdots=V_n.
+</div>
+<p>So different query heads no longer have completely independent K/V representations.</p>
+<p>The book identifies the resulting loss of expressive power/head specialization as MQA's fundamental drawback. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-38">5.36.16 So MQA creates a trade-off</h4>
+<div class="math block">
+\boxed{
+\text{memory efficiency}\uparrow
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{expressive diversity}\downarrow
+}
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+\text{MHA}
+\rightarrow
+\text{maximum head diversity}
+</div>
+<div class="math block">
+\text{MQA}
+\rightarrow
+\text{maximum K/V sharing}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-39">5.36.17 Second solution: GQA</h4>
+<p>Grouped-Query Attention introduces:</p>
+<div class="math block">
+\boxed{g}
+</div>
+<p>groups.</p>
+<p>Instead of:</p>
+<div class="math block">
+n
+</div>
+<p>different K/V pairs:</p>
+<div class="math block">
+\boxed{
+g
+}
+</div>
+<p>unique K/V pairs are stored.</p>
+<p>So:</p>
+<div class="math block">
+1\le g\le n.
+</div>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+M_{\text{GQA}}
+=
+l\,b\,g\,h\,s\,2\,2
+}
+</div>
+<p>under its 16-bit assumption. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-40">5.36.18 MQA and MHA become special cases of GQA</h4>
+<p>Set:</p>
+<div class="math block">
+\boxed{g=1}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{\text{GQA}=\text{MQA}}.
+</div>
+<p>Set:</p>
+<div class="math block">
+\boxed{g=n}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{\text{GQA}=\text{MHA}}.
+</div>
+<p>So <span class="math inline">g</span> becomes a:</p>
+<div class="math block">
+\boxed{\text{tunable knob}}
+</div>
+<p>between memory and expressivity. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-41">5.36.19 Numerical GQA example</h4>
+<p>Suppose:</p>
+<div class="math block">
+n=32
+</div>
+<p>and:</p>
+<div class="math block">
+g=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{32}{8}
+=
+\boxed{4}
+</div>
+<p>query heads share each K/V group.</p>
+<p>So:</p>
+<div class="math block">
+4\text{ query heads}
+\rightarrow
+1\text{ K/V group}.
+</div>
+<p>The cache reduction relative to MHA is:</p>
+<div class="math block">
+\frac{32}{8}
+=
+\boxed{4\times}.
+</div>
+<p>The book gives Llama 3 8B's 32-head/8-group example exactly in this form. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-42">5.36.20 Visualize the three architectures</h4>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-43">MHA</h6>
+<pre><code class="language-text">Q1 ── K1 V1
+Q2 ── K2 V2
+Q3 ── K3 V3
+Q4 ── K4 V4
+</code></pre>
+<p>All heads have unique K/V.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-36-i77-44">MQA</h6>
+<pre><code class="language-text">Q1 ─┐
+Q2 ─┤
+Q3 ─┤── K V
+Q4 ─┘
+</code></pre>
+<p>All heads share one K/V.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-36-i77-45">GQA</h6>
+<pre><code class="language-text">Q1 ─┐
+Q2 ─┘── K1 V1
+
+Q3 ─┐
+Q4 ─┘── K2 V2
+</code></pre>
+<p>Two groups for four query heads.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-46">5.36.21 The unresolved problem</h4>
+<p>Now we have:</p>
+<div class="math block">
+\boxed{\text{MHA}}
+</div>
+<p>excellent expressive power but large cache.</p>
+<div class="math block">
+\boxed{\text{MQA}}
+</div>
+<p>excellent cache efficiency but reduced K/V diversity.</p>
+<div class="math block">
+\boxed{\text{GQA}}
+</div>
+<p>a compromise.</p>
+<p>The DeepSeek book explicitly describes GQA as choosing a better point on the performance-memory curve, but <strong>not eliminating the underlying trade-off</strong>.</p>
+<p>So the question becomes:</p>
+<div class="math block">
+\boxed{
+\text{Can we reduce the amount of information stored without reducing the number of heads?}
+}
+</div>
+<p>That is the conceptual leap to MLA.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-47">5.36.22 DeepSeek's different question</h4>
+<p>MQA/GQA ask:</p>
+<blockquote>
+<p>How many K/V heads should we store?</p>
+</blockquote>
+<p>MLA asks:</p>
+<blockquote>
+<p>Can we <strong>compress the information inside K/V</strong>?</p>
+</blockquote>
+<p>This is a completely different design direction.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MQA/GQA}=
+\text{reduce number of K/V representations}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{MLA}=
+\text{compress K/V information}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-48">5.36.23 Core MLA idea</h4>
+<p>Instead of caching:</p>
+<div class="math block">
+K
+</div>
+<p>and:</p>
+<div class="math block">
+V,
+</div>
+<p>MLA first computes a smaller latent representation:</p>
+<div class="math block">
+\boxed{c_{KV}}
+</div>
+<p>and caches that.</p>
+<p>The book describes it as:</p>
+<div class="math block">
+\boxed{
+\text{compress for storage}
+\rightarrow
+\text{decompress for calculation}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-49">5.36.24 Down-projection</h4>
+<p>The input:</p>
+<div class="math block">
+X
+</div>
+<p>is projected into a smaller latent space:</p>
+<div class="math block">
+\boxed{
+c_{KV}=XW_{D-KV}
+}
+</div>
+<p>where <span class="math inline">W_{D-KV}</span> is the down-projection.</p>
+<p>Conceptually:</p>
+<div class="math block">
+d_{\text{model}}
+\rightarrow
+d_{\text{latent}}
+</div>
+<p>with:</p>
+<div class="math block">
+d_{\text{latent}}\ll d_{\text{model-related K/V dimension}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-50">5.36.25 What actually gets cached?</h4>
+<p>Only:</p>
+<div class="math block">
+\boxed{c_{KV}}.
+</div>
+<p>Not:</p>
+<div class="math block">
+K
+</div>
+<p>and:</p>
+<div class="math block">
+V
+</div>
+<p>separately.</p>
+<p>So the cache becomes:</p>
+<div class="math block">
+\boxed{
+C_{KV}=
+[c_{KV}^{(1)},c_{KV}^{(2)},\ldots,c_{KV}^{(t)}]
+}.
+</div>
+<p>The book's toy example shows a latent cache with shape:</p>
+<div class="math block">
+\boxed{(4,4)}
+</div>
+<p>and later:</p>
+<div class="math block">
+(5,4)
+</div>
+<p>after one new token is appended. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-51">5.36.26 Up-projection reconstructs K and V</h4>
+<p>When attention needs K and V, MLA reconstructs them.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+K=c_{KV}W_{UK}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V=c_{KV}W_{UV}
+}
+</div>
+<p>where <span class="math inline">W_{UK}</span> and <span class="math inline">W_{UV}</span> are up-projection matrices.</p>
+<p>The book's toy example describes both K and V as being reconstructed from the latent matrix. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-52">5.36.27 Wait — didn't we just add more computation?</h4>
+<p>Yes.</p>
+<p>MLA introduces:</p>
+<div class="math block">
+\boxed{\text{down-projection}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{up-projection}}.
+</div>
+<p>At first glance:</p>
+<div class="math block">
+\boxed{
+\text{more matrix multiplications}
+}
+</div>
+<p>sounds worse.</p>
+<p>But inference has a very important asymmetry:</p>
+<div class="math block">
+\boxed{
+\text{memory traffic for long history}
+}
+</div>
+<p>can be more expensive than a modest amount of additional computation.</p>
+<p>MLA trades:</p>
+<div class="math block">
+\boxed{
+\text{some compute}
+}
+</div>
+<p>for:</p>
+<div class="math block">
+\boxed{
+\text{massive cache/memory savings}
+}.
+</div>
+<p>The source explicitly describes the method as exchanging additional projection/reconstruction work for a much smaller cached representation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-53">5.36.28 The key engineering trick: head diversity returns</h4>
+<p>Remember MQA's problem:</p>
+<div class="math block">
+K_1=K_2=\cdots
+</div>
+<p>because all heads share K.</p>
+<p>MLA doesn't have to do that.</p>
+<p>After reconstruction:</p>
+<div class="math block">
+\boxed{
+K_1\neq K_2\neq\cdots
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V_1\neq V_2\neq\cdots
+}
+</div>
+<p>can still be maintained because the up-projection matrices are head-specific.</p>
+<p>The book explicitly emphasizes that each head can reconstruct its own unique K and V from the shared latent cache. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the crucial difference from GQA.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-54">5.36.29 So what did MLA actually compress?</h4>
+<p>It did <strong>not</strong> say:</p>
+<blockquote>
+<p>“All heads should share the same information.”</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{All heads share a compressed storage representation}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{each head can reconstruct its own representation}
+}.
+</div>
+<p>This is a subtle but extremely important distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-55">5.36.30 Toy numerical example</h4>
+<p>Suppose MHA has:</p>
+<div class="math block">
+n=8
+</div>
+<p>heads and:</p>
+<div class="math block">
+h=64.
+</div>
+<p>Then total K dimension is:</p>
+<div class="math block">
+8\times64
+=
+\boxed{512}.
+</div>
+<p>And because we store both K and V:</p>
+<div class="math block">
+2\times512
+=
+\boxed{1024}
+</div>
+<p>cached values per token, ignoring batch/layers and bytes.</p>
+<p>Suppose MLA instead uses:</p>
+<div class="math block">
+d_{\text{latent}}=64.
+</div>
+<p>Then we cache:</p>
+<div class="math block">
+\boxed{64}
+</div>
+<p>values per token.</p>
+<p>The compression factor is:</p>
+<div class="math block">
+\frac{1024}{64}
+=
+\boxed{16\times}.
+</div>
+<p>This is an illustrative MLA calculation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-56">5.36.31 The actual DeepSeek-scale comparison in the book</h4>
+<p>For its DeepSeek-scale example:</p>
+<div class="math block">
+n=128
+</div>
+<div class="math block">
+h=128.
+</div>
+<p>Thus:</p>
+<div class="math block">
+n h
+=
+128\times128
+=
+\boxed{16,384}.
+</div>
+<p>MHA's K+V cache dimension factor:</p>
+<div class="math block">
+2(nh)
+=
+2(16,384)
+=
+\boxed{32,768}.
+</div>
+<p>The book's simplified MLA latent dimension is approximately:</p>
+<div class="math block">
+\boxed{512}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{32,768}{512}
+=
+\boxed{64\times}.
+</div>
+<p>The book reports this as a 64× reduction in its simplified MLA cache calculation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-57">5.36.32 Why is this such a big deal?</h4>
+<p>Compare:</p>
+<div class="math block">
+\boxed{
+32,768
+}
+</div>
+<p>cached dimensions per token under the MHA K/V factor,</p>
+<p>with:</p>
+<div class="math block">
+\boxed{
+512
+}
+</div>
+<p>for MLA's latent representation in that example.</p>
+<p>That's:</p>
+<div class="math block">
+\boxed{
+64\times
+}
+</div>
+<p>less cached information.</p>
+<p>And yet the attention computation can still reconstruct full, head-specific K/V representations.</p>
+<p>That is the core engineering idea of MLA. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-58">5.36.33 Another reported empirical result</h4>
+<p>The book also trains small models using:</p>
+<div class="math block">
+\text{MHA}
+</div>
+<div class="math block">
+\text{MQA}
+</div>
+<div class="math block">
+\text{GQA}
+</div>
+<div class="math block">
+\text{MLA}
+</div>
+<p>with otherwise controlled model settings.</p>
+<p>It reports:</p>
+<table>
+<thead>
+<tr>
+<th>Attention</th>
+<th style="text-align:right">Validation Loss</th>
+<th style="text-align:right">KV Cache</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MHA</td>
+<td style="text-align:right">2.3721</td>
+<td style="text-align:right">48 MB</td>
+</tr>
+<tr>
+<td>MQA</td>
+<td style="text-align:right">2.4080</td>
+<td style="text-align:right">6 MB</td>
+</tr>
+<tr>
+<td>GQA</td>
+<td style="text-align:right">2.3776</td>
+<td style="text-align:right">24 MB</td>
+</tr>
+<tr>
+<td>MLA</td>
+<td style="text-align:right">2.3089</td>
+<td style="text-align:right">12 MB</td>
+</tr>
+</tbody>
+</table>
+<p>and corresponding perplexities:</p>
+<div class="math block">
+10.72,\ 11.11,\ 10.78,\ 10.06.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-59">5.36.34 What does that experiment show?</h4>
+<p>The source's controlled experiment suggests:</p>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-60">MHA</h6>
+<p>Large cache:</p>
+<div class="math block">
+48\text{ MB}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-61">MQA</h6>
+<p>Smallest cache:</p>
+<div class="math block">
+6\text{ MB}
+</div>
+<p>but somewhat worse validation performance.</p>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-62">GQA</h6>
+<p>Middle cache:</p>
+<div class="math block">
+24\text{ MB}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-63">MLA</h6>
+<p>Only:</p>
+<div class="math block">
+12\text{ MB}
+</div>
+<p>while achieving the lowest reported validation loss:</p>
+<div class="math block">
+\boxed{2.3089}.
+</div>
+<p>This supports the book's claim that MLA can achieve strong learning performance while dramatically reducing cache memory. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-64">5.36.35 Numerical comparison of cache sizes</h4>
+<p>MLA vs MHA:</p>
+<div class="math block">
+\frac{48}{12}
+=
+\boxed{4\times}.
+</div>
+<p>So MLA uses one-quarter of the cache memory in this experiment.</p>
+<p>MHA vs MQA:</p>
+<div class="math block">
+\frac{48}{6}
+=
+\boxed{8\times}.
+</div>
+<p>So MQA gives even more cache reduction in the experiment, but with the reported higher loss.</p>
+<p>This makes the trade-off visible.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-65">5.36.36 Important distinction: toy experiment vs DeepSeek-scale theory</h4>
+<p>Don't mix:</p>
+<div class="math block">
+\boxed{4\times}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{64\times}.
+</div>
+<p>The:</p>
+<div class="math block">
+4\times
+</div>
+<p>figure is the source's <strong>small controlled experiment</strong>.</p>
+<p>The:</p>
+<div class="math block">
+64\times
+</div>
+<p>figure is from the source's <strong>DeepSeek-scale cache-dimension calculation</strong>.</p>
+<p>They answer different questions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-66">5.36.37 The next problem: position</h4>
+<p>We have solved:</p>
+<div class="math block">
+\boxed{
+K/V\text{ memory}
+}
+</div>
+<p>but attention also needs positional information.</p>
+<p>Modern Transformers often use:</p>
+<div class="math block">
+\boxed{\text{RoPE}}
+</div>
+<p>Rotary Positional Encoding.</p>
+<p>This creates a complication because the compressed latent cache is designed around a representation that can be reused, while RoPE introduces position-dependent transformations.</p>
+<p>The DeepSeek book therefore develops a <strong>decoupled RoPE architecture</strong> after introducing MLA.</p>
+<p>We will treat that as the next substep rather than mixing it into the current derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-67">5.36.38 What you should remember from today's step</h4>
+<p>The entire architecture problem is:</p>
+<div class="math block">
+\boxed{
+\text{MHA}
+\rightarrow
+\text{excellent expressivity, huge KV cache}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{MQA}
+\rightarrow
+\text{tiny cache, reduced head diversity}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{GQA}
+\rightarrow
+\text{middle ground}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{MLA}
+\rightarrow
+\text{compress information instead of simply reducing heads}
+}
+</div>
+<p>The DeepSeek idea is:</p>
+<div class="math block">
+\boxed{
+\text{cache a compact latent representation}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{reconstruct expressive K/V representations when needed}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-68">5.36.39 Exam master formulas</h4>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-69">Standard MHA KV cache</h6>
+<div class="math block">
+\boxed{
+M_{\text{MHA}}
+=
+l\,b\,s\,n\,h\,2\,2
+}
+</div>
+<p>under the source's two-byte-per-value assumption. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-70">GQA</h6>
+<div class="math block">
+\boxed{
+M_{\text{GQA}}
+=
+l\,b\,s\,g\,h\,2\,2
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-71">MQA</h6>
+<p>Set:</p>
+<div class="math block">
+g=1.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-72">MHA</h6>
+<p>Set:</p>
+<div class="math block">
+g=n.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-73">MLA concept</h6>
+<div class="math block">
+\boxed{
+c_{KV}=XW_{D-KV}
+}
+</div>
+<p>then reconstruct:</p>
+<div class="math block">
+\boxed{
+K=c_{KV}W_{UK}
+}
+</div>
+<div class="math block">
+\boxed{
+V=c_{KV}W_{UV}
+}
+</div>
+<p>These equations summarize the compression/decompression mechanism described in the book. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-74">5.36.40 Numerical bank</h4>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-75">Level 1</h6>
+<p>For:</p>
+<div class="math block">
+n=32,\quad g=8,
+</div>
+<p>cache reduction:</p>
+<div class="math block">
+\boxed{4\times}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-76">Level 2</h6>
+<p>For:</p>
+<div class="math block">
+n=128,\quad h=128,
+</div>
+<p>MHA K+V dimension:</p>
+<div class="math block">
+2(128)(128)
+=
+\boxed{32,768}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-77">Level 3</h6>
+<p>MLA latent dimension:</p>
+<div class="math block">
+512.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+32768/512
+=
+\boxed{64\times}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-78">Level 4</h6>
+<p>MHA cache:</p>
+<div class="math block">
+48\text{ MB}
+</div>
+<p>MLA:</p>
+<div class="math block">
+12\text{ MB}.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+\boxed{4\times}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-36-i77-79">Level 5</h6>
+<p>DeepSeek-style model:</p>
+<div class="math block">
+61\text{ layers},\quad128\text{ heads},\quad h=128,\quad s=100000.
+</div>
+<p>The supplied book reports roughly:</p>
+<div class="math block">
+\boxed{400\text{ GB}}
+</div>
+<p>for the standard MHA KV cache for one sequence under its stated assumptions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-36-i77-80">5.36.41 Final conceptual picture</h4>
+<p>The engineering progression is:</p>
+<div class="math block">
+\boxed{
+\text{Naive decoding}
+}
+</div>
+<p>recomputes history.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{KV Cache}
+}
+</div>
+<p>stores history and speeds inference.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{KV memory becomes the bottleneck}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{MQA}
+}
+</div>
+<p>reduces K/V heads aggressively.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{GQA}
+}
+</div>
+<p>provides a tunable compromise.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{MLA}
+}
+</div>
+<p>changes the problem itself:</p>
+<div class="math block">
+\boxed{
+\text{compress the information, not simply the number of heads}.
+}
+</div>
+<p>That is the architectural insight we carry into the next step.</p>
+<hr />
+</section>

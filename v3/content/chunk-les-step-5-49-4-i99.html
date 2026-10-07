@@ -1,0 +1,1062 @@
+<section class="chunk" id="chunk-les-step-5-49-4-i99" data-id="les-step-5-49-4-i99"><details class="audit-card" id="audit-full-chunk-les-step-5-49-4-i99" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-49-4-i99-1">Motivation</h4><p>Trade exponent field capacity for significand precision after local scaling controls each block’s range.</p><h4 id="v3-heading-chunk-les-step-5-49-4-i99-2">Prerequisites</h4><ul><li>Linear algebra and chain rule</li><li>Binary floating-point normal/subnormal encodings</li><li>Quantization scale convention</li><li>Tensor shape and loss normalization</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-3">Notation and units</h4><ul><li>X:[N, K], W:[K, O], Y=XW:[N, O] row convention</li><li>s_q: fmax/amax quantization multiplier; s_d:1/s_q reconstruction multiplier</li><li>Nc:128 reduction/group channels in cited design</li><li>G: dL/dY; dX=GW^T; dW=X^TG</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Finite saturating E4M3FN RTNE is simulated; tensor arithmetic uses NumPy higher precision.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-5">Step-by-step derivation</h4><ol><li>E4M3 and E5M2 each use 1 sign bit; the remaining 7 bits divide into 4+3 or 5+2. Raw exponent/mantissa field pattern counts are 16/8 and 32/4.</li><li>Normal spacing near 1 is 2^-3=.125 for E4M3 and 2^-2=.25 for E5M2. Precision also depends on exponent; mantissa pattern count is not the total finite-value count.</li><li>Fine-grained scaling helps fit specific local ranges into E4M3; tiny and huge values within one block can still incur unequal errors.</li><li>Declare the exact format variant, reserved encodings, rounding and overflow policy. The finite enumerator uses E4M3FN rather than E4M3FNUZ.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-4-i99-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-4-i99-7">Representable-value tie cases</h5><p>Given: E4M3FN; values 1.0625and1.1875</p><ol><li>Neighbors 1and1.125 have midpoint 1.0625; choose lower even code=&gt;1.</li><li>Neighbors 1.125and1.25havemidpoint1.1875; choose upper even code=&gt;1.25.</li></ol><p>Answer: RTNE outputs 1and1.25</p><p>Verification: mtp_fp8_parallelism / FP8-tie-even · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-4-i99-8">Actual range comparison</h5><p>Given: E4M3FN versus E5M2</p><ol><li>E4max1.75*2^8=448.</li><li>E5max1.75*2^15=57344.</li><li>Smallestpositivesubnormals2^-9and2^-16.</li></ol><p>Answer: maximum 448vs57344; near 1 E4 spacing twice as fine</p><p>Verification: mtp_fp8_parallelism / FP8-E4max · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-49-4-i99-9">Corrections and source qualifications</h4><ul><li>heading: Quantization and dequantization scale convention; text: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.49.4.8 Then DeepSeek asks a different question; answer: The source&#x27;s argument is essentially: Do we still need the larger dynamic range of E5M2 if we have already solved the outlier problem using fine-grained quantization? This connects directly to Pillar 2. Recall: \boxed{ \text{Pillar 2: split values into small groups/blocks}. } Each region gets: \boxed{\text{its own scaling factor}}. Therefore the dynamic range inside one local block is much easier to manage. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.14 A numerical bit-allocation question; answer: Suppose you have an FP8 format. Total bits: 8. One is sign: 1. Therefore: 8-1=7 bits remain for: \text{exponent + mantissa}. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.16 Exam numerical — field pattern count; answer: E4M3 and E5M2 each use 1 sign bit; the remaining 7 bits divide into 4+3 or 5+2. Raw exponent/mantissa field pattern counts are 16/8 and 32/4. Normal spacing near 1 is 2^-3=.125 for E4M3 and 2^-2=.25 for E5M2. Precision also depends on exponent; mantissa pattern count is not the total finite-value count. Fine-grained scaling helps fit specific local ranges into E4M3; tiny and huge values within one block can still incur unequal errors. Declare the exact format variant, reserved encodings, rounding and overflow policy. The finite enumerator uses E4M3FN rather than E4M3FNUZ. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.26 Exam question; answer: E4M3 and E5M2 each use 1 sign bit; the remaining 7 bits divide into 4+3 or 5+2. Raw exponent/mantissa field pattern counts are 16/8 and 32/4. Normal spacing near 1 is 2^-3=.125 for E4M3 and 2^-2=.25 for E5M2. Precision also depends on exponent; mantissa pattern count is not the total finite-value count. Fine-grained scaling helps fit specific local ranges into E4M3; tiny and huge values within one block can still incur unequal errors. Declare the exact format variant, reserved encodings, rounding and overflow policy. The finite enumerator uses E4M3FN rather than E4M3FNUZ. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.27 Exam question; answer: E4M3 and E5M2 each use 1 sign bit; the remaining 7 bits divide into 4+3 or 5+2. Raw exponent/mantissa field pattern counts are 16/8 and 32/4. Normal spacing near 1 is 2^-3=.125 for E4M3 and 2^-2=.25 for E5M2. Precision also depends on exponent; mantissa pattern count is not the total finite-value count. Fine-grained scaling helps fit specific local ranges into E4M3; tiny and huge values within one block can still incur unequal errors. Declare the exact format variant, reserved encodings, rounding and overflow policy. The finite enumerator uses E4M3FN rather than E4M3FNUZ. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.29 Numerical design question; answer: Suppose you can choose between two FP8 formats. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.30 Numerical question: percentage of FP8 bits; answer: For E4M3: Mantissa fraction of all 8 bits: \frac38 = \boxed{37.5\%}. Exponent fraction: \frac48 = \boxed{50\%}. Sign: \frac18 = \boxed{12.5\%}. For E5M2: Mantissa: \frac28 = \boxed{25\%}. Exponent: \frac58 = \boxed{62.5\%}. So E4M3 allocates: \boxed{12.5\text{ percentage points more of the total format to mantissa}} and E5M2 allocates that bit to exponent. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.31 Important exam trap; answer: Do not say: \boxed{ E4M3\text{ has greater dynamic range than E5M2}. } Wrong. The source explicitly says: \boxed{ E5M2&gt;\text{dynamic range} } and: \boxed{ E4M3&gt;\text{precision}. } (Source: Build a DeepSeek Model (From Scratch)) Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.4.32 Another exam trap; answer: Do not say: \boxed{ \text{E5M2 is more precise}. } For the source&#x27;s comparison: \boxed{ E4M3 } has more mantissa bits and therefore higher precision. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Step 5.49.4 checkpoint; answer: You should now know: \boxed{ E5M2=5E+2M } \boxed{ E4M3=4E+3M } and: \boxed{ E5M2\rightarrow\text{more dynamic range} } \boxed{ E4M3\rightarrow\text{more precision} } The conventional training strategy described by the source is: \boxed{ Fprop\rightarrow E4M3 } \boxed{ Dgrad, Wgrad\rightarrow E5M2 } while DeepSeek&#x27;s described strategy is: \boxed{ Fprop, Dgrad, Wgrad\rightarrow E4M3 } because: \boxed{ \text{fine-grained quantization handles local dynamic range}. } (Source: Build a DeepSeek Model (From Scratch)) The essential chain is: \boxed{ \text{local scaling} \rightarrow \text{range becomes manageable} \rightarrow \text{use E4M3} \rightarrow \text{gain an extra mantissa bit} \rightarrow \text{preserve more precision}. } Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Do we still need the larger dynamic range of E5M2 if we have already solved the outlier problem using fine-grained quantization?; answer: This connects directly to Pillar 2. Recall: \boxed{ \text{Pillar 2: split values into small groups/blocks}. } Each region gets: \boxed{\text{its own scaling factor}}. Therefore the dynamic range inside one local block is much easier to manage. 5.49.4.9 Why fine-grained scaling changes the E4M3 decision Suppose one global tensor contains: [0.1,\;0.2,\;0.3,\;1000]. The global maximum: \alpha=1000. That is a terrible situation for a narrow-range format. But now divide the values into groups: G_1=[0.1,0.2,0.3] and: G_2=[1000]. Then: \alpha_1=0.3 and: \alpha_2=1000. Each group is scaled independently. Therefore the small group does not need to accommodate the 1000 outlier. So: \boxed{ \text{local scaling reduces the dynamic-range burden}. } This is precisely the mechanism the source uses to justify E4M3. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.10 DeepSeek&#x27;s choice The source says DeepSeek therefore uses: \boxed{ E4M3 } uniformly for: \boxed{ \text{both forward and backward operations}. } This includes: \boxed{ Fprop,\ Dgrad,\ Wgrad. } The source calls this a powerful simplification made possible by fine-grained quantization. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.11 Why is E4M3 called “higher precision”? Because: E4M3 has: 3\text{ mantissa bits} while: E5M2 has: 2. Thus: \boxed{ \text{E4M3 allocates one more bit to the mantissa}. } The source interprets this as better precision. (Source: Build a DeepSeek Model (; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: Why not use E5M2 everywhere?; answer: Because: E5M2 sacrifices a mantissa bit to gain exponent range. If fine-grained quantization already controls local dynamic range, the source argues that the additional range is less necessary, while the extra mantissa bit provides more useful precision. Therefore: \boxed{ E4M3 } is preferred. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.27 Exam question Why not use E4M3 everywhere without fine-grained quantization? Because its smaller exponent allocation means less dynamic range. If a large outlier determines the scale of an entire tensor, the limited range/precision can cause severe numerical problems. So: \boxed{ E4M3\text{ and fine-grained scaling work together}. } The source explicitly presents the E4M3 choice as enabled by the earlier fine-grained approach. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.28 Four pillars now interact Let&#x27;s put them together: \boxed{ \text{Pillar 1} = \text{Mixed Precision} } decides: \text{FP8 is used for bulk GEMMs}. \boxed{ \text{Pillar 2} = \text{Fine-Grained Scaling} } decides: \text{each local region gets its own scale}. \boxed{ \text{Pillar 3} = \text{Accumulation Promotion} } decides: \text{long sums are protected with FP32}. \boxed{ \text{Pillar 4} = \text{E4M3} } decides: \text{use the extra FP8 bit for precision rather than range}. 5.49.4.29 Numerical design question Suppose you can choose between two FP8 formats. Option A E5M2. Option B E4M3. You know the application already uses; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: Why not use E4M3 everywhere without fine-grained quantization?; answer: Because its smaller exponent allocation means less dynamic range. If a large outlier determines the scale of an entire tensor, the limited range/precision can cause severe numerical problems. So: \boxed{ E4M3\text{ and fine-grained scaling work together}. } The source explicitly presents the E4M3 choice as enabled by the earlier fine-grained approach. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.28 Four pillars now interact Let&#x27;s put them together: \boxed{ \text{Pillar 1} = \text{Mixed Precision} } decides: \text{FP8 is used for bulk GEMMs}. \boxed{ \text{Pillar 2} = \text{Fine-Grained Scaling} } decides: \text{each local region gets its own scale}. \boxed{ \text{Pillar 3} = \text{Accumulation Promotion} } decides: \text{long sums are protected with FP32}. \boxed{ \text{Pillar 4} = \text{E4M3} } decides: \text{use the extra FP8 bit for precision rather than range}. 5.49.4.29 Numerical design question Suppose you can choose between two FP8 formats. Option A E5M2. Option B E4M3. You know the application already uses strong local scaling, so local values are well controlled. Which format provides greater mantissa capacity? E4M3: \boxed{3\text{ mantissa bits}} versus: E5M2: \boxed{2}. Therefore: \boxed{E4M3}. This follows directly from the source&#x27;s stated design rationale. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.30 Numerical question: percentage of FP8 bits For E4M3: Mantissa fraction of all 8 bits: \frac38 = \boxed{37.5\%; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: Which format provides greater mantissa capacity?; answer: E4M3: \boxed{3\text{ mantissa bits}} versus: E5M2: \boxed{2}. Therefore: \boxed{E4M3}. This follows directly from the source&#x27;s stated design rationale. (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.30 Numerical question: percentage of FP8 bits For E4M3: Mantissa fraction of all 8 bits: \frac38 = \boxed{37.5\%}. Exponent fraction: \frac48 = \boxed{50\%}. Sign: \frac18 = \boxed{12.5\%}. For E5M2: Mantissa: \frac28 = \boxed{25\%}. Exponent: \frac58 = \boxed{62.5\%}. So E4M3 allocates: \boxed{12.5\text{ percentage points more of the total format to mantissa}} and E5M2 allocates that bit to exponent. 5.49.4.31 Important exam trap Do not say: \boxed{ E4M3\text{ has greater dynamic range than E5M2}. } Wrong. The source explicitly says: \boxed{ E5M2&gt;\text{dynamic range} } and: \boxed{ E4M3&gt;\text{precision}. } (Source: Build a DeepSeek Model (From Scratch)) 5.49.4.32 Another exam trap Do not say: \boxed{ \text{E5M2 is more precise}. } For the source&#x27;s comparison: \boxed{ E4M3 } has more mantissa bits and therefore higher precision. 5.49.4.33 The deeper systems insight Pillar 4 is not an isolated choice. It is an example of a broader engineering pattern: \boxed{ \text{solve the range problem elsewhere} \rightarrow \text{free the representation budget for precision}. } DeepSeek does exactly this: \boxed{ \text{Fine-grained scaling} \rightarrow \text{local range control} } then: \boxed{ \text{E4M3} \rightarrow \text{more precision}. } This; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: \text{When should we calculate }\alpha?; answer: } Should we use: \text{yesterday&#x27;s statistics} or: \boxed{ \text{the current tensor itself}? } DeepSeek&#x27;s answer is: \boxed{\text{Online Quantization}}. The source describes this as calculating the scaling factor from the current tensor/batch rather than relying on historical maxima. (Source: Build a DeepSeek Model (From Scratch)) Step 5.49.4 checkpoint You should now know: \boxed{ E5M2=5E+2M } \boxed{ E4M3=4E+3M } and: \boxed{ E5M2\rightarrow\text{more dynamic range} } \boxed{ E4M3\rightarrow\text{more precision} } The conventional training strategy described by the source is: \boxed{ Fprop\rightarrow E4M3 } \boxed{ Dgrad, Wgrad\rightarrow E5M2 } while DeepSeek&#x27;s described strategy is: \boxed{ Fprop, Dgrad, Wgrad\rightarrow E4M3 } because: \boxed{ \text{fine-grained quantization handles local dynamic range}. } (Source: Build a DeepSeek Model (From Scratch)) The essential chain is: \boxed{ \text{local scaling} \rightarrow \text{range becomes manageable} \rightarrow \text{use E4M3} \rightarrow \text{gain an extra mantissa bit} \rightarrow \text{preserve more precision}. }; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: \text{the current tensor itself}?; answer: } DeepSeek&#x27;s answer is: \boxed{\text{Online Quantization}}. The source describes this as calculating the scaling factor from the current tensor/batch rather than relying on historical maxima. (Source: Build a DeepSeek Model (From Scratch)) Step 5.49.4 checkpoint You should now know: \boxed{ E5M2=5E+2M } \boxed{ E4M3=4E+3M } and: \boxed{ E5M2\rightarrow\text{more dynamic range} } \boxed{ E4M3\rightarrow\text{more precision} } The conventional training strategy described by the source is: \boxed{ Fprop\rightarrow E4M3 } \boxed{ Dgrad, Wgrad\rightarrow E5M2 } while DeepSeek&#x27;s described strategy is: \boxed{ Fprop, Dgrad, Wgrad\rightarrow E4M3 } because: \boxed{ \text{fine-grained quantization handles local dynamic range}. } (Source: Build a DeepSeek Model (From Scratch)) The essential chain is: \boxed{ \text{local scaling} \rightarrow \text{range becomes manageable} \rightarrow \text{use E4M3} \rightarrow \text{gain an extra mantissa bit} \rightarrow \text{preserve more precision}. }; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-4-i99-11">Edge cases and remaining gaps</h4><ul><li>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-12">Connections and progression</h4><ul><li>Local amax scales → range control → E4M3 significand precision</li><li>Group GEMMs → dequantization within reduction → safe accumulation</li><li>High-precision learning state → refreshed low-precision compute copies → communication/storage budget</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 313, 314 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · FP8 operand GEMMs; local tiles; 128-element promotion; BF16 moments versus FP32 master/grad. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S3.SS3</li><li>NVIDIA Transformer Engine FP8 Current Scaling documentation · E4M3 maximum 448 and E5M2 maximum 57344; cast-to-nearest-even; scale conventions. Read 2026-10-07. · https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html</li></ul><h4 id="v3-heading-chunk-les-step-5-49-4-i99-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (53)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.49.4 — Pillar 4: Mantissa Over Exponents</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.1 First: decode the notation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.4.2 The fundamental trade-off</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E5M2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E4M3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.3 Why does one extra exponent bit matter?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.4 What does the extra mantissa bit give us?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>M2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>M3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.5 Simple ruler analogy</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E5M2-like ruler</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E4M3-like ruler</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.6 Why would anyone prefer E5M2 for gradients?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.7 The conventional approach</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.8 Then DeepSeek asks a different question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.9 Why fine-grained scaling changes the E4M3 decision</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.10 DeepSeek&#x27;s choice</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.11 Why is E4M3 called “higher precision”?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.12 What is lost?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.13 This is the most important connection in the FP8 chapter</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.14 A numerical bit-allocation question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E5M2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E4M3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.15 Compare the fields</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.16 Exam numerical — field pattern count</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E5M2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>E4M3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.17 Why one extra mantissa bit matters</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.18 Why this matters during training</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.4.19 Why gradients create the tension</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.20 Let&#x27;s connect it numerically to Pillar 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.21 A conceptual inequality</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.22 Why “mantissa over exponents”?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.23 One-bit transfer</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.24 Why can this be better for a neural network?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.25 Source-specific claim</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr><tr><td>5.49.4.26 Exam question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Why not use E5M2 everywhere?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.27 Exam question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Why not use E4M3 everywhere without fine-grained quantization?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.28 Four pillars now interact</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.29 Numerical design question</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Option A</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Option B</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.30 Numerical question: percentage of FP8 bits</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.31 Important exam trap</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.32 Another exam trap</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.33 The deeper systems insight</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.34 Full FP8 architecture after Pillar 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.4.35 What remains?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Step 5.49.4 checkpoint</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-4-i99"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-4-i99" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-3-i98">← Previous lesson</a> · <a href="#chunk-les-step-5-49-5-i101">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-3-i98">Step 5.49.3 — Pillar 3: Increasing Accumulation Precision</a></p><p><strong>This lesson:</strong> Step 5.49.4 — Pillar 4: Mantissa Over Exponents</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-4-i99"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-4-i99-15">Step 5.49.4 — Pillar 4: Mantissa Over Exponents</h3>
+<p><em>Plan node: A4 · chat order #99</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We now reach the fourth pillar of DeepSeek's FP8 framework:</p>
+<div class="math block">
+\boxed{\text{Mantissa over Exponents}}
+</div>
+<p>This pillar looks like a simple choice between:</p>
+<div class="math block">
+\boxed{E4M3}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{E5M2},
+</div>
+<p>but it is actually where the previous pillars come together.</p>
+<p>The source's key argument is:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained quantization handles dynamic range locally}
+}
+</div>
+<p>so DeepSeek can prefer the FP8 format with:</p>
+<div class="math block">
+\boxed{\text{more mantissa bits}}
+</div>
+<p>rather than sacrificing precision for additional exponent bits. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-16">5.49.4.1 First: decode the notation</h4>
+<p>The notation:</p>
+<div class="math block">
+\boxed{E4M3}
+</div>
+<p>means:</p>
+<ul>
+<li><span class="math inline">E4</span>: 4 exponent bits,</li>
+<li><span class="math inline">M3</span>: 3 mantissa bits.</li>
+</ul>
+<p>Because FP8 has 8 total bits:</p>
+<div class="math block">
+1\text{ sign}+4\text{ exponent}+3\text{ mantissa}
+=
+\boxed{8}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{E5M2}
+</div>
+<p>means:</p>
+<div class="math block">
+1+5+2
+=
+\boxed{8}.
+</div>
+<p>The source explicitly gives these two configurations. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-17">5.49.4.2 The fundamental trade-off</h4>
+<p>Recall:</p>
+<div class="math block">
+\boxed{
+\text{Exponent}\rightarrow\text{dynamic range}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Mantissa}\rightarrow\text{precision}.
+}
+</div>
+<p>Therefore:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-18">E5M2</h6>
+<div class="math block">
+5\text{ exponent bits}
+</div>
+<div class="math block">
+2\text{ mantissa bits}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{more range}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{less precision}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-19">E4M3</h6>
+<div class="math block">
+4\text{ exponent bits}
+</div>
+<div class="math block">
+3\text{ mantissa bits}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{less range}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{more precision}.
+}
+</div>
+<p>This is exactly the trade-off given by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-20">5.49.4.3 Why does one extra exponent bit matter?</h4>
+<p>Suppose a format has <span class="math inline">E</span> exponent bits.</p>
+<p>There are:</p>
+<div class="math block">
+\boxed{2^E}
+</div>
+<p>possible bit patterns for the exponent field.</p>
+<p>So:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-21">E4</h6>
+<div class="math block">
+2^4=16
+</div>
+<p>possible exponent encodings.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-22">E5</h6>
+<div class="math block">
+2^5=32
+</div>
+<p>possible exponent encodings.</p>
+<p>Thus E5 gives twice as many exponent encodings as E4.</p>
+<p>This is a mathematical consequence of the bit allocation. The source's point is that this gives E5M2 a wider dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-23">5.49.4.4 What does the extra mantissa bit give us?</h4>
+<p>Similarly:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-24">M2</h6>
+<div class="math block">
+2^2=4
+</div>
+<p>possible mantissa bit patterns.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-25">M3</h6>
+<div class="math block">
+2^3=8.
+</div>
+<p>So E4M3 has twice as many mantissa patterns as E5M2.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+M3\Rightarrow\text{finer representation within a local scale}.
+}
+</div>
+<p>That is why E4M3 has higher precision according to the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Be careful: these counts are the raw number of bit patterns in the mantissa field, not the total number of floating-point values, because floating-point encodings also involve sign, exponent conventions, special values, and normalization.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-26">5.49.4.5 Simple ruler analogy</h4>
+<p>Imagine two rulers that both have the same overall physical length.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-27">E5M2-like ruler</h6>
+<p>More flexibility to represent very large/small magnitudes, but fewer fine subdivisions.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-28">E4M3-like ruler</h6>
+<p>More fine subdivisions, but a smaller total numerical range.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+E5M2=\text{range-oriented}
+}
+</div>
+<div class="math block">
+\boxed{
+E4M3=\text{precision-oriented}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-29">5.49.4.6 Why would anyone prefer E5M2 for gradients?</h4>
+<p>Now think about training.</p>
+<p>Gradients can sometimes contain:</p>
+<div class="math block">
+\boxed{\text{large outliers}}.
+</div>
+<p>Suppose a gradient tensor contains:</p>
+<div class="math block">
+[0.002,\;0.004,\;0.01,\;100].
+</div>
+<p>A format with greater dynamic range is attractive because:</p>
+<div class="math block">
+100
+</div>
+<p>is much larger than:</p>
+<div class="math block">
+0.002.
+</div>
+<p>The source describes the conventional strategy as:</p>
+<div class="math block">
+\boxed{
+E4M3\text{ for forward propagation}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E5M2\text{ for backward propagation}.
+}
+</div>
+<p>The reasoning is that gradients can have larger values/outliers and therefore need greater dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-30">5.49.4.7 The conventional approach</h4>
+<p>Conceptually:</p>
+<pre><code class="language-text">Forward:
+BF16/FP8 E4M3
+        │
+        ▼
+ more precision
+
+Backward:
+FP8 E5M2
+        │
+        ▼
+ more dynamic range
+</code></pre>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+Fprop\rightarrow E4M3
+}
+</div>
+<div class="math block">
+\boxed{
+Dgrad,Wgrad\rightarrow E5M2
+}
+</div>
+<p>under the conventional strategy described by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-31">5.49.4.8 Then DeepSeek asks a different question</h4>
+<p>The source's argument is essentially:</p>
+<blockquote>
+<p>Do we still need the larger dynamic range of E5M2 if we have already solved the outlier problem using fine-grained quantization?</p>
+</blockquote>
+<p>This connects directly to Pillar 2.</p>
+<p>Recall:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 2: split values into small groups/blocks}.
+}
+</div>
+<p>Each region gets:</p>
+<div class="math block">
+\boxed{\text{its own scaling factor}}.
+</div>
+<p>Therefore the dynamic range inside one local block is much easier to manage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-32">5.49.4.9 Why fine-grained scaling changes the E4M3 decision</h4>
+<p>Suppose one global tensor contains:</p>
+<div class="math block">
+[0.1,\;0.2,\;0.3,\;1000].
+</div>
+<p>The global maximum:</p>
+<div class="math block">
+\alpha=1000.
+</div>
+<p>That is a terrible situation for a narrow-range format.</p>
+<p>But now divide the values into groups:</p>
+<div class="math block">
+G_1=[0.1,0.2,0.3]
+</div>
+<p>and:</p>
+<div class="math block">
+G_2=[1000].
+</div>
+<p>Then:</p>
+<div class="math block">
+\alpha_1=0.3
+</div>
+<p>and:</p>
+<div class="math block">
+\alpha_2=1000.
+</div>
+<p>Each group is scaled independently.</p>
+<p>Therefore the small group does not need to accommodate the 1000 outlier.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{local scaling reduces the dynamic-range burden}.
+}
+</div>
+<p>This is precisely the mechanism the source uses to justify E4M3. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-33">5.49.4.10 DeepSeek's choice</h4>
+<p>The source says DeepSeek therefore uses:</p>
+<div class="math block">
+\boxed{
+E4M3
+}
+</div>
+<p>uniformly for:</p>
+<div class="math block">
+\boxed{
+\text{both forward and backward operations}.
+}
+</div>
+<p>This includes:</p>
+<div class="math block">
+\boxed{
+Fprop,\ Dgrad,\ Wgrad.
+}
+</div>
+<p>The source calls this a powerful simplification made possible by fine-grained quantization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-34">5.49.4.11 Why is E4M3 called “higher precision”?</h4>
+<p>Because:</p>
+<div class="math block">
+E4M3
+</div>
+<p>has:</p>
+<div class="math block">
+3\text{ mantissa bits}
+</div>
+<p>while:</p>
+<div class="math block">
+E5M2
+</div>
+<p>has:</p>
+<div class="math block">
+2.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{E4M3 allocates one more bit to the mantissa}.
+}
+</div>
+<p>The source interprets this as better precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-35">5.49.4.12 What is lost?</h4>
+<p>One exponent bit.</p>
+<p>Therefore:</p>
+<div class="math block">
+5\text{ exponent bits}
+\rightarrow
+4\text{ exponent bits}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{less dynamic range}.
+}
+</div>
+<p>DeepSeek accepts this because Pillar 2 helps control local dynamic range.</p>
+<p>So the relationship is:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained scaling}
+\Rightarrow
+\text{less need for global range}
+}
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+\text{more mantissa bits can be prioritized}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-36">5.49.4.13 This is the most important connection in the FP8 chapter</h4>
+<p>The four pillars now form a chain:</p>
+<div class="math block">
+\boxed{
+\text{Mixed Precision}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Use FP8 where it is worthwhile.</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Fine-Grained Quantization}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Don't let an outlier destroy everybody else's scale.</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Increasing Accumulation Precision}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Don't lose information while adding huge numbers of low-precision products.</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Mantissa over Exponents}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Because local scaling controls range, use the extra bit for precision.</p>
+</blockquote>
+<p>This is why the source calls these innovations <strong>synergistic</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-37">5.49.4.14 A numerical bit-allocation question</h4>
+<p>Suppose you have an FP8 format.</p>
+<p>Total bits:</p>
+<div class="math block">
+8.
+</div>
+<p>One is sign:</p>
+<div class="math block">
+1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+8-1=7
+</div>
+<p>bits remain for:</p>
+<div class="math block">
+\text{exponent + mantissa}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-38">E5M2</h6>
+<div class="math block">
+5+2=7.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-39">E4M3</h6>
+<div class="math block">
+4+3=7.
+</div>
+<p>So both use exactly:</p>
+<div class="math block">
+\boxed{8\text{ bits}}.
+</div>
+<p>They simply distribute the same 7 non-sign bits differently.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-40">5.49.4.15 Compare the fields</h4>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th style="text-align:right">Sign</th>
+<th style="text-align:right">Exponent</th>
+<th style="text-align:right">Mantissa</th>
+<th>Primary emphasis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E5M2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">2</td>
+<td>Dynamic range</td>
+</tr>
+<tr>
+<td>E4M3</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">3</td>
+<td>Precision</td>
+</tr>
+</tbody>
+</table>
+<p>This is exactly the source's conceptual comparison. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-41">5.49.4.16 Exam numerical — field pattern count</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-42">E5M2</h6>
+<p>Exponent field:</p>
+<div class="math block">
+2^5=32
+</div>
+<p>bit patterns.</p>
+<p>Mantissa field:</p>
+<div class="math block">
+2^2=4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-43">E4M3</h6>
+<p>Exponent:</p>
+<div class="math block">
+2^4=16.
+</div>
+<p>Mantissa:</p>
+<div class="math block">
+2^3=8.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+E5M2: 32\text{ exponent patterns},4\text{ mantissa patterns}
+}
+</div>
+<div class="math block">
+\boxed{
+E4M3:16\text{ exponent patterns},8\text{ mantissa patterns}.
+}
+</div>
+<p>The actual representable numerical range requires the precise FP8 encoding convention; the source does not provide those encoding details, so we should not invent exact min/max numbers here.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-44">5.49.4.17 Why one extra mantissa bit matters</h4>
+<p>Suppose two nearby values need to be distinguished.</p>
+<p>Imagine the ideal values:</p>
+<div class="math block">
+1.000
+</div>
+<p>and:</p>
+<div class="math block">
+1.125.
+</div>
+<p>A format with more mantissa precision has more representational granularity around that scale.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{more mantissa bits}\rightarrow\text{smaller gaps between nearby values}
+}
+</div>
+<p>within a given exponent scale.</p>
+<p>This is what the source means by higher precision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-45">5.49.4.18 Why this matters during training</h4>
+<p>Suppose a weight update requires a small difference:</p>
+<div class="math block">
+W_{\text{new}}
+=
+W_{\text{old}}-\Delta.
+</div>
+<p>If the numerical format is too coarse, small distinctions in:</p>
+<div class="math block">
+\Delta
+</div>
+<p>may be lost.</p>
+<p>Therefore more mantissa bits can help preserve fine-grained numerical information.</p>
+<p>This is general floating-point reasoning; the source specifically argues that the extra mantissa bit of E4M3 is desirable after fine-grained scaling has controlled dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-46">5.49.4.19 Why gradients create the tension</h4>
+<p>The backward pass involves:</p>
+<div class="math block">
+\frac{\partial L}{\partial X}
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}.
+</div>
+<p>Gradients can contain unusually large values.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+\text{more exponent bits can protect against overflow}.
+}
+</div>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{more mantissa bits improve precision}.
+}
+</div>
+<p>The conventional solution is therefore:</p>
+<div class="math block">
+Fprop:E4M3
+</div>
+<div class="math block">
+Backward:E5M2.
+</div>
+<p>DeepSeek instead uses fine-grained quantization to mitigate the outlier/range problem and then chooses:</p>
+<div class="math block">
+\boxed{
+E4M3\text{ throughout}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-47">5.49.4.20 Let's connect it numerically to Pillar 2</h4>
+<p>Suppose a tensor has:</p>
+<div class="math block">
+1000
+</div>
+<p>as a huge outlier.</p>
+<p>Global scaling requires a range capable of handling:</p>
+<div class="math block">
+[-1000,1000].
+</div>
+<p>Suppose another local group ranges only:</p>
+<div class="math block">
+[-0.5,0.5].
+</div>
+<p>With separate scaling:</p>
+<div class="math block">
+\boxed{
+G_1\rightarrow[-1000,1000]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+G_2\rightarrow[-0.5,0.5].
+}
+</div>
+<p>The low-magnitude group no longer has to share the same scale.</p>
+<p>Therefore the effective local dynamic range is far smaller.</p>
+<p>This is why E4M3's reduced global range can be made workable by fine-grained scaling.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-48">5.49.4.21 A conceptual inequality</h4>
+<p>Suppose:</p>
+<div class="math block">
+R_{\text{global}}
+=
+\frac{x_{\max}}{x_{\min}}
+</div>
+<p>is enormous.</p>
+<p>After grouping, we get:</p>
+<div class="math block">
+R_g
+=
+\frac{x_{\max,g}}{x_{\min,g}}
+</div>
+<p>for each local group.</p>
+<p>Typically:</p>
+<div class="math block">
+\boxed{
+R_g\ll R_{\text{global}}
+}
+</div>
+<p>for many groups containing no extreme outlier.</p>
+<p>That is the underlying reason local scaling reduces the burden on the floating-point format.</p>
+<p>This is an inference from the source's grouping argument.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-49">5.49.4.22 Why “mantissa over exponents”?</h4>
+<p>It does <strong>not</strong> mean:</p>
+<div class="math block">
+\boxed{
+\text{ignore exponents}.
+}
+</div>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{within the 8-bit budget, prioritize precision once range is adequately controlled}.
+}
+</div>
+<p>So the allocation becomes:</p>
+<div class="math block">
+4E+3M
+</div>
+<p>instead of:</p>
+<div class="math block">
+5E+2M.
+</div>
+<p>That single bit is moved:</p>
+<div class="math block">
+\boxed{
+E\rightarrow M.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-50">5.49.4.23 One-bit transfer</h4>
+<p>Starting with:</p>
+<div class="math block">
+E5M2.
+</div>
+<p>Move one bit from exponent to mantissa:</p>
+<div class="math block">
+5E2M
+\rightarrow
+4E3M.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\Delta E=-1
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\Delta M=+1.
+}
+</div>
+<p>Total remains:</p>
+<div class="math block">
+\boxed8.
+</div>
+<p>This is the mathematical essence of the design choice.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-51">5.49.4.24 Why can this be better for a neural network?</h4>
+<p>Because neural-network training needs more than merely avoiding overflow.</p>
+<p>It also needs to preserve small numerical differences.</p>
+<p>So if range is sufficiently controlled:</p>
+<div class="math block">
+\boxed{
+\text{precision becomes the more valuable resource}.
+}
+</div>
+<p>The source explicitly frames DeepSeek's E4M3 choice as preserving higher precision throughout training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-52">5.49.4.25 Source-specific claim</h4>
+<p>The source says the DeepSeek paper explains the benefit of smaller element groups as effectively sharing exponent information among grouped elements, thereby mitigating the limited dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Global scaling
+
+small value ────────────────┐
+small value ────────────────┤
+small value ────────────────┤──► same global scale
+HUGE outlier ───────────────┘
+
+
+Fine-grained scaling
+
+small values ──► Group A ──► Scale A
+small values ──► Group B ──► Scale B
+HUGE outlier ──► Group C ──► Scale C
+</code></pre>
+<p>Thus the huge value in Group C doesn't determine the scale of Groups A and B.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-53">5.49.4.26 Exam question</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-54">Why not use E5M2 everywhere?</h6>
+<p>Because:</p>
+<div class="math block">
+E5M2
+</div>
+<p>sacrifices a mantissa bit to gain exponent range.</p>
+<p>If fine-grained quantization already controls local dynamic range, the source argues that the additional range is less necessary, while the extra mantissa bit provides more useful precision.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+E4M3
+}
+</div>
+<p>is preferred.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-55">5.49.4.27 Exam question</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-56">Why not use E4M3 everywhere without fine-grained quantization?</h6>
+<p>Because its smaller exponent allocation means less dynamic range.</p>
+<p>If a large outlier determines the scale of an entire tensor, the limited range/precision can cause severe numerical problems.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+E4M3\text{ and fine-grained scaling work together}.
+}
+</div>
+<p>The source explicitly presents the E4M3 choice as enabled by the earlier fine-grained approach. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-57">5.49.4.28 Four pillars now interact</h4>
+<p>Let's put them together:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 1}
+=
+\text{Mixed Precision}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\text{FP8 is used for bulk GEMMs}.
+</div>
+<div class="math block">
+\boxed{
+\text{Pillar 2}
+=
+\text{Fine-Grained Scaling}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\text{each local region gets its own scale}.
+</div>
+<div class="math block">
+\boxed{
+\text{Pillar 3}
+=
+\text{Accumulation Promotion}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\text{long sums are protected with FP32}.
+</div>
+<div class="math block">
+\boxed{
+\text{Pillar 4}
+=
+\text{E4M3}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\text{use the extra FP8 bit for precision rather than range}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-58">5.49.4.29 Numerical design question</h4>
+<p>Suppose you can choose between two FP8 formats.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-59">Option A</h6>
+<div class="math block">
+E5M2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-4-i99-60">Option B</h6>
+<div class="math block">
+E4M3.
+</div>
+<p>You know the application already uses strong local scaling, so local values are well controlled.</p>
+<p>Which format provides greater mantissa capacity?</p>
+<div class="math block">
+E4M3:
+\boxed{3\text{ mantissa bits}}
+</div>
+<p>versus:</p>
+<div class="math block">
+E5M2:
+\boxed{2}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{E4M3}.
+</div>
+<p>This follows directly from the source's stated design rationale. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-61">5.49.4.30 Numerical question: percentage of FP8 bits</h4>
+<p>For E4M3:</p>
+<p>Mantissa fraction of all 8 bits:</p>
+<div class="math block">
+\frac38
+=
+\boxed{37.5\%}.
+</div>
+<p>Exponent fraction:</p>
+<div class="math block">
+\frac48
+=
+\boxed{50\%}.
+</div>
+<p>Sign:</p>
+<div class="math block">
+\frac18
+=
+\boxed{12.5\%}.
+</div>
+<p>For E5M2:</p>
+<p>Mantissa:</p>
+<div class="math block">
+\frac28
+=
+\boxed{25\%}.
+</div>
+<p>Exponent:</p>
+<div class="math block">
+\frac58
+=
+\boxed{62.5\%}.
+</div>
+<p>So E4M3 allocates:</p>
+<div class="math block">
+\boxed{12.5\text{ percentage points more of the total format to mantissa}}
+</div>
+<p>and E5M2 allocates that bit to exponent.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-62">5.49.4.31 Important exam trap</h4>
+<p>Do not say:</p>
+<div class="math block">
+\boxed{
+E4M3\text{ has greater dynamic range than E5M2}.
+}
+</div>
+<p>Wrong.</p>
+<p>The source explicitly says:</p>
+<div class="math block">
+\boxed{
+E5M2&gt;\text{dynamic range}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E4M3&gt;\text{precision}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-63">5.49.4.32 Another exam trap</h4>
+<p>Do not say:</p>
+<div class="math block">
+\boxed{
+\text{E5M2 is more precise}.
+}
+</div>
+<p>For the source's comparison:</p>
+<div class="math block">
+\boxed{
+E4M3
+}
+</div>
+<p>has more mantissa bits and therefore higher precision.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-64">5.49.4.33 The deeper systems insight</h4>
+<p>Pillar 4 is not an isolated choice.</p>
+<p>It is an example of a broader engineering pattern:</p>
+<div class="math block">
+\boxed{
+\text{solve the range problem elsewhere}
+\rightarrow
+\text{free the representation budget for precision}.
+}
+</div>
+<p>DeepSeek does exactly this:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained scaling}
+\rightarrow
+\text{local range control}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{E4M3}
+\rightarrow
+\text{more precision}.
+}
+</div>
+<p>This is why the source says the FP8 techniques work <strong>synergistically</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-65">5.49.4.34 Full FP8 architecture after Pillar 4</h4>
+<pre><code class="language-text">              High-precision values
+                      │
+                      ▼
+             ┌─────────────────┐
+             │ Pillar 1        │
+             │ Mixed Precision │
+             └────────┬────────┘
+                      │
+                      ▼
+                     FP8
+                      │
+             ┌────────┴────────┐
+             │                 │
+        Activation          Weight
+        groups=128        blocks=128×128
+             │                 │
+             ▼                 ▼
+         local scales      local scales
+             │                 │
+             └────────┬────────┘
+                      ▼
+              Pillar 2
+          Fine-Grained Scaling
+                      │
+                      ▼
+                 E4M3 FP8
+                      │
+                      ▼
+                Tensor Core
+                      │
+                      ▼
+             low-precision partial
+                    sums
+                      │
+                      ▼
+                Pillar 3
+             FP32 promotion
+                      │
+                      ▼
+                FP32 accumulation
+                      │
+                      ▼
+             stable high-precision
+                   result
+</code></pre>
+<p>This is the cumulative architecture implied by the source's first four pillars. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-66">5.49.4.35 What remains?</h4>
+<p>There is one final FP8 pillar:</p>
+<div class="math block">
+\boxed{\text{Pillar 5 — Online Quantization}}.
+</div>
+<p>We already know <strong>how</strong> a scale is calculated:</p>
+<div class="math block">
+\alpha=\max|x|.
+</div>
+<p>But there is another question:</p>
+<div class="math block">
+\boxed{
+\text{When should we calculate }\alpha?
+}
+</div>
+<p>Should we use:</p>
+<div class="math block">
+\text{yesterday's statistics}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+\text{the current tensor itself}?
+}
+</div>
+<p>DeepSeek's answer is:</p>
+<div class="math block">
+\boxed{\text{Online Quantization}}.
+</div>
+<p>The source describes this as calculating the scaling factor from the current tensor/batch rather than relying on historical maxima. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-4-i99-67">Step 5.49.4 checkpoint</h4>
+<p>You should now know:</p>
+<div class="math block">
+\boxed{
+E5M2=5E+2M
+}
+</div>
+<div class="math block">
+\boxed{
+E4M3=4E+3M
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E5M2\rightarrow\text{more dynamic range}
+}
+</div>
+<div class="math block">
+\boxed{
+E4M3\rightarrow\text{more precision}
+}
+</div>
+<p>The conventional training strategy described by the source is:</p>
+<div class="math block">
+\boxed{
+Fprop\rightarrow E4M3
+}
+</div>
+<div class="math block">
+\boxed{
+Dgrad,Wgrad\rightarrow E5M2
+}
+</div>
+<p>while DeepSeek's described strategy is:</p>
+<div class="math block">
+\boxed{
+Fprop,Dgrad,Wgrad\rightarrow E4M3
+}
+</div>
+<p>because:</p>
+<div class="math block">
+\boxed{
+\text{fine-grained quantization handles local dynamic range}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The essential chain is:</p>
+<div class="math block">
+\boxed{
+\text{local scaling}
+\rightarrow
+\text{range becomes manageable}
+\rightarrow
+\text{use E4M3}
+\rightarrow
+\text{gain an extra mantissa bit}
+\rightarrow
+\text{preserve more precision}.
+}
+</div>
+<hr />
+</section>

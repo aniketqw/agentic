@@ -1,0 +1,1745 @@
+<section class="chunk" id="chunk-les-step-5-37-i78" data-id="les-step-5-37-i78"><details class="audit-card" id="audit-full-chunk-les-step-5-37-i78" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-37-i78-1">Motivation</h4><p>Prove latent attention score/output equality before adding positional encoding.</p><h4 id="v3-heading-chunk-les-step-5-37-i78-2">Prerequisites</h4><ul><li>Causal attention, stable row softmax andmatrix shapes</li><li>Row-versuscolumn convention; matrix associativity andtranspose identities</li><li>Bytes per element, batch, layer/head dimensions; RoPErotations</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-3">Notation and units</h4><ul><li>B=batch, L=layers, T=cached tokens, Hkv=KV heads, dh=head width, bc=bytes per cache element</li><li>Row convention: X[T, D], Wdown[D, dc], WUK[dc, dh], WUV[dc, dv]</li><li>MLA cache stores cKV[T, dc] and decoupled position key[T, dR]</li><li>For head h: Qh=XWQh, Kh=CWUKh, Vh=CWUVh; Ah=softmax(scores_h/sqrt(dcontent+dR))</li><li>WO is partitioned into head-specific rows for value/output absorption</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-4">Assumptions</h4><ul><li>Decoder-only causal inference with fixed weights, deterministic evaluation and consistent positions</li><li>No quantization, padding overhead, cache fragmentation, beam duplication orallocatorcost unless specified</li><li>Each attentionhead has its own softmax; equal absorption uses the same factorized weights</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-5">Step-by-step derivation</h4><ol><li>Content keys Kh=CWUKh; transpose gives KhT=WUKhTCT. Hence QhKhT=X(WQhWUKhT)CT. The product WQhWUKhT is fixed only while weights are fixed.</li><li>For one head, value output Ah(CWUVh)WOh=(AhC)(WUVhWOh). With multiple heads, compute head softmax separately and sum head contributions after their output maps. A concatenated QK dot product would sum heads prematurely and is not standard MHA.</li><li>The inherited toy X[[1,2,0],[0,1,1]] gives Q[[1,2],[1,2]], C[[1,2],[1,0]], K[[1,4],[1,2]], and both score paths[[9,5],[9,5]]. This example demonstrates associativity, not compression because its latent and content widths both2.</li><li>Apply causal softmax: row1[1,0]; row 2 softmax([9,5]/sqrt2). Calculate explicit V then output, and independently absorbed value/output path; incremental prefix cache matches full causal results.</li><li>With row vectors and rotation Rp, Qr=Q Rp and Kr=K Rj. Score Q Rp RjT KT includes relative-position operator between the projections; naive fixed query-key absorption cannot generally remove it.</li><li>Decouple content and position: score=(qc kcT+qr krT)/sqrt(dcontent+dR). Cache C plus rotated shared position key K_r^R; absorb only content UK. Rotation frequency, position offset and causal visibility must match cached/fullpaths.</li><li>Absorbed weight products can be assembled per head; an implementation can instead apply UK to the live query when precomputing the large combined matrix would increase weight memory. Algebraic availability does not mandate one storage/layout choice.</li></ol><h4 id="v3-heading-chunk-les-step-5-37-i78-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-37-i78-7">Inherited absorption trace</h5><p>Given: Exact toy X, WQ, WD, WUKlisted in Step5.37.14</p><ol><li>Compute Q=XWQ, C=XWD, K=CWUK.</li><li>Direct QKT=[[9,5],[9,5]].</li><li>Absorbed WQ W UK T=[[1,0],[2,1],[3,1]], Qabs=[[5,2],[5,2]].</li><li>Q abs C T=[[9,5],[9,5]].</li></ol><p>Answer: Both score matrices exactly[[9,5],[9,5]]</p><p>Verification: indic_mla_moe / mla.original_scores · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-37-i78-8">Value output and incremental cache</h5><p>Given: UV[[.5,-.25],[.75,1]], WO[[1,.2],[-.3,.7]]; same toy inputs</p><ol><li>Mask future positions before each row softmax.</li><li>Evaluate(AV)WO.</li><li>Compare(AC)(UVWO).</li><li>Repeat one position at a time using only past latent prefix.</li></ol><p>Answer: [[1.475, 1.625], [1.4247735027135473, 1.5301277273478116]]</p><p>Verification: indic_mla_moe / mla.cached_parity · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-37-i78-9">Content plus RoPE parity</h5><p>Given: contentwidth2; RoPEwidth2; illustrative rotation frequency.5</p><ol><li>Rotate query and position key at correct absolute index.</li><li>Add content and position dot products, scale bysqrt4.</li><li>Compare full visible prefix with latent-plusrotated-keycache.</li></ol><p>Answer: Bothvisible-score paths agree within1e−10</p><p>Verification: indic_mla_moe / mla.decoupled_cache_row1 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-37-i78-10">Corrections and source qualifications</h4><ul><li>heading: 5.37.11; text: The T×total-head-width notation is a one-head/flattened algebra illustration. Production MHA/MLA require separate QhKhT and softmax for each head; global concatenated QKT would sum head score contributions.</li><li>heading: 5.37.28; text: Use a consistent row convention: Qr=Q Rp and Kr=K Rj, so QrKrT=Q Rp RjT KT. Left-multiplying Rp into a row-oriented token matrix as written is not dimensionally consistent.</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-11">Mastery answers and retained exercise context</h4><ol><li>Does absorption approximate attention? No; it regroups linear maps inside a factorized architecture. The low rank architecture can still differ from arbitrary dense attention.</li><li>Why naive RoPE breaks fixed absorption? Relative position rotations remain between the query/key maps.</li><li>Can heads be concatenated before QK? No for ordinary MHA; each head must form and normalize its own score matrix.</li><li>What exactly is cached? Joint KV latent plus decoupled rotated position key, not an unqualified512-onlycache.</li><li>Inherited exercise 5.37.49 Exam-style matrix-shape question: Given: X\in\mathbb R^{8\times512} and: W_{D-KV}\in\mathbb R^{512\times64}, then: c_{KV}=XW_{D-KV} has shape: \boxed{8\times64}. If: W_{UK}\in\mathbb R^{64\times512}, then: K=c_{KV}W_{UK} has: (8\times64)(64\times512) = \boxed{8\times512}. The compression is therefore: 512\rightarrow64 for the cached latent representation before reconstruction.</li></ol><h4 id="v3-heading-chunk-les-step-5-37-i78-12">Edge cases and remaining gaps</h4><ul><li>Low-rank compression is an architectural restriction; algebraic absorption is exact within that architecture, not proof ofequality to arbitrary dense attention</li><li>Smaller persistent cache does not by itself measure latency, training memory or total model weight storage</li><li>No pretrained checkpoint or accelerator cache benchmark wasrun</li><li>The toyattention example is onehead; itshead-widthscaling must not be applied to a concatenated sum acrossheads.</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-13">Connections and progression</h4><ul><li>Connects to KV cache, GQA, RoPE, causal block integration and inference position offsets.</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 99, 100, 102, 105, 153, 154, 157, 161, 163, 165, 168, 169, 170 · Latent factorization, content/value absorption, RoPEin compatibility and576width</li><li>DeepSeek-V3 technicalreport§2.1.1 · Per-head content plus decoupled RoPE score and cache vectors · https://arxiv.org/html/2412.19437v2#S2.SS1.SSS1</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-15">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (66)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.37 — MLA Mathematical Derivation and the Absorption Trick</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.1 Start from ordinary attention</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.2 MLA&#x27;s latent representation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.3 Why introduce c_{KV}?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.4 The apparent problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.5 Substitute Q and K into attention</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.6 Apply the transpose rule</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.7 Now the magic appears</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.8 What exactly has been “absorbed”?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.9 Why is this useful for caching?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.10 This is the key sentence to understand</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.11 Full shape derivation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>The T×total-head-width notation is a one-head/flattened algebra illustration. Production MHA/MLA require separate QhKhT and softmax for each head; global concatenated QKT would sum head score contributions.</td></tr><tr><td>5.37.12 Check the absorbed matrix dimensions</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.13 Complete symbolic chain</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.14 Complete numerical example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.15 Step A — Compute Q</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.16 Step B — Compute latent c_{KV}</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.17 Step C — Reconstruct K</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.18 Step D — Ordinary attention scores</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.19 Now do it the MLA way</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.20 Step E — Absorbed query</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.21 Step F — Multiply by latent cache</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.22 Why this works</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.23 Now the Value side</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.24 Value-side absorption</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.25 So MLA has two important algebraic savings</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Score side</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Value/output side</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.26 Why the trick fails with standard RoPE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.27 Recall what absorption needs</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.28 Add RoPE naively</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Use a consistent row convention: Qr=Q Rp and Kr=K Rj, so QrKrT=Q Rp RjT KT. Left-multiplying Rp into a row-oriented token matrix as written is not dimensionally consistent.</td></tr><tr><td>5.37.29 Why can&#x27;t we precompute it?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.30 What happens if we simply rotate after decompression?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.31 The DeepSeek solution</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.32 Content Path</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.33 Position Path</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.34 Then combine the two scores</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.35 Why is this elegant?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Content path asks:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Position path asks:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.36 What gets cached now?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.37 Final decoupled cache formula</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.38 Actual DeepSeek-scale numbers</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.39 Numerical exam problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.40 One subtle point: 64× vs 57×</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Pure MLA simplified calculation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MLA + decoupled RoPE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.41 Why not cache Q?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.42 Full inference loop with decoupled MLA</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Content path</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Position path</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Combine</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.43 Why the position path does not destroy MLA efficiency</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.44 One complete conceptual diagram</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.45 The most important mathematical insight</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.46 The most important architectural insight</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.47 Exam-style numerical: cache reduction</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.48 Exam-style numerical: pure MLA</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.49 Exam-style matrix-shape question</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.37.50 Final checkpoint</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Why does MLA save memory?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why doesn&#x27;t MQA solve the problem completely?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>What is the absorption trick?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Why is decoupled RoPE needed?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.37.51 The complete architecture story</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Numerical bank carried forward</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-A06" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A06 — MLA content absorption: exact algebra and RoPE boundary</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Compute content attention from a compact latent cache without rebuilding all full keys/values.</p><p><strong>Prerequisites:</strong> <a href="#audit-A01">KV cache MHA, GQA and MQA accounting</a>, <a href="#audit-T16">RoPE rotations and relative position</a>, <a href="#audit-F02">Transpose versus reshape</a></p><h4 id="v3-heading-chunk-les-step-5-37-i78-16">Notation and assumptions</h4><p>One-head content-only fixture: Q:T×dh,C:S×dc,Uk:dc×dh,Uv:dc×dv. Positional contributions are excluded from this equality test.</p><h4 id="v3-heading-chunk-les-step-5-37-i78-17">Derivation and mechanism</h4><ol><li>Expanded keys are CUk, so Q(CUk)^T=(QUk^T)C^T.</li><li>After row softmax, expanded output A(CUv)=(AC)Uv.</li><li>Add positional score contributions separately using the actual decoupled-RoPE contract.</li></ol><div class="math block">Q(CU_K)^\top=(QU_K^\top)C^\top,\quad A(CU_V)=(AC)U_V</div><h4 id="v3-heading-chunk-les-step-5-37-i78-18">Worked example</h4><p>Q=[[1,2],[3,4]],C=[[1,0],[0,1],[2,1]],Uk=[[1,2],[3,4]],Uv=[[2,0],[0,3]]. Both score paths yield[[5,11,21],[11,25,47]]. Both value paths match under independently computed attention weights.</p><h4 id="v3-heading-chunk-les-step-5-37-i78-19">Limitations</h4><ul><li>A position-dependent rotation between projections cannot generally be absorbed into one position-independent matrix.</li><li>Content-only equivalence does not verify the full MLA cache layout or a production kernel.</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-20">Connections to later concepts</h4><ul><li>T16 proves relative rotation identities; the positional path prevents naive position-independent absorption of the entire score computation.</li></ul><h4 id="v3-heading-chunk-les-step-5-37-i78-21">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 105, 106, 107, 108, 154, 165, 166, 167, 168 · Chapter3 absorption and decoupled positional path</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-37-i78-22">Executed code and evidence</h4><p>Functions: mla_content. Passed checks: MLA-score-absorption, MLA-value-absorption, MLA-Numpy-score</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-37-i78"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-37-i78" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-36-i77">← Previous lesson</a> · <a href="#chunk-les-step-5-38-i79">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-36-i77">Step 5.36 — DeepSeek Architecture: From KV Cache to MLA</a></p><p><strong>This lesson:</strong> Step 5.37 — MLA Mathematical Derivation and the Absorption Trick</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-37-i78"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-37-i78-23">Step 5.37 — MLA Mathematical Derivation and the Absorption Trick</h3>
+<p><em>Plan node: A1 · chat order #78</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-8-i15">Step 1.8 — Multi-Head Attention (MHA)</a> · <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>Now we do the part that is easy to memorize incorrectly but extremely important to <strong>understand</strong>:</p>
+<div class="math block">
+\boxed{\text{Why does MLA actually allow us to cache only the compressed latent representation?}}
+</div>
+<p>The answer is the <strong>absorption trick</strong>.</p>
+<p>The source's central derivation is:</p>
+<div class="math block">
+\boxed{
+QK^\top
+\quad\longrightarrow\quad
+X(W_QW_{UK}^{\top})(XW_{D-KV})^\top
+}
+</div>
+<p>The reason this works is simply the <strong>associativity of matrix multiplication</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-24">5.37.1 Start from ordinary attention</h4>
+<p>We know standard attention begins with:</p>
+<div class="math block">
+\boxed{
+S=QK^\top
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+A=\operatorname{softmax}\left(\frac{S}{\sqrt{d_h}}\right)
+</div>
+<p>and:</p>
+<div class="math block">
+O=AV.
+</div>
+<p>So the question is:</p>
+<blockquote>
+<p>How can MLA change <span class="math inline">Q,K,V</span> without changing the basic attention calculation?</p>
+</blockquote>
+<p>The trick is to express <span class="math inline">K</span> and <span class="math inline">V</span> through a much smaller latent representation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-25">5.37.2 MLA's latent representation</h4>
+<p>Let the input representation be:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb R^{T\times d}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">T</span> = number of tokens,</li>
+<li><span class="math inline">d</span> = model hidden dimension.</li>
+</ul>
+<p>The source uses the following conceptual projections:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q
+}
+</div>
+<div class="math block">
+\boxed{
+c_{KV}=XW_{D-KV}
+}
+</div>
+<div class="math block">
+\boxed{
+K=c_{KV}W_{UK}
+}
+</div>
+<div class="math block">
+\boxed{
+V=c_{KV}W_{UV}.
+}
+</div>
+<p>This is the pure MLA content path described in the book. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-26">5.37.3 Why introduce <span class="math inline">c_{KV}</span>?</h4>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+d_{\text{latent}}\ll d_{\text{K/V representation}}
+}
+</div>
+<p>in the intended design.</p>
+<p>Instead of storing the full historical:</p>
+<div class="math block">
+K,V,
+</div>
+<p>we store:</p>
+<div class="math block">
+\boxed{c_{KV}}.
+</div>
+<p>So for a sequence of <span class="math inline">T</span> tokens:</p>
+<div class="math block">
+c_{KV}\in\mathbb R^{T\times d_{\text{latent}}}.
+</div>
+<p>That becomes the cache.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-27">5.37.4 The apparent problem</h4>
+<p>At first glance, we seem to have made inference more complicated.</p>
+<p>We now have:</p>
+<div class="math block">
+X
+\rightarrow
+c_{KV}
+\rightarrow
+K
+</div>
+<p>instead of simply:</p>
+<div class="math block">
+X\rightarrow K.
+</div>
+<p>Why should this be faster?</p>
+<p>Because the important question isn't:</p>
+<div class="math block">
+\boxed{\text{How many matrix multiplications are there?}}
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{\text{How much historical information must remain in memory?}}
+</div>
+<p>The latent cache can be dramatically smaller.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-28">5.37.5 Substitute <span class="math inline">Q</span> and <span class="math inline">K</span> into attention</h4>
+<p>Start with:</p>
+<div class="math block">
+S=QK^\top.
+</div>
+<p>Substitute:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>and:</p>
+<div class="math block">
+K=c_{KV}W_{UK}.
+</div>
+<p>Then:</p>
+<div class="math block">
+S
+=
+(XW_Q)(c_{KV}W_{UK})^\top.
+</div>
+<p>This is the point where the algebra begins.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-29">5.37.6 Apply the transpose rule</h4>
+<p>We use:</p>
+<div class="math block">
+\boxed{
+(AB)^\top=B^\top A^\top
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+(c_{KV}W_{UK})^\top
+=
+W_{UK}^\top c_{KV}^\top.
+</div>
+<p>So:</p>
+<div class="math block">
+S
+=
+XW_QW_{UK}^\top c_{KV}^\top.
+</div>
+<p>This is the source's core expanded expression. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-30">5.37.7 Now the magic appears</h4>
+<p>Look carefully:</p>
+<div class="math block">
+\boxed{
+S=
+X
+W_Q
+W_{UK}^{\top}
+c_{KV}^{\top}
+}
+</div>
+<p>There are four factors.</p>
+<p>Because matrix multiplication is associative:</p>
+<div class="math block">
+ABC=(AB)C=A(BC).
+</div>
+<p>We can regroup:</p>
+<div class="math block">
+S=
+X
+\underbrace{(W_QW_{UK}^{\top})}_{\text{fixed}}
+c_{KV}^{\top}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+S=
+XW_{QK}^{\text{abs}}c_{KV}^{\top}
+}
+</div>
+<p>where, conceptually:</p>
+<div class="math block">
+\boxed{
+W_{QK}^{\text{abs}}
+=
+W_QW_{UK}^{\top}.
+}
+</div>
+<p>This combined matrix can be precomputed because the model weights are fixed during inference. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-31">5.37.8 What exactly has been “absorbed”?</h4>
+<p>The Key up-projection:</p>
+<div class="math block">
+W_{UK}
+</div>
+<p>has effectively been absorbed into the query path.</p>
+<p>Instead of explicitly doing:</p>
+<div class="math block">
+Q
+\rightarrow
+K
+\rightarrow
+QK^\top,
+</div>
+<p>we can compute an <strong>absorbed query</strong>:</p>
+<div class="math block">
+\boxed{
+Q_{\text{abs}}
+=
+X(W_QW_{UK}^{\top})
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+S=Q_{\text{abs}}c_{KV}^{\top}.
+}
+</div>
+<p>That is the absorption trick described in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-32">5.37.9 Why is this useful for caching?</h4>
+<p>Because the historical information now appears only through:</p>
+<div class="math block">
+\boxed{
+c_{KV}^{\top}.
+}
+</div>
+<p>We no longer need the full historical:</p>
+<div class="math block">
+\boxed{
+K_{\text{history}}
+}
+</div>
+<p>to calculate the content-based attention score.</p>
+<p>We only need:</p>
+<div class="math block">
+\boxed{
+c_{KV,\text{history}}.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{latent cache is sufficient}
+}
+</div>
+<p>for this content-path score calculation.</p>
+<p>This is precisely the source's conclusion. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-33">5.37.10 This is the key sentence to understand</h4>
+<p>The historical Key information is <strong>not magically deleted</strong>.</p>
+<p>It is represented implicitly through:</p>
+<div class="math block">
+\boxed{
+c_{KV}
+}
+</div>
+<p>plus the learned projection:</p>
+<div class="math block">
+\boxed{
+W_{UK}.
+}
+</div>
+<p>The algebra allows us to move <span class="math inline">W_{UK}</span> to the query side, where it becomes a fixed matrix.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same mathematical score}
+}
+</div>
+<p>can be computed with:</p>
+<div class="math block">
+\boxed{
+\text{much smaller historical state}.
+}
+</div>
+<p>That is the essence of MLA.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-37-i78-0" data-full-review="added"><p>Correction: The T×total-head-width notation is a one-head/flattened algebra illustration. Production MHA/MLA require separate QhKhT and softmax for each head; global concatenated QKT would sum head score contributions.</p><p><a href="#audit-full-chunk-les-step-5-37-i78">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-37-i78-34">5.37.11 Full shape derivation</h4>
+<p>Let's assign dimensions.</p>
+<p>Let:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_h^{\text{total}}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q
+\in
+\mathbb R^{T\times d_h^{\text{total}}}.
+</div>
+<p>Now let:</p>
+<div class="math block">
+W_{D-KV}
+\in
+\mathbb R^{d\times d_{\text{latent}}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+c_{KV}=XW_{D-KV}
+\in
+\mathbb R^{T\times d_{\text{latent}}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_{UK}
+\in
+\mathbb R^{d_{\text{latent}}\times d_h^{\text{total}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+K=c_{KV}W_{UK}
+</div>
+<p>has:</p>
+<div class="math block">
+(T\times d_{\text{latent}})
+(d_{\text{latent}}\times d_h^{\text{total}})
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+K\in\mathbb R^{T\times d_h^{\text{total}}}.
+}
+</div>
+<p>Exactly as required.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-35">5.37.12 Check the absorbed matrix dimensions</h4>
+<p>We have:</p>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_h}
+</div>
+<p>and:</p>
+<div class="math block">
+W_{UK}^\top
+\in
+\mathbb R^{d_h\times d_{\text{latent}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_QW_{UK}^\top
+\in
+\mathbb R^{d\times d_{\text{latent}}}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+X
+(W_QW_{UK}^\top)
+</div>
+<p>has:</p>
+<div class="math block">
+(T\times d)
+(d\times d_{\text{latent}})
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+Q_{\text{abs}}
+\in
+\mathbb R^{T\times d_{\text{latent}}}.
+}
+</div>
+<p>Now:</p>
+<div class="math block">
+Q_{\text{abs}}c_{KV}^\top
+</div>
+<p>has:</p>
+<div class="math block">
+(T\times d_{\text{latent}})
+(d_{\text{latent}}\times T)
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+S\in\mathbb R^{T\times T}.
+}
+</div>
+<p>Exactly the same attention-score shape as ordinary attention.</p>
+<p>This is the tensor-shape heart of the trick.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-36">5.37.13 Complete symbolic chain</h4>
+<p>The ordinary route is:</p>
+<div class="math block">
+X
+\rightarrow
+Q
+</div>
+<div class="math block">
+X
+\rightarrow
+K
+</div>
+<div class="math block">
+QK^\top.
+</div>
+<p>MLA route:</p>
+<div class="math block">
+X
+\rightarrow
+c_{KV}
+</div>
+<p>then:</p>
+<div class="math block">
+X
+\rightarrow
+W_QW_{UK}^\top
+\rightarrow
+Q_{\text{abs}}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+S=
+Q_{\text{abs}}c_{KV}^\top.
+}
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+K\text{ never needs to be stored in the historical cache}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-37">5.37.14 Complete numerical example</h4>
+<p>Now let's actually calculate it.</p>
+<p>Use a tiny example:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;2&amp;0\\
+0&amp;1&amp;1
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+X\in\mathbb R^{2\times3}.
+</div>
+<p>Choose:</p>
+<div class="math block">
+W_Q=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+W_Q\in\mathbb R^{3\times2}.
+</div>
+<p>Choose:</p>
+<div class="math block">
+W_{D-KV}
+=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;-1
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+W_{D-KV}\in\mathbb R^{3\times2}.
+</div>
+<p>And:</p>
+<div class="math block">
+W_{UK}
+=
+\begin{bmatrix}
+1&amp;2\\
+0&amp;1
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+W_{UK}\in\mathbb R^{2\times2}.
+</div>
+<p>These are illustrative numbers, not values from the book.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-38">5.37.15 Step A — Compute <span class="math inline">Q</span></h4>
+<div class="math block">
+Q=XW_Q.
+</div>
+<p>First row:</p>
+<div class="math block">
+[1,2,0]
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+=
+[1,2].
+</div>
+<p>Second row:</p>
+<div class="math block">
+[0,1,1]W_Q
+=
+[1,2].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Q=
+\begin{bmatrix}
+1&amp;2\\
+1&amp;2
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-39">5.37.16 Step B — Compute latent <span class="math inline">c_{KV}</span></h4>
+<div class="math block">
+c_{KV}
+=
+XW_{D-KV}.
+</div>
+<p>First row:</p>
+<div class="math block">
+[1,2,0]
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;-1
+\end{bmatrix}
+=
+[1,2].
+</div>
+<p>Second:</p>
+<div class="math block">
+[0,1,1]
+\rightarrow
+[1,0].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+c_{KV}
+=
+\begin{bmatrix}
+1&amp;2\\
+1&amp;0
+\end{bmatrix}.
+}
+</div>
+<p>This tiny matrix is what MLA would cache for this toy example.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-40">5.37.17 Step C — Reconstruct <span class="math inline">K</span></h4>
+<div class="math block">
+K=c_{KV}W_{UK}.
+</div>
+<p>So:</p>
+<div class="math block">
+\begin{bmatrix}
+1&amp;2\\
+1&amp;0
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;2\\
+0&amp;1
+\end{bmatrix}
+=
+\begin{bmatrix}
+1&amp;4\\
+1&amp;2
+\end{bmatrix}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+K=
+\begin{bmatrix}
+1&amp;4\\
+1&amp;2
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-41">5.37.18 Step D — Ordinary attention scores</h4>
+<p>Compute:</p>
+<div class="math block">
+S=QK^\top.
+</div>
+<div class="math block">
+K^\top
+=
+\begin{bmatrix}
+1&amp;1\\
+4&amp;2
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S=
+\begin{bmatrix}
+1&amp;2\\
+1&amp;2
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;1\\
+4&amp;2
+\end{bmatrix}
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+S=
+\begin{bmatrix}
+9&amp;5\\
+9&amp;5
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-42">5.37.19 Now do it the MLA way</h4>
+<p>First compute:</p>
+<div class="math block">
+W_QW_{UK}^\top.
+</div>
+<p>Since:</p>
+<div class="math block">
+W_{UK}^\top
+=
+\begin{bmatrix}
+1&amp;0\\
+2&amp;1
+\end{bmatrix},
+</div>
+<p>we get:</p>
+<div class="math block">
+W_QW_{UK}^\top
+=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;0\\
+2&amp;1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_QW_{UK}^\top
+=
+\begin{bmatrix}
+1&amp;0\\
+2&amp;1\\
+3&amp;1
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-43">5.37.20 Step E — Absorbed query</h4>
+<p>Now:</p>
+<div class="math block">
+Q_{\text{abs}}
+=
+X(W_QW_{UK}^\top).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\begin{bmatrix}
+1&amp;2&amp;0\\
+0&amp;1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;0\\
+2&amp;1\\
+3&amp;1
+\end{bmatrix}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+Q_{\text{abs}}
+=
+\begin{bmatrix}
+5&amp;2\\
+5&amp;2
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-44">5.37.21 Step F — Multiply by latent cache</h4>
+<p>Now:</p>
+<div class="math block">
+S_{\text{MLA}}
+=
+Q_{\text{abs}}c_{KV}^\top.
+</div>
+<p>Since:</p>
+<div class="math block">
+c_{KV}^\top
+=
+\begin{bmatrix}
+1&amp;1\\
+2&amp;0
+\end{bmatrix},
+</div>
+<p>we get:</p>
+<div class="math block">
+\begin{bmatrix}
+5&amp;2\\
+5&amp;2
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;1\\
+2&amp;0
+\end{bmatrix}
+</div>
+<p>which gives:</p>
+<div class="math block">
+\boxed{
+S_{\text{MLA}}
+=
+\begin{bmatrix}
+9&amp;5\\
+9&amp;5
+\end{bmatrix}.
+}
+</div>
+<p>Compare:</p>
+<div class="math block">
+S_{\text{ordinary}}
+=
+\begin{bmatrix}
+9&amp;5\\
+9&amp;5
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+S_{\text{MLA}}
+=
+\begin{bmatrix}
+9&amp;5\\
+9&amp;5
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+S_{\text{ordinary}}=S_{\text{MLA}}.
+}
+</div>
+<p>This is the absorption trick demonstrated numerically.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-45">5.37.22 Why this works</h4>
+<p>We did not approximate anything.</p>
+<p>We simply used:</p>
+<div class="math block">
+(AB)^\top=B^\top A^\top
+</div>
+<p>and:</p>
+<div class="math block">
+(ABC)=(AB)C=A(BC).
+</div>
+<p>So the score is mathematically identical.</p>
+<p>The compression comes from <strong>what must be retained across decoding steps</strong>, not from changing the underlying dot-product algebra. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-46">5.37.23 Now the Value side</h4>
+<p>We have solved:</p>
+<div class="math block">
+\boxed{
+QK^\top
+}
+</div>
+<p>but attention also requires:</p>
+<div class="math block">
+\boxed{
+O=AV.
+}
+</div>
+<p>MLA defines:</p>
+<div class="math block">
+V=c_{KV}W_{UV}.
+</div>
+<p>So:</p>
+<div class="math block">
+O
+=
+A(c_{KV}W_{UV}).
+</div>
+<p>By associativity:</p>
+<div class="math block">
+\boxed{
+O=(Ac_{KV})W_{UV}.
+}
+</div>
+<p>The source goes one step further by allowing the value projection to be absorbed into the final output projection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-47">5.37.24 Value-side absorption</h4>
+<p>Suppose the output projection is:</p>
+<div class="math block">
+W_O.
+</div>
+<p>Then the normal output is:</p>
+<div class="math block">
+Y
+=
+A V W_O.
+</div>
+<p>Substitute:</p>
+<div class="math block">
+V=c_{KV}W_{UV}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Y
+=
+A c_{KV}W_{UV}W_O.
+</div>
+<p>Regroup:</p>
+<div class="math block">
+\boxed{
+Y
+=
+A c_{KV}
+(W_{UV}W_O).
+}
+</div>
+<p>Since:</p>
+<div class="math block">
+W_{UV}
+</div>
+<p>and:</p>
+<div class="math block">
+W_O
+</div>
+<p>are fixed during inference, their product can also be precomputed.</p>
+<p>Therefore the value-side path can work directly from:</p>
+<div class="math block">
+\boxed{
+c_{KV}
+}
+</div>
+<p>rather than requiring us to persist the entire historical <span class="math inline">V</span> matrix.</p>
+<p>This is the source's second absorption step. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-48">5.37.25 So MLA has two important algebraic savings</h4>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-49">Score side</h6>
+<div class="math block">
+\boxed{
+W_QW_{UK}^{\top}
+}
+</div>
+<p>can be precomputed.</p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-50">Value/output side</h6>
+<div class="math block">
+\boxed{
+W_{UV}W_O
+}
+</div>
+<p>can be precomputed.</p>
+<p>Therefore the persistent historical state can remain centered on:</p>
+<div class="math block">
+\boxed{
+c_{KV}.
+}
+</div>
+<p>This is the mathematical foundation of the latent cache.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-51">5.37.26 Why the trick fails with standard RoPE</h4>
+<p>Now we arrive at the next problem.</p>
+<p>RoPE applies a position-dependent rotation:</p>
+<div class="math block">
+\boxed{
+Q_r=\operatorname{RoPE}(Q,p_q)
+}
+</div>
+<div class="math block">
+\boxed{
+K_r=\operatorname{RoPE}(K,p_k).
+}
+</div>
+<p>The key problem is that:</p>
+<div class="math block">
+\boxed{
+\operatorname{RoPE}(\cdot,p)
+}
+</div>
+<p>depends on position <span class="math inline">p</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-52">5.37.27 Recall what absorption needs</h4>
+<p>Absorption needs:</p>
+<div class="math block">
+W_QW_{UK}^{\top}
+</div>
+<p>to be a fixed matrix.</p>
+<p>We want:</p>
+<div class="math block">
+QK^\top
+=
+XW_QW_{UK}^{\top}c_{KV}^\top.
+</div>
+<p>The reason this works is that:</p>
+<div class="math block">
+W_Q
+</div>
+<p>and:</p>
+<div class="math block">
+W_{UK}
+</div>
+<p>are position-independent.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-37-i78-1" data-full-review="added"><p>Correction: Use a consistent row convention: Qr=Q Rp and Kr=K Rj, so QrKrT=Q Rp RjT KT. Left-multiplying Rp into a row-oriented token matrix as written is not dimensionally consistent.</p><p><a href="#audit-full-chunk-les-step-5-37-i78">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-37-i78-53">5.37.28 Add RoPE naively</h4>
+<p>Suppose:</p>
+<div class="math block">
+Q_r=R_{p_q}Q
+</div>
+<p>and:</p>
+<div class="math block">
+K_r=R_{p_k}K.
+</div>
+<p>Then score becomes:</p>
+<div class="math block">
+S
+=
+Q_rK_r^\top.
+</div>
+<p>Substitute:</p>
+<div class="math block">
+S=
+R_{p_q}Q
+(R_{p_k}K)^\top.
+</div>
+<p>The key term now includes position-dependent rotations.</p>
+<p>Schematically, the structure becomes:</p>
+<div class="math block">
+\boxed{
+R_{p_q}
+W_Q
+\cdots
+W_{UK}^{\top}
+R_{p_k}^{\top}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+W_QW_{UK}^{\top}
+}.
+</div>
+<p>The position-dependent operator is sitting between factors we want to combine.</p>
+<p>The book calls this a <strong>barrier</strong> to absorption.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-54">5.37.29 Why can't we precompute it?</h4>
+<p>Suppose token <span class="math inline">i</span> is at position:</p>
+<div class="math block">
+p_i=5.
+</div>
+<p>Another token is at:</p>
+<div class="math block">
+p_j=10.
+</div>
+<p>Their RoPE transformations differ:</p>
+<div class="math block">
+R_5\neq R_{10}.
+</div>
+<p>Therefore there is no single fixed matrix:</p>
+<div class="math block">
+W_QW_{UK}^{\top}
+</div>
+<p>that captures all possible position-specific interactions in the same way.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{position dependence destroys the fixed absorption factorization}
+}.
+</div>
+<p>This is exactly the incompatibility identified by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-55">5.37.30 What happens if we simply rotate after decompression?</h4>
+<p>Then the model would need to reconstruct the full historical K vectors and rotate them according to their positions.</p>
+<p>At every decoding step, that means revisiting the historical keys.</p>
+<p>The source explicitly says this would undermine the inference benefit of MLA because the full rotated history would need to be recomputed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we have a conflict:</p>
+<div class="math block">
+\boxed{
+\text{MLA wants a compact position-agnostic cache}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{RoPE wants position-dependent key representations}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-56">5.37.31 The DeepSeek solution</h4>
+<p>Instead of forcing:</p>
+<div class="math block">
+\boxed{
+\text{content}
++
+\text{position}
+}
+</div>
+<p>through one path, separate them.</p>
+<p>The source's solution is:</p>
+<div class="math block">
+\boxed{
+\text{Content Path}
+}
+</div>
+<p>plus:</p>
+<div class="math block">
+\boxed{
+\text{Position Path}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-57">5.37.32 Content Path</h4>
+<p>The content path uses pure MLA.</p>
+<p>It produces:</p>
+<div class="math block">
+\boxed{Q_c}
+</div>
+<div class="math block">
+\boxed{K_c}
+</div>
+<div class="math block">
+\boxed{V_c}.
+</div>
+<p>The source gives:</p>
+<div class="math block">
+Q_c=(XW_{DQ})W_{UQ}
+</div>
+<div class="math block">
+K_c=(XW_{D-KV})W_{UK}
+</div>
+<div class="math block">
+V_c=(XW_{D-KV})W_{UV}.
+</div>
+<p>And crucially:</p>
+<div class="math block">
+\boxed{\text{No RoPE}}
+</div>
+<p>is applied on this path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore absorption remains possible.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-58">5.37.33 Position Path</h4>
+<p>A separate path produces:</p>
+<div class="math block">
+\boxed{Q_r}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{K_r}
+</div>
+<p>specifically for positional information.</p>
+<p>RoPE is applied here.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+Q_r=\operatorname{RoPE}(Q_{r,\text{unrotated}})
+}
+</div>
+<div class="math block">
+\boxed{
+K_r=\operatorname{RoPE}(K_{r,\text{unrotated}})
+}.
+</div>
+<p>The source explicitly says the position path does not depend on the <span class="math inline">c_{KV}</span> latent cache. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-59">5.37.34 Then combine the two scores</h4>
+<p>Content score:</p>
+<div class="math block">
+\boxed{
+S_c=Q_cK_c^\top
+}
+</div>
+<p>or its absorbed equivalent.</p>
+<p>Position score:</p>
+<div class="math block">
+\boxed{
+S_r=Q_rK_r^\top.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+S=S_c+S_r.
+}
+</div>
+<p>This is the key architecture.</p>
+<p>The source states that the final attention scores are the sum of the two paths. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-60">5.37.35 Why is this elegant?</h4>
+<p>The two paths have different jobs.</p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-61">Content path asks:</h6>
+<div class="math block">
+\boxed{\text{“What is this token?”}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-62">Position path asks:</h6>
+<div class="math block">
+\boxed{\text{“Where is this token relative to the other token?”}}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{semantic relevance}
++
+\text{positional relevance}
+}
+</div>
+<p>produces the final score.</p>
+<p>This “what vs where” interpretation is the book's pedagogical framing of the two streams. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-63">5.37.36 What gets cached now?</h4>
+<p>This is very important.</p>
+<p>The final decoupled architecture stores two historical quantities:</p>
+<div class="math block">
+\boxed{
+c_{KV}
+}
+</div>
+<p>for content,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{
+K_r
+}
+</div>
+<p>for the rotated positional path.</p>
+<p>The source therefore gives the cache-size term:</p>
+<div class="math block">
+\boxed{
+d_{\text{latent}}+d_{\text{rope}}
+}
+</div>
+<p>instead of the MHA:</p>
+<div class="math block">
+2nh
+</div>
+<p>term. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-64">5.37.37 Final decoupled cache formula</h4>
+<p>Under the book's 2-byte-value assumption:</p>
+<div class="math block">
+\boxed{
+M_{\text{MLA+RoPE}}
+=
+l\,b\,s\,
+(d_{\text{latent}}+d_{\text{rope}})
+\times2
+}
+</div>
+<p>where the final <span class="math inline">2</span> is bytes per 16-bit value.</p>
+<p>Notice:</p>
+<div class="math block">
+\boxed{
+\text{there is no extra }2\text{ for separate K and V caches}
+}
+</div>
+<p>because the cache contains:</p>
+<div class="math block">
+\boxed{
+\text{latent content state}
++
+\text{rotated positional key state}
+}
+</div>
+<p>rather than separate K and V matrices.</p>
+<p>This is the source's architectural cache formula in simplified form. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-65">5.37.38 Actual DeepSeek-scale numbers</h4>
+<p>The source uses:</p>
+<div class="math block">
+n=128
+</div>
+<div class="math block">
+h=128.
+</div>
+<p>MHA cache-dimension factor:</p>
+<div class="math block">
+2nh
+=
+2(128)(128)
+=
+\boxed{32,768}.
+</div>
+<p>For the decoupled MLA example:</p>
+<div class="math block">
+d_{\text{latent}}=512
+</div>
+<p>and:</p>
+<div class="math block">
+d_{\text{rope}}=64.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+d_{\text{latent}}+d_{\text{rope}}
+=
+512+64
+=
+\boxed{576}.
+</div>
+<p>Ratio:</p>
+<div class="math block">
+\frac{32768}{576}
+\approx
+\boxed{56.9}.
+</div>
+<p>So the book rounds this to:</p>
+<div class="math block">
+\boxed{\approx57\times}
+</div>
+<p>cache reduction relative to MHA. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-66">5.37.39 Numerical exam problem</h4>
+<p>Suppose:</p>
+<div class="math block">
+n=64,\quad h=128.
+</div>
+<p>Then MHA's K/V cache dimension factor:</p>
+<div class="math block">
+2nh
+=
+2(64)(128)
+=
+\boxed{16,384}.
+</div>
+<p>Suppose MLA uses:</p>
+<div class="math block">
+d_{\text{latent}}=512
+</div>
+<p>and:</p>
+<div class="math block">
+d_{\text{rope}}=64.
+</div>
+<p>Then:</p>
+<div class="math block">
+576.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+\frac{16384}{576}
+\approx
+\boxed{28.44\times}.
+</div>
+<p>This is an illustrative calculation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-67">5.37.40 One subtle point: 64× vs 57×</h4>
+<p>You may now see two numbers in your notes:</p>
+<div class="math block">
+\boxed{64\times}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{57\times}.
+</div>
+<p>They are not contradictory.</p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-68">Pure MLA simplified calculation</h6>
+<div class="math block">
+32768/512
+=
+\boxed{64\times}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-69">MLA + decoupled RoPE</h6>
+<div class="math block">
+32768/(512+64)
+=
+32768/576
+\approx
+\boxed{57\times}.
+</div>
+<p>The positional cache adds a small amount of extra state.</p>
+<p>The source explicitly presents both calculations. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-70">5.37.41 Why not cache <span class="math inline">Q</span>?</h4>
+<p>During autoregressive decoding, the query belongs to the <strong>current token</strong>.</p>
+<p>We only need the current query to compare against historical keys.</p>
+<p>Historical queries are not needed in the same way.</p>
+<p>Therefore the cache focuses on historical information needed for attention:</p>
+<div class="math block">
+\boxed{
+K/V\text{-side state}
+}
+</div>
+<p>or, in MLA:</p>
+<div class="math block">
+\boxed{
+c_{KV}+K_r.
+}
+</div>
+<p>This follows the standard causal-decoding structure and the source's cache descriptions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-71">5.37.42 Full inference loop with decoupled MLA</h4>
+<p>At a new token <span class="math inline">x_t</span>:</p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-72">Content path</h6>
+<p>Compute its latent:</p>
+<div class="math block">
+c_{KV,t}=x_tW_{D-KV}.
+</div>
+<p>Append:</p>
+<div class="math block">
+c_{KV,t}
+</div>
+<p>to the latent cache.</p>
+<p>Compute absorbed content query.</p>
+<p>Then:</p>
+<div class="math block">
+S_c
+=
+Q_{c,\text{abs}}C_{KV}^{\top}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-73">Position path</h6>
+<p>Compute:</p>
+<div class="math block">
+Q_{r,t}
+</div>
+<p>and:</p>
+<div class="math block">
+K_{r,t}.
+</div>
+<p>Apply RoPE.</p>
+<p>Append:</p>
+<div class="math block">
+K_{r,t}
+</div>
+<p>to the positional cache.</p>
+<p>Then:</p>
+<div class="math block">
+S_r=Q_{r,t}K_r^\top.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-74">Combine</h6>
+<div class="math block">
+\boxed{
+S=S_c+S_r
+}
+</div>
+<p>then:</p>
+<div class="math block">
+A=\operatorname{softmax}
+\left(
+\frac{S}{\sqrt{d_h}}
+\right)
+</div>
+<p>and finally use the content Value path to produce the context.</p>
+<p>This is the complete high-level flow described by the source's decoupled implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-75">5.37.43 Why the position path does not destroy MLA efficiency</h4>
+<p>Because the position path is deliberately <strong>small</strong>.</p>
+<p>The source example uses:</p>
+<div class="math block">
+d_{\text{rope}}=64
+</div>
+<p>instead of:</p>
+<div class="math block">
+nh=16,384.
+</div>
+<p>So we retain only a compact positional representation.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{small content cache}
++
+\text{small positional cache}
+}
+</div>
+<p>replaces:</p>
+<div class="math block">
+\boxed{
+\text{full K cache}
++
+\text{full V cache}.
+}
+</div>
+<p>That is the architectural trick.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-76">5.37.44 One complete conceptual diagram</h4>
+<pre><code class="language-text">                         Input X
+                           │
+                ┌──────────┴──────────┐
+                │                     │
+                ▼                     ▼
+         CONTENT PATH            POSITION PATH
+             MLA                      RoPE
+                │                     │
+        X → cKV                    X → qr, kr
+                │                     │
+        ┌───────┴───────┐            │
+        │               │            │
+       Qc              Kc,Vc         │
+        │               │            │
+        └── absorption ─┘            │
+                │                    │
+              Sc = QcKcᵀ          Sr = QrKrᵀ
+                │                    │
+                └────────┬───────────┘
+                         │
+                         ▼
+                    S = Sc + Sr
+                         │
+                         ▼
+                      Softmax
+                         │
+                         ▼
+                  Content Value path
+                         │
+                         ▼
+                    Context vector
+</code></pre>
+<p>The two-cache idea is:</p>
+<div class="math block">
+\boxed{
+c_{KV}\quad+\quad K_r
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+K\quad+\quad V.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-77">5.37.45 The most important mathematical insight</h4>
+<p>The absorption trick is fundamentally:</p>
+<div class="math block">
+\boxed{
+(XW_Q)
+(c_{KV}W_{UK})^\top
+}
+</div>
+<div class="math block">
+=
+\boxed{
+XW_QW_{UK}^{\top}c_{KV}^{\top}
+}
+</div>
+<p>because:</p>
+<div class="math block">
+\boxed{
+(AB)^\top=B^\top A^\top
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+ABC=(AB)C.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+W_QW_{UK}^{\top}
+}
+</div>
+<p>is fixed during inference.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{historical state needed}
+=
+c_{KV},
+}
+</div>
+<p>not the full historical <span class="math inline">K</span>.</p>
+<p>That's the whole trick.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-78">5.37.46 The most important architectural insight</h4>
+<p>RoPE then says:</p>
+<div class="math block">
+\boxed{
+\text{position must modify Q/K}
+}
+</div>
+<p>and that breaks the fixed-factor assumption.</p>
+<p>DeepSeek therefore says:</p>
+<div class="math block">
+\boxed{
+\text{Don't put position inside the compressed content path.}
+}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{content path}+\text{position path}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+S=S_c+S_r.
+}
+</div>
+<p>That is <strong>decoupled RoPE</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-79">5.37.47 Exam-style numerical: cache reduction</h4>
+<p>Given:</p>
+<div class="math block">
+n=128,\quad h=128,\quad d_{\text{latent}}=512,\quad d_{\text{rope}}=64.
+</div>
+<p>MHA factor:</p>
+<div class="math block">
+2nh=32768.
+</div>
+<p>MLA+RoPE:</p>
+<div class="math block">
+512+64=576.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+32768/576
+=
+\boxed{56.89\times}.
+</div>
+<p>Rounded:</p>
+<div class="math block">
+\boxed{57\times}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-80">5.37.48 Exam-style numerical: pure MLA</h4>
+<p>Same model but ignoring the positional path:</p>
+<div class="math block">
+32768/512
+=
+\boxed{64\times}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{RoPE adds only }64
+}
+</div>
+<p>to the cached dimension in this source example, but reduces the theoretical compression ratio from:</p>
+<div class="math block">
+64\times
+</div>
+<p>to:</p>
+<div class="math block">
+57\times.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-81">5.37.49 Exam-style matrix-shape question</h4>
+<p>Given:</p>
+<div class="math block">
+X\in\mathbb R^{8\times512}
+</div>
+<p>and:</p>
+<div class="math block">
+W_{D-KV}\in\mathbb R^{512\times64},
+</div>
+<p>then:</p>
+<div class="math block">
+c_{KV}=XW_{D-KV}
+</div>
+<p>has shape:</p>
+<div class="math block">
+\boxed{8\times64}.
+</div>
+<p>If:</p>
+<div class="math block">
+W_{UK}\in\mathbb R^{64\times512},
+</div>
+<p>then:</p>
+<div class="math block">
+K=c_{KV}W_{UK}
+</div>
+<p>has:</p>
+<div class="math block">
+(8\times64)(64\times512)
+=
+\boxed{8\times512}.
+</div>
+<p>The compression is therefore:</p>
+<div class="math block">
+512\rightarrow64
+</div>
+<p>for the cached latent representation before reconstruction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-82">5.37.50 Final checkpoint</h4>
+<p>At this point, you should be able to answer four questions.</p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-83">Why does MLA save memory?</h6>
+<div class="math block">
+\boxed{
+\text{because historical K/V information is stored in a much smaller latent cache}
+}
+</div>
+<p>rather than full K and V matrices. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-84">Why doesn't MQA solve the problem completely?</h6>
+<div class="math block">
+\boxed{
+\text{it saves memory by sharing K/V, reducing head specialization}
+}
+</div>
+<p>while MLA instead compresses the information and can reconstruct head-specific K/V. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-85">What is the absorption trick?</h6>
+<div class="math block">
+\boxed{
+(XW_Q)(c_{KV}W_{UK})^\top
+=
+XW_QW_{UK}^{\top}c_{KV}^{\top}
+}
+</div>
+<p>so <span class="math inline">W_QW_{UK}^{\top}</span> can be precomputed and only <span class="math inline">c_{KV}</span> needs to represent historical content. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-37-i78-86">Why is decoupled RoPE needed?</h6>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{position-dependent rotations break the fixed matrix factorization needed for absorption}
+}
+</div>
+<p>so position is moved to a separate path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-37-i78-87">5.37.51 The complete architecture story</h4>
+<p>You can now reconstruct the entire reasoning:</p>
+<div class="math block">
+\boxed{
+\text{MHA}
+}
+</div>
+<p>has:</p>
+<div class="math block">
+\text{high expressivity}
++
+\text{large cache}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{MQA/GQA}
+}
+</div>
+<p>reduce cache by reducing unique K/V representations.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{head diversity is sacrificed}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{MLA}
+}
+</div>
+<p>asks a different question:</p>
+<div class="math block">
+\boxed{
+\text{Can we compress the information itself?}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+c_{KV}=XW_{D-KV}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{cache }c_{KV}.
+}
+</div>
+<p>Then absorption gives:</p>
+<div class="math block">
+\boxed{
+S_c
+=
+X(W_QW_{UK}^{\top})c_{KV}^{\top}.
+}
+</div>
+<p>Then RoPE creates a new problem.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Content MLA}
++
+\text{Position RoPE}
+}
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+\text{Decoupled MLA + RoPE}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-37-i78-88">Numerical bank carried forward</h5>
+<p>The key calculations from this step are now part of the cumulative exam bank:</p>
+<div class="math block">
+\boxed{
+QK^\top
+=
+XW_QW_{UK}^{\top}c_{KV}^{\top}
+}
+</div>
+<div class="math block">
+\boxed{
+2(128)(128)=32,768
+}
+</div>
+<div class="math block">
+\boxed{
+32,768/512=64\times
+}
+</div>
+<div class="math block">
+\boxed{
+512+64=576
+}
+</div>
+<div class="math block">
+\boxed{
+32,768/576\approx57\times
+}
+</div>
+<p>and the central tensor rule:</p>
+<div class="math block">
+\boxed{
+(T\times d)
+(d\times d_{\text{latent}})
+=
+T\times d_{\text{latent}}.
+}
+</div>
+<hr />
+</section>

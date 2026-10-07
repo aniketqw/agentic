@@ -1,0 +1,981 @@
+<section class="chunk" id="chunk-les-step-5-9-i50" data-id="les-step-5-9-i50"><details class="audit-card" id="audit-full-chunk-les-step-5-9-i50" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-9-i50-1">Motivation</h4><p>Math corpus and RL lineage: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-9-i50-2">Prerequisites</h4><ul><li>data sampling</li><li>domain adaptation</li><li>benchmark comparisons</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-5">Step-by-step derivation</h4><ol><li>Start from math seed pages, train a classifier, recall candidates from Common Crawl, annotate useful domain paths, expand the seed and repeat. Domain annotation complements rather than replaces page scoring.</li><li>Compare corpus sizes by token counts under the same tokenizer; passes equal training-token presentations divided by unique corpus tokens only as a coarse exposure statistic.</li><li>Hold architecture and training-token budget fixed to study corpus effects; quality and diversity still vary jointly with corpus size.</li><li>DeepSeekMath begins from a code base, adds math pretraining, instruction tuning, then GRPO. This lineage explains why RL is not the whole causal story.</li><li>Compute absolute benchmark gains in percentage points and relative gains using the pre-RL denominator. CMATH transfer is evidence of generalization within the evaluated related domain.</li><li>DeepSeekMath also studies learned outcome/process reward models and iterative reward refresh. It should not be conflated with the later entirely rule-based R1-Zero reward system.</li></ol><h4 id="v3-heading-chunk-les-step-5-9-i50-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-9-i50-7">Corpus scale</h5><p>Given: 120.2B versus13.6B tokens</p><ol><li>Subtract=106.6B.</li><li>Divide120.2 by13.6.</li></ol><p>Answer: 8.8382352941 times</p><p>Verification: rl_retool / corpus_ratio · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-9-i50-8">RL gain</h5><p>Given: MATH46.8 to51.7</p><ol><li>Absolute=51.7-46.8.</li><li>Relative=4.9/46.8*100.</li></ol><p>Answer: 4.9points;10.47008547% relative</p><p>Verification: rl_retool / math_gain · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-9-i50-9">Corrections and source qualifications</h4><ul><li>heading: 5.9.17 DeepSeekMath-Instruct → DeepSeekMath-RL; text: Original DeepSeekMath includes learned outcome/process reward modeling and iterative reward refresh. It is not equivalent to the later R1-Zero purely rule-based reward pipeline.</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-10">Mastery answers and retained exercise context</h4><ol><li>N 1 ratio 8.83823529; N 2 only 2%newpages suggestsdiminishingrecall,not perfectcoverage.</li><li>N 3 gain 4.9 points,10.47008547%relative; N 4 mean.5,deviations[.5,.5,-.5,-.5].</li><li>N 5 150 B/25 B=6 passes; N 6 G 1 no peerbaseline; N 7 CMATHgain 4.2 points supports related out-of-training-domain transfer.</li></ol><h4 id="v3-heading-chunk-les-step-5-9-i50-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-12">Connections and progression</h4><ul><li>Previous lesson builds Diagnostics and reward design.</li><li>Next lesson develops Original token-level GRPO objective.</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-13">Exact source support</h4><ul><li>deepseekmath-slides(1).pdf · physical PDF pages 2, 3, 4, 5, 6, 7, 8, 9, 20 · Data pipeline, controlled corpus experiment and RL benchmark gains</li></ul><h4 id="v3-heading-chunk-les-step-5-9-i50-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (46)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.9 — DeepSeekMath: Where GRPO Came From</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.1 First: what problem was DeepSeekMath trying to solve?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.2 Contribution 1 — The DeepSeekMath Corpus</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.3 Why not simply search the web for “math”?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.4 The iterative mining pipeline</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Stage A — Start with a seed corpus</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Stage B — Train a fastText classifier</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Stage C — Search Common Crawl</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.5 Why classify domains instead of every page?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.6 Why is this better?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.7 Stage D — Human annotation improves the classifier&#x27;s blind spots</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.8 Why does this work?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.9 The process converged</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.10 Exam numerical — corpus growth</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.11 Why does corpus size matter for training?</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.9.12 The controlled experiment</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.13 A very important lesson about scaling</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.14 The model initialization matters</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.15 DeepSeekMath is therefore already specialized before RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.16 What does SFT do here?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.17 DeepSeekMath-Instruct → DeepSeekMath-RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.18 The performance change</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>GSM8K</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>MATH</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>CMATH</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.19 Why is CMATH especially interesting?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.20 Why GRPO instead of PPO?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.21 The key insight: group-relative comparison</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.22 Why Online RFT is weaker than GRPO</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.23 An important conceptual decomposition</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>1. Where does the training data come from?</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>2. How strongly should each token be pushed?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.24 Online vs offline — critical distinction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Offline</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Online</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.25 Why does this become increasingly important?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.26 Numerical checkpoint</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.27 Very important: why multiple samples are necessary</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.28 DeepSeekMath&#x27;s central design philosophy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.29 Exam question: why does better data matter even with the same compute?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.30 Exam numerical: RL gain</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.31 One more numerical: corpus repetition</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.32 The DeepSeekMath → DeepSeek-R1 connection</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.9.33 The most important mental model from Step 5.9</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 5.9 numerical bank</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>One-line memory anchor</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-9-i50"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-9-i50" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-grpo-kl">← Previous lesson</a> · <a href="#chunk-les-step-5-10-i51">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a></p><p><strong>This lesson:</strong> Step 5.9 — DeepSeekMath: Where GRPO Came From</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-8">deepseekmath-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-9-i50"></a></p>
+<h2>Step 5.9 — DeepSeekMath: Where GRPO Came From</h2>
+<p><em>Plan node: I7 · chat order #50</em></p>
+<p>Now we move from <strong>“how GRPO works”</strong> to <strong>“why DeepSeek created it and how it was used in DeepSeekMath.”</strong></p>
+<p>This is an important transition because DeepSeekMath is the bridge:</p>
+<div class="math block">
+\boxed{\text{Math-specialized pretraining}}
+\rightarrow
+\boxed{\text{SFT}}
+\rightarrow
+\boxed{\text{RL with GRPO}}
+\rightarrow
+\boxed{\text{DeepSeekMath-RL}}
+\rightarrow
+\boxed{\text{DeepSeek-R1}}
+</div>
+<p>The supplied DeepSeekMath slides identify <strong>two central contributions</strong>: the DeepSeekMath Corpus and GRPO. The book likewise states that GRPO was introduced in the DeepSeekMath paper and later used for DeepSeek-R1. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-15">5.9.1 First: what problem was DeepSeekMath trying to solve?</h3>
+<p>The target was not merely:</p>
+<blockquote>
+<p>“Make a language model bigger.”</p>
+</blockquote>
+<p>The goal was to make an <strong>open 7B model very strong at mathematical reasoning</strong>.</p>
+<p>The supplied slides state that DeepSeekMath-RL 7B reached:</p>
+<div class="math block">
+\boxed{51.7\%}
+</div>
+<p>Top-1 accuracy on the competition-level <strong>MATH</strong> benchmark, without tools or majority voting. <em>(Source: deepseekmath-slides)</em></p>
+<p>That result came from two ingredients:</p>
+<div class="math block">
+\boxed{
+\text{better math data}
++
+\text{better RL algorithm}
+}
+</div>
+<p>Specifically:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath Corpus}
++
+\text{GRPO}
+}
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<p>This is the first major lesson:</p>
+<blockquote>
+<p><strong>Reasoning performance is not only a model-architecture problem. Data construction and post-training matter enormously.</strong></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-16">5.9.2 Contribution 1 — The DeepSeekMath Corpus</h3>
+<p>Before RL can improve mathematical reasoning, the starting model needs sufficient mathematical knowledge.</p>
+<p>That means the first question is:</p>
+<blockquote>
+<p>Where do we get enough high-quality mathematical text?</p>
+</blockquote>
+<p>The slides state that DeepSeek built:</p>
+<div class="math block">
+\boxed{\text{120B math tokens}}
+</div>
+<p>from <strong>Common Crawl</strong> using an iterative classifier-based mining pipeline. <em>(Source: deepseekmath-slides)</em></p>
+<p>This is much larger than the earlier public math corpora discussed in the deck.</p>
+<p>The slide explicitly gives:</p>
+<div class="math block">
+\text{OpenWebMath}\approx13.6B
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{DeepSeekMath Corpus}\approx120.2B.
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<p>So the approximate ratio is:</p>
+<div class="math block">
+\frac{120.2}{13.6}
+\approx 8.84.
+</div>
+<p>Thus the DeepSeekMath Corpus is about:</p>
+<div class="math block">
+\boxed{8.8\times}
+</div>
+<p>the size of OpenWebMath by token count.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-17">5.9.3 Why not simply search the web for “math”?</h3>
+<p>Because mathematical content is distributed across the web.</p>
+<p>A naive keyword filter would miss:</p>
+<ul>
+<li>pages where equations dominate but the word “math” is absent,</li>
+<li>mathematical discussions written in unusual styles,</li>
+<li>educational pages,</li>
+<li>forums,</li>
+<li>multilingual mathematical material.</li>
+</ul>
+<p>The DeepSeekMath approach therefore uses a <strong>classifier</strong>.</p>
+<p>The core idea is:</p>
+<div class="math block">
+\boxed{\text{teach a classifier what math pages look like}}
+</div>
+<p>and then use that classifier to search the enormous Common Crawl corpus. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-18">5.9.4 The iterative mining pipeline</h3>
+<p>This is one of the most important diagrams from the deck.</p>
+<p>The pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{Seed corpus}
+\rightarrow
+\text{train fastText classifier}
+\rightarrow
+\text{recall math-like pages}
+\rightarrow
+\text{find high-recall domains}
+\rightarrow
+\text{human URL-path annotation}
+\rightarrow
+\text{expand seed}
+\rightarrow
+\text{repeat}
+}
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<p>Let's unpack every stage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-9-i50-19">Stage A — Start with a seed corpus</h4>
+<p>They begin with a relatively small set of known mathematical text.</p>
+<p>The deck uses <strong>OpenWebMath</strong> as the starting seed.</p>
+<p>Conceptually:</p>
+<div class="math block">
+D_0=\{\text{known math pages}\}.
+</div>
+<p>This is not enough to cover the web.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-9-i50-20">Stage B — Train a fastText classifier</h4>
+<p>The seed corpus gives examples of:</p>
+<div class="math block">
+y=1:\text{math}
+</div>
+<p>and presumably:</p>
+<div class="math block">
+y=0:\text{not math}.
+</div>
+<p>The classifier learns:</p>
+<div class="math block">
+f(x)\rightarrow P(\text{math}\mid x).
+</div>
+<p>The deck specifically describes a <strong>fastText classifier</strong>. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-9-i50-21">Stage C — Search Common Crawl</h4>
+<p>Now run the classifier against a massive collection of web pages.</p>
+<p>For each page:</p>
+<div class="math block">
+x_i
+\rightarrow
+f(x_i)
+\rightarrow
+\text{math score}.
+</div>
+<p>High-scoring pages are candidates for inclusion.</p>
+<p>So instead of humans reading billions of pages:</p>
+<div class="math block">
+\boxed{\text{classifier does the first large-scale filtering}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-22">5.9.5 Why classify domains instead of every page?</h3>
+<p>This is a particularly clever part.</p>
+<p>Suppose a domain has many pages.</p>
+<p>For example, imagine:</p>
+<div class="math block">
+100,000
+</div>
+<p>pages from one website.</p>
+<p>Suppose more than 10% of the pages already recalled by the classifier are mathematical.</p>
+<p>That is evidence that the domain itself has a strong mathematical region.</p>
+<p>Instead of asking humans to inspect:</p>
+<div class="math block">
+10,000
+</div>
+<p>individual pages, they identify the useful URL paths.</p>
+<p>For example:</p>
+<pre><code class="language-text">mathoverflow.net/questions/
+</code></pre>
+<p>could be marked as a valuable path.</p>
+<p>The slide explicitly describes this <strong>domain-level annotation</strong> strategy as a way of converting huge numbers of page-level judgments into a manageable number of URL-pattern judgments. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-23">5.9.6 Why is this better?</h3>
+<p>Suppose there are:</p>
+<div class="math block">
+40B
+</div>
+<p>candidate pages.</p>
+<p>Manual page-by-page annotation is obviously infeasible.</p>
+<p>But perhaps only a relatively small number of domains have obvious mathematical sections.</p>
+<p>So the process changes from:</p>
+<div class="math block">
+\boxed{\text{annotate billions of pages}}
+</div>
+<p>to approximately:</p>
+<div class="math block">
+\boxed{\text{identify useful domains/URL patterns}}
+</div>
+<p>This is a classic scalable-data-engineering idea:</p>
+<blockquote>
+<p>Find structure at a higher level of abstraction.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-24">5.9.7 Stage D — Human annotation improves the classifier's blind spots</h3>
+<p>This creates the bootstrapping loop.</p>
+<p>Initially:</p>
+<div class="math block">
+D_0=\text{small seed}.
+</div>
+<p>Train:</p>
+<div class="math block">
+C_0.
+</div>
+<p>Use it to discover new mathematical regions:</p>
+<div class="math block">
+D_1.
+</div>
+<p>Then train:</p>
+<div class="math block">
+C_1.
+</div>
+<p>And repeat:</p>
+<div class="math block">
+D_0
+\rightarrow
+C_0
+\rightarrow
+D_1
+\rightarrow
+C_1
+\rightarrow
+D_2
+\rightarrow
+\cdots
+</div>
+<p>The supplied slides describe this as effectively allowing the classifier's own blind spots to guide the next search round. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-25">5.9.8 Why does this work?</h3>
+<p>Imagine the initial classifier has learned mostly:</p>
+<div class="math block">
+\text{“textbook-like mathematics”}.
+</div>
+<p>Then it may fail on:</p>
+<ul>
+<li>forum discussions,</li>
+<li>competition solutions,</li>
+<li>specialized technical pages,</li>
+<li>different writing styles,</li>
+<li>different languages.</li>
+</ul>
+<p>The newly discovered high-quality domains provide examples of these previously unseen patterns.</p>
+<p>So the next classifier becomes broader.</p>
+<p>This is essentially:</p>
+<div class="math block">
+\boxed{\text{iterative data discovery}}
+</div>
+<p>rather than one-shot filtering.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-26">5.9.9 The process converged</h3>
+<p>The deck says that after four iterations they reached roughly:</p>
+<div class="math block">
+\boxed{35.5M\text{ web pages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{120B\text{ tokens}}.
+</div>
+<p>Iteration 4 was stopped because about:</p>
+<div class="math block">
+\boxed{98\%}
+</div>
+<p>of its pages had already been found in iteration 3.</p>
+<p>That suggests the seed/data-discovery process had largely converged. <em>(Source: deepseekmath-slides)</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+\text{new iteration}
+\rightarrow
+\text{very little new information}.
+</div>
+<p>So continuing the mining loop gives diminishing returns.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-27">5.9.10 Exam numerical — corpus growth</h3>
+<p>Given:</p>
+<div class="math block">
+13.6B
+</div>
+<p>tokens initially and:</p>
+<div class="math block">
+120.2B
+</div>
+<p>tokens after iterative mining.</p>
+<p>Compute the increase:</p>
+<div class="math block">
+120.2-13.6
+=
+106.6B.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{106.6B}
+</div>
+<p>additional tokens were obtained relative to OpenWebMath.</p>
+<p>The multiplicative growth is:</p>
+<div class="math block">
+\frac{120.2}{13.6}\approx8.84.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\approx8.8\times}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-28">5.9.11 Why does corpus size matter for training?</h3>
+<p>Suppose the model is trained for:</p>
+<div class="math block">
+150B
+</div>
+<p>tokens.</p>
+<p>Consider a small dataset:</p>
+<div class="math block">
+D=15B.
+</div>
+<p>Then the model must see the same data repeatedly:</p>
+<div class="math block">
+\frac{150}{15}=10
+</div>
+<p>times.</p>
+<p>But with a:</p>
+<div class="math block">
+120B
+</div>
+<p>token corpus:</p>
+<div class="math block">
+\frac{150}{120}=1.25
+</div>
+<p>corpus-equivalent passes.</p>
+<p>So the model can encounter substantially more fresh text before repetition dominates.</p>
+<p>The slides explicitly make this point: smaller datasets plateau earlier because the model repeatedly sees the same data, whereas the much larger DeepSeekMath Corpus sustains continued improvement later in training. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-29">5.9.12 The controlled experiment</h3>
+<p>The deck gives an especially important experimental design:</p>
+<blockquote>
+<p>Keep the model and training-token budget the same; change only the corpus.</p>
+</blockquote>
+<p>It describes:</p>
+<div class="math block">
+\boxed{\text{same 1.3B model}}
+</div>
+<div class="math block">
+\boxed{\text{same 150B training tokens}}
+</div>
+<p>and vary the corpus.</p>
+<p>The DeepSeekMath Corpus wins across the listed benchmarks. <em>(Source: deepseekmath-slides)</em></p>
+<p>This is good experimental methodology because we are trying to isolate:</p>
+<div class="math block">
+\text{effect of corpus quality/scale}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-30">5.9.13 A very important lesson about scaling</h3>
+<p>We normally hear:</p>
+<div class="math block">
+\text{more parameters}\rightarrow\text{better model}.
+</div>
+<p>DeepSeekMath emphasizes another axis:</p>
+<div class="math block">
+\boxed{\text{better data}\rightarrow\text{better model}}.
+</div>
+<p>The deck states that DeepSeekMath-Base 7B outperformed the listed open baselines across all eight benchmarks and even outperformed Minerva 540B on those comparisons. <em>(Source: deepseekmath-slides)</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{parameter count is not the only scaling lever}
+}
+</div>
+<p>Data quality and domain specialization can move the curve significantly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-31">5.9.14 The model initialization matters</h3>
+<p>DeepSeekMath-Base 7B did <strong>not</strong> start from a generic general-purpose 7B model.</p>
+<p>The supplied deck explicitly says it starts from:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-Coder-Base-v1.5}}
+</div>
+<p>rather than a general LLM. <em>(Source: deepseekmath-slides)</em></p>
+<p>This is strategically important.</p>
+<p>Why would a code-specialized base help math?</p>
+<p>Because mathematical reasoning and code reasoning both benefit from representations involving:</p>
+<ul>
+<li>symbolic structures,</li>
+<li>precise syntax,</li>
+<li>algorithmic reasoning,</li>
+<li>structured sequences.</li>
+</ul>
+<p>The <strong>slides state the initialization choice</strong>, but they do not in the cited passage provide a complete causal proof that this is why it worked. So that explanatory connection should be treated as interpretation, not as a direct claim from the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-32">5.9.15 DeepSeekMath is therefore already specialized before RL</h3>
+<p>Think of the sequence:</p>
+<pre><code class="language-text">Common Crawl
+      │
+      ▼
+Iterative math mining
+      │
+      ▼
+DeepSeekMath Corpus
+      │
+      ▼
+DeepSeek-Coder-Base-v1.5
+      │
+      ▼
+DeepSeekMath-Base
+      │
+      ▼
+instruction tuning
+      │
+      ▼
+DeepSeekMath-Instruct
+      │
+      ▼
+GRPO + verifiable rewards
+      │
+      ▼
+DeepSeekMath-RL
+</code></pre>
+<p>The last three model names are reflected in the supplied materials, and the RL stage explicitly starts from DeepSeekMath-Instruct. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-33">5.9.16 What does SFT do here?</h3>
+<p>At a high level, SFT gives the model examples of:</p>
+<div class="math block">
+(\text{problem},\text{desired reasoning/answer}).
+</div>
+<p>It teaches the model to produce useful solution trajectories.</p>
+<p>Then RL does something different.</p>
+<p>RL asks:</p>
+<blockquote>
+<p>Among the behaviors the model can generate, which ones should become more probable?</p>
+</blockquote>
+<p>This distinction is crucial.</p>
+<div class="math block">
+\boxed{
+\text{SFT teaches behavior from demonstrations}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{RL optimizes behavior according to reward}
+}
+</div>
+<p>This will become very important when we compare SFT, RFT, DPO, PPO and GRPO.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-9-i50-0" data-full-review="added"><p>Correction: Original DeepSeekMath includes learned outcome/process reward modeling and iterative reward refresh. It is not equivalent to the later R1-Zero purely rule-based reward pipeline.</p><p><a href="#audit-full-chunk-les-step-5-9-i50">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-9-i50-34">5.9.17 DeepSeekMath-Instruct → DeepSeekMath-RL</h3>
+<p>The supplied slides give a clean controlled RL experiment.</p>
+<p>They apply GRPO to:</p>
+<div class="math block">
+\boxed{\text{DeepSeekMath-Instruct}}
+</div>
+<p>using only the chain-of-thought instruction-tuning data for:</p>
+<div class="math block">
+\boxed{\text{GSM8K and MATH}}
+</div>
+<p>and no new RL training dataset. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-35">5.9.18 The performance change</h3>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-36">GSM8K</h5>
+<p>Before RL:</p>
+<div class="math block">
+82.9\%
+</div>
+<p>After RL:</p>
+<div class="math block">
+88.2\%.
+</div>
+<p>So:</p>
+<div class="math block">
+88.2-82.9
+=
+\boxed{5.3\text{ percentage points}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-37">MATH</h5>
+<p>Before:</p>
+<div class="math block">
+46.8\%
+</div>
+<p>After:</p>
+<div class="math block">
+51.7\%.
+</div>
+<p>Increase:</p>
+<div class="math block">
+51.7-46.8
+=
+\boxed{4.9\text{ percentage points}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-38">CMATH</h5>
+<p>Before:</p>
+<div class="math block">
+84.6\%
+</div>
+<p>After:</p>
+<div class="math block">
+88.8\%.
+</div>
+<p>Increase:</p>
+<div class="math block">
+88.8-84.6
+=
+\boxed{4.2\text{ percentage points}}.
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-39">5.9.19 Why is CMATH especially interesting?</h3>
+<p>The RL data came from:</p>
+<div class="math block">
+\text{GSM8K + MATH}.
+</div>
+<p>But the improvement also appears on:</p>
+<div class="math block">
+\text{CMATH}.
+</div>
+<p>The slides explicitly point out that CMATH is <strong>out-of-domain for the RL data</strong> and use this to argue that the improvement generalizes beyond exactly the data trained on. <em>(Source: deepseekmath-slides)</em></p>
+<p>This is much more convincing than merely saying:</p>
+<blockquote>
+<p>“The training reward went up.”</p>
+</blockquote>
+<p>We are seeing:</p>
+<div class="math block">
+\boxed{
+\text{RL training}
+\rightarrow
+\text{better external performance}
+}
+</div>
+<p>even on a related benchmark not used as the exact RL training source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-40">5.9.20 Why GRPO instead of PPO?</h3>
+<p>Now the reason should be completely clear from our previous lessons.</p>
+<p>PPO typically needs:</p>
+<div class="math block">
+\boxed{\text{policy}}
++
+\boxed{\text{value model}}
+</div>
+<p>GRPO removes the learned value-model path and obtains the learning signal through group-relative comparisons. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{later DeepSeek-R1}
+}
+</div>
+<p>The book explicitly identifies GRPO as the algorithm introduced in DeepSeekMath and later used for DeepSeek-R1. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-41">5.9.21 The key insight: group-relative comparison</h3>
+<p>Suppose one math prompt produces:</p>
+<div class="math block">
+4
+</div>
+<p>responses:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=0.5.
+</div>
+<p>So the model doesn't merely learn:</p>
+<blockquote>
+<p>“Response 1 is correct.”</p>
+</blockquote>
+<p>It learns:</p>
+<blockquote>
+<p>“Responses 1 and 2 performed better than the other sampled responses for this same problem.”</p>
+</blockquote>
+<p>Thus:</p>
+<div class="math block">
+A_{1},A_{2}&gt;0
+</div>
+<p>and:</p>
+<div class="math block">
+A_{3},A_{4}&lt;0.
+</div>
+<p>This produces both:</p>
+<div class="math block">
+\boxed{\text{reinforcement}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{suppression}}.
+</div>
+<p>The supplied DeepSeekMath slides later make this comparison against Online RFT explicit: GRPO's continuous advantage gives stronger reinforcement to above-average responses and actively penalizes below-average ones. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-42">5.9.22 Why Online RFT is weaker than GRPO</h3>
+<p>This is a beautiful exam/interview concept.</p>
+<p>Suppose we use:</p>
+<div class="math block">
+R\in\{0,1\}.
+</div>
+<p>Online RFT effectively treats:</p>
+<div class="math block">
+R=1
+</div>
+<p>as:</p>
+<div class="math block">
+\text{reinforce}.
+</div>
+<p>But all correct responses get roughly the same binary signal.</p>
+<p>GRPO instead computes:</p>
+<div class="math block">
+A_i=
+\frac{R_i-\mu}{\sigma+\epsilon}.
+</div>
+<p>Now the coefficient is <strong>relative to the group</strong>.</p>
+<p>The deck describes GRPO's richer gradient coefficient as the reason it beats Online RFT on both GSM8K and MATH in the displayed comparison. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-43">5.9.23 An important conceptual decomposition</h3>
+<p>The DeepSeekMath deck offers a useful unifying perspective:</p>
+<div class="math block">
+\boxed{
+\text{SFT, RFT, DPO, PPO, GRPO}
+}
+</div>
+<p>can be viewed through two major questions:</p>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-44">1. Where does the training data come from?</h5>
+<p>For example:</p>
+<div class="math block">
+\text{offline}
+\quad\text{vs}\quad
+\text{online}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-45">2. How strongly should each token be pushed?</h5>
+<p>That is the gradient coefficient / learning signal.</p>
+<p>The supplied deck explicitly frames these methods as differing along these axes.</p>
+<p>This perspective becomes extremely useful because it prevents you from treating:</p>
+<div class="math block">
+\text{SFT},\text{RFT},\text{DPO},\text{PPO},\text{GRPO}
+</div>
+<p>as five completely unrelated algorithms.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-46">5.9.24 Online vs offline — critical distinction</h3>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-47">Offline</h5>
+<p>Generate responses once from a fixed model:</p>
+<div class="math block">
+\pi_0
+\rightarrow
+\text{dataset}
+\rightarrow
+\text{train}.
+</div>
+<p>RFT and DPO in the deck are categorized this way.</p>
+<h5 id="v3-heading-chunk-les-step-5-9-i50-48">Online</h5>
+<p>Keep generating from the <strong>current policy</strong>:</p>
+<div class="math block">
+\pi_t
+\rightarrow
+\text{new responses}
+\rightarrow
+\text{reward}
+\rightarrow
+\pi_{t+1}.
+</div>
+<p>Online RFT and GRPO are described this way. <em>(Source: deepseekmath-slides)</em></p>
+<p>As training progresses:</p>
+<div class="math block">
+\pi_t\neq\pi_0.
+</div>
+<p>Therefore online methods continually receive data from the model they are currently training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-49">5.9.25 Why does this become increasingly important?</h3>
+<p>Early in training:</p>
+<div class="math block">
+\pi_t\approx\pi_0.
+</div>
+<p>So the distinction between frozen-data generation and fresh sampling is smaller.</p>
+<p>Later:</p>
+<div class="math block">
+\pi_t
+</div>
+<p>may be substantially different.</p>
+<p>Then a fixed dataset describes the old policy's behavior, whereas online sampling reveals the current policy's behavior.</p>
+<p>The slides explicitly state that online methods pull ahead as the current policy diverges from the original SFT model, with Online RFT outperforming offline RFT in the cited comparison. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-50">5.9.26 Numerical checkpoint</h3>
+<p>Suppose an online RL system generates:</p>
+<div class="math block">
+G=8
+</div>
+<p>responses per prompt, and:</p>
+<div class="math block">
+3
+</div>
+<p>are correct.</p>
+<p>Then:</p>
+<div class="math block">
+R=[1,1,1,0,0,0,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu_R
+=
+\frac{3}{8}
+=
+0.375.
+</div>
+<p>The correct responses have:</p>
+<div class="math block">
+R_i-\mu_R
+=
+1-0.375
+=
+0.625.
+</div>
+<p>The incorrect responses have:</p>
+<div class="math block">
+0-0.375
+=
+-0.375.
+</div>
+<p>Before standardization, you can already see the direction:</p>
+<div class="math block">
+\boxed{+0.625\text{ for correct}}
+</div>
+<div class="math block">
+\boxed{-0.375\text{ for incorrect}}.
+</div>
+<p>After dividing by the group standard deviation, these become normalized advantages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-51">5.9.27 Very important: why multiple samples are necessary</h3>
+<p>Suppose we generate only:</p>
+<div class="math block">
+G=1
+</div>
+<p>response.</p>
+<p>Then:</p>
+<div class="math block">
+\mu=R_1.
+</div>
+<p>Hence:</p>
+<div class="math block">
+R_1-\mu=0.
+</div>
+<p>There is no meaningful group-relative comparison.</p>
+<p>So GRPO inherently needs:</p>
+<div class="math block">
+\boxed{G&gt;1}
+</div>
+<p>for a meaningful group baseline.</p>
+<p>This is exactly why GRPO's sampling structure differs from a one-response-per-prompt PPO-style setup. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-52">5.9.28 DeepSeekMath's central design philosophy</h3>
+<p>The whole process can now be viewed as:</p>
+<div class="math block">
+\boxed{
+\text{Start with strong domain data}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{teach the model to solve problems}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{sample multiple attempts}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{verify correctness}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{compare attempts within each problem}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{increase probability of stronger reasoning trajectories}
+}
+</div>
+<p>That is the conceptual heart of DeepSeekMath.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-53">5.9.29 Exam question: why does better data matter even with the same compute?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{Model}=1.3B
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Training tokens}=150B.
+</div>
+<p>Experiment A uses corpus A.</p>
+<p>Experiment B uses corpus B.</p>
+<p>Everything else is held constant.</p>
+<p>If:</p>
+<div class="math block">
+\text{Performance}_B&gt;
+\text{Performance}_A,
+</div>
+<p>then the improvement is evidence that:</p>
+<div class="math block">
+\boxed{\text{data composition/quality matters}}
+</div>
+<p>rather than the improvement being explained simply by:</p>
+<div class="math block">
+\text{model size}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{training-token budget}.
+</div>
+<p>That is the logic behind the controlled corpus comparison in the slides. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-54">5.9.30 Exam numerical: RL gain</h3>
+<p>MATH accuracy goes:</p>
+<div class="math block">
+46.8\%\rightarrow51.7\%.
+</div>
+<p>Absolute improvement:</p>
+<div class="math block">
+\boxed{4.9\text{ percentage points}}.
+</div>
+<p>Relative percentage improvement:</p>
+<div class="math block">
+\frac{51.7-46.8}{46.8}\times100
+</div>
+<div class="math block">
+=
+\frac{4.9}{46.8}\times100
+\approx10.47\%.
+</div>
+<p>So the distinction is:</p>
+<div class="math block">
+\boxed{4.9\text{ percentage points}}
+</div>
+<p>versus approximately:</p>
+<div class="math block">
+\boxed{10.5\%\text{ relative improvement}}.
+</div>
+<p>Do not confuse those two in an exam.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-55">5.9.31 One more numerical: corpus repetition</h3>
+<p>Suppose:</p>
+<div class="math block">
+D=20B
+</div>
+<p>training tokens are available and we train on:</p>
+<div class="math block">
+100B
+</div>
+<p>tokens.</p>
+<p>Approximate corpus-equivalent exposure:</p>
+<div class="math block">
+\frac{100}{20}=5.
+</div>
+<p>So the model sees the equivalent of:</p>
+<div class="math block">
+\boxed{5\text{ corpus passes}}.
+</div>
+<p>If instead:</p>
+<div class="math block">
+D=120B
+</div>
+<p>and:</p>
+<div class="math block">
+T=100B,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{100}{120}=0.833.
+</div>
+<p>So the model does not even need one full corpus-equivalent pass.</p>
+<p>This is the intuition behind why a large corpus can avoid rapid repetition. The slides make this exact qualitative point. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-56">5.9.32 The DeepSeekMath → DeepSeek-R1 connection</h3>
+<p>This is worth memorizing:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath introduced GRPO}
+}
+</div>
+<p>and later:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 used the same family of ideas}
+}
+</div>
+<p>The book explicitly presents GRPO as originally introduced in DeepSeekMath and later used for DeepSeek-R1. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So when you study DeepSeek-R1, do not think:</p>
+<blockquote>
+<p>“GRPO suddenly appeared in R1.”</p>
+</blockquote>
+<p>It did not.</p>
+<p>The lineage is:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{DeepSeek-R1}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-57">5.9.33 The most important mental model from Step 5.9</h3>
+<p>DeepSeekMath is not simply:</p>
+<div class="math block">
+\boxed{\text{7B model + RL}}
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\begin{array}{c}
+\text{Specialized high-quality math corpus}\\
+\downarrow\\
+\text{domain-specialized pretrained model}\\
+\downarrow\\
+\text{instruction tuning}\\
+\downarrow\\
+\text{online rollouts}\\
+\downarrow\\
+\text{verifiable rewards}\\
+\downarrow\\
+\text{group-relative advantages}\\
+\downarrow\\
+\text{GRPO optimization}\\
+\downarrow\\
+\text{DeepSeekMath-RL}
+\end{array}
+}
+</div>
+<p>And this gives us a clean division of labor:</p>
+<div class="math block">
+\boxed{
+\text{Pretraining}
+\rightarrow
+\text{knowledge}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{SFT}
+\rightarrow
+\text{demonstrated behavior}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{GRPO/RL}
+\rightarrow
+\text{optimize successful behavior}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-9-i50-58">Step 5.9 numerical bank</h4>
+<p>You should now be able to solve:</p>
+<p><strong>N1.</strong> DeepSeekMath has 120.2B tokens and OpenWebMath has 13.6B. Compute the ratio.</p>
+<p><strong>N2.</strong> A classifier iteration finds 35.5M pages. Iteration 4 contains 98% pages already found in iteration 3. Conceptually, why stop?</p>
+<p><strong>N3.</strong> MATH goes 46.8% → 51.7%. Compute both absolute and relative improvements.</p>
+<p><strong>N4.</strong> A GRPO group has rewards <span class="math inline">[1,1,0,0]</span>. Compute mean reward and the unnormalized reward deviations.</p>
+<p><strong>N5.</strong> A corpus has 25B tokens and training uses 150B tokens. Approximately how many corpus-equivalent passes occur?</p>
+<p><strong>N6.</strong> Why is <span class="math inline">G=1</span> insufficient for a meaningful group-relative GRPO baseline?</p>
+<p><strong>N7.</strong> Explain why CMATH improving from 84.6% to 88.8% is more interesting than simply observing that the training reward increased.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-9-i50-59">One-line memory anchor</h3>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\textbf{DeepSeekMath = Better Math Data + Online Verifiable RL + GRPO}
+}
+</div>
+<hr />
+</section>

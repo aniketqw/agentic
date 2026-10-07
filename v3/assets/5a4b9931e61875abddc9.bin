@@ -1,0 +1,110 @@
+"""CPU teaching companion. NumPy required. No GPU FP8/DDP execution claimed.
+mtp_alignment: returns context/conditioning/target indices without target leakage.
+rmsnorm: normalizes feature vectors without mean subtraction.
+fp8_values/cast_fp8: enumerate E4M3FN/E5M2 finite codes and simulate RTNE.
+quantize: fresh amax scale, cast, then reconstruct; metadata remains high precision.
+block_linear: uses per-row activation groups and 2-D weight blocks, dequantizes
+             EACH reduction chunk before accumulation; arbitrary test block size.
+linear_backward: exact real-arithmetic derivatives of Y=XW (not cast derivative).
+weighted_gradient: sample-weighted microbatch means, including unequal sizes.
+pipeline: ideal balanced schedule arithmetic; no actual DualPipe benchmark.
+"""
+import math
+import numpy as np
+
+def mtp_alignment(tokens, depth):
+    if depth < 1: raise ValueError('depth counts additional tokens beyond main NTP')
+    n=max(0,len(tokens)-depth-1)
+    return [{'base':i,'conditioning':i+depth,'target':i+depth+1,'token':tokens[i+depth+1]} for i in range(n)]
+
+def rmsnorm(x, eps=1e-6):
+    x=np.asarray(x,dtype=float)
+    return x/np.sqrt(np.mean(x*x,axis=-1,keepdims=True)+eps)
+
+def mtp_module(h, embedding, projection):
+    """Projection+nonlinear toy refinement; not a production Transformer block."""
+    u=np.concatenate([rmsnorm(h),rmsnorm(embedding)],axis=-1)
+    return np.tanh(u @ np.asarray(projection))
+
+def chain_loss(params,h=.7,target=1.,weight=.1):
+    """Scalar two-stage surrogate illustrates all gradient paths."""
+    a,b=params;h1=a*h;h2=b*h1
+    return .5*(h-1.)**2+weight/2*(.5*(h1-target)**2+.5*(h2-target)**2)
+
+def chain_grad(params,h=.7,target=1.,weight=.1):
+    a,b=params;h1=a*h;h2=b*h1;c=weight/2
+    return np.array([c*((h1-target)*h+(h2-target)*b*h),c*(h2-target)*h1])
+
+def speculative(p,q):
+    p=np.asarray(p,float);q=np.asarray(q,float)
+    if np.any(p<0) or np.any(q<0) or not np.isclose(p.sum(),1) or not np.isclose(q.sum(),1):raise ValueError('probability distributions required')
+    acceptance=np.divide(p,q,out=np.ones_like(p),where=q>0).clip(0,1)
+    accepted=q*acceptance; rejection=1-accepted.sum()
+    residual=np.maximum(p-q,0)
+    residual=residual/residual.sum() if residual.sum()>0 else np.zeros_like(p)
+    return {'acceptance':acceptance,'rejection':float(rejection),'residual':residual,'output':accepted+rejection*residual}
+
+def fp8_values(kind='e4m3fn'):
+    """Returns (finite value, unsigned magnitude code), including subnormals."""
+    if kind not in ('e4m3fn','e5m2'):raise ValueError(kind)
+    m,e,bias=(3,4,7) if kind=='e4m3fn' else (2,5,15)
+    out=[]
+    for exponent in range(2**e):
+      for mantissa in range(2**m):
+        if kind=='e4m3fn' and exponent==15 and mantissa==7:continue
+        if kind=='e5m2' and exponent==31:continue
+        value=mantissa/2**m*2**(1-bias) if exponent==0 else (1+mantissa/2**m)*2**(exponent-bias)
+        out.append((value,(exponent<<m)|mantissa))
+    return out
+
+def cast_fp8(x,kind='e4m3fn'):
+    """Saturating finite RTNE simulation; explicitly excludes NaN/infinity input."""
+    if not math.isfinite(float(x)):raise ValueError('finite input required')
+    v=abs(float(x)); vals=fp8_values(kind)
+    nearest=min(vals,key=lambda z:(abs(v-z[0]),z[1]%2,z[1]))[0]
+    return math.copysign(nearest,float(x))
+
+def quantize(x,kind='e4m3fn',amax=None):
+    x=np.asarray(x,float)
+    maximum=max(v for v,c in fp8_values(kind))
+    observed=float(np.max(np.abs(x))) if x.size else 0.
+    calibration=observed if amax is None else float(amax)
+    if calibration<0:raise ValueError('nonnegative amax required')
+    scale=maximum/calibration if calibration>0 else 1.
+    q=np.array([cast_fp8(v*scale,kind) for v in x.flat]).reshape(x.shape)
+    return {'q':q,'scale':scale,'reconstructed':q/scale,'amax':observed}
+
+def block_linear(x,w,block=128):
+    x=np.asarray(x,float);w=np.asarray(w,float)
+    if x.ndim!=2 or w.ndim!=2 or x.shape[1]!=w.shape[0] or block<1:raise ValueError('X rows times W input/output columns')
+    out=np.zeros((x.shape[0],w.shape[1]),float)
+    for start in range(0,x.shape[1],block):
+      stop=min(start+block,x.shape[1]); qx=[quantize(row[start:stop]) for row in x]
+      for j in range(0,w.shape[1],block):
+        jw=min(j+block,w.shape[1]);qw=quantize(w[start:stop,j:jw])
+        for i,a in enumerate(qx):out[i,j:jw]+=(a['q']@qw['q'])/(a['scale']*qw['scale'])
+    return out
+
+def linear_backward(x,w,dy):
+    x,w,dy=map(lambda a:np.asarray(a,float),(x,w,dy))
+    return dy@w.T,x.T@dy
+
+def weighted_gradient(gradients,sizes):
+    if len(gradients)!=len(sizes) or not sizes or min(sizes)<=0:raise ValueError('positive sample counts required')
+    return sum(np.asarray(g,float)*n for g,n in zip(gradients,sizes))/sum(sizes)
+
+def pipeline(stages,microbatches,forward=1.,backward=1.):
+    if stages<1 or microbatches<1:raise ValueError('positive counts required')
+    work=microbatches*(forward+backward)
+    time=(microbatches+stages-1)*(forward+backward)
+    return {'time':time,'efficiency':work/time,'bubble_fraction':1-work/time}
+
+def communication(tokens,topk,width,bytes_per_element,remote_fraction=1.):
+    gross=tokens*topk*width*bytes_per_element
+    return {'assignments':tokens*topk,'gross_one_way_bytes':gross,'remote_one_way_bytes':gross*remote_fraction,'dispatch_plus_combine_bytes':2*gross*remote_fraction}
+
+if __name__=='__main__':
+ print('MTP S=6 depth1:',mtp_alignment(list('ABCDEF'),1))
+ print('FP8 [1,2,-4]:',quantize([1,2,-4])['reconstructed'].tolist())
+ print('Speculative:',speculative([.6,.3,.1],[.2,.5,.3])['output'].tolist())
+ print('Pipeline:',pipeline(4,8))

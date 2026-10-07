@@ -1,0 +1,1782 @@
+<section class="chunk" id="chunk-les-step-2-3-i23" data-id="les-step-2-3-i23"><details class="audit-card" id="audit-full-chunk-les-step-2-3-i23" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-2-3-i23-1">Motivation</h4><p>Remove low-ranked candidates then sample from a properly renormalized subset.</p><h4 id="v3-heading-chunk-les-step-2-3-i23-2">Prerequisites</h4><ul><li>Logit ordering</li><li>Softmax masking</li><li>Categorical sampling</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-3">Notation and units</h4><ul><li>S_k is retained index set</li><li>Filtered logits outside S_k are -infinity</li><li>Exact-k and threshold-tie policies differ</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-4">Assumptions</h4><ul><li>1&lt;=k&lt;=V for exact filtering</li><li>Stable index tie-break in companion</li><li>Positive temperature preserves ranking</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-5">Step-by-step derivation</h4><ol><li>Sort scores descending with an explicit tie policy; retain first k index entries, set all other logits to negative infinity.</li><li>Softmax now normalizes over retained candidates only. If given probabilities, divide retained probabilities by their total mass and set other entries to zero.</li><li>For [.4,.25,.15,.1,.1] and k=2, retained mass=.65; [.6153846154,.3846153846,0,0,0].</li><li>For logits [5,4,1,0], k=2 yields [5,4,-inf,-inf], with probabilities [.7310585786,.2689414214,0,0].</li><li>Positive temperature and exact top-k commute as set operations; probabilities still vary with T after filtering.</li><li>A threshold implementation z&lt;kth excludes lower values but keeps all exact ties at the boundary. For [5,5,5,1],k=2 this retains three, unlike the companion exact-two index policy.</li><li>k=1 yields a one-token categorical distribution under exact index selection; k=V leaves the unfiltered allowed distribution.</li></ol><h4 id="v3-heading-chunk-les-step-2-3-i23-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-3-i23-7">topk_probabilities</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Sort scores descending with an explicit tie policy; retain first k index entries, set all other logits to negative infinity.</li><li>Softmax now normalizes over retained candidates only. If given probabilities, divide retained probabilities by their total mass and set other entries to zero.</li><li>For [.4,.25,.15,.1,.1] and k=2, retained mass=.65; [.6153846154,.3846153846,0,0,0].</li><li>For logits [5,4,1,0], k=2 yields [5,4,-inf,-inf], with probabilities [.7310585786,.2689414214,0,0].</li><li>Positive temperature and exact top-k commute as set operations; probabilities still vary with T after filtering.</li><li>A threshold implementation z&lt;kth excludes lower values but keeps all exact ties at the boundary. For [5,5,5,1],k=2 this retains three, unlike the companion exact-two index policy.</li><li>k=1 yields a one-token categorical distribution under exact index selection; k=V leaves the unfiltered allowed distribution.</li></ol><p>Answer: 0.7310585786300049; 0.2689414213699951; 0.0; 0.0</p><p>Verification: foundations_decoding / topk_probabilities · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-3-i23-8">topk_exact_ties</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Sort scores descending with an explicit tie policy; retain first k index entries, set all other logits to negative infinity.</li><li>Softmax now normalizes over retained candidates only. If given probabilities, divide retained probabilities by their total mass and set other entries to zero.</li><li>For [.4,.25,.15,.1,.1] and k=2, retained mass=.65; [.6153846154,.3846153846,0,0,0].</li><li>For logits [5,4,1,0], k=2 yields [5,4,-inf,-inf], with probabilities [.7310585786,.2689414214,0,0].</li><li>Positive temperature and exact top-k commute as set operations; probabilities still vary with T after filtering.</li><li>A threshold implementation z&lt;kth excludes lower values but keeps all exact ties at the boundary. For [5,5,5,1],k=2 this retains three, unlike the companion exact-two index policy.</li><li>k=1 yields a one-token categorical distribution under exact index selection; k=V leaves the unfiltered allowed distribution.</li></ol><p>Answer: True; True; False; False</p><p>Verification: foundations_decoding / topk_exact_ties · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-2-3-i23-9">Corrections and source qualifications</h4><ul><li>heading: 2.3.24; text: Threshold top-k can retain more than k tied logits. Exactly one retained token at k=1 requires an explicit exact-index tie policy.</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-10">Mastery answers and retained exercise context</h4><ol><li>Q1: [7,5,4], original indices [3,5,1] in 1-based numbering.</li><li>Q2: -infinity.</li><li>Q3: exp(-infinity)=0.</li><li>Q4: [.6153846154,.3846153846,0,0,0].</li><li>Q5: filtering chooses eligibility; renormalization makes remaining probabilities sum to one.</li><li>Q6: [5,4,-inf,-inf].</li><li>Q7: no, with fixed tie policy.</li><li>Q8: unique retained index gives greedy; threshold ties need an explicit tie policy.</li><li>Q9: top-k hard support restriction; temperature soft probability redistribution.</li><li>Q10: fixed count ignores how sharp/flat current probabilities are.</li></ol><h4 id="v3-heading-chunk-les-step-2-3-i23-11">Edge cases and remaining gaps</h4><ul><li>Fixed k can discard almost-equally likely tokens in flat distributions or keep implausible ones in sharp distributions.</li><li>Threshold ties can make candidate count exceed k; k=1 is then not uniquely greedy without a tie policy.</li><li>Top-k does not modify surviving raw logits or retrain parameters.</li><li>Sampling remains stochastic whenever two retained probabilities are positive.</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-12">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-13">Exact source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 14, 16, 18 · top-k support and fixed-count limitations</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 364, 365, 366, 367, 368 · threshold-based top-k and temperature implementation</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-14">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (95)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 2.3 — Top-k Sampling</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.1 Why Do We Need Top-k?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.2 What Does the &quot;k&quot; Mean?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.3 Very Important: Top-k Works on Logits</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.4 Why -\infty?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Causal attention</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k decoding</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.5 The Top-k Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.6 Top-k With Probabilities — First Easy Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.7 Renormalization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.8 Why Must We Renormalize?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.9 Logit Version of the Same Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.10 Notice Something Important</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.11 Exact Source Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.12 Let&#x27;s Verify Those Probabilities</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.13 Important Exam Insight: Top-k Changes the Probability Values</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.14 Top-k vs Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.15 Numerical Example — Same Logits, Different Operations</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature only, T=2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k only, k=2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Temperature + top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.16 Does Temperature Affect Which Tokens Are in Top-k?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.17 But Temperature Still Changes Top-k Probabilities</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.18 Why Is Top-k Useful at High Temperature?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.19 Numerical Example — Top-k After Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.20 The Same Example Without Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.21 Top-k as a Candidate-Set Operation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.22 Numerical Question — Ties</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.23 Numerical Question — k=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.24 Top-1, Top-k, and No Filtering</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>No top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.25 Does Top-k Itself Make Generation Deterministic?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.26 Important Distinction: Filtering vs Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.27 PyTorch Implementation From the Source</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>2.3.28 What Does torch.topk Return?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.29 Why Is the Smallest Retained Logit Important?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.30 Numerical — Find the Top-k Threshold</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.31 Numerical — Top-k From Raw Logits</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.32 Notice the Difference Between Logit Gap and Probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.33 Top-k + Temperature Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1: Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2: Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3: Softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.34 What If Temperature Were T=0.5?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.35 This Gives Us a Very Useful Table</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.36 Why Fixed k Can Be a Limitation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.37 Top-k vs Top-p Preview</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.38 Important Connection to Causal Attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Causal attention</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.39 A Subtle Point: Top-k Does Not Change the Surviving Logit Values</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.40 Another Exam Trap</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.41 Another Exam Trap</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.42 Another Exam Trap</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.43 Another Exam Trap</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.44 Top-k in the Full Generation Loop</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.45 One Complete Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1 — Select top 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2 — Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3 — Softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.46 Compare With No Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.47 Compare With Top-k but T=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>T=1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>T=0.5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.48 Parameter k and Diversity</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.49 Numerical — Candidate Count</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.50 Numerical — Removed Tokens</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.51 Top-k and Numerical Stability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.52 Why Top-k Is Particularly Useful With Large Vocabularies</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.53 But Fixed k Creates the Main Weakness</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Context A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Context B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Context A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Context B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.54 Top-k Summary Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.55 Top-k Numerical Master Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.56 Top-k vs Greedy vs Beam vs Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.3.57 Master Check — Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.3.58 The Core Understanding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-D03" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> D03 — Top-k support and renormalization</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Restrict random draws to a fixed number of high-probability tokens.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a></p><h4 id="v3-heading-chunk-les-step-2-3-i23-15">Notation and assumptions</h4><p>k positive integer ≤vocabulary size. Exact-k with ID tie break; threshold-based APIs may retain ties beyond k.</p><h4 id="v3-heading-chunk-les-step-2-3-i23-16">Derivation and mechanism</h4><ol><li>Sort probabilities or logits by descending score.</li><li>Keep k indices.</li><li>Divide retained probabilities by their actual retained mass.</li></ol><div class="math block">p_i^{new}=p_i\mathbf1_{i\in S}/\sum_{j\in S}p_j</div><h4 id="v3-heading-chunk-les-step-2-3-i23-17">Worked example</h4><p>p=[.5,.3,.15,.05],k2 retains IDs0,1, mass.8; new p=[.625,.375,0,0]. The sampler cannot choose the discarded tokens.</p><h4 id="v3-heading-chunk-les-step-2-3-i23-18">Limitations</h4><ul><li>k0 is rejected here; some libraries use0 to disable filtering.</li><li>Tie conventions must be recorded when comparing implementations.</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-19">Connections to later concepts</h4><ul><li>D04 and D05 retain variable-size supports; D10 explains why the order of these filters is part of the algorithm.</li></ul><h4 id="v3-heading-chunk-les-step-2-3-i23-20">Source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 14 · Decoding lecture</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 364, 365, 366 · §5.3.2</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-2-3-i23-21">Executed code and evidence</h4><p>Functions: truncate. Passed checks: Filter-top-k, Filter-normalization-top-k, Top-k-invalid</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-2-3-i23"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-2-3-i23" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-2-2-i22">← Previous lesson</a> · <a href="#chunk-les-step-2-4-i24">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-2-2-i22">Step 2.2 — Temperature Scaling</a></p><p><strong>This lesson:</strong> Step 2.3 — Top-k Sampling</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-9">decoding-sampling-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-2-3-i23"></a></p>
+<h2>Step 2.3 — Top-k Sampling</h2>
+<p><em>Plan node: I2 · chat order #23</em></p>
+<p>We have just learned temperature:</p>
+<div class="math block">
+\boxed{
+q_i(T)=
+\frac{e^{z_i/T}}{\sum_j e^{z_j/T}}
+}
+</div>
+<p>Temperature changes <strong>how concentrated the distribution is</strong>.</p>
+<p>But temperature does not remove extremely unlikely vocabulary tokens.</p>
+<p>That leads to:</p>
+<div class="math block">
+\boxed{\text{Top-k sampling}}
+</div>
+<p>The idea from your source is simple:</p>
+<blockquote>
+<p>Keep only the <span class="math inline">k</span> tokens with the highest logits, suppress all other tokens, and then apply softmax so the remaining tokens form a new probability distribution. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+</blockquote>
+<p>This is especially important for exam numericals because the question can give you either <strong>probabilities or logits</strong>, and you must know exactly what to do in each case.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-22">2.3.1 Why Do We Need Top-k?</h3>
+<p>Suppose the model has a vocabulary of:</p>
+<div class="math block">
+V=50,000.
+</div>
+<p>Imagine its next-token probabilities look roughly like:</p>
+<div class="math block">
+[0.40,\;0.25,\;0.15,\;0.07,\;0.04,\ldots]
+</div>
+<p>with thousands of tiny probabilities such as:</p>
+<div class="math block">
+0.000001.
+</div>
+<p>Pure sampling technically allows those extremely unlikely tokens.</p>
+<p>That can create bizarre outputs, particularly when using a high temperature.</p>
+<p>Your Raschka source explicitly describes this issue: temperature-based sampling can increase diversity, but high temperatures can also produce nonsensical tokens; top-k then restricts sampling to the most likely candidates. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>So top-k introduces:</p>
+<div class="math block">
+\boxed{
+\text{diversity without allowing the whole low-probability tail}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-23">2.3.2 What Does the &quot;k&quot; Mean?</h3>
+<p>If:</p>
+<div class="math block">
+k=3,
+</div>
+<p>we keep exactly:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>tokens.</p>
+<p>If:</p>
+<div class="math block">
+k=10,
+</div>
+<p>we keep:</p>
+<div class="math block">
+\boxed{10}.
+</div>
+<p>Everything else is removed from the sampling candidate set.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+k=\text{maximum number of candidate tokens retained}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-24">2.3.3 Very Important: Top-k Works on Logits</h3>
+<p>Suppose the model produces:</p>
+<div class="math block">
+z=
+[z_1,z_2,\ldots,z_V].
+</div>
+<p>Find the <span class="math inline">k</span> largest values.</p>
+<p>Suppose:</p>
+<div class="math block">
+z=[6,4,2,1,-1].
+</div>
+<p>For:</p>
+<div class="math block">
+k=2,
+</div>
+<p>keep:</p>
+<div class="math block">
+6,\;4.
+</div>
+<p>Suppress:</p>
+<div class="math block">
+2,\;1,\;-1.
+</div>
+<p>In the source implementation, the suppressed logits are replaced with:</p>
+<div class="math block">
+\boxed{-\infty}
+</div>
+<p>before softmax. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-25">2.3.4 Why <span class="math inline">-\infty</span>?</h3>
+<p>Exactly the same trick we used for the causal mask.</p>
+<p>We already learned:</p>
+<div class="math block">
+e^{-\infty}=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+-\infty
+\overset{\text{softmax}}{\longrightarrow}
+0
+}
+</div>
+<p>So the discarded tokens receive:</p>
+<div class="math block">
+\boxed{
+P=0.
+}
+</div>
+<p>This is a beautiful connection between two topics.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-26">Causal attention</h5>
+<p>Use <span class="math inline">-\infty</span> to forbid future positions.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-27">Top-k decoding</h5>
+<p>Use <span class="math inline">-\infty</span> to forbid low-ranked vocabulary tokens.</p>
+<p>The <strong>mathematical mechanism is the same</strong>; only the reason for masking is different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-28">2.3.5 The Top-k Pipeline</h3>
+<p>The basic operation is:</p>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+\text{find top }k
+\rightarrow
+\text{set others to }-\infty
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{sample}
+}
+</div>
+<p>If temperature is also used:</p>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+\text{top-k filter}
+\rightarrow
+\text{temperature scaling}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{sample}
+}
+</div>
+<p>This is the ordering used in the Raschka implementation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-29">2.3.6 Top-k With Probabilities — First Easy Example</h3>
+<p>Suppose the original probability distribution is:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align:right">0.40</td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align:right">0.25</td>
+</tr>
+<tr>
+<td>C</td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td>D</td>
+<td style="text-align:right">0.10</td>
+</tr>
+<tr>
+<td>E</td>
+<td style="text-align:right">0.06</td>
+</tr>
+<tr>
+<td>F</td>
+<td style="text-align:right">0.04</td>
+</tr>
+</tbody>
+</table>
+<p>Let:</p>
+<div class="math block">
+k=3.
+</div>
+<p>The top 3 are:</p>
+<div class="math block">
+A,\;B,\;C.
+</div>
+<p>So we remove:</p>
+<div class="math block">
+D,\;E,\;F.
+</div>
+<p>The retained probability mass is:</p>
+<div class="math block">
+0.40+0.25+0.15
+=
+\boxed{0.80}.
+</div>
+<p>But probabilities must sum to 1.</p>
+<p>Therefore we <strong>renormalize</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-30">2.3.7 Renormalization</h3>
+<p>For every retained token:</p>
+<div class="math block">
+\boxed{
+P'_i=\frac{P_i}{\sum_{j\in TopK}P_j}
+}
+</div>
+<p>Here the denominator is:</p>
+<div class="math block">
+0.80.
+</div>
+<p>Thus:</p>
+<div class="math block">
+P'(A)=\frac{0.40}{0.80}=0.50
+</div>
+<div class="math block">
+P'(B)=\frac{0.25}{0.80}=0.3125
+</div>
+<div class="math block">
+P'(C)=\frac{0.15}{0.80}=0.1875.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+P'=
+[0.50,\;0.3125,\;0.1875,\;0,\;0,\;0]
+}
+</div>
+<p>This is exactly the basic top-k operation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-31">2.3.8 Why Must We Renormalize?</h3>
+<p>Suppose we simply zeroed the discarded tokens:</p>
+<div class="math block">
+[0.40,0.25,0.15,0,0,0].
+</div>
+<p>The total is:</p>
+<div class="math block">
+0.80.
+</div>
+<p>But a probability distribution requires:</p>
+<div class="math block">
+\sum_i P_i=1.
+</div>
+<p>Therefore the remaining probability mass must be stretched back to 1.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{filter}
+\rightarrow
+\text{renormalize}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-32">2.3.9 Logit Version of the Same Example</h3>
+<p>Suppose instead we were given logits:</p>
+<div class="math block">
+z=[4,3,2,1,0,-1].
+</div>
+<p>For:</p>
+<div class="math block">
+k=3,
+</div>
+<p>retain:</p>
+<div class="math block">
+4,3,2.
+</div>
+<p>Replace the others:</p>
+<div class="math block">
+1,0,-1
+</div>
+<p>with:</p>
+<div class="math block">
+-\infty.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+z'=[4,3,2,-\infty,-\infty,-\infty].
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+P=\operatorname{softmax}(z').
+</div>
+<p>The probability automatically renormalizes over the retained three.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-33">2.3.10 Notice Something Important</h3>
+<p>If we had first converted the original logits to probabilities, then selected the top 3 and renormalized, we would get the same result as masking the non-top-3 logits with <span class="math inline">-\infty</span> and applying softmax afterward.</p>
+<p>Why?</p>
+<p>Because softmax preserves ranking.</p>
+<p>And setting the non-selected logits to:</p>
+<div class="math block">
+-\infty
+</div>
+<p>makes their probability exactly zero.</p>
+<p>So the preferred implementation is simply:</p>
+<div class="math block">
+\boxed{
+\text{top-k at logit level}
+\rightarrow
+\text{softmax}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-34">2.3.11 Exact Source Example</h3>
+<p>Your Raschka source gives a real implementation example where:</p>
+<div class="math block">
+k=3.
+</div>
+<p>The top three logits are:</p>
+<div class="math block">
+\boxed{
+6.7500,\quad6.2800,\quad4.5100
+}
+</div>
+<p>and their token positions are:</p>
+<div class="math block">
+\boxed{
+3,\quad7,\quad0.
+}
+</div>
+<p>The source then sets all logits below the smallest retained logit to:</p>
+<div class="math block">
+-\infty
+</div>
+<p>and applies softmax. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>The resulting nonzero probabilities shown in the source are approximately:</p>
+<div class="math block">
+\boxed{
+0.0615,\quad0.5775,\quad0.3610
+}
+</div>
+<p>for the three retained positions, with the other vocabulary entries at zero.</p>
+<p>This is an excellent example because it demonstrates an important fact:</p>
+<div class="math block">
+\boxed{
+\text{the top-k logits do not need to be equally probable}.
+}
+</div>
+<p>The largest retained logit gets the largest probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-35">2.3.12 Let's Verify Those Probabilities</h3>
+<p>The retained logits are:</p>
+<div class="math block">
+[6.75,6.28,4.51].
+</div>
+<p>Compute:</p>
+<div class="math block">
+e^{6.75},
+\quad
+e^{6.28},
+\quad
+e^{4.51}.
+</div>
+<p>To avoid very large numbers, subtract the maximum:</p>
+<div class="math block">
+[6.75,6.28,4.51]-6.75
+</div>
+<p>giving:</p>
+<div class="math block">
+[0,-0.47,-2.24].
+</div>
+<p>Now:</p>
+<div class="math block">
+e^0=1
+</div>
+<div class="math block">
+e^{-0.47}\approx0.625
+</div>
+<div class="math block">
+e^{-2.24}\approx0.1063.
+</div>
+<p>Total:</p>
+<div class="math block">
+1+0.625+0.1063
+\approx1.7313.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1\approx\frac{1}{1.7313}\approx0.5776
+</div>
+<div class="math block">
+P_2\approx\frac{0.625}{1.7313}\approx0.3610
+</div>
+<div class="math block">
+P_3\approx\frac{0.1063}{1.7313}\approx0.0614.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{
+[0.5775,\;0.3610,\;0.0615].
+}
+</div>
+<p>The source displays the same values distributed at their token positions. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-36">2.3.13 Important Exam Insight: Top-k Changes the Probability Values</h3>
+<p>Before filtering, the three tokens had some probabilities.</p>
+<p>After filtering:</p>
+<div class="math block">
+\boxed{
+\text{their probabilities increase because the removed probability mass is redistributed}.
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+P(A)=0.40
+</div>
+<p>before top-k.</p>
+<p>If all tokens below <span class="math inline">C</span> are removed and total retained mass is:</p>
+<div class="math block">
+0.80,
+</div>
+<p>then:</p>
+<div class="math block">
+P'(A)=\frac{0.40}{0.80}=0.50.
+</div>
+<p>So top-k does not merely &quot;delete tokens.&quot;</p>
+<p>It also changes the probabilities of the survivors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-37">2.3.14 Top-k vs Temperature</h3>
+<p>Now compare the two.</p>
+<h4 id="v3-heading-chunk-les-step-2-3-i23-38">Temperature</h4>
+<div class="math block">
+z_i\rightarrow\frac{z_i}{T}
+</div>
+<p>changes the relative sharpness.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{all tokens remain candidates}.
+}
+</div>
+<h4 id="v3-heading-chunk-les-step-2-3-i23-39">Top-k</h4>
+<div class="math block">
+\boxed{
+\text{some tokens are completely removed}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Temperature = reshape}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Top-k = truncate/filter}.
+}
+</div>
+<p>This distinction is extremely important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-40">2.3.15 Numerical Example — Same Logits, Different Operations</h3>
+<p>Take:</p>
+<div class="math block">
+z=[4,3,1,0,-2].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-41">Temperature only, <span class="math inline">T=2</span></h5>
+<p>Scaled logits:</p>
+<div class="math block">
+[2,1,0.5,0,-1].
+</div>
+<p>Every token remains possible.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-42">Top-k only, <span class="math inline">k=2</span></h5>
+<p>Keep:</p>
+<div class="math block">
+4,3.
+</div>
+<p>So:</p>
+<div class="math block">
+z'=[4,3,-\infty,-\infty,-\infty].
+</div>
+<p>Only two tokens remain possible.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-43">Temperature + top-k</h5>
+<p>Keep top 2 first:</p>
+<div class="math block">
+[4,3,-\infty,-\infty,-\infty]
+</div>
+<p>then divide by:</p>
+<div class="math block">
+T=2:
+</div>
+<div class="math block">
+[2,1,-\infty,-\infty,-\infty].
+</div>
+<p>Then softmax.</p>
+<p>So only two tokens can be sampled.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-44">2.3.16 Does Temperature Affect Which Tokens Are in Top-k?</h3>
+<p>For:</p>
+<div class="math block">
+T&gt;0,
+</div>
+<p>no.</p>
+<p>Because dividing all logits by the same positive number preserves ranking.</p>
+<p>If:</p>
+<div class="math block">
+z_1&gt;z_2&gt;z_3,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{z_1}{T}&gt;
+\frac{z_2}{T}&gt;
+\frac{z_3}{T}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+TopK(z)=TopK(z/T)
+}
+</div>
+<p>for positive <span class="math inline">T</span>.</p>
+<p>This means top-k membership is unchanged by ordinary positive temperature scaling.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-45">2.3.17 But Temperature Still Changes Top-k Probabilities</h3>
+<p>Suppose top 3 are fixed.</p>
+<p>Temperature can change:</p>
+<div class="math block">
+[0.60,0.30,0.10]
+</div>
+<p>to:</p>
+<div class="math block">
+[0.80,0.15,0.05]
+</div>
+<p>or:</p>
+<div class="math block">
+[0.45,0.35,0.20].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{candidate set fixed}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{probability allocation changes}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-46">2.3.18 Why Is Top-k Useful at High Temperature?</h3>
+<p>Suppose:</p>
+<div class="math block">
+T=2.
+</div>
+<p>The distribution may become relatively flat.</p>
+<p>That gives many unlikely tokens a nontrivial sampling chance.</p>
+<p>Top-k then says:</p>
+<blockquote>
+<p>&quot;I want some randomness, but only among the strongest candidates.&quot;</p>
+</blockquote>
+<p>So the combined idea is:</p>
+<div class="math block">
+\boxed{
+\text{temperature for diversity}
++
+\text{top-k for safety/relevance}.
+}
+</div>
+<p>This is precisely the rationale given in your source. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-47">2.3.19 Numerical Example — Top-k After Temperature</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[5,4,2,1,0].
+</div>
+<p>Take:</p>
+<div class="math block">
+T=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+z/T=[2.5,2,1,0.5,0].
+</div>
+<p>Now use:</p>
+<div class="math block">
+k=3.
+</div>
+<p>Top 3 are still:</p>
+<div class="math block">
+2.5,2,1.
+</div>
+<p>So:</p>
+<div class="math block">
+z'=[2.5,2,1,-\infty,-\infty].
+</div>
+<p>Softmax:</p>
+<div class="math block">
+e^{2.5}\approx12.182
+</div>
+<div class="math block">
+e^2\approx7.389
+</div>
+<div class="math block">
+e^1\approx2.718.
+</div>
+<p>Total:</p>
+<div class="math block">
+12.182+7.389+2.718
+=
+22.289.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1\approx0.5467
+</div>
+<div class="math block">
+P_2\approx0.3315
+</div>
+<div class="math block">
+P_3\approx0.1220.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+P\approx[0.5467,0.3315,0.1220,0,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-48">2.3.20 The Same Example Without Top-k</h3>
+<p>Using:</p>
+<div class="math block">
+z/T=[2.5,2,1,0.5,0],
+</div>
+<p>all five tokens would remain possible.</p>
+<p>Their probabilities would be:</p>
+<div class="math block">
+P_1=
+\frac{12.182}{12.182+7.389+2.718+1.649+1}
+\approx0.490.
+</div>
+<p>So top-k increased the top token from approximately:</p>
+<div class="math block">
+0.490
+</div>
+<p>to:</p>
+<div class="math block">
+0.547.
+</div>
+<p>Why?</p>
+<p>Because the tail probability mass was removed and redistributed.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-49">2.3.21 Top-k as a Candidate-Set Operation</h3>
+<p>It is useful to define:</p>
+<div class="math block">
+S_k(z)
+</div>
+<p>as the set of indices corresponding to the <span class="math inline">k</span> largest logits.</p>
+<p>Then:</p>
+<div class="math block">
+z_i'=
+\begin{cases}
+z_i,&amp;i\in S_k(z)\\
+-\infty,&amp;i\notin S_k(z).
+\end{cases}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+p_i'
+=
+\frac{e^{z_i'}}
+{\sum_j e^{z_j'}}
+}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+p_i'=0
+</div>
+<p>for:</p>
+<div class="math block">
+i\notin S_k(z).
+</div>
+<p>That is the mathematical definition of top-k filtering.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-50">2.3.22 Numerical Question — Ties</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[5,5,4,3].
+</div>
+<p>and:</p>
+<div class="math block">
+k=2.
+</div>
+<p>The top 2 values are:</p>
+<div class="math block">
+5,5.
+</div>
+<p>So both tied top tokens are retained.</p>
+<p>This is straightforward.</p>
+<p>More complicated tie handling depends on implementation details, but an exam question will normally specify enough information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-51">2.3.23 Numerical Question — <span class="math inline">k=1</span></h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[4,2,1,-3].
+</div>
+<p>Take:</p>
+<div class="math block">
+k=1.
+</div>
+<p>Then:</p>
+<div class="math block">
+z'=[4,-\infty,-\infty,-\infty].
+</div>
+<p>Softmax:</p>
+<div class="math block">
+\boxed{
+[1,0,0,0].
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Top\text{-}1\text{ sampling becomes greedy selection}.
+}
+</div>
+<p>This is a very important relationship.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-2-3-i23-0" data-full-review="added"><p>Correction: Threshold top-k can retain more than k tied logits. Exactly one retained token at k=1 requires an explicit exact-index tie policy.</p><p><a href="#audit-full-chunk-les-step-2-3-i23">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-2-3-i23-52">2.3.24 Top-1, Top-k, and No Filtering</h3>
+<p>We can now see a spectrum.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-53">Top-1</h5>
+<div class="math block">
+\boxed{\text{one candidate}}
+</div>
+<p>→ deterministic selection.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-54">Top-k</h5>
+<div class="math block">
+\boxed{k\text{ candidates}}
+</div>
+<p>→ sampling among a fixed-sized shortlist.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-55">No top-k</h5>
+<div class="math block">
+\boxed{V\text{ candidates}}
+</div>
+<p>→ sampling from the entire vocabulary.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-56">2.3.25 Does Top-k Itself Make Generation Deterministic?</h3>
+<p>No.</p>
+<p>Suppose:</p>
+<div class="math block">
+k=3
+</div>
+<p>and after filtering:</p>
+<div class="math block">
+P=[0.5,0.3,0.2].
+</div>
+<p>There are still three possible outcomes.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Top-k + sampling = stochastic}.
+}
+</div>
+<p>Only:</p>
+<div class="math block">
+k=1
+</div>
+<p>reduces the candidate set to one token and therefore makes the selection deterministic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-57">2.3.26 Important Distinction: Filtering vs Sampling</h3>
+<p>Top-k <strong>does not choose the final token by itself</strong>.</p>
+<p>It only changes the candidate distribution.</p>
+<p>The complete process is:</p>
+<div class="math block">
+z
+\rightarrow
+top-k
+\rightarrow
+p
+\rightarrow
+sample.
+</div>
+<p>So top-k is a <strong>filtering mechanism</strong>.</p>
+<p>Sampling is the <strong>selection mechanism</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-58">2.3.27 PyTorch Implementation From the Source</h3>
+<p>Raschka's implementation follows this conceptual pattern:</p>
+<pre><code class="language-python">top_logits, _ = torch.topk(
+    logits,
+    k
+)
+
+min_val = top_logits[:, -1]
+
+logits = torch.where(
+    logits &lt; min_val,
+    torch.tensor(float(&quot;-inf&quot;)).to(logits.device),
+    logits
+)
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">probs = torch.softmax(logits, dim=-1)
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">next_token = torch.multinomial(
+    probs,
+    num_samples=1
+)
+</code></pre>
+<p><em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Now understand the logic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-59">2.3.28 What Does <code>torch.topk</code> Return?</h3>
+<p>Suppose:</p>
+<pre><code class="language-python">logits = [2.5, 5.0, 1.0, 4.0]
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">k=2.
+</code></pre>
+<p><code>torch.topk</code> conceptually returns:</p>
+<pre><code class="language-text">values = [5.0, 4.0]
+positions = [1, 3]
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{top logits}=[5,4]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{top positions}=[1,3].
+}
+</div>
+<p>The source example similarly shows top logits and their token positions. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-60">2.3.29 Why Is the Smallest Retained Logit Important?</h3>
+<p>Suppose the top 3 logits are:</p>
+<div class="math block">
+[6.75,6.28,4.51].
+</div>
+<p>The smallest of these is:</p>
+<div class="math block">
+4.51.
+</div>
+<p>So every logit less than:</p>
+<div class="math block">
+4.51
+</div>
+<p>is discarded.</p>
+<p>That gives us a convenient threshold:</p>
+<div class="math block">
+\boxed{
+z_i&lt;z_{(k)}
+\Rightarrow
+z_i=-\infty.
+}
+</div>
+<p>Here:</p>
+<div class="math block">
+z_{(k)}
+</div>
+<p>means the <span class="math inline">k</span>-th largest logit.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-61">2.3.30 Numerical — Find the Top-k Threshold</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[7,2,9,4,6,1].
+</div>
+<p>Set:</p>
+<div class="math block">
+k=3.
+</div>
+<p>Sort descending:</p>
+<div class="math block">
+9,\;7,\;6,\;4,\;2,\;1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z_{(3)}=6.
+</div>
+<p>So retain logits:</p>
+<div class="math block">
+9,7,6.
+</div>
+<p>Discard:</p>
+<div class="math block">
+4,2,1.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+z'=[7,-\infty,9,-\infty,6,-\infty].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-62">2.3.31 Numerical — Top-k From Raw Logits</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[1.5,4.0,-1,3.0,2.0].
+</div>
+<p>Take:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Top values:</p>
+<div class="math block">
+4.0,\;3.0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+z'=[-\infty,4,-\infty,3,-\infty].
+}
+</div>
+<p>Now softmax over:</p>
+<div class="math block">
+[4,3].
+</div>
+<p>We have:</p>
+<div class="math block">
+e^4\approx54.598
+</div>
+<div class="math block">
+e^3\approx20.086.
+</div>
+<p>Total:</p>
+<div class="math block">
+74.684.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P(4)=\frac{54.598}{74.684}
+\approx0.7311
+</div>
+<p>and:</p>
+<div class="math block">
+P(3)=\frac{20.086}{74.684}
+\approx0.2689.
+</div>
+<p>Thus the final distribution is:</p>
+<div class="math block">
+\boxed{
+[0,0.7311,0,0.2689,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-63">2.3.32 Notice the Difference Between Logit Gap and Probability</h3>
+<p>The two surviving logits were:</p>
+<div class="math block">
+4,\;3.
+</div>
+<p>Difference:</p>
+<div class="math block">
+1.
+</div>
+<p>The resulting probability ratio is:</p>
+<div class="math block">
+\frac{P_1}{P_2}
+=
+\frac{e^4}{e^3}
+=
+e
+\approx2.718.
+</div>
+<p>So a logit difference of 1 corresponds to a probability ratio of approximately:</p>
+<div class="math block">
+\boxed{2.718:1}
+</div>
+<p>when only those two candidates remain.</p>
+<p>This is a useful numerical insight for understanding softmax.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-64">2.3.33 Top-k + Temperature Numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[6,4,1,-1].
+</div>
+<p>Use:</p>
+<div class="math block">
+k=2
+</div>
+<p>and:</p>
+<div class="math block">
+T=2.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-65">Step 1: Top-k</h5>
+<p>Keep:</p>
+<div class="math block">
+6,4.
+</div>
+<p>So:</p>
+<div class="math block">
+z'=[6,4,-\infty,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-66">Step 2: Temperature</h5>
+<div class="math block">
+z''=
+[3,2,-\infty,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-67">Step 3: Softmax</h5>
+<div class="math block">
+e^3\approx20.0855
+</div>
+<div class="math block">
+e^2\approx7.3891.
+</div>
+<p>Sum:</p>
+<div class="math block">
+27.4746.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1\approx0.7311
+</div>
+<div class="math block">
+P_2\approx0.2689.
+</div>
+<p>Final:</p>
+<div class="math block">
+\boxed{
+[0.7311,0.2689,0,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-68">2.3.34 What If Temperature Were <span class="math inline">T=0.5</span>?</h3>
+<p>Same original logits:</p>
+<div class="math block">
+[6,4].
+</div>
+<p>Scale:</p>
+<div class="math block">
+[12,8].
+</div>
+<p>Subtract 12 for numerical stability:</p>
+<div class="math block">
+[0,-4].
+</div>
+<p>Then:</p>
+<div class="math block">
+P_1=
+\frac1{1+e^{-4}}
+\approx0.9820.
+</div>
+<div class="math block">
+P_2\approx0.0180.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T=0.5\rightarrow[0.9820,0.0180].
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+T=2\rightarrow[0.7311,0.2689].
+}
+</div>
+<p>The candidate set is identical because top-k is unchanged, but the sampling probabilities are dramatically different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-69">2.3.35 This Gives Us a Very Useful Table</h3>
+<p>For the retained logits:</p>
+<div class="math block">
+[6,4]
+</div>
+<p>we get:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right"><span class="math inline">T</span></th>
+<th style="text-align:right">Probability of top token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right"><span class="math inline">0.5</span></td>
+<td style="text-align:right"><span class="math inline">0.9820</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">1</span></td>
+<td style="text-align:right"><span class="math inline">0.8808</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">2</span></td>
+<td style="text-align:right"><span class="math inline">0.7311</span></td>
+</tr>
+<tr>
+<td style="text-align:right"><span class="math inline">\infty</span></td>
+<td style="text-align:right"><span class="math inline">0.5000</span></td>
+</tr>
+</tbody>
+</table>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same top-k candidates, different distribution}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-70">2.3.36 Why Fixed <span class="math inline">k</span> Can Be a Limitation</h3>
+<p>Suppose the model distribution is very concentrated:</p>
+<div class="math block">
+[0.95,0.03,0.01,0.01,\ldots].
+</div>
+<p>Using:</p>
+<div class="math block">
+k=3
+</div>
+<p>keeps three tokens.</p>
+<p>But suppose instead the model is uncertain:</p>
+<div class="math block">
+[0.12,0.11,0.10,0.09,0.08,0.07,\ldots].
+</div>
+<p>A fixed:</p>
+<div class="math block">
+k=3
+</div>
+<p>keeps only:</p>
+<div class="math block">
+0.12,0.11,0.10
+</div>
+<p>and removes many plausible alternatives.</p>
+<p>So the same <span class="math inline">k</span> can be:</p>
+<ul>
+<li>too wide for a highly confident distribution,</li>
+<li>too narrow for a flat distribution.</li>
+</ul>
+<p>This is precisely the motivation for the next method:</p>
+<div class="math block">
+\boxed{\text{Top-p / nucleus sampling}}
+</div>
+<p>where the number of retained tokens can vary based on cumulative probability mass.</p>
+<p>Your decoding slides explicitly contrast fixed top-k with top-p's adaptive shortlist size. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-71">2.3.37 Top-k vs Top-p Preview</h3>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-72">Top-k</h5>
+<p>&quot;Keep exactly <span class="math inline">k</span> tokens.&quot;</p>
+<div class="math block">
+\boxed{|S|=k}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-73">Top-p</h5>
+<p>&quot;Keep the smallest set whose cumulative probability exceeds <span class="math inline">p</span>.&quot;</p>
+<div class="math block">
+\boxed{|S|\text{ varies}.}
+</div>
+<p>This is the conceptual difference we will derive next.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-74">2.3.38 Important Connection to Causal Attention</h3>
+<p>Notice how the same mathematical trick has now appeared twice.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-75">Causal attention</h5>
+<div class="math block">
+S_{ij}\rightarrow-\infty
+</div>
+<p>for future positions.</p>
+<p>Then:</p>
+<div class="math block">
+softmax\rightarrow0.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-76">Top-k</h5>
+<div class="math block">
+z_i\rightarrow-\infty
+</div>
+<p>for low-ranked vocabulary tokens.</p>
+<p>Then:</p>
+<div class="math block">
+softmax\rightarrow0.
+</div>
+<p>So we can write:</p>
+<div class="math block">
+\boxed{
+-\infty+\operatorname{softmax}
+=
+\text{hard exclusion}.
+}
+</div>
+<p>This is a very useful pattern to recognize in both exams and code.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-77">2.3.39 A Subtle Point: Top-k Does Not Change the Surviving Logit Values</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[5,4,1,-2].
+</div>
+<p>with:</p>
+<div class="math block">
+k=2.
+</div>
+<p>After top-k:</p>
+<div class="math block">
+[5,4,-\infty,-\infty].
+</div>
+<p>The surviving logits are still:</p>
+<div class="math block">
+5,\;4.
+</div>
+<p>Top-k does <strong>not</strong> normalize them.</p>
+<p>Softmax does that later.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{filtering}\neq\text{normalization}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-78">2.3.40 Another Exam Trap</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.5,0.3,0.2]
+</div>
+<p>and:</p>
+<div class="math block">
+k=2.
+</div>
+<p>A student may answer:</p>
+<div class="math block">
+[0.5,0.3,0].
+</div>
+<p>That is incomplete.</p>
+<p>After filtering:</p>
+<div class="math block">
+[0.5,0.3,0].
+</div>
+<p>Then renormalize:</p>
+<div class="math block">
+0.5+0.3=0.8.
+</div>
+<p>Final:</p>
+<div class="math block">
+\boxed{
+[0.625,0.375,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-79">2.3.41 Another Exam Trap</h3>
+<p>Suppose logits are:</p>
+<div class="math block">
+[3,2,1,0].
+</div>
+<p>For:</p>
+<div class="math block">
+k=2,
+</div>
+<p>do <strong>not</strong> pick the two tokens with the largest softmax percentages by calculating all four first unless the question explicitly asks for probabilities.</p>
+<p>Simply rank logits:</p>
+<div class="math block">
+3&gt;2&gt;1&gt;0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{top-2}=\{3,2\}.
+}
+</div>
+<p>This is much faster.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-80">2.3.42 Another Exam Trap</h3>
+<p>Top-k does not necessarily mean:</p>
+<div class="math block">
+k\% \text{ of vocabulary}.
+</div>
+<p>If:</p>
+<div class="math block">
+V=50,000
+</div>
+<p>and:</p>
+<div class="math block">
+k=50,
+</div>
+<p>you retain exactly:</p>
+<div class="math block">
+\boxed{50}
+</div>
+<p>tokens, not 50%.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-81">2.3.43 Another Exam Trap</h3>
+<p>If:</p>
+<div class="math block">
+k=1,
+</div>
+<p>top-k filtering leaves one token.</p>
+<p>But whether the system is called &quot;sampling&quot; operationally depends on the implementation. With exactly one nonzero probability, the outcome is deterministic.</p>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+Top1+sampling\equiv\text{deterministic}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-82">2.3.44 Top-k in the Full Generation Loop</h3>
+<p>The generation loop is:</p>
+<pre><code class="language-text">Current context
+       ↓
+LLM
+       ↓
+logits
+       ↓
+Top-k filtering
+       ↓
+Temperature
+       ↓
+Softmax
+       ↓
+Sample
+       ↓
+next token
+       ↓
+append
+       ↓
+repeat
+</code></pre>
+<p>Raschka's implementation follows this exact structure, including obtaining only the logits at the final sequence position during generation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-83">2.3.45 One Complete Numerical</h3>
+<p>Let's do one from start to finish.</p>
+<p>Suppose the model gives:</p>
+<div class="math block">
+z=[5,\;4,\;2,\;1,\;-1].
+</div>
+<p>Use:</p>
+<div class="math block">
+k=3
+</div>
+<p>and:</p>
+<div class="math block">
+T=0.5.
+</div>
+<h4 id="v3-heading-chunk-les-step-2-3-i23-84">Step 1 — Select top 3</h4>
+<div class="math block">
+5,4,2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z_{\text{filtered}}
+=
+[5,4,2,-\infty,-\infty].
+</div>
+<h4 id="v3-heading-chunk-les-step-2-3-i23-85">Step 2 — Temperature</h4>
+<div class="math block">
+z_T=
+[10,8,4,-\infty,-\infty].
+</div>
+<h4 id="v3-heading-chunk-les-step-2-3-i23-86">Step 3 — Softmax</h4>
+<p>Subtract maximum 10:</p>
+<div class="math block">
+[0,-2,-6].
+</div>
+<p>Exponentials:</p>
+<div class="math block">
+[1,e^{-2},e^{-6}]
+</div>
+<div class="math block">
+\approx
+[1,0.1353,0.00248].
+</div>
+<p>Sum:</p>
+<div class="math block">
+1.13778.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1\approx0.8791
+</div>
+<div class="math block">
+P_2\approx0.1189
+</div>
+<div class="math block">
+P_3\approx0.00218.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+P\approx[0.8791,0.1189,0.0022,0,0].
+}
+</div>
+<p>Now sampling occurs from <strong>only these three tokens</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-87">2.3.46 Compare With No Top-k</h3>
+<p>Without top-k, after:</p>
+<div class="math block">
+T=0.5,
+</div>
+<p>we would have:</p>
+<div class="math block">
+[10,8,4,2,-2].
+</div>
+<p>The additional tokens would receive small but nonzero probability.</p>
+<p>Top-k sets those probabilities to exactly:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<p>So top-k creates a hard cutoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-88">2.3.47 Compare With Top-k but <span class="math inline">T=1</span></h3>
+<p>If:</p>
+<div class="math block">
+T=1,
+</div>
+<p>then retained logits:</p>
+<div class="math block">
+[5,4,2].
+</div>
+<p>Subtract 5:</p>
+<div class="math block">
+[0,-1,-3].
+</div>
+<p>Exponentials:</p>
+<div class="math block">
+[1,0.3679,0.0498].
+</div>
+<p>Total:</p>
+<div class="math block">
+1.4177.
+</div>
+<p>So:</p>
+<div class="math block">
+P\approx
+[0.7054,0.2595,0.0351].
+</div>
+<p>Compare:</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-89"><span class="math inline">T=1</span></h5>
+<div class="math block">
+[0.7054,0.2595,0.0351].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-90"><span class="math inline">T=0.5</span></h5>
+<div class="math block">
+[0.8791,0.1189,0.0022].
+</div>
+<p>Same candidate set:</p>
+<div class="math block">
+\{1,2,3\}
+</div>
+<p>but very different probabilities.</p>
+<p>This gives the cleanest mathematical picture of:</p>
+<div class="math block">
+\boxed{
+\text{filtering controls WHO can be selected}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{temperature controls HOW probability is distributed among them}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-91">2.3.48 Parameter <span class="math inline">k</span> and Diversity</h3>
+<p>Smaller <span class="math inline">k</span>:</p>
+<div class="math block">
+\boxed{\text{fewer possible tokens}}
+</div>
+<p>→ more constrained.</p>
+<p>Larger <span class="math inline">k</span>:</p>
+<div class="math block">
+\boxed{\text{more possible tokens}}
+</div>
+<p>→ more flexibility.</p>
+<p>Extreme cases:</p>
+<div class="math block">
+k=1
+\rightarrow
+\text{deterministic}.
+</div>
+<div class="math block">
+k=V
+\rightarrow
+\text{no top-k filtering}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-92">2.3.49 Numerical — Candidate Count</h3>
+<p>Suppose:</p>
+<div class="math block">
+V=50,257
+</div>
+<p>and:</p>
+<div class="math block">
+k=25.
+</div>
+<p>Then top-k leaves:</p>
+<div class="math block">
+\boxed{25}
+</div>
+<p>possible tokens.</p>
+<p>The fraction of vocabulary retained is:</p>
+<div class="math block">
+\frac{25}{50,257}
+\approx0.000497.
+</div>
+<p>As a percentage:</p>
+<div class="math block">
+\boxed{\approx0.0497\%}.
+</div>
+<p>So a tiny fraction of the vocabulary can remain eligible for sampling.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-93">2.3.50 Numerical — Removed Tokens</h3>
+<p>If:</p>
+<div class="math block">
+V=50,257
+</div>
+<p>and:</p>
+<div class="math block">
+k=25,
+</div>
+<p>then removed tokens:</p>
+<div class="math block">
+50,257-25
+=
+\boxed{50,232}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+99.9503\%
+}
+</div>
+<p>of the vocabulary is removed from the candidate set.</p>
+<p>This illustrates how aggressive top-k can be.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-94">2.3.51 Top-k and Numerical Stability</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[1000,999,998,-500].
+</div>
+<p>Take:</p>
+<div class="math block">
+k=3.
+</div>
+<p>After filtering:</p>
+<div class="math block">
+[1000,999,998,-\infty].
+</div>
+<p>At softmax, subtract maximum:</p>
+<div class="math block">
+[0,-1,-2,-\infty].
+</div>
+<p>Then:</p>
+<div class="math block">
+e^0=1,\quad
+e^{-1}\approx0.3679,\quad
+e^{-2}\approx0.1353.
+</div>
+<p>This is numerically stable.</p>
+<p>So a useful implementation trick appears again:</p>
+<div class="math block">
+\boxed{
+softmax(z)=softmax(z-\max z).
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-95">2.3.52 Why Top-k Is Particularly Useful With Large Vocabularies</h3>
+<p>Imagine:</p>
+<div class="math block">
+V=100,000.
+</div>
+<p>Sampling from all 100,000 tokens means there are many possible low-probability candidates.</p>
+<p>Top-k could reduce that to:</p>
+<div class="math block">
+k=50.
+</div>
+<p>Now:</p>
+<div class="math block">
+100,000\rightarrow50.
+</div>
+<p>So the decoder explores a much smaller candidate set.</p>
+<p>This is a major reason top-k is conceptually useful.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-96">2.3.53 But Fixed <span class="math inline">k</span> Creates the Main Weakness</h3>
+<p>Suppose two contexts produce:</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-97">Context A</h5>
+<div class="math block">
+[0.90,0.05,0.02,0.01,\ldots]
+</div>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-98">Context B</h5>
+<div class="math block">
+[0.12,0.11,0.10,0.09,0.08,\ldots]
+</div>
+<p>Using:</p>
+<div class="math block">
+k=3
+</div>
+<p>means:</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-99">Context A</h5>
+<p>retain 90%, 5%, 2%.</p>
+<p>That seems reasonable.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-100">Context B</h5>
+<p>retain only 12%, 11%, 10%, while removing other plausible choices like 9% and 8%.</p>
+<p>So fixed <span class="math inline">k</span> does not adapt to the model's uncertainty.</p>
+<p>That is the precise motivation for nucleus sampling.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-101">2.3.54 Top-k Summary Formula</h3>
+<p>Define the top-<span class="math inline">k</span> set:</p>
+<div class="math block">
+S_k(z).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+z_i'=
+\begin{cases}
+z_i,&amp;i\in S_k(z)\\
+-\infty,&amp;i\notin S_k(z)
+\end{cases}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+p_i=
+\frac{e^{z_i'}}
+{\sum_j e^{z_j'}}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+y_t\sim p.
+}
+</div>
+<p>If temperature is used:</p>
+<div class="math block">
+\boxed{
+p_i=
+\operatorname{softmax}\left(\frac{z_i'}{T}\right).
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-102">2.3.55 Top-k Numerical Master Formula</h3>
+<p>When an exam gives <strong>probabilities</strong>:</p>
+<div class="math block">
+\boxed{
+P'_i
+=
+\frac{P_i}
+{\sum_{j\in TopK}P_j}
+}
+</div>
+<p>for retained tokens.</p>
+<p>When an exam gives <strong>logits</strong>:</p>
+<div class="math block">
+\boxed{
+\text{rank logits}
+\rightarrow
+\text{keep top }k
+\rightarrow
+\text{others }-\infty
+\rightarrow
+\text{softmax}.
+}
+</div>
+<p>This distinction should become automatic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-103">2.3.56 Top-k vs Greedy vs Beam vs Sampling</h3>
+<p>We can now compare the major methods we've learned:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Main idea</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Greedy</td>
+<td>Pick highest-probability token immediately</td>
+</tr>
+<tr>
+<td>Beam</td>
+<td>Keep several sequence hypotheses</td>
+</tr>
+<tr>
+<td>Sampling</td>
+<td>Randomly draw from distribution</td>
+</tr>
+<tr>
+<td>Top-k sampling</td>
+<td>Sample only among the <span class="math inline">k</span> highest-ranked candidates</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>Reshape the sampling distribution</td>
+</tr>
+</tbody>
+</table>
+<p>A very useful conceptual separation is:</p>
+<div class="math block">
+\boxed{
+\text{Beam = search over sequences}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Top-k/temperature = shape the next-token distribution}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-104">2.3.57 Master Check — Top-k</h3>
+<p>Make sure these are clear before moving on.</p>
+<h5 id="v3-heading-chunk-les-step-2-3-i23-105">Q1</h5>
+<p>Given:</p>
+<div class="math block">
+z=[4,2,7,1,5]
+</div>
+<p>what are the top 3 logits?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-106">Q2</h5>
+<p>What does top-k do to every non-top-k logit?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-107">Q3</h5>
+<p>Why does <span class="math inline">-\infty</span> produce zero probability after softmax?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-108">Q4</h5>
+<p>Given:</p>
+<div class="math block">
+P=[0.4,0.25,0.15,0.1,0.1],
+</div>
+<p>calculate the distribution after:</p>
+<div class="math block">
+k=2.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-109">Q5</h5>
+<p>What is the difference between filtering and renormalization?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-110">Q6</h5>
+<p>Given:</p>
+<div class="math block">
+z=[5,4,1,0]
+</div>
+<p>with:</p>
+<div class="math block">
+k=2,
+</div>
+<p>write the filtered logits.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-111">Q7</h5>
+<p>Does positive temperature change which tokens belong to top-k?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-112">Q8</h5>
+<p>What happens when:</p>
+<div class="math block">
+k=1?
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-113">Q9</h5>
+<p>What is the difference between top-k and temperature?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-3-i23-114">Q10</h5>
+<p>Why can fixed <span class="math inline">k</span> be problematic when the model's distribution changes from very sharp to very flat?</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-3-i23-115">2.3.58 The Core Understanding</h3>
+<p>The best way to remember top-k is:</p>
+<div class="math block">
+\boxed{
+\text{Top-k does not tell the model WHAT to prefer.}
+}
+</div>
+<p>The model already produced logits.</p>
+<p>Top-k says:</p>
+<blockquote>
+<p><strong>&quot;Of all the tokens the model considered, I will only permit the highest <span class="math inline">k</span> candidates to participate in sampling.&quot;</strong></p>
+</blockquote>
+<p>Then softmax redistributes the probability over those candidates.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Top-k = hard candidate filtering}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Temperature = soft distribution reshaping}.
+}
+</div>
+<hr />
+</section>

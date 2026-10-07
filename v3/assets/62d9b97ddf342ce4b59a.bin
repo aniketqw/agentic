@@ -1,0 +1,91 @@
+"""CPU educational mechanics, not an NF4/GPTQ/BitNet backend or pretrained LLM."""
+import math
+import numpy as np
+
+def lora_count(d, out, rank, layers=1, targets=1):
+    """Count the entries of the two factors, sharing them across batch/tokens."""
+    if min(d,out,rank,layers,targets)<1: raise ValueError('positive dimensions required')
+    return layers*targets*rank*(d+out)
+
+def lora_forward(x,w,a,b,scale=1):
+    """Book convention: A input→rank, B rank→output; explicit actual scale."""
+    return x@w+scale*(x@a)@b
+
+def lora_grad(x,w,a,b,target,scale=1):
+    """Half summed squared error and chain-rule gradients; W stays frozen."""
+    y=lora_forward(x,w,a,b,scale); g=y-target
+    return float((g*g).sum()/2),scale*x.T@g@b.T,scale*(x@a).T@g
+
+def quantize(x,bits=8,clip=None):
+    """Symmetric scalar-grid illustration. Nearest ties-to-even; zero maps to zero."""
+    x=np.asarray(x,dtype=float)
+    if bits<2 or not np.isfinite(x).all(): raise ValueError('finite data and bits≥2 required')
+    c=float(np.max(np.abs(x))) if clip is None else float(clip)
+    if c<0:raise ValueError('negative clipping threshold')
+    if c==0:return np.zeros_like(x,dtype=int),np.zeros_like(x),0.
+    qmax=2**(bits-1)-1; delta=c/qmax
+    q=np.clip(np.rint(np.clip(x,-c,c)/delta),-qmax,qmax).astype(int)
+    return q,q*delta,delta
+
+def affine(x,bits=8):
+    """Signed affine illustration using multiplier s, with explicit clamp."""
+    x=np.asarray(x,float);lo=float(x.min());hi=float(x.max())
+    if hi==lo:raise ValueError('constant range needs a separate policy')
+    floor=-2**(bits-1);ceil=2**(bits-1)-1;s=(ceil-floor)/(hi-lo)
+    z=int(np.rint(-s*lo))+floor;q=np.clip(np.rint(s*x+z),floor,ceil).astype(int)
+    return q,(q-z)/s,s,z
+
+def calibrated(x,candidates,bits=4):
+    """Evaluate reconstruction MSE against original, including clipping distortion."""
+    scores=[(float(c),float(np.mean((np.asarray(x)-quantize(x,bits,c)[1])**2))) for c in candidates]
+    return min(scores,key=lambda p:p[1]),scores
+
+def compensate(w,h,q,value):
+    """One constrained quadratic correction, not full production GPTQ."""
+    inv=np.linalg.inv(h);e=w[q]-value
+    delta=e*inv[:,q]/inv[q,q]
+    return w-delta,delta
+
+def softmax(z,temp=1):
+    """Subtract maximum, divide by positive temperature, exponentiate, normalize."""
+    z=np.asarray(z,float)
+    if temp<=0:raise ValueError('temperature must be positive')
+    e=np.exp((z-z.max())/temp);return e/e.sum()
+
+def logsoftmax(z,temp=1):
+    z=np.asarray(z,float);v=(z-z.max())/temp
+    return v-math.log(float(np.exp(v).sum()))
+
+def kd(teacher,student,label,temp=3,alpha=.3):
+    """Hard CE at 1, forward teacher→student KL at T, exactly one T² multiplier."""
+    if not 0<=alpha<=1:raise ValueError('alpha outside [0,1]')
+    p=softmax(teacher,temp);q=softmax(student,temp)
+    hard=-float(logsoftmax(student)[label])
+    kl=float(np.sum(p*(logsoftmax(teacher,temp)-logsoftmax(student,temp))))
+    loss=alpha*hard+(1-alpha)*temp*temp*kl
+    one=np.zeros(len(student));one[label]=1
+    grad=alpha*(softmax(student)-one)+(1-alpha)*temp*(q-p)
+    return {'hard':hard,'kl':kl,'soft':temp*temp*kl,'loss':loss,'gradient':grad.tolist(),'teacher':p.tolist(),'student':q.tolist()}
+
+def response_targets(tokens,prompt_len):
+    """Shift once and retain first answer target; prompt must include context/BOS."""
+    if not 1<=prompt_len<len(tokens):raise ValueError('nonempty context and answer required')
+    start=prompt_len-1
+    return tokens[:-1],tokens[1:],start,tokens[1:][start:]
+
+def response_ce(logits,tokens,prompt_len):
+    inputs,targets,start,answer=response_targets(tokens,prompt_len)
+    if len(logits)!=len(inputs):raise ValueError('one logit row per shifted input required')
+    return sum(-float(logsoftmax(logits[i])[targets[i]]) for i in range(start,len(targets)))/len(answer)
+
+def ternary(weights):
+    """Absmean then RoundClip with ties-to-even; epsilon protects all-zero tensors."""
+    w=np.asarray(weights,float);gamma=float(np.mean(np.abs(w)))
+    if gamma==0:return np.zeros_like(w,dtype=int),gamma
+    return np.clip(np.rint(w/gamma),-1,1).astype(int),gamma
+
+if __name__=='__main__':
+    import json
+    print(json.dumps(kd([5,3,1,-1],[4,2.5,1.5,-.5],0),indent=2))
+    print('LoRA 32-layer count:',lora_count(4096,4096,8,32,4))
+    print('Symmetric codes:',quantize([5.47,3.08,-7.59,0,-1.95,-4.57,10.8])[0].tolist())

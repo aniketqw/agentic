@@ -1,0 +1,136 @@
+"""Small, explained CPU mathematics; no model downloads or training required.
+
+Run python companion.py for a complete group-relative policy update and a
+tool-token mask demonstration. Natural logarithms give losses in nats.
+"""
+import math
+
+def mean(values):
+    """Arithmetic mean; an empty batch is a configuration error."""
+    if not values: raise ValueError('empty batch')
+    return math.fsum(values)/len(values)
+
+def advantages(rewards, ddof=1, eps=1e-4):
+    """Center a same-prompt group, explicitly selecting sample/population std.
+    Singleton sample-std groups are rejected, not quietly treated as trainable.
+    Equal-reward groups return zeros; KL/other losses may still update weights.
+    """
+    n=len(rewards)
+    if n<=ddof or ddof not in (0,1) or eps<0: raise ValueError('invalid group')
+    mu=mean(rewards)
+    sd=math.sqrt(math.fsum((r-mu)**2 for r in rewards)/(n-ddof))
+    return [0.0]*n if sd==0 else [(r-mu)/(sd+eps) for r in rewards]
+
+def sequence_logprob(probabilities):
+    """Sum conditional token log probabilities, including generated EOS."""
+    if any(p<=0 or p>1 for p in probabilities): raise ValueError('probability')
+    return math.fsum(math.log(p) for p in probabilities)
+
+def clip_term(ratio, advantage, epsilon=.2):
+    """Maximized PPO surrogate. Min is essential for negative advantages.
+    Clipping limits the incentive, not an enforceable bound on updated policy.
+    """
+    if ratio<0 or epsilon<0: raise ValueError('ratio/clip')
+    clipped=max(1-epsilon,min(1+epsilon,ratio))
+    return min(ratio*advantage,clipped*advantage)
+
+def kl(current, reference):
+    """Exact forward KL(current||reference), over complete token support."""
+    if len(current)!=len(reference) or not math.isclose(sum(current),1) or not math.isclose(sum(reference),1): raise ValueError('distribution')
+    if any(x<0 for x in current+reference): raise ValueError('negative mass')
+    if any(p>0 and q==0 for p,q in zip(current,reference)): return math.inf
+    return math.fsum(p*math.log(p/q) for p,q in zip(current,reference) if p)
+
+def k3(log_current, log_reference):
+    """Nonnegative sampled estimator exp(delta)-delta-1, delta=logref-logp.
+    Expectation equals forward KL only with samples from current policy;
+    old-policy sampling needs explicit importance correction for that identity.
+    """
+    delta=log_reference-log_current
+    return math.expm1(delta)-delta
+
+def token_grpo(ratios, rewards, mask, epsilon=.2, ddof=1):
+    """Mean over eligible tokens per response, then mean over responses.
+    Equal response weighting differs from one global mean over all tokens.
+    """
+    a=advantages(rewards,ddof)
+    if not (len(ratios)==len(mask)==len(a)): raise ValueError('batch shape')
+    rows=[]
+    for rs,ms,ai in zip(ratios,mask,a):
+        if len(rs)!=len(ms) or sum(ms)<=0: raise ValueError('token mask')
+        rows.append(math.fsum(clip_term(r,ai,epsilon)*m for r,m in zip(rs,ms))/sum(ms))
+    return -mean(rows)
+
+def entropy(p):
+    """Discrete entropy with 0 log 0 = 0."""
+    if any(x<0 for x in p) or not math.isclose(sum(p),1): raise ValueError('distribution')
+    return -math.fsum(x*math.log(x) for x in p if x)
+
+def softmax(z):
+    """Max-subtraction prevents overflow in finite logits."""
+    m=max(z); es=[math.exp(x-m) for x in z]; den=math.fsum(es)
+    return [x/den for x in es]
+
+def ce_from_logits(z,target):
+    """Stable hard-target cross-entropy, not teacher-logit distillation."""
+    m=max(z)
+    return m+math.log(math.fsum(math.exp(x-m) for x in z))-z[target]
+
+def response_mask(total,prompt):
+    """Shifted input t[:-1], targets t[1:]; first response logit P-1.
+    A prompt needs at least one token (e.g. BOS); padding is masked separately.
+    """
+    if not 1<=prompt<total: raise ValueError('prompt/sequence')
+    return [int(j>=prompt-1) for j in range(total-1)]
+
+def pass_at_k(p,k):
+    """Illustrative iid Bernoulli probability; not finite-sample estimator."""
+    if not 0<=p<=1 or k<1: raise ValueError('p/k')
+    return 1-(1-p)**k
+
+def empirical_pass_at_k(n,c,k):
+    """Unbiased combinatorial estimator from n independent candidates."""
+    if not 0<=c<=n or not 1<=k<=n: raise ValueError('counts')
+    return 1 if n-c<k else 1-math.comb(n-c,k)/math.comb(n,k)
+
+def votes(answers,correct):
+    """Pass event and plurality event, with explicit lexicographic tie break."""
+    if not answers: raise ValueError('empty')
+    counts={x:answers.count(x) for x in set(answers)}
+    winner=min(counts,key=lambda x:(-counts[x],str(x)))
+    return int(correct in answers),int(winner==correct)
+
+def gae(rewards,values,gamma=1,lam=.95):
+    """Backward generalized advantage recursion, terminal value appended.
+    Time indexes policy decisions; interpreter output is an observation.
+    """
+    if len(values)!=len(rewards)+1: raise ValueError('values include terminal')
+    out=[0.0]*len(rewards); acc=0
+    for t in range(len(rewards)-1,-1,-1):
+        delta=rewards[t]+gamma*values[t+1]-values[t]
+        acc=delta+gamma*lam*acc;out[t]=acc
+    return out
+
+def miniature_policy_update(logits,rewards,lr=.1):
+    """Exact two-action bandit REINFORCE gradient; an integrated RL analogue.
+    Enumerates actions, so no sampling noise; reward is detached constant.
+    """
+    p=softmax(logits); baseline=math.fsum(pi*r for pi,r in zip(p,rewards))
+    # d E[R]/d z_j = p_j (R_j-E[R]); gradient ascent.
+    gradient=[pi*(r-baseline) for pi,r in zip(p,rewards)]
+    updated=[z+lr*g for z,g in zip(logits,gradient)]
+    return dict(before=p,expected_reward=baseline,gradient=gradient,logits=updated,after=softmax(updated))
+
+def main():
+    rewards=[1.,1.,0.,0.];logp=[-7.9243,-20.1546,-16.6130,-23.3677]
+    a=advantages(rewards)
+    pg=-mean([ai*lp for ai,lp in zip(a,logp)])
+    ratios=[math.exp(x) for x in [3,.2,-2,0]]
+    clipped=-mean([clip_term(r,ai,10) for r,ai in zip(ratios,a)])
+    trace=miniature_policy_update([0.,0.],[1.,0.])
+    mask=[1]*500+[1]*100+[0]*50+[1]*10
+    return dict(rewards=rewards,advantages=a,policy_gradient_loss=pg,ratios=ratios,clipped_loss=clipped,bandit=trace,tool_trajectory_tokens=len(mask),policy_loss_tokens=sum(mask))
+
+if __name__=='__main__':
+    import json
+    print(json.dumps(main(),indent=2))

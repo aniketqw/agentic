@@ -1,0 +1,878 @@
+<section class="chunk" id="chunk-les-step-5-1-i42" data-id="les-step-5-1-i42"><details class="audit-card" id="audit-full-chunk-les-step-5-1-i42" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-1-i42-1">Motivation</h4><p>RL signal and objective: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-1-i42-2">Prerequisites</h4><ul><li>next-token likelihood</li><li>expectation</li><li>autoregressive decoding</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-5">Step-by-step derivation</h4><ol><li>The state is the prompt plus generated prefix; action is the next token. A complete response is a trajectory, whose probability factorizes into conditional token probabilities.</li><li>Supervised CE increases likelihood of an observed target sequence. Expected-return optimization sums trajectory probability times verified reward; it accepts multiple valid answer wordings.</li><li>Generate first, verify second, construct a differentiable probability-based surrogate third. A deterministic verifier is not differentiated through.</li><li>Keep reward source (human preferences or verifier) separate from optimization algorithm (PPO or GRPO). A compile success reward does not establish semantic program correctness.</li><li>An observed success fraction is a sample statistic. It is not a gradient or a promise that the next answer will be correct.</li></ol><h4 id="v3-heading-chunk-les-step-5-1-i42-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-1-i42-7">Basic reward statistic</h5><p>Given: 6 correct among10 responses</p><ol><li>Count6 reward-one responses.</li><li>Divide6 by10.</li></ol><p>Answer: .6=60%</p><p>Verification: rl_retool / reward_rate · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-1-i42-8">Eight-token trajectory likelihood</h5><p>Given: p=[.5,.4,.8,.25,.6,.9,.7,.5]</p><ol><li>Multiply conditional probabilities: .2,.16,.04,.024,.0216,.01512,.00756.</li><li>Alternatively sum natural logs then exponentiate.</li></ol><p>Answer: 0.00756; log probability=-4.8848840888</p><p>Verification: rl_retool / eight_product · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-1-i42-9">Corrections and source qualifications</h4><ul><li>heading: 29. Exam-style numerical — Level 2; text: The listed eight conditional probabilities multiply to 0.00756, not 0.001512. Their natural-log sum is -4.8848840888. Preserve the original displayed answer as history and use this independently checked correction.</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-10">Mastery answers and retained exercise context</h4><ol><li>Ten-rollout bank:6 successful,mean.6; eight-token product=.00756, not.001512; five-rollout mean=.4.</li><li>RLVR supplies rewards; GRPO supplies optimization. SFT imitates targets; RL optimizes sampled outcome.</li></ol><h4 id="v3-heading-chunk-les-step-5-1-i42-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-12">Connections and progression</h4><ul><li>Previous lesson builds RL signal and objective.</li><li>Next lesson develops Score-function derivation.</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-13">Exact source support</h4><ul><li>rl-grpo-slides(1).pdf · physical PDF pages 3, 4, 5, 6, 7 · Reward/optimization distinction and post-training pipeline</li></ul><h4 id="v3-heading-chunk-les-step-5-1-i42-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (41)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.1 — Why Reinforcement Learning for LLM Reasoning?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>1. Start from what the pretrained LLM already does</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>2. The limitation of next-token training</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>3. RL changes what the model is optimizing</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>4. Think of an LLM as a policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5. What is an “action” for an LLM?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>6. What is the reward?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>7. The entire RL loop</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>8. Compare SFT and RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Supervised fine-tuning</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Reinforcement learning</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>9. Why RL is particularly interesting for reasoning</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>10. RLHF comes first historically in the chapter</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Response A</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Response B</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>11. RLHF has two major stages</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>12. Why do we need a reward model?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>13. The reward model is different from the policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Reward model</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>14. RLVR removes the learned reward model</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>15. RLHF vs RLVR</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>16. Why RLVR is powerful</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>First: no separate reward model</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Second: deterministic rewards</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Third: scalable automatic evaluation</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>17. But RLVR has a major restriction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>18. The DeepSeek-R1 connection</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>19. Extremely important distinction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>20. Where DeepSeekMath fits</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>21. A simple numerical example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>22. Another numerical example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>23. Why “whole output” matters mathematically</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>24. The conceptual difference from ordinary CE</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>25. Why reasoning can emerge through this mechanism</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>26. Where GRPO will enter</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>27. One subtle but crucial idea</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>28. Exam-style numerical — Level 1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>29. Exam-style numerical — Level 2</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>30. Exam-style numerical — Level 3</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>31. What you should remember from Step 5.1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-1-i42"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-1-i42" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-9-i41">← Previous lesson</a> · <a href="#v3-reasoning">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-5-i6">STEP 0.5 — EXPECTATION</a>, <a href="#chunk-les-step-0-2-i3">STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</a>, <a href="#chunk-les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Logits → Softmax → Next-Token Prediction</a></p><p><strong>This lesson:</strong> Step 5.1 — Why Reinforcement Learning for LLM Reasoning?</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-1-i42"></a></p>
+<h2>Step 5.1 — Why Reinforcement Learning for LLM Reasoning?</h2>
+<p><em>Plan node: I6 · chat order #42</em></p>
+<p>We now move to the <strong>Reinforcement Learning block</strong>, specifically the material covering <strong>RL → RLHF → RLVR → GRPO</strong>. The source organizes this as Chapter 6, followed by Chapter 7 for improvements to GRPO. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The most important question to answer first is:</p>
+<div class="math block">
+\boxed{\text{Why do we need RL at all after pretraining/SFT?}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-1-i42-15">1. Start from what the pretrained LLM already does</h4>
+<p>During pretraining, our LLM learns:</p>
+<div class="math block">
+\boxed{\text{predict the next token}}
+</div>
+<p>For a sequence</p>
+<div class="math block">
+x_1,x_2,\ldots,x_T,
+</div>
+<p>the model learns probabilities such as</p>
+<div class="math block">
+P_\theta(x_t\mid x_{&lt;t}).
+</div>
+<p>The usual training objective is next-token cross-entropy:</p>
+<div class="math block">
+L_{\text{CE}}
+=
+-\sum_{t=1}^{T}
+\log P_\theta(x_t\mid x_{&lt;t}).
+</div>
+<p>So pretraining answers:</p>
+<blockquote>
+<p>“Given the previous text, what token is likely to come next?”</p>
+</blockquote>
+<p>The source's framing is that pretraining mainly builds <strong>knowledge</strong>, while RL can shape <strong>how the model uses that knowledge</strong>, including reasoning behavior. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-16">2. The limitation of next-token training</h3>
+<p>Consider the math problem:</p>
+<div class="math block">
+\frac{3x-9}{2}=x+37.
+</div>
+<p>Suppose the model produces:</p>
+<blockquote>
+<p>Multiply both sides by 2.
+<span class="math inline">3x-9=2x+74</span>
+<span class="math inline">x=83</span>.</p>
+</blockquote>
+<p>Now compare that with:</p>
+<blockquote>
+<p>Multiply both sides by 2.
+<span class="math inline">3x-9=2x+74</span>
+<span class="math inline">x=12</span>.</p>
+</blockquote>
+<p>At the token level, both are sequences of language.</p>
+<p>But from the perspective of the <strong>task</strong>, they are not equivalent.</p>
+<p>One receives:</p>
+<div class="math block">
+\boxed{\text{correct}}
+</div>
+<p>and the other:</p>
+<div class="math block">
+\boxed{\text{incorrect}}.
+</div>
+<p>That is the fundamental motivation for RL in reasoning tasks.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-17">3. RL changes what the model is optimizing</h3>
+<p>Instead of only asking:</p>
+<div class="math block">
+\text{“Did I predict the training token?”}
+</div>
+<p>we can ask:</p>
+<div class="math block">
+\boxed{\text{“Was the complete generated response good?”}}
+</div>
+<p>That means the training signal can depend on the <strong>whole output</strong>.</p>
+<p>The source explicitly contrasts pretraining's token-level objective with RL's ability to optimize whole outputs such as correctness or preference. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-18">4. Think of an LLM as a policy</h3>
+<p>This is the first RL term you must understand.</p>
+<p>The source defines:</p>
+<div class="math block">
+\boxed{\text{policy}=\text{the LLM being trained}}
+</div>
+<p>So instead of writing simply:</p>
+<div class="math block">
+P_\theta(x_t\mid x_{&lt;t}),
+</div>
+<p>we can call it a policy:</p>
+<div class="math block">
+\boxed{
+\pi_\theta(a_t\mid s_t)
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">s_t</span> = current state/context,</li>
+<li><span class="math inline">a_t</span> = action/token selected,</li>
+<li><span class="math inline">\pi_\theta</span> = probability distribution produced by the LLM.</li>
+</ul>
+<p>For an LLM:</p>
+<div class="math block">
+s_t = (x_1,\ldots,x_{t-1})
+</div>
+<p>and:</p>
+<div class="math block">
+a_t=x_t.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\pi_\theta(x_t\mid x_{&lt;t})
+=
+P_\theta(x_t\mid x_{&lt;t})
+}
+</div>
+<p>This is the bridge between ordinary language-model notation and RL notation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-19">5. What is an “action” for an LLM?</h3>
+<p>In ordinary RL, an agent might choose:</p>
+<div class="math block">
+\text{left},\text{right},\text{jump}.
+</div>
+<p>For an LLM, the action can be the next token.</p>
+<p>So:</p>
+<pre><code class="language-text">Prompt
+  ↓
+&quot;solve 3x - 9 ...&quot;
+  ↓
+token 1
+  ↓
+token 2
+  ↓
+token 3
+  ↓
+...
+</code></pre>
+<p>At every generation step, the LLM chooses an action:</p>
+<div class="math block">
+a_t=x_t.
+</div>
+<p>Thus a generated answer is an <strong>action sequence</strong>:</p>
+<div class="math block">
+y=(y_1,y_2,\ldots,y_T).
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-20">6. What is the reward?</h3>
+<p>Now comes the central RL concept.</p>
+<p>After the model generates a response:</p>
+<div class="math block">
+y,
+</div>
+<p>some evaluator produces:</p>
+<div class="math block">
+\boxed{R(y)}
+</div>
+<p>called the <strong>reward</strong>.</p>
+<p>For example:</p>
+<div class="math block">
+R(y)=1
+</div>
+<p>if the math answer is correct, and:</p>
+<div class="math block">
+R(y)=0
+</div>
+<p>if incorrect.</p>
+<p>That exact binary-style verifier reward is the example used for RLVR in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-21">7. The entire RL loop</h3>
+<p>This is the most important diagram for the chapter:</p>
+<pre><code class="language-text">Prompt
+  ↓
+LLM / Policy πθ
+  ↓
+Generate response
+  ↓
+Verifier / Reward mechanism
+  ↓
+Reward R
+  ↓
+RL objective
+  ↓
+Update θ
+  ↓
+Better future responses
+</code></pre>
+<p>Mathematically:</p>
+<div class="math block">
+x
+\rightarrow
+y\sim\pi_\theta(\cdot\mid x)
+\rightarrow
+R(x,y)
+\rightarrow
+\text{update }\theta.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-22">8. Compare SFT and RL</h3>
+<h4 id="v3-heading-chunk-les-step-5-1-i42-23">Supervised fine-tuning</h4>
+<p>You have:</p>
+<div class="math block">
+(x,y^*)
+</div>
+<p>where <span class="math inline">y^*</span> is the target response.</p>
+<p>You directly train:</p>
+<div class="math block">
+\boxed{
+\text{make student likely to produce }y^*
+}
+</div>
+<p>using cross-entropy.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-1-i42-24">Reinforcement learning</h4>
+<p>You may not have an exact target sequence.</p>
+<p>Instead:</p>
+<div class="math block">
+x
+\rightarrow
+y
+\rightarrow
+R(y).
+</div>
+<p>Now the model learns:</p>
+<div class="math block">
+\boxed{
+\text{increase probability of high-reward behavior}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{decrease probability of low-reward behavior}
+}
+</div>
+<p>through the RL objective.</p>
+<p>That distinction is foundational.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-25">9. Why RL is particularly interesting for reasoning</h3>
+<p>Suppose there are many valid reasoning paths.</p>
+<p>Problem:</p>
+<div class="math block">
+2x+5=17.
+</div>
+<p>A model could produce:</p>
+<pre><code class="language-text">2x = 12
+x = 6
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">Subtract 5 from both sides:
+2x = 12
+Divide by 2:
+x = 6
+</code></pre>
+<p>There is not necessarily one unique correct token sequence.</p>
+<p>SFT traditionally relies on target examples.</p>
+<p>RL can instead use:</p>
+<div class="math block">
+\boxed{
+R=1
+}
+</div>
+<p>for any answer satisfying the verifier.</p>
+<p>This makes RL especially attractive for tasks where <strong>correctness can be evaluated without prescribing one exact wording</strong>.</p>
+<p>That is exactly the motivation for RLVR.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-26">10. RLHF comes first historically in the chapter</h3>
+<p>The source introduces <strong>Reinforcement Learning with Human Feedback (RLHF)</strong> before RLVR. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The idea is:</p>
+<div class="math block">
+\boxed{
+\text{humans provide preference information}
+}
+</div>
+<p>rather than a deterministic mathematical verifier.</p>
+<p>Suppose the model produces:</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-27">Response A</h5>
+<blockquote>
+<p>The laptop has 16 GB RAM and is suitable for programming.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-28">Response B</h5>
+<blockquote>
+<p>Buy anything.</p>
+</blockquote>
+<p>Humans may rank:</p>
+<div class="math block">
+A&gt;B.
+</div>
+<p>Those preferences are used to train a reward model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-29">11. RLHF has two major stages</h3>
+<p>The source's RLHF pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{human preferences}
+\rightarrow
+\text{reward model}
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{
+\text{reward model}
+\rightarrow
+\text{RL training of LLM}
+}
+</div>
+<p>So the full structure is:</p>
+<pre><code class="language-text">Prompt
+  ↓
+LLM generates responses
+  ↓
+Humans rank responses
+  ↓
+Train reward model
+  ↓
+Reward model scores new responses
+  ↓
+RL updates LLM
+</code></pre>
+<p>The source describes the reward model as producing a <strong>single scalar score</strong> representing response quality. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-30">12. Why do we need a reward model?</h3>
+<p>Because humans cannot practically score every output during every RL training step.</p>
+<p>Imagine:</p>
+<div class="math block">
+1,000,000
+</div>
+<p>generated responses.</p>
+<p>You do not want humans individually rating every one.</p>
+<p>So instead:</p>
+<div class="math block">
+\text{human judgments}
+\rightarrow
+\text{learned reward function}.
+</div>
+<p>Then:</p>
+<div class="math block">
+R_\phi(x,y)
+</div>
+<p>can automatically score new outputs.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-31">13. The reward model is different from the policy</h3>
+<p>This distinction is exam-important.</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-32">Policy</h5>
+<div class="math block">
+\boxed{\pi_\theta}
+</div>
+<p>is the model we want to improve.</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-33">Reward model</h5>
+<div class="math block">
+\boxed{R_\phi}
+</div>
+<p>judges the policy's outputs.</p>
+<p>So:</p>
+<pre><code class="language-text">Policy → generates answer
+Reward model → judges answer
+RL → changes policy
+</code></pre>
+<p>Do not confuse the reward model with the policy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-34">14. RLVR removes the learned reward model</h3>
+<p>Now we reach:</p>
+<div class="math block">
+\boxed{\text{RLVR}}
+</div>
+<p>= Reinforcement Learning with Verifiable Rewards.</p>
+<p>Instead of:</p>
+<div class="math block">
+\text{LLM reward model}
+</div>
+<p>we use:</p>
+<div class="math block">
+\boxed{\text{automatic verifier}}
+</div>
+<p>when one exists.</p>
+<p>Example:</p>
+<pre><code class="language-text">Question
+  ↓
+LLM
+  ↓
+generated solution
+  ↓
+math verifier
+  ↓
+0 or 1 reward
+</code></pre>
+<p>The source explicitly gives mathematics and code compilation/correctness as examples of tasks where deterministic verification is possible. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-35">15. RLHF vs RLVR</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>RLHF</th>
+<th>RLVR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reward source</td>
+<td>Human preferences → reward model</td>
+<td>Verifier</td>
+</tr>
+<tr>
+<td>Reward</td>
+<td>Learned</td>
+<td>Deterministic when verifier is deterministic</td>
+</tr>
+<tr>
+<td>Human annotation during RL</td>
+<td>Not at every step</td>
+<td>Not required</td>
+</tr>
+<tr>
+<td>Suitable for</td>
+<td>Preference/style/helpfulness</td>
+<td>Verifiable tasks</td>
+</tr>
+<tr>
+<td>Example</td>
+<td>“Which answer is better?”</td>
+<td>“Is the math answer correct?”</td>
+</tr>
+</tbody>
+</table>
+<p>Source basis: the chapter explicitly contrasts human judgments for RLHF with automated verification for RLVR. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-36">16. Why RLVR is powerful</h3>
+<p>There are three major advantages stated in the source.</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-37">First: no separate reward model</h5>
+<p>You do not need to train and maintain another large model.</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-38">Second: deterministic rewards</h5>
+<p>For the same output:</p>
+<div class="math block">
+R(y)
+</div>
+<p>can always produce the same value.</p>
+<h5 id="v3-heading-chunk-les-step-5-1-i42-39">Third: scalable automatic evaluation</h5>
+<p>Once a verifier exists, enormous numbers of generated answers can be scored automatically.</p>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-40">17. But RLVR has a major restriction</h3>
+<p>You need a reliable verifier.</p>
+<p>For mathematics:</p>
+<div class="math block">
+\boxed{\text{correctness can often be checked}}
+</div>
+<p>For program compilation:</p>
+<div class="math block">
+\boxed{\text{compilation/tests can often be checked}}
+</div>
+<p>But for:</p>
+<blockquote>
+<p>“Which explanation is more insightful?”</p>
+</blockquote>
+<p>there may be no simple deterministic verifier.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{RLVR is powerful but domain-dependent}
+}
+</div>
+<p>The source explicitly says its limitation is access to reliable verification signals. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-41">18. The DeepSeek-R1 connection</h3>
+<p>This is where our earlier distillation chapter connects.</p>
+<p>The source describes DeepSeek-R1 reasoning training as using:</p>
+<div class="math block">
+\boxed{\text{RLVR + GRPO}}
+</div>
+<p>and identifies GRPO as the policy-optimization algorithm. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{RLVR determines the reward signal}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{GRPO determines how that signal updates the policy}
+}
+</div>
+<p>This sentence is worth memorizing conceptually.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-42">19. Extremely important distinction</h3>
+<p>Do <strong>not</strong> say:</p>
+<blockquote>
+<p>“GRPO is the reward.”</p>
+</blockquote>
+<p>Wrong.</p>
+<p>Do <strong>not</strong> say:</p>
+<blockquote>
+<p>“RLVR is the optimization algorithm.”</p>
+</blockquote>
+<p>Also wrong.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{RLVR}=\text{where the learning signal comes from}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{GRPO}=\text{how the policy is optimized using that signal}
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-43">20. Where DeepSeekMath fits</h3>
+<p>GRPO was originally introduced in the <strong>DeepSeekMath</strong> work, which the source identifies as the basis for the algorithm used later in DeepSeek-R1. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So our conceptual chain becomes:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{DeepSeek-R1 reasoning training}
+}
+</div>
+<p>Later we will unpack exactly <strong>why GRPO is different from PPO</strong>.</p>
+<p>Do not jump to that formula yet. First we need the RL foundations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-44">21. A simple numerical example</h3>
+<p>Suppose the model generates four answers for one reasoning problem:</p>
+<table>
+<thead>
+<tr>
+<th>Rollout</th>
+<th style="text-align:right">Reward</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">y_1</span></td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td><span class="math inline">y_2</span></td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td><span class="math inline">y_3</span></td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td><span class="math inline">y_4</span></td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>Average reward:</p>
+<div class="math block">
+\bar R
+=
+\frac{1+0+1+0}{4}
+=
+\boxed{0.5}
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{50\%}
+</div>
+<p>of the sampled responses were successful.</p>
+<p>At this stage, <strong>this is not yet the GRPO advantage</strong>. We are simply measuring reward.</p>
+<p>Later we will transform rewards into learning signals called <strong>advantages</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-45">22. Another numerical example</h3>
+<p>Suppose:</p>
+<div class="math block">
+R(y)=
+\begin{cases}
+1 &amp; \text{correct}\\
+0 &amp; \text{incorrect}
+\end{cases}
+</div>
+<p>and the model produces:</p>
+<div class="math block">
+20
+</div>
+<p>responses.</p>
+<p>Suppose:</p>
+<div class="math block">
+13
+</div>
+<p>are correct.</p>
+<p>Then empirical reward rate is:</p>
+<div class="math block">
+\frac{13}{20}
+=
+0.65.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{65\%}
+</div>
+<p>of the rollouts receive reward 1.</p>
+<p>Again, this is a reward statistic, not yet the parameter update.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-46">23. Why “whole output” matters mathematically</h3>
+<p>Let:</p>
+<div class="math block">
+y=(y_1,\ldots,y_T).
+</div>
+<p>The probability of the entire generated sequence is:</p>
+<div class="math block">
+P_\theta(y\mid x)
+=
+\prod_{t=1}^{T}
+P_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>Taking logarithms:</p>
+<div class="math block">
+\log P_\theta(y\mid x)
+=
+\sum_{t=1}^{T}
+\log P_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>This equation becomes extremely important later because policy-gradient methods use sequence probabilities/log-probabilities.</p>
+<p>The source later explicitly has a section on <strong>scoring rollouts with sequence log probabilities</strong>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-47">24. The conceptual difference from ordinary CE</h3>
+<p>In supervised learning:</p>
+<div class="math block">
+\boxed{
+\text{teacher tells us what token should be produced}
+}
+</div>
+<p>In RL:</p>
+<div class="math block">
+\boxed{
+\text{environment/verifier tells us how good the generated result was}
+}
+</div>
+<p>So:</p>
+<pre><code class="language-text">SFT:
+Prompt → target sequence → CE
+
+RLVR:
+Prompt → sampled sequence → verifier → reward → policy update
+</code></pre>
+<p>This is the central conceptual transition.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-48">25. Why reasoning can emerge through this mechanism</h3>
+<p>Imagine a model repeatedly attempts a difficult math problem.</p>
+<p>Initially:</p>
+<pre><code class="language-text">attempt 1 → wrong
+attempt 2 → wrong
+attempt 3 → wrong
+attempt 4 → correct
+</code></pre>
+<p>The successful trajectory receives higher reward.</p>
+<p>The policy update increases the likelihood of actions associated with rewarding trajectories.</p>
+<p>Over many iterations:</p>
+<div class="math block">
+\boxed{
+\text{trial}
+\rightarrow
+\text{feedback}
+\rightarrow
+\text{policy update}
+\rightarrow
+\text{better trial}
+}
+</div>
+<p>This is the <strong>trial-and-error</strong> mechanism underlying RL.</p>
+<p>The DeepSeek-R1 material describes reasoning RL in precisely this framework. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-49">26. Where GRPO will enter</h3>
+<p>Eventually the loop becomes:</p>
+<pre><code class="language-text">Question
+   ↓
+Current policy
+   ↓
+Generate multiple rollouts
+   ↓
+Verifier
+   ↓
+Rewards
+   ↓
+Compare rollouts
+   ↓
+Advantages
+   ↓
+GRPO loss
+   ↓
+Backpropagation
+   ↓
+Update policy
+</code></pre>
+<p>The source's GRPO implementation follows essentially this progression: load model → load math data → sample rollouts → calculate rewards → prepare advantages → compute sequence log probabilities → calculate GRPO loss → update model. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-50">27. One subtle but crucial idea</h3>
+<p>At this stage, do <strong>not</strong> think:</p>
+<div class="math block">
+\text{reward}=\text{gradient}.
+</div>
+<p>They are different.</p>
+<p>We have:</p>
+<div class="math block">
+\boxed{\text{reward}}
+</div>
+<p>which evaluates the generated outcome.</p>
+<p>Then we transform it into:</p>
+<div class="math block">
+\boxed{\text{advantage / learning signal}}
+</div>
+<p>and then construct:</p>
+<div class="math block">
+\boxed{\text{policy-gradient loss}}
+</div>
+<p>which produces gradients.</p>
+<p>The chain is:</p>
+<div class="math block">
+\boxed{
+R
+\rightarrow
+A
+\rightarrow
+L_{\text{policy}}
+\rightarrow
+\nabla_\theta L
+\rightarrow
+\theta'
+}
+</div>
+<p>This chain will become the backbone of the GRPO lessons.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-51">28. Exam-style numerical — Level 1</h3>
+<p>A model generates 10 responses.</p>
+<p>Rewards:</p>
+<div class="math block">
+1,1,0,1,0,0,1,1,0,1
+</div>
+<p>How many successful rollouts?</p>
+<p>There are:</p>
+<div class="math block">
+6
+</div>
+<p>ones.</p>
+<p>Thus mean reward:</p>
+<div class="math block">
+\bar R=\frac{6}{10}
+=
+\boxed{0.6}.
+</div>
+<p>So the empirical success rate is:</p>
+<div class="math block">
+\boxed{60\%}.
+</div>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-1-i42-0" data-full-review="added"><p>Correction: The listed eight conditional probabilities multiply to 0.00756, not 0.001512. Their natural-log sum is -4.8848840888. Preserve the original displayed answer as history and use this independently checked correction.</p><p><a href="#audit-full-chunk-les-step-5-1-i42">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-1-i42-52">29. Exam-style numerical — Level 2</h3>
+<p>Suppose a generated response contains:</p>
+<div class="math block">
+T=8
+</div>
+<p>tokens.</p>
+<p>Each token probability is:</p>
+<div class="math block">
+[0.5,0.4,0.8,0.25,0.6,0.9,0.7,0.5].
+</div>
+<p>Sequence probability is:</p>
+<div class="math block">
+P(y|x)
+=
+0.5(0.4)(0.8)(0.25)(0.6)(0.9)(0.7)(0.5).
+</div>
+<p>Multiply:</p>
+<div class="math block">
+\boxed{0.001512}
+</div>
+<p>approximately.</p>
+<p>The sequence log-probability is:</p>
+<div class="math block">
+\log P(y|x)
+=
+\sum_{t=1}^{8}\log p_t.
+</div>
+<p>Later, GRPO will use this quantity much more directly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-53">30. Exam-style numerical — Level 3</h3>
+<p>Suppose 5 rollouts receive:</p>
+<div class="math block">
+[1,1,0,0,0].
+</div>
+<p>Average reward:</p>
+<div class="math block">
+\bar R
+=
+\frac{2}{5}
+=
+0.4.
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{40\%}
+</div>
+<p>success rate.</p>
+<p>Notice something important:</p>
+<p>A reward of 1 says:</p>
+<blockquote>
+<p>this rollout was successful.</p>
+</blockquote>
+<p>A reward of 0 says:</p>
+<blockquote>
+<p>this rollout was unsuccessful.</p>
+</blockquote>
+<p>But neither alone tells us:</p>
+<blockquote>
+<p>exactly how much more strongly should this rollout influence the policy than another rollout?</p>
+</blockquote>
+<p>That is why we need <strong>advantages</strong>.</p>
+<p>And that is exactly where GRPO becomes interesting.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-1-i42-54">31. What you should remember from Step 5.1</h3>
+<p>The entire lesson can be compressed to this:</p>
+<div class="math block">
+\boxed{
+\text{Pretraining}
+\rightarrow
+\text{learn knowledge}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{SFT}
+\rightarrow
+\text{imitate target behavior}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{RL}
+\rightarrow
+\text{optimize behavior using feedback}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{RLHF}
+\rightarrow
+\text{human-derived reward}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{RLVR}
+\rightarrow
+\text{automatically verifiable reward}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{GRPO}
+\rightarrow
+\text{policy optimization using relative rollout signals}
+}
+</div>
+<p>and the complete RLVR reasoning loop is:</p>
+<div class="math block">
+\boxed{
+\text{Prompt}
+\rightarrow
+\text{Rollouts}
+\rightarrow
+\text{Rewards}
+\rightarrow
+\text{Advantages}
+\rightarrow
+\text{GRPO Loss}
+\rightarrow
+\text{Gradient}
+\rightarrow
+\text{Updated Policy}
+}
+</div>
+<p>The source explicitly emphasizes that <strong>RLVR defines the learning signal and GRPO defines how that signal is used to update the model</strong>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

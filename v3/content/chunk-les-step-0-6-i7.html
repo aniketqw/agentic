@@ -1,0 +1,1427 @@
+<section class="chunk" id="chunk-les-step-0-6-i7" data-id="les-step-0-6-i7"><details class="audit-card" id="audit-full-chunk-les-step-0-6-i7" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-1">Motivation</h4><p>Extend scalar differentiation into the shapes used by Transformer projections and attention. Prerequisites: Step 0.1 dimensions and Step 0.4 reverse-mode calculus.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-2">Prerequisites</h4><ul><li>Read the prerequisite chain stated in the original lesson and this review motivation.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-3">Notation and units</h4><ul><li>G=\frac{\partial L}{\partial Y},\qquad \frac{\partial L}{\partial W}=X^\top G,\qquad\frac{\partial L}{\partial X}=GW^\top</li><li>\frac{\partial L}{\partial W_{kj}}=\sum_{b,t}X_{btk}G_{btj}</li><li>G_A=G_OV^\top,\qquad G_V=A^\top G_O</li><li>(G_S)_{ij}=A_{ij}\left((G_A)_{ij}-\sum_r A_{ir}(G_A)_{ir}\right)</li><li>G_Q=\frac{G_SK}{\sqrt{d_k}},\qquad G_K=\frac{G_S^\top Q}{\sqrt{d_k}}</li><li>G_X=G_QW_Q^\top+G_KW_K^\top+G_VW_V^\top</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-4">Assumptions</h4><ul><li>Scalar loss, row-oriented forward Y=XW, fixed independent X/W for each partial derivative. W is shared across token/batch positions, so parameter gradients sum those contributions. Any averaging factor in the loss is already present in the upstream gradient.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-5">Step-by-step derivation</h4><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><h4 id="v3-heading-chunk-les-step-0-6-i7-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-7">Verified 0.6.20</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: -4; 4; -6; 6</p><p>Verification: foundations_decoding / 0.6.20 · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-8">Verified 0.6.20.gradient-fd</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: -4.0; 4.0; -6.0; 6.0</p><p>Verification: foundations_decoding / 0.6.20.gradient-fd · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-9">Verified 0.6.11.input-gradient</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: -1.0; 1.0; -1.0; 1.0</p><p>Verification: foundations_decoding / 0.6.11.input-gradient · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-10">Verified 0.6.26.jacobian</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: 6; 1; 4; 3</p><p>Verification: foundations_decoding / 0.6.26.jacobian · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-11">Verified 0.6.31.update</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: 0.98; 2.05; 2.99; 3.97</p><p>Verification: foundations_decoding / 0.6.31.update · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-0-6-i7-12">Verified 0.6.30.parameter-count</h5><p>Given: Original fully specified toy inputs in foundation companion; source supports the mechanism.</p><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><p>Answer: 49152</p><p>Verification: foundations_decoding / 0.6.30.parameter-count · reused earlier evidence; not counted again</p></div><h4 id="v3-heading-chunk-les-step-0-6-i7-13">Corrections and source qualifications</h4><ul><li>heading: 0.6.1; text: Tensor parameters contain scalar entries; scalar scale parameters can also exist. Matrix calculus generalizes scalar differentiation.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-14">Mastery answers and retained exercise context</h4><ol><li>Q1: ∇_W L has shape (512,64).</li><li>Q2: Y and dL/dY have shape (10,64); dL/dW has shape (512,64).</li><li>Q3: (512,10)×(10,64)=(512,64).</li><li>Q4: Each entry records the sensitivity of the final scalar loss to that query-projection parameter, through all its uses.</li><li>Q5: Multiply upstream gradients through value aggregation, softmax, scaled score products and the query projection, preserving shapes and summing branches.</li><li>Q6: Backprop computes derivatives; the optimizer is the mechanism that turns them into parameter changes.</li></ol><h4 id="v3-heading-chunk-les-step-0-6-i7-15">Edge cases and remaining gaps</h4><ul><li>The introductory claim that a Transformer does not have scalar parameters is too literal. Tensor parameters consist of scalars and models can also expose scalar parameters such as scales; arranging entries as tensors changes bookkeeping, not calculus.</li><li>The displayed forward dependency diagram X→W_Q→Q is a schematic. X and W_Q are both operands of the multiply node; X does not cause W_Q.</li><li>For a scalar loss, reverse-mode obtains vector-Jacobian products without storing all full Jacobians. A vector-valued output requires an upstream vector or an explicitly requested Jacobian.</li><li>Q and K commonly use equal head dimensions; V can have a different value width. The shorthand Q,K,V with one common d_k is an architecture choice.</li><li>This completes the written foundation numerical reconciliation and adds missing contraction assumptions; PyTorch backend execution and all inherited citation attributions remain separately tracked.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-16">Connections and progression</h4><ul><li>The same contractions determine LoRA adapter gradients, input sensitivity, attention training and accumulation across tokens/microbatches.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-17">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 588, 590, 594, 595, 178 · Tensor shapes, graph calculus and explicit self-attention projections; the matrix-gradient contraction is derived here</li><li>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron.pdf · physical PDF pages 217, 1036 · Matrix MSE gradient equation 4-6 and reverse-mode chain rule B-4</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-18">Executable code and explained functions</h4><p>inherited_review/examples/foundation_examples.py</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (64)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>STEP 0.6 — TENSOR / MATRIX CALCULUS</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>From scalar derivatives → vector gradients → matrix gradients → Transformer gradients</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.6.1 First: the key idea</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.2 Why this matters for Transformers</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.3 Start with a scalar example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.4 Vector parameter</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.5 Matrix parameter</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.6 The crucial idea: scalar loss, many parameters</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.7 A very important notation distinction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.8 Now the important case: matrix multiplication</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.9 Let&#x27;s make it tiny</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.10 First derivative</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.11 The beautiful pattern</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.12 Check the dimensions</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.13 Apply this directly to Q=XW_Q</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.14 But where does \partial L/\partial Q come from?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.15 Matrix multiplication in attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.16 Why QK^T produces n\times n</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.17 Now add scaling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.18 What happens during backward propagation?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.19 A complete gradient dependency map</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.20 Numerical example: gradient of a matrix</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.21 Why does the gradient depend on the input?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.22 Tensor calculus: why a Transformer makes this bigger</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.23 Does the mathematics change?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.24 Why automatic differentiation is so important</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.25 Jacobian — one more concept</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.26 Example of a Jacobian</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.27 Why don&#x27;t we usually see giant Jacobian matrices in PyTorch?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>0.6.28 Scalar → Vector → Matrix → Tensor</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.29 The Transformer version</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.30 Why the gradient has the same shape as the parameter</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.31 One complete numerical mini-example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.32 The entire Transformer training mathematics</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Forward</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Input:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Projection:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Attention scores:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Causal masking:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Attention distribution:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Attention output:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Transformer layers:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Output:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Probability:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Loss:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Backward</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Update</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.6.33 VERY IMPORTANT: forward mathematics vs backward mathematics</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.34 The cheat-sheet now becomes understandable</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.35 The complete mathematical dependency graph</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.6.36 FOUNDATION COMPLETE</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>0.1 — Linear algebra</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.2 — Probability / softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.3 — Information theory</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.4 — Calculus</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.5 — Expectation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>0.6 — Tensor/matrix calculus</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>FINAL FOUNDATION CHECK</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6 — Most important</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-inherited-0-6" data-inherited-review="added"><summary>Inherited foundation review — Matrix calculus: explicit contractions and gradient accumulation</summary><p>Read this qualification together with the original lesson. Checked fixtures and source support are recorded below; the full course remains under review.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-19">Motivation, prerequisites and assumptions</h4><p>Extend scalar differentiation into the shapes used by Transformer projections and attention. Prerequisites: Step 0.1 dimensions and Step 0.4 reverse-mode calculus.</p><p>Scalar loss, row-oriented forward Y=XW, fixed independent X/W for each partial derivative. W is shared across token/batch positions, so parameter gradients sum those contributions. Any averaging factor in the loss is already present in the upstream gradient.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-20">Derivation and worked results</h4><ol><li>Write Y_ij=sum_k X_ik W_kj. Then dL/dW_kj=sum_i (dL/dY_ij)X_ik, giving dW=XᵀG. Likewise dX=GWᵀ. These are contractions, not an inversion of XW.</li><li>For the inherited half-sum squared error with X=[[1,2],[3,4]], W=I and target [[2,1],[4,3]], Y=X, loss=2, G=[[-1,1],[-1,1]] and dW=[[-4,4],[-6,6]]. Every entry was checked by finite differences.</li><li>For the vector example L=w1²+3w2², the gradient is [2w1,6w2]. For the matrix weighted quadratic, coefficients [1,2;3,4] give entrywise gradient [2w11,4w12;6w21,8w22].</li><li>At x=(3,4), the inherited Jacobian for [x1²+x2,x1x2] is [[6,1],[4,3]], independently checked for both outputs.</li><li>The inherited parameter update gives [[0.98,2.05],[2.99,3.97]]. A 768×64 weight has 49,152 scalar entries and an equally shaped scalar-loss gradient.</li><li>For a batch, flatten batch/token positions conceptually and sum X_btᵀG_bt over them. Bias gradients sum the upstream signal over the reused axes. Loss means, masks and unequal lengths must contribute their declared normalization.</li><li>Complete attention backward application: with O=AV and half-sum MSE against T, G_O=O−T. Differentiate the product to obtain G_A=G_OVᵀ and G_V=AᵀG_O. For each row, contract the softmax Jacobian to get G_S,ij=A_ij(G_A,ij−sum_r A_ir G_A,ir). Masked entries have A_ij=0 and contribute zero.</li><li>For scores QKᵀ/√d_k, G_Q=G_SK/√d_k and G_K=G_SᵀQ/√d_k. Multiply each projection gradient by Xᵀ to obtain the parameter gradient; sum query, key and value contributions for the input gradient.</li><li>A complete CPU trace uses X=[[1,2],[3,4],[5,6]], Wq=[[0.1,0.2],[0.3,0.4]], Wk=[[-0.2,0.1],[0.1,0.3]], Wv=[[0.4,-0.1],[0.2,0.3]] and T=[[1,0],[0,1],[1,1]], with causal mask, no dropout and half-sum MSE. It gives output [[0.8,0.5],[1.6848515052,0.7949505017],[2.9257457506,1.2085819169]] and loss 3.4613865017. The companion prints Q,K,V,A and all gradients. All three parameter matrices and the entire input gradient were independently checked by finite differences.</li></ol><div class="math block">G=\frac{\partial L}{\partial Y},\qquad \frac{\partial L}{\partial W}=X^\top G,\qquad\frac{\partial L}{\partial X}=GW^\top</div><div class="math block">\frac{\partial L}{\partial W_{kj}}=\sum_{b,t}X_{btk}G_{btj}</div><div class="math block">G_A=G_OV^\top,\qquad G_V=A^\top G_O</div><div class="math block">(G_S)_{ij}=A_{ij}\left((G_A)_{ij}-\sum_r A_{ir}(G_A)_{ir}\right)</div><div class="math block">G_Q=\frac{G_SK}{\sqrt{d_k}},\qquad G_K=\frac{G_S^\top Q}{\sqrt{d_k}}</div><div class="math block">G_X=G_QW_Q^\top+G_KW_K^\top+G_VW_V^\top</div><h4 id="v3-heading-chunk-les-step-0-6-i7-21">Edge cases and limitations</h4><ul><li>The introductory claim that a Transformer does not have scalar parameters is too literal. Tensor parameters consist of scalars and models can also expose scalar parameters such as scales; arranging entries as tensors changes bookkeeping, not calculus.</li><li>The displayed forward dependency diagram X→W_Q→Q is a schematic. X and W_Q are both operands of the multiply node; X does not cause W_Q.</li><li>For a scalar loss, reverse-mode obtains vector-Jacobian products without storing all full Jacobians. A vector-valued output requires an upstream vector or an explicitly requested Jacobian.</li><li>Q and K commonly use equal head dimensions; V can have a different value width. The shorthand Q,K,V with one common d_k is an architecture choice.</li><li>This completes the written foundation numerical reconciliation and adds missing contraction assumptions; PyTorch backend execution and all inherited citation attributions remain separately tracked.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-22">Mastery-check answer key</h4><ol><li>Q1: ∇_W L has shape (512,64).</li><li>Q2: Y and dL/dY have shape (10,64); dL/dW has shape (512,64).</li><li>Q3: (512,10)×(10,64)=(512,64).</li><li>Q4: Each entry records the sensitivity of the final scalar loss to that query-projection parameter, through all its uses.</li><li>Q5: Multiply upstream gradients through value aggregation, softmax, scaled score products and the query projection, preserving shapes and summing branches.</li><li>Q6: Backprop computes derivatives; the optimizer is the mechanism that turns them into parameter changes.</li></ol><h4 id="v3-heading-chunk-les-step-0-6-i7-23">Source grounding</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 588, 590, 594, 595, 178 · Tensor shapes, graph calculus and explicit self-attention projections; the matrix-gradient contraction is derived here</li><li>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron.pdf · physical PDF pages 217, 1036 · Matrix MSE gradient equation 4-6 and reverse-mode chain rule B-4</li></ul><p>These passages support the named mathematical mechanism. The new derivations and toy calculations are explicitly independent reconstructions. Research-performance claims and every inherited source-attribution sentence require their own claim-level evidence.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-24">Progression and execution</h4><p>The same contractions determine LoRA adapter gradients, input sensitivity, attention training and accumulation across tokens/microbatches.</p><p><a href="#audit-inherited-code">Executable foundation examples and verified outputs</a> · <a href="#audit-inherited-checks">Independent checking methods</a></p></details><details class="audit-card" id="audit-F08" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> F08 — Matrix gradients from a scalar loss</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F07">← Previous audit card</a> · <a href="#audit-F09">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-0-6-i7-25">Why this matters</h4><p>Every parameter matrix needs a gradient with the same shape. Deriving it once prevents transpose mistakes throughout Q/K/V and LoRA.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a>, <a href="#audit-F02">Transpose versus reshape</a>, <a href="#audit-F06">Chain rule and scalar gradients</a></p><h4 id="v3-heading-chunk-les-step-0-6-i7-26">Symbols, shapes and assumptions</h4><p>Let Y=XW and L=½ΣᵢⱼYᵢⱼ². X is m×n, W is n×p, and dL/dY=Y. This fixture is a squared-error teaching loss, not the language-model CE loss.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-27">Derivation or mechanism</h4><ol><li>Changing W[r,j] affects Y[i,j] through X[i,r]. Sum Y[i,j]X[i,r] over i.</li><li>Collect these entries as XᵀY.</li><li>Changing X[i,r] affects Y[i,j] through W[r,j]. Sum over j to obtain YWᵀ.</li></ol><div class="math block" data-tex="\nabla_W L=X^\top Y,\qquad \nabla_X L=YW^\top">\nabla_W L=X^\top Y,\qquad \nabla_X L=YW^\top</div><h4 id="v3-heading-chunk-les-step-0-6-i7-28">Worked numerical</h4><p>With the F01 matrices, Y=[[2,3],[5,5]]. Thus ∇W=[[17,18],[24,26]] and ∇X=[[-1,7],[0,12.5]]. For example, ∂L/∂W₁₁=1×2+3×5=17. The checker perturbs all eight X/W entries separately and compares their loss changes.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-29">Edge cases and limits</h4><ul><li>A transpose is dictated by index contraction, not inserted until shapes happen to match.</li><li>If W is stored in the opposite library orientation, convert the formula accordingly.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-30">Connections</h4><ul><li>F09 updates W.</li><li>Later attention backpropagation and low-rank updates reuse this contraction rule.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-31">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 589, 593, 594, 595 · Appendix A.2/A.4 starting operations; matrix identity independently derived here</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-32">Executable companion and checking evidence</h4><p>Functions: <code>quadratic_loss</code>, <code>quadratic_gradients</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: F08-dW, F08-dX, F08-known-gradient. <a href="#audit-checks">Inspect the check methods</a>.</p></details><details class="audit-card" id="audit-F10" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> F10 — Softmax Jacobian and the CE logit gradient</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F09">← Previous audit card</a> · <a href="#audit-T01">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-0-6-i7-33">Why this matters</h4><p>This explains why next-token CE training pushes the correct logit up and competing logits down.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a>, <a href="#audit-F05">Entropy, cross-entropy, KL, and support</a>, <a href="#audit-F06">Chain rule and scalar gradients</a></p><h4 id="v3-heading-chunk-les-step-0-6-i7-34">Symbols, shapes and assumptions</h4><p>For one-hot target y and τ=1, p=softmax(z). The loss is -log p_target. A mean over multiple valid positions introduces its own denominator.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-35">Derivation or mechanism</h4><ol><li>Differentiate the softmax quotient: ∂pᵢ/∂zⱼ=pᵢ(δᵢⱼ-pⱼ).</li><li>Write L=-z_target+log Σ exp(z).</li><li>Differentiate to obtain ∂L/∂zⱼ=pⱼ-yⱼ.</li></ol><div class="math block" data-tex="J_{ij}=p_i(\delta_{ij}-p_j)">J_{ij}=p_i(\delta_{ij}-p_j)</div><div class="math block" data-tex="\nabla_z L=p-y">\nabla_z L=p-y</div><h4 id="v3-heading-chunk-les-step-0-6-i7-36">Worked numerical</h4><p>For logits [log 1,log 2,log 3], p=[1/6,1/3,1/2]. With target ID 2, CE=log 2≈0.693147181 and gradient=[1/6,1/3,-1/2]. The gradients sum to zero, consistent with invariance to adding a common logit offset.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-37">Edge cases and limits</h4><ul><li>For temperature-scaled logits, the derivative with respect to the unscaled logits gains a 1/τ factor.</li><li>Passing softmax probabilities into a logits-based CE API applies a different computation.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-38">Connections</h4><ul><li>T01 masks and averages token losses.</li><li>KD uses soft targets and must specify whether the teacher is fixed.</li></ul><h4 id="v3-heading-chunk-les-step-0-6-i7-39">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 324, 325, 326 · §5.1; gradient independently derived</li><li><a href="https://docs.pytorch.org/docs/2.14/generated/torch.nn.CrossEntropyLoss.html" rel="noopener noreferrer">Input/target and reduction contract; API not executed here</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-0-6-i7-40">Executable companion and checking evidence</h4><p>Functions: <code>ce_logits</code>, <code>ce_gradient</code>, <code>softmax_jacobian</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: F10-CE, F10-CE-gradient, F10-jacobian. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-0-6-i7"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-0-6-i7" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-0-5-i6">← Previous lesson</a> · <a href="#chunk-les-step-1-1-i8">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-5-i6">STEP 0.5 — EXPECTATION</a></p><p><strong>This lesson:</strong> STEP 0.6 — TENSOR / MATRIX CALCULUS</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-0-6-i7"></a></p>
+<h2>STEP 0.6 — TENSOR / MATRIX CALCULUS</h2>
+<p><em>Plan node: I0 · chat order #7</em></p>
+<h4 id="v3-heading-chunk-les-step-0-6-i7-41">From scalar derivatives → vector gradients → matrix gradients → Transformer gradients</h4>
+<p>This is the <strong>last mathematical foundation step</strong> before we start the Transformer itself.</p>
+<p>So far we learned:</p>
+<div class="math block">
+\frac{dL}{dw}
+</div>
+<p>for a scalar parameter.</p>
+<p>But a Transformer does not have scalar parameters. It has matrices and tensors such as:</p>
+<div class="math block">
+W_Q,\;W_K,\;W_V,\;W_O,\;W_1,\;W_2
+</div>
+<p>and activations such as:</p>
+<div class="math block">
+X,Q,K,V,A,O
+</div>
+<p>Therefore we need to understand:</p>
+<blockquote>
+<p><strong>What does it mean to differentiate a scalar loss with respect to a matrix?</strong></p>
+</blockquote>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-0-6-i7-0" data-full-review="added"><p>Correction: Tensor parameters contain scalar entries; scalar scale parameters can also exist. Matrix calculus generalizes scalar differentiation.</p><p><a href="#audit-full-chunk-les-step-0-6-i7">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-0-6-i7-42">0.6.1 First: the key idea</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=f(W)
+</div>
+<p>where <span class="math inline">L</span> is a scalar but <span class="math inline">W</span> is a matrix.</p>
+<p>For example:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+w_{11}&amp;w_{12}\\
+w_{21}&amp;w_{22}
+\end{bmatrix}
+</div>
+<p>Then <span class="math inline">W</span> actually contains four parameters:</p>
+<div class="math block">
+w_{11},w_{12},w_{21},w_{22}
+</div>
+<p>Therefore the gradient must contain four derivatives:</p>
+<div class="math block">
+\boxed{
+\nabla_W L=
+\begin{bmatrix}
+\frac{\partial L}{\partial w_{11}}&amp;
+\frac{\partial L}{\partial w_{12}}\\
+\frac{\partial L}{\partial w_{21}}&amp;
+\frac{\partial L}{\partial w_{22}}
+\end{bmatrix}
+}
+</div>
+<p>So:</p>
+<blockquote>
+<p><strong>A matrix gradient has the same shape as the matrix parameter.</strong></p>
+</blockquote>
+<p>This is the mental model we will use throughout Transformers.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-43">0.6.2 Why this matters for Transformers</h3>
+<p>Remember:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>from our earlier lessons.</p>
+<p>The book implements attention through matrix multiplication, including operations such as <span class="math inline">QK^T</span> and then softmax normalization. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Suppose the final loss is:</p>
+<div class="math block">
+L
+</div>
+<p>We eventually need:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W_Q}
+}
+</div>
+<p>because <span class="math inline">W_Q</span> is a learnable parameter.</p>
+<p>The chain is:</p>
+<div class="math block">
+W_Q
+\rightarrow
+Q
+\rightarrow
+QK^T
+\rightarrow
+A
+\rightarrow
+O
+\rightarrow
+\text{Transformer}
+\rightarrow
+\text{logits}
+\rightarrow
+L
+</div>
+<p>So the gradient must travel backward through <strong>matrix operations</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-44">0.6.3 Start with a scalar example</h3>
+<p>Suppose:</p>
+<div class="math block">
+y=wx
+</div>
+<p>and:</p>
+<div class="math block">
+x=3
+</div>
+<p>Then:</p>
+<div class="math block">
+y=3w
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial y}{\partial w}=3
+</div>
+<p>Simple.</p>
+<p>Now let's increase the number of parameters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-45">0.6.4 Vector parameter</h3>
+<p>Suppose:</p>
+<div class="math block">
+\mathbf w=
+\begin{bmatrix}
+w_1\\
+w_2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+L=w_1^2+3w_2^2
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_1}=2w_1
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_2}=6w_2
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\nabla_{\mathbf w}L=
+\begin{bmatrix}
+2w_1\\
+6w_2
+\end{bmatrix}
+}
+</div>
+<p>Again:</p>
+<div class="math block">
+\boxed{
+\text{gradient shape}=\text{parameter shape}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-46">0.6.5 Matrix parameter</h3>
+<p>Now:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+w_{11}&amp;w_{12}\\
+w_{21}&amp;w_{22}
+\end{bmatrix}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+L=
+w_{11}^2
++
+2w_{12}^2
++
+3w_{21}^2
++
+4w_{22}^2
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_{11}}=2w_{11}
+</div>
+<div class="math block">
+\frac{\partial L}{\partial w_{12}}=4w_{12}
+</div>
+<div class="math block">
+\frac{\partial L}{\partial w_{21}}=6w_{21}
+</div>
+<div class="math block">
+\frac{\partial L}{\partial w_{22}}=8w_{22}
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\nabla_WL=
+\begin{bmatrix}
+2w_{11}&amp;4w_{12}\\
+6w_{21}&amp;8w_{22}
+\end{bmatrix}
+}
+</div>
+<p>Nothing magical happened.</p>
+<p>We simply differentiated <strong>every element</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-47">0.6.6 The crucial idea: scalar loss, many parameters</h3>
+<p>A neural network normally has:</p>
+<div class="math block">
+\boxed{
+L\in\mathbb R
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\theta
+</div>
+<p>can contain millions or billions of parameters.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\theta=
+\{\theta_1,\theta_2,\ldots,\theta_n\}
+</div>
+<p>The gradient is:</p>
+<div class="math block">
+\nabla_\theta L
+=
+\left[
+\frac{\partial L}{\partial\theta_1},
+\dots,
+\frac{\partial L}{\partial\theta_n}
+\right]
+</div>
+<p>When those parameters are arranged into matrices/tensors, the gradients are arranged into corresponding matrices/tensors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-48">0.6.7 A very important notation distinction</h3>
+<p>You may encounter:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+</div>
+<p>and:</p>
+<div class="math block">
+\nabla_WL
+</div>
+<p>For our purposes, both mean:</p>
+<blockquote>
+<p>the collection of partial derivatives of the scalar loss with respect to every element of <span class="math inline">W</span>.</p>
+</blockquote>
+<p>So you can mentally read:</p>
+<div class="math block">
+\boxed{
+\nabla_WL
+=
+\text{&quot;how should every element of W change?&quot;}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-49">0.6.8 Now the important case: matrix multiplication</h3>
+<p>Consider:</p>
+<div class="math block">
+Y=XW
+</div>
+<p>where:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+W\in\mathbb R^{d\times m}
+</div>
+<p>therefore:</p>
+<div class="math block">
+Y\in\mathbb R^{n\times m}
+</div>
+<p>This is exactly the type of operation used throughout a Transformer.</p>
+<p>For example:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-50">0.6.9 Let's make it tiny</h3>
+<p>Take:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+x_1&amp;x_2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+w_1\\
+w_2
+\end{bmatrix}
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=XW
+</div>
+<p>is:</p>
+<div class="math block">
+y=x_1w_1+x_2w_2
+</div>
+<p>Suppose:</p>
+<div class="math block">
+L=\frac12(y-t)^2
+</div>
+<p>We want:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-51">0.6.10 First derivative</h3>
+<p>Start with:</p>
+<div class="math block">
+L=\frac12(y-t)^2
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial y}=y-t
+</div>
+<p>Now:</p>
+<div class="math block">
+y=x_1w_1+x_2w_2
+</div>
+<p>so:</p>
+<div class="math block">
+\frac{\partial y}{\partial w_1}=x_1
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial y}{\partial w_2}=x_2
+</div>
+<p>By the chain rule:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_1}
+=
+\frac{\partial L}{\partial y}
+\frac{\partial y}{\partial w_1}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_1}
+=
+(y-t)x_1
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\frac{\partial L}{\partial w_2}
+=
+(y-t)x_2
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\nabla_WL
+=
+(y-t)
+\begin{bmatrix}
+x_1\\
+x_2
+\end{bmatrix}
+}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+\nabla_WL=X^T\frac{\partial L}{\partial y}
+}
+</div>
+<p>This is the basic pattern behind gradients of linear layers.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-52">0.6.11 The beautiful pattern</h3>
+<p>Forward:</p>
+<div class="math block">
+\boxed{
+Y=XW
+}
+</div>
+<p>Backward:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+X^T
+\frac{\partial L}{\partial Y}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial X}
+=
+\frac{\partial L}{\partial Y}W^T
+}
+</div>
+<p>These formulas are extremely useful.</p>
+<p>Don't memorize them blindly.</p>
+<p>Understand the principle:</p>
+<blockquote>
+<p>The backward pass reverses the matrix multiplication while preserving compatible dimensions.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-53">0.6.12 Check the dimensions</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+W\in\mathbb R^{d\times m}
+</div>
+<p>then:</p>
+<div class="math block">
+Y=XW
+</div>
+<p>has:</p>
+<div class="math block">
+Y\in\mathbb R^{n\times m}
+</div>
+<p>Now:</p>
+<div class="math block">
+\frac{\partial L}{\partial Y}
+\in
+\mathbb R^{n\times m}
+</div>
+<p>For:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+=
+X^T
+\frac{\partial L}{\partial Y}
+</div>
+<p>we have:</p>
+<div class="math block">
+X^T\in\mathbb R^{d\times n}
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial L}{\partial Y}
+\in\mathbb R^{n\times m}
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+\in\mathbb R^{d\times m}
+}
+</div>
+<p>Exactly the same shape as <span class="math inline">W</span>.</p>
+<p>That shape check is one of the best ways to catch errors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-54">0.6.13 Apply this directly to <span class="math inline">Q=XW_Q</span></h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_k}
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>and:</p>
+<div class="math block">
+Q\in\mathbb R^{n\times d_k}
+</div>
+<p>During backpropagation:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+=
+X^T
+\frac{\partial L}{\partial Q}
+</div>
+<p>Shapes:</p>
+<div class="math block">
+X^T:
+d\times n
+</div>
+<div class="math block">
+\frac{\partial L}{\partial Q}:
+n\times d_k
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W_Q}
+:
+d\times d_k
+}
+</div>
+<p>which matches:</p>
+<div class="math block">
+W_Q:d\times d_k
+</div>
+<p>Perfect.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-55">0.6.14 But where does <span class="math inline">\partial L/\partial Q</span> come from?</h3>
+<p>This is where the chain rule returns.</p>
+<p>We have:</p>
+<div class="math block">
+Q
+\rightarrow
+QK^T
+\rightarrow
+\frac{QK^T}{\sqrt{d_k}}
+\rightarrow
+\text{softmax}
+\rightarrow
+A
+\rightarrow
+AV
+\rightarrow
+L
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial Q}
+</div>
+<p>is itself obtained by backpropagating through all those operations.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W_Q
+\rightarrow Q
+\rightarrow S
+\rightarrow A
+\rightarrow O
+\rightarrow L
+}
+</div>
+<p>and the backward path is:</p>
+<div class="math block">
+\boxed{
+L
+\rightarrow O
+\rightarrow A
+\rightarrow S
+\rightarrow Q
+\rightarrow W_Q
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-56">0.6.15 Matrix multiplication in attention</h3>
+<p>Recall:</p>
+<div class="math block">
+S=QK^T
+</div>
+<p>where:</p>
+<div class="math block">
+Q,K\in\mathbb R^{n\times d_k}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+K^T\in\mathbb R^{d_k\times n}
+</div>
+<p>and:</p>
+<div class="math block">
+S\in\mathbb R^{n\times n}
+</div>
+<p>The book explicitly constructs all pairwise attention scores using matrix multiplication <span class="math inline">QK^T</span>. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Each element is:</p>
+<div class="math block">
+\boxed{
+S_{ij}=q_i^Tk_j
+}
+</div>
+<p>So:</p>
+<blockquote>
+<p>Row <span class="math inline">i</span> asks: how compatible is query <span class="math inline">q_i</span> with every key?</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-57">0.6.16 Why <span class="math inline">QK^T</span> produces <span class="math inline">n\times n</span></h3>
+<p>This is worth understanding deeply.</p>
+<p>Suppose:</p>
+<div class="math block">
+n=4
+</div>
+<p>tokens and:</p>
+<div class="math block">
+d_k=3
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=
+4\times3
+</div>
+<p>and:</p>
+<div class="math block">
+K=
+4\times3
+</div>
+<p>Therefore:</p>
+<div class="math block">
+K^T=
+3\times4
+</div>
+<p>Thus:</p>
+<div class="math block">
+QK^T:
+(4\times3)(3\times4)
+=
+4\times4
+</div>
+<p>The resulting matrix contains:</p>
+<div class="math block">
+4\times4=16
+</div>
+<p>pairwise query-key scores.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-58">0.6.17 Now add scaling</h3>
+<p>Attention uses:</p>
+<div class="math block">
+S=
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>Then:</p>
+<div class="math block">
+A=\operatorname{softmax}(S)
+</div>
+<p>Then:</p>
+<div class="math block">
+O=AV
+</div>
+<p>The book explains this progression from dot-product scores to scaled softmax attention weights and then weighted value aggregation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-59">0.6.18 What happens during backward propagation?</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=L(O)
+</div>
+<p>We first obtain:</p>
+<div class="math block">
+\frac{\partial L}{\partial O}
+</div>
+<p>Then propagate through:</p>
+<div class="math block">
+O=AV
+</div>
+<p>giving gradients for:</p>
+<div class="math block">
+A
+</div>
+<p>and:</p>
+<div class="math block">
+V
+</div>
+<p>Then propagate through:</p>
+<div class="math block">
+A=\operatorname{softmax}(S)
+</div>
+<p>giving:</p>
+<div class="math block">
+\frac{\partial L}{\partial S}
+</div>
+<p>Then:</p>
+<div class="math block">
+S=\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>gives gradients for:</p>
+<div class="math block">
+Q
+</div>
+<p>and:</p>
+<div class="math block">
+K
+</div>
+<p>Finally:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>gives:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+</div>
+<p>This is the exact computational chain we needed matrix calculus to understand.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-60">0.6.19 A complete gradient dependency map</h3>
+<pre><code class="language-text">                         FORWARD
+                            ↓
+
+X ──→ WQ ──→ Q ─────────────┐
+                            │
+X ──→ WK ──→ K ──→ Kᵀ ─────┤
+                            ↓
+                         QKᵀ
+                            ↓
+                       / √dₖ
+                            ↓
+                         softmax
+                            ↓
+                            A
+                            │
+X ──→ WV ──→ V ─────────────┤
+                            ↓
+                           AV
+                            ↓
+                     Transformer...
+                            ↓
+                           Loss
+
+
+                         BACKWARD
+                            ↑
+
+                    ∂L/∂Loss
+                            ↑
+                           ...
+                            ↑
+                         ∂L/∂O
+                       ↙          ↘
+                 ∂L/∂A          ∂L/∂V
+                    ↑               ↑
+              softmax            WV
+                    ↑
+                ∂L/∂S
+                 ↙    ↘
+             ∂L/∂Q    ∂L/∂K
+                ↑        ↑
+               WQ       WK
+</code></pre>
+<p>This is what &quot;the Transformer learns&quot; mathematically means.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-61">0.6.20 Numerical example: gradient of a matrix</h3>
+<p>Let's make a tiny linear layer:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;2\\
+3&amp;4
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+W=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1
+\end{bmatrix}
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=XW=X
+</div>
+<p>Suppose the target is:</p>
+<div class="math block">
+T=
+\begin{bmatrix}
+2&amp;1\\
+4&amp;3
+\end{bmatrix}
+</div>
+<p>and define:</p>
+<div class="math block">
+L=\frac12\sum_{ij}(Y_{ij}-T_{ij})^2
+</div>
+<p>Then:</p>
+<div class="math block">
+Y-T=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial Y}
+=
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<p>Now:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+=
+X^T
+\frac{\partial L}{\partial Y}
+</div>
+<p>We have:</p>
+<div class="math block">
+X^T=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+=
+\begin{bmatrix}
+1&amp;3\\
+2&amp;4
+\end{bmatrix}
+\begin{bmatrix}
+-1&amp;1\\
+-1&amp;1
+\end{bmatrix}
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+\begin{bmatrix}
+-4&amp;4\\
+-6&amp;6
+\end{bmatrix}
+}
+</div>
+<p>Notice the shape:</p>
+<div class="math block">
+2\times2
+</div>
+<p>same as <span class="math inline">W</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-62">0.6.21 Why does the gradient depend on the input?</h3>
+<p>Look at:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W}
+=
+X^T\frac{\partial L}{\partial Y}
+}
+</div>
+<p>This tells us something important.</p>
+<p>A weight doesn't learn in isolation.</p>
+<p>Its update depends on:</p>
+<ol>
+<li>the input that passed through it</li>
+<li>how wrong the output was</li>
+</ol>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{weight gradient}
+=
+\text{input}
+\times
+\text{error signal}
+}
+</div>
+<p>This is a very useful intuition for neural networks.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-63">0.6.22 Tensor calculus: why a Transformer makes this bigger</h3>
+<p>In a real Transformer, we don't just have:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<p>We usually have batches:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb R^{B\times n\times d}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">B</span> = batch size</li>
+<li><span class="math inline">n</span> = sequence length</li>
+<li><span class="math inline">d</span> = hidden dimension</li>
+</ul>
+<p>Then attention may have:</p>
+<div class="math block">
+Q,K,V
+\in
+\mathbb R^{B\times H\times n\times d_k}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">H</span> = number of heads</li>
+<li><span class="math inline">d_k</span> = dimension per head</li>
+</ul>
+<p>Raschka's implementation similarly uses batched tensor shapes involving batch, heads, tokens, and head dimension. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-64">0.6.23 Does the mathematics change?</h3>
+<p>No.</p>
+<p>The fundamental principle is still:</p>
+<div class="math block">
+\boxed{
+\text{differentiate every element and propagate the chain rule}
+}
+</div>
+<p>The only difference is that there are many dimensions and repeated operations.</p>
+<p>PyTorch's automatic differentiation handles this bookkeeping.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-65">0.6.24 Why automatic differentiation is so important</h3>
+<p>Imagine manually calculating:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+</div>
+<p>for a 70-billion-parameter model.</p>
+<p>Obviously impossible by hand.</p>
+<p>Instead, the framework constructs a computation graph and automatically applies the chain rule.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">forward operations
+      ↓
+computation graph
+      ↓
+loss
+      ↓
+automatic differentiation
+      ↓
+gradients for tensors
+      ↓
+optimizer
+      ↓
+updated parameters
+</code></pre>
+<p>This is why understanding the mathematics is important even though we don't manually derive every gradient in code.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-66">0.6.25 Jacobian — one more concept</h3>
+<p>We need one more piece of vocabulary.</p>
+<p>Suppose:</p>
+<div class="math block">
+\mathbf y=f(\mathbf x)
+</div>
+<p>where both are vectors:</p>
+<div class="math block">
+\mathbf x\in\mathbb R^n
+</div>
+<p>and:</p>
+<div class="math block">
+\mathbf y\in\mathbb R^m
+</div>
+<p>Then the Jacobian is:</p>
+<div class="math block">
+\boxed{
+J=
+\frac{\partial\mathbf y}{\partial\mathbf x}
+}
+</div>
+<p>containing all derivatives:</p>
+<div class="math block">
+J_{ij}
+=
+\frac{\partial y_i}{\partial x_j}
+</div>
+<p>So:</p>
+<div class="math block">
+J\in\mathbb R^{m\times n}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-67">0.6.26 Example of a Jacobian</h3>
+<p>Let:</p>
+<div class="math block">
+y_1=x_1^2+x_2
+</div>
+<div class="math block">
+y_2=x_1x_2
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial y_1}{\partial x_1}=2x_1
+</div>
+<div class="math block">
+\frac{\partial y_1}{\partial x_2}=1
+</div>
+<div class="math block">
+\frac{\partial y_2}{\partial x_1}=x_2
+</div>
+<div class="math block">
+\frac{\partial y_2}{\partial x_2}=x_1
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+J=
+\begin{bmatrix}
+2x_1&amp;1\\
+x_2&amp;x_1
+\end{bmatrix}
+}
+</div>
+<p>You do not need to manually calculate Jacobians throughout our Transformer course.</p>
+<p>But you need to understand:</p>
+<blockquote>
+<p><strong>A Jacobian describes how a vector of outputs changes with respect to a vector of inputs.</strong></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-68">0.6.27 Why don't we usually see giant Jacobian matrices in PyTorch?</h3>
+<p>Because explicitly constructing them would often be extremely inefficient.</p>
+<p>For neural networks we usually care about:</p>
+<div class="math block">
+\frac{\partial L}{\partial\theta}
+</div>
+<p>where:</p>
+<div class="math block">
+L
+</div>
+<p>is a scalar.</p>
+<p>Automatic differentiation can compute the needed vector-Jacobian products efficiently without materializing every possible derivative.</p>
+<p>This is one reason reverse-mode autodiff is so useful for neural-network training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-69">0.6.28 Scalar → Vector → Matrix → Tensor</h3>
+<p>You should now have this hierarchy:</p>
+<pre><code class="language-text">Scalar
+   ↓
+Derivative
+   ↓
+Vector
+   ↓
+Gradient
+   ↓
+Matrix
+   ↓
+Matrix gradient / Jacobian
+   ↓
+Tensor
+   ↓
+Automatic differentiation
+</code></pre>
+<p>The underlying idea never changes:</p>
+<div class="math block">
+\boxed{
+\text{How does the loss change when this quantity changes?}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-70">0.6.29 The Transformer version</h3>
+<p>Now we can finally understand the mathematical meaning of:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W_Q}
+}
+</div>
+<p>It means:</p>
+<blockquote>
+<p>For every element of <span class="math inline">W_Q</span>, how much would the final loss change if that element were changed slightly, while accounting for all downstream computations?</p>
+</blockquote>
+<p>And similarly:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_K}
+</div>
+<p>means:</p>
+<blockquote>
+<p>How does every element of the key projection affect the final loss?</p>
+</blockquote>
+<p>and:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_V}
+</div>
+<p>means:</p>
+<blockquote>
+<p>How does every element of the value projection affect the final loss?</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-71">0.6.30 Why the gradient has the same shape as the parameter</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_Q\in\mathbb R^{768\times64}
+</div>
+<p>Then there are:</p>
+<div class="math block">
+768\times64=49,152
+</div>
+<p>individual parameters.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\nabla_{W_Q}L\in\mathbb R^{768\times64}
+}
+</div>
+<p>There is one gradient value corresponding to every parameter.</p>
+<p>Then the optimizer performs:</p>
+<div class="math block">
+W_Q
+\leftarrow
+W_Q-\eta\nabla_{W_Q}L
+</div>
+<p>element by element.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-72">0.6.31 One complete numerical mini-example</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_Q=
+\begin{bmatrix}
+1&amp;2\\
+3&amp;4
+\end{bmatrix}
+</div>
+<p>and suppose backpropagation produces:</p>
+<div class="math block">
+\nabla_{W_Q}L=
+\begin{bmatrix}
+0.2&amp;-0.5\\
+0.1&amp;0.3
+\end{bmatrix}
+</div>
+<p>with:</p>
+<div class="math block">
+\eta=0.1
+</div>
+<p>Then:</p>
+<div class="math block">
+W_Q^{new}
+=
+W_Q-0.1\nabla_{W_Q}L
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W_Q^{new}
+=
+\begin{bmatrix}
+1&amp;2\\
+3&amp;4
+\end{bmatrix}
+-
+\begin{bmatrix}
+0.02&amp;-0.05\\
+0.01&amp;0.03
+\end{bmatrix}
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+W_Q^{new}
+=
+\begin{bmatrix}
+0.98&amp;2.05\\
+2.99&amp;3.97
+\end{bmatrix}
+}
+</div>
+<p>That is literally a tiny piece of what happens during Transformer training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-73">0.6.32 The entire Transformer training mathematics</h3>
+<p>Now we can finally connect <strong>everything</strong>.</p>
+<h4 id="v3-heading-chunk-les-step-0-6-i7-74">Forward</h4>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-75">Input:</h5>
+<div class="math block">
+X
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-76">Projection:</h5>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-77">Attention scores:</h5>
+<div class="math block">
+S=\frac{QK^T}{\sqrt{d_k}}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-78">Causal masking:</h5>
+<div class="math block">
+S'=S+M
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-79">Attention distribution:</h5>
+<div class="math block">
+A=\operatorname{softmax}(S')
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-80">Attention output:</h5>
+<div class="math block">
+O=AV
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-81">Transformer layers:</h5>
+<div class="math block">
+O
+\rightarrow
+\text{residual/normalization/FFN/etc.}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-82">Output:</h5>
+<div class="math block">
+z
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-83">Probability:</h5>
+<div class="math block">
+p=\operatorname{softmax}(z)
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-84">Loss:</h5>
+<div class="math block">
+L=-\log p_{\text{target}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-6-i7-85">Backward</h4>
+<div class="math block">
+L
+\rightarrow
+p
+\rightarrow
+z
+\rightarrow
+\text{Transformer layers}
+\rightarrow
+O
+\rightarrow
+A,V
+\rightarrow
+S
+\rightarrow
+Q,K
+\rightarrow
+W_Q,W_K,W_V
+</div>
+<p>producing:</p>
+<div class="math block">
+\nabla_{W_Q}L
+</div>
+<div class="math block">
+\nabla_{W_K}L
+</div>
+<div class="math block">
+\nabla_{W_V}L
+</div>
+<p>and gradients for every other learnable parameter.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-0-6-i7-86">Update</h4>
+<div class="math block">
+\boxed{
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L
+}
+</div>
+<p>This is the complete mathematical skeleton of Transformer learning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-87">0.6.33 VERY IMPORTANT: forward mathematics vs backward mathematics</h3>
+<p>Your lecture material is primarily focused on the <strong>forward architecture</strong> of Transformers.</p>
+<p>The book explicitly gives the forward attention construction:</p>
+<div class="math block">
+QK^T
+\rightarrow
+\text{scaled scores}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{attention weights}
+</div>
+<p>and later builds the Transformer components. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>The full matrix-calculus derivations of every Transformer gradient are <strong>not laid out in those lecture materials</strong>.</p>
+<p>So here I am supplementing the source material with standard matrix-calculus reasoning to make the training mathematics understandable. The source-derived Transformer equations remain the grounding; the derivative formulas are the mathematical bridge we need.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-88">0.6.34 The cheat-sheet now becomes understandable</h3>
+<p>Your original formula:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>is no longer just an equation.</p>
+<p>You understand:</p>
+<ul>
+<li><span class="math inline">X</span> contains token representations.</li>
+<li><span class="math inline">W_Q</span> is learned.</li>
+<li>multiplication transforms representations into queries.</li>
+<li><span class="math inline">Q</span> participates in <span class="math inline">QK^T</span>.</li>
+<li>scores become attention weights.</li>
+<li>attention changes the representation.</li>
+<li>representation changes the prediction.</li>
+<li>prediction changes the loss.</li>
+<li>the loss produces:</li>
+</ul>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+</div>
+<ul>
+<li>optimizer updates <span class="math inline">W_Q</span>.</li>
+</ul>
+<p>So the equation is part of a <strong>learning system</strong>, not an isolated formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-89">0.6.35 The complete mathematical dependency graph</h3>
+<pre><code class="language-text">                 ┌───────────────┐
+                 │  Parameters θ │
+                 └───────┬───────┘
+                         │
+                         ▼
+                    Forward pass
+                         │
+                         ▼
+                Intermediate tensors
+                         │
+                         ▼
+                    Prediction
+                         │
+                         ▼
+                       Loss L
+                         │
+                         ▼
+                  Backpropagation
+                         │
+                  Chain rule
+                         │
+                         ▼
+                    ∇θ L
+                         │
+                         ▼
+                    Optimizer
+                         │
+                         ▼
+                 Updated parameters
+                         │
+                         └──────────► repeat
+</code></pre>
+<p>This is the mathematical heart of deep learning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-90">0.6.36 FOUNDATION COMPLETE</h3>
+<p>We have now completed the mathematical foundation we planned.</p>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-91">0.1 — Linear algebra</h5>
+<div class="math block">
+\boxed{
+\text{vectors, matrices, multiplication, dot products, dimensions}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-92">0.2 — Probability / softmax</h5>
+<div class="math block">
+\boxed{
+P(x),\quad \log P(x),\quad \operatorname{softmax}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-93">0.3 — Information theory</h5>
+<div class="math block">
+\boxed{
+H(P),\quad H(P,Q),\quad D_{KL}(P\|Q)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-94">0.4 — Calculus</h5>
+<div class="math block">
+\boxed{
+\text{derivative, partial derivative, gradient, chain rule}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-95">0.5 — Expectation</h5>
+<div class="math block">
+\boxed{
+E[X],\quad E[f(X)],\quad E[X|Y],\quad Var(X)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-96">0.6 — Tensor/matrix calculus</h5>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial W},
+\quad
+J,
+\quad
+\frac{\partial L}{\partial W}
+=
+X^T\frac{\partial L}{\partial Y}
+}
+</div>
+<p>and most importantly:</p>
+<div class="math block">
+\boxed{
+\text{forward computation}
+\rightarrow
+\text{loss}
+\rightarrow
+\text{backpropagation}
+\rightarrow
+\text{tensor gradients}
+\rightarrow
+\text{parameter update}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-6-i7-97">FINAL FOUNDATION CHECK</h3>
+<p>Before we leave the mathematical foundation, make sure these are clear:</p>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-98">Q1</h5>
+<p>If:</p>
+<div class="math block">
+W\in\mathbb R^{512\times64}
+</div>
+<p>what is the shape of:</p>
+<div class="math block">
+\nabla_WL?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-99">Q2</h5>
+<p>If:</p>
+<div class="math block">
+Y=XW
+</div>
+<p>with:</p>
+<div class="math block">
+X\in\mathbb R^{10\times512}
+</div>
+<p>and:</p>
+<div class="math block">
+W\in\mathbb R^{512\times64},
+</div>
+<p>what are the shapes of:</p>
+<div class="math block">
+Y,\quad
+\frac{\partial L}{\partial Y},\quad
+\frac{\partial L}{\partial W}?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-100">Q3</h5>
+<p>Why does:</p>
+<div class="math block">
+\frac{\partial L}{\partial W}
+=
+X^T\frac{\partial L}{\partial Y}
+</div>
+<p>have the same shape as <span class="math inline">W</span>?</p>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-101">Q4</h5>
+<p>For:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>what does:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+</div>
+<p>conceptually mean?</p>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-102">Q5</h5>
+<p>Explain this backward chain:</p>
+<div class="math block">
+L
+\rightarrow
+O
+\rightarrow
+A
+\rightarrow
+S
+\rightarrow
+Q
+\rightarrow
+W_Q
+</div>
+<h5 id="v3-heading-chunk-les-step-0-6-i7-103">Q6 — <strong>Most important</strong></h5>
+<p>Explain in your own words why:</p>
+<div class="math block">
+\boxed{
+\text{backpropagation is not a separate learning algorithm}
+}
+</div>
+<p>but rather the mechanism that computes the gradients that an optimizer uses.</p>
+<hr />
+</section>

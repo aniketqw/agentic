@@ -1,0 +1,1793 @@
+<section class="chunk" id="chunk-les-step-2-4-i24" data-id="les-step-2-4-i24"><details class="audit-card" id="audit-full-chunk-les-step-2-4-i24" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-2-4-i24-1">Motivation</h4><p>Adapt the candidate count to the probability mass rather than a fixed count.</p><h4 id="v3-heading-chunk-les-step-2-4-i24-2">Prerequisites</h4><ul><li>Normalized probabilities</li><li>Sorting</li><li>Cumulative sums</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-3">Notation and units</h4><ul><li>Nucleus minimal sorted prefix with cumulative mass &gt;=p</li><li>Threshold p in (0,1]</li><li>Retained mass is actual prefix sum, not threshold itself</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-4">Assumptions</h4><ul><li>Stable tie policy</li><li>Temperature applied before measuring mass</li><li>Normalize any prior top-k filter before top-p if top-p is defined relative to that filtered distribution</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-5">Step-by-step derivation</h4><ol><li>Sort probabilities descending, preserve original token indices, accumulate until first sum &gt;=threshold, include the crossing token.</li><li>Renormalize by retained mass. For [.4,.25,.15,.1,.06,.04],p=.8, prefix mass=.8 gives [.5,.3125,.1875,0,0,0].</li><li>For [.35,.20,.15,.12,.10,.08],p=.75, sums .35,.55,.70,.82; keep four and divide by .82, giving [.4268292683,.2439024390,.1829268293,.1463414634,0,0].</li><li>For logits [4,3,2,1],T=1,p=.9 requires three tokens; T=2 first-three mass=.8984636759 &lt;.9, so all four are retained.</li><li>Sharp [.85,.08,.03,.02,.01,.01] at .9 retains two; flat [.15,.14,.13,.12,.11,.10,.09,.08,.08] retains eight.</li><li>A p=1 branch should keep all positive support, avoiding roundoff deletion. Floating cumulative boundaries require a stated numeric policy; do not round displayed probabilities before deciding.</li><li>If combining filters, top-k-then-renormalize-then-top-p and top-p on original probabilities can differ. Operation order defines the actual policy.</li></ol><h4 id="v3-heading-chunk-les-step-2-4-i24-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-4-i24-7">nucleus_[0.35, 0.2, 0.15, 0.12, 0.1, 0.08]_0.75</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Sort probabilities descending, preserve original token indices, accumulate until first sum &gt;=threshold, include the crossing token.</li><li>Renormalize by retained mass. For [.4,.25,.15,.1,.06,.04],p=.8, prefix mass=.8 gives [.5,.3125,.1875,0,0,0].</li><li>For [.35,.20,.15,.12,.10,.08],p=.75, sums .35,.55,.70,.82; keep four and divide by .82, giving [.4268292683,.2439024390,.1829268293,.1463414634,0,0].</li><li>For logits [4,3,2,1],T=1,p=.9 requires three tokens; T=2 first-three mass=.8984636759 &lt;.9, so all four are retained.</li><li>Sharp [.85,.08,.03,.02,.01,.01] at .9 retains two; flat [.15,.14,.13,.12,.11,.10,.09,.08,.08] retains eight.</li><li>A p=1 branch should keep all positive support, avoiding roundoff deletion. Floating cumulative boundaries require a stated numeric policy; do not round displayed probabilities before deciding.</li><li>If combining filters, top-k-then-renormalize-then-top-p and top-p on original probabilities can differ. Operation order defines the actual policy.</li></ol><p>Answer: 0.42682926829268286; 0.24390243902439024; 0.18292682926829265; 0.14634146341463414; 0.0; 0.0</p><p>Verification: foundations_decoding / nucleus_[0.35, 0.2, 0.15, 0.12, 0.1, 0.08]_0.75 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-4-i24-8">temperature_nucleus_1</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Sort probabilities descending, preserve original token indices, accumulate until first sum &gt;=threshold, include the crossing token.</li><li>Renormalize by retained mass. For [.4,.25,.15,.1,.06,.04],p=.8, prefix mass=.8 gives [.5,.3125,.1875,0,0,0].</li><li>For [.35,.20,.15,.12,.10,.08],p=.75, sums .35,.55,.70,.82; keep four and divide by .82, giving [.4268292683,.2439024390,.1829268293,.1463414634,0,0].</li><li>For logits [4,3,2,1],T=1,p=.9 requires three tokens; T=2 first-three mass=.8984636759 &lt;.9, so all four are retained.</li><li>Sharp [.85,.08,.03,.02,.01,.01] at .9 retains two; flat [.15,.14,.13,.12,.11,.10,.09,.08,.08] retains eight.</li><li>A p=1 branch should keep all positive support, avoiding roundoff deletion. Floating cumulative boundaries require a stated numeric policy; do not round displayed probabilities before deciding.</li><li>If combining filters, top-k-then-renormalize-then-top-p and top-p on original probabilities can differ. Operation order defines the actual policy.</li></ol><p>Answer: 3</p><p>Verification: foundations_decoding / temperature_nucleus_1 · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-4-i24-9">temperature_nucleus_2</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Sort probabilities descending, preserve original token indices, accumulate until first sum &gt;=threshold, include the crossing token.</li><li>Renormalize by retained mass. For [.4,.25,.15,.1,.06,.04],p=.8, prefix mass=.8 gives [.5,.3125,.1875,0,0,0].</li><li>For [.35,.20,.15,.12,.10,.08],p=.75, sums .35,.55,.70,.82; keep four and divide by .82, giving [.4268292683,.2439024390,.1829268293,.1463414634,0,0].</li><li>For logits [4,3,2,1],T=1,p=.9 requires three tokens; T=2 first-three mass=.8984636759 &lt;.9, so all four are retained.</li><li>Sharp [.85,.08,.03,.02,.01,.01] at .9 retains two; flat [.15,.14,.13,.12,.11,.10,.09,.08,.08] retains eight.</li><li>A p=1 branch should keep all positive support, avoiding roundoff deletion. Floating cumulative boundaries require a stated numeric policy; do not round displayed probabilities before deciding.</li><li>If combining filters, top-k-then-renormalize-then-top-p and top-p on original probabilities can differ. Operation order defines the actual policy.</li></ol><p>Answer: 4</p><p>Verification: foundations_decoding / temperature_nucleus_2 · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-2-4-i24-10">Corrections and source qualifications</h4><ul><li>heading: 2.4.7; text: The four displayed France probabilities sum .9667 and are an excerpt; missing tail mass .0333 exists. Their nucleus prefix computation is valid without pretending the four form the whole vocabulary.</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-11">Mastery answers and retained exercise context</h4><ol><li>Checkpoint 1: fixed k ignores concentration, while a mass threshold adjusts prefix size.</li><li>Checkpoint 2: sort, cumulative &gt;=p, include crossing token, divide by retained sum.</li><li>Checkpoint 3: exceeding p is normal because candidates are discrete.</li><li>Checkpoint 4: removed probability mass leaves total below one, requiring normalization.</li><li>Checkpoint 5: prefix count changes with current distribution.</li><li>Checkpoint 6: temperature changes cumulative probabilities even though order is unchanged.</li><li>Checkpoint 7: top-k controls count, top-p controls mass.</li><li>Numerical Level 1: [.5,.2,.15,.1,.05],p=.8 gives three; divide by .85.</li><li>Numerical Level 2: [.31,.28,.18,.12,.07,.04],p=.75 gives three; divide by .77.</li><li>Numerical Level 3: [.22,.19,.17,.13,.11,.10,.08],p=.8 gives five; divide by .82.</li><li>Numerical Level 4: at p=.9, [.8,.1,.05,.03,.02] keeps two; [.3,.25,.2,.1,.08,.07] keeps five.</li><li>Numerical Level 5: T=2 on [4,3,2,1],p=.9 keeps all four.</li></ol><h4 id="v3-heading-chunk-les-step-2-4-i24-12">Edge cases and remaining gaps</h4><ul><li>The four slide probabilities in the France example are an excerpt, not a complete normalized vocabulary distribution: they sum .9667. Missing .0333 is tail mass.</li><li>Threshold itself is not the retained mass; dividing by p is generally incorrect.</li><li>Entropy and nucleus size correlate in examples but entropy alone does not uniquely determine candidate count.</li><li>Equal-probability boundary membership is not unique without a tie policy.</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-13">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-14">Exact source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 15, 16, 18, 20 · nucleus mass definition, adaptivity and combinations</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-15">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (90)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 2.4 — Top-p / Nucleus Sampling</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.1 The Core Idea</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.2 Why Do We Need Top-p?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Distribution A — very confident</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Distribution B — uncertain</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.3 Definition</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.4 The Most Important Phrase</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.5 Step-by-Step Algorithm</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.6 Why Do We Sort?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.7 Exact Slide Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>After FRANCE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>After EUROPE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>After THE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.8 The Nucleus Does Not Need to Sum Exactly to p</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.9 Renormalization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.10 Why Renormalization Is Necessary</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.11 A Complete Top-p Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.12 Top-k and Top-p Can Sometimes Produce the Same Result</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.13 The Critical Difference</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.14 Top-p Is Adaptive</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.15 Sharp Distribution Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.16 Flat Distribution Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.17 This Is Why Top-p Is Different From Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.18 What Does p=0.90 Actually Mean?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.19 Very Important: Top-p Uses Probabilities</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.20 Where Does Temperature Fit?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.21 Temperature Can Change the Top-p Candidate Set</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.22 Numerical Demonstration</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.23 Compare With Top-k on the Same Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.24 The Renormalization Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.25 Why Does the Source Say &quot;Nucleus&quot;?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.26 Complete Example With p=0.75</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.27 What If p=1?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.28 What Happens As p Gets Smaller?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.29 Important Exam Trap — &quot;At Least&quot;</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.30 Important Exam Trap — Don&#x27;t Stop Before Crossing</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.31 Important Exam Trap — Sort First</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.32 Top-k vs Top-p — The Definitive Comparison</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.33 A Very Powerful Mental Model</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-k says:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p says:</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.34 Connection to Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Low temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>High temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.35 Top-p + Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.36 Top-p Does Not Mean &quot;Top Probability&quot;</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.37 Complete Decoding Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.38 Numerical Exam — Level 1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.39 Numerical Exam — Level 2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.40 Numerical Exam — Level 3</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.41 Numerical Exam — Level 4: Compare Two Distributions</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Distribution A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Distribution B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.42 Numerical Exam — Level 5: Temperature + Top-p</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1 — Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2 — Softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3 — Sort</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 4 — Cumulative</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.43 Exam-Level Conceptual Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Answer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.44 Exam-Level Conceptual Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Why is top-p usually more adaptive than top-k?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.45 Another Important Connection — Entropy</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.46 Top-k and Top-p Together</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.47 What the Slides Recommend</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.48 The Three Most Important Equations So Far</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.49 Master Comparison</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.4.50 Final Numerical Checklist for Top-p</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.4.51 The Whole Decoding Family We&#x27;ve Built</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 2.4 — One-Page Memory Map</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>What you should now be able to answer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><aside class="audit-card" data-continuation="added" id="audit-finding-E07-chunk-les-step-2-4-i24"><h3 id="v3-heading-chunk-les-step-2-4-i24-16">Nucleus probabilities divide by retained mass, not nominal cutoff</h3><p>Status: independently_checked_definition_qualification</p><p>Use Z=sum of retained probabilities. The boundary token usually makes Z exceed the chosen top-p threshold. For[.5,.3,.15,.05] and threshold.75, Z=.8 and normalized probabilities are[.625,.375,0,0]. Dividing by.75 would not produce a normalized distribution.</p><p><a href="https://arxiv.org/abs/1904.09751">Primary/official source</a> · Nucleus sampling definition; supplied decoding slide15; independent Filter-top-p fixture</p><p>Remaining evidence: API tie/boundary and processor-order conventions still require version-specific tests.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><details class="audit-card" id="audit-D04" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> D04 — Nucleus boundary and actual retained mass</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Adapt the retained token count to the distribution rather than fixing it.</p><p><strong>Prerequisites:</strong> <a href="#audit-D03">Top-k support and renormalization</a></p><h4 id="v3-heading-chunk-les-step-2-4-i24-17">Notation and assumptions</h4><p>Mass threshold p in (0,1]. Descending sort; keep the token that first reaches or crosses the threshold.</p><h4 id="v3-heading-chunk-les-step-2-4-i24-18">Derivation and mechanism</h4><ol><li>Accumulate sorted probabilities.</li><li>Stop when total reaches p.</li><li>Renormalize using accumulated mass, which may exceed p.</li></ol><h4 id="v3-heading-chunk-les-step-2-4-i24-19">Worked example</h4><p>For [.5,.3,.15,.05], threshold.75 retains [.5,.3], total.8. Correct new distribution [.625,.375,0,0] divides by.8, not.75. At threshold.8, the same two tokens suffice.</p><h4 id="v3-heading-chunk-les-step-2-4-i24-20">Limitations</h4><ul><li>Rounded displayed PMFs can differ from the full-precision boundary.</li><li>Temperature before top-p changes the selected support.</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-21">Connections to later concepts</h4><ul><li>Q01-style rounding of displayed probabilities can change a nucleus boundary; retain full precision during accumulation.</li></ul><h4 id="v3-heading-chunk-les-step-2-4-i24-22">Source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 15, 16 · Decoding lecture</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-2-4-i24-23">Executed code and evidence</h4><p>Functions: truncate. Passed checks: Filter-top-p, Filter-normalization-top-p, Top-p-boundary, Top-p-invalid</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-2-4-i24"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-2-4-i24" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-2-3-i23">← Previous lesson</a> · <a href="#chunk-les-step-2-5-i25">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-2-3-i23">Step 2.3 — Top-k Sampling</a></p><p><strong>This lesson:</strong> Step 2.4 — Top-p / Nucleus Sampling</p><p><strong>Source references:</strong> <a href="#source-9">decoding-sampling-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-2-4-i24"></a></p>
+<h2>Step 2.4 — Top-p / Nucleus Sampling</h2>
+<p><em>Plan node: I2 · chat order #24</em></p>
+<p>We have now seen:</p>
+<div class="math block">
+\boxed{\text{Greedy}}
+</div>
+<div class="math block">
+\boxed{\text{Beam search}}
+</div>
+<div class="math block">
+\boxed{\text{Temperature}}
+</div>
+<div class="math block">
+\boxed{\text{Top-k sampling}}
+</div>
+<p>The problem with top-k was:</p>
+<blockquote>
+<p><strong><span class="math inline">k</span> is fixed.</strong></p>
+</blockquote>
+<p>Whether the model is extremely confident or highly uncertain, we always keep exactly <span class="math inline">k</span> candidates.</p>
+<p>Top-p solves this by making the candidate set <strong>adaptive to the probability distribution</strong>.</p>
+<p>Your decoding slides define top-p, also called <strong>nucleus sampling</strong>, as truncating by <strong>cumulative probability rather than by count</strong>. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-24">2.4.1 The Core Idea</h3>
+<p>Suppose the model predicts:</p>
+<div class="math block">
+P=
+[0.50,0.20,0.15,0.08,0.04,0.03].
+</div>
+<p>Instead of saying:</p>
+<blockquote>
+<p>&quot;Keep the top 3.&quot;</p>
+</blockquote>
+<p>we say:</p>
+<blockquote>
+<p>&quot;Keep enough of the most probable tokens so that their cumulative probability reaches at least <span class="math inline">p</span>.&quot;</p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Accumulate:</p>
+<div class="math block">
+0.50
+</div>
+<p>then:</p>
+<div class="math block">
+0.50+0.20=0.70
+</div>
+<p>then:</p>
+<div class="math block">
+0.70+0.15=0.85
+</div>
+<p>then:</p>
+<div class="math block">
+0.85+0.08=0.93.
+</div>
+<p>We have crossed <span class="math inline">0.90</span>.</p>
+<p>Therefore the nucleus is:</p>
+<div class="math block">
+\boxed{
+\{1,2,3,4\}
+}
+</div>
+<p>containing 4 tokens.</p>
+<p>Notice:</p>
+<div class="math block">
+\boxed{k\text{ is not specified}.}
+</div>
+<p>The distribution itself determines how many tokens survive.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-25">2.4.2 Why Do We Need Top-p?</h3>
+<p>Recall the weakness of top-k.</p>
+<p>Consider two distributions.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-26">Distribution A — very confident</h5>
+<div class="math block">
+[0.90,0.05,0.02,0.01,0.01,0.01]
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-27">Distribution B — uncertain</h5>
+<div class="math block">
+[0.20,0.18,0.17,0.15,0.12,0.10,0.08]
+</div>
+<p>Suppose:</p>
+<div class="math block">
+k=3.
+</div>
+<p>Top-k gives:</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-28">A</h5>
+<div class="math block">
+[0.90,0.05,0.02]
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-29">B</h5>
+<div class="math block">
+[0.20,0.18,0.17]
+</div>
+<p>But in B, many additional tokens are also plausible.</p>
+<p>Top-p adapts automatically.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Top-k adapts to rank count}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Top-p adapts to probability mass}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-30">2.4.3 Definition</h3>
+<p>Let the token probabilities be sorted in descending order:</p>
+<div class="math block">
+q_{(1)}\ge q_{(2)}\ge\cdots\ge q_{(V)}.
+</div>
+<p>For a chosen threshold:</p>
+<div class="math block">
+p\in(0,1],
+</div>
+<p>we find the <strong>smallest set</strong> of tokens whose cumulative probability is at least <span class="math inline">p</span>.</p>
+<p>Formally:</p>
+<div class="math block">
+\boxed{
+V^{(p)}
+=
+\arg\min_{S}
+\left\{
+|S|:
+\sum_{v\in S}q(v)\ge p
+\right\}
+}
+</div>
+<p>with the tokens selected from highest probability downward.</p>
+<p>The slide expresses the same idea as the smallest set satisfying the cumulative-probability condition. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-31">2.4.4 The Most Important Phrase</h3>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\text{Top-p = smallest set whose cumulative probability }\ge p
+}
+</div>
+<p>That one sentence solves most conceptual questions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-32">2.4.5 Step-by-Step Algorithm</h3>
+<p>Given the model probabilities:</p>
+<div class="math block">
+q_1,q_2,\ldots,q_V
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-33">Step 1</h5>
+<p>Sort tokens by probability:</p>
+<div class="math block">
+q_{(1)}\ge q_{(2)}\ge\cdots\ge q_{(V)}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-34">Step 2</h5>
+<p>Compute cumulative sums:</p>
+<div class="math block">
+c_j=\sum_{i=1}^{j}q_{(i)}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-35">Step 3</h5>
+<p>Find the first <span class="math inline">j</span> such that:</p>
+<div class="math block">
+c_j\ge p.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-36">Step 4</h5>
+<p>Keep those <span class="math inline">j</span> tokens.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-37">Step 5</h5>
+<p>Remove the rest.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-38">Step 6</h5>
+<p>Renormalize probabilities over the retained tokens.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{sort}
+\rightarrow
+\text{cumulative sum}
+\rightarrow
+\text{stop at }p
+\rightarrow
+\text{filter}
+\rightarrow
+\text{renormalize}
+\rightarrow
+\text{sample}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-39">2.4.6 Why Do We Sort?</h3>
+<p>Because top-p wants the <strong>most probable tokens first</strong>.</p>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.10,0.50,0.05,0.35].
+</div>
+<p>We must sort:</p>
+<div class="math block">
+[0.50,0.35,0.10,0.05].
+</div>
+<p>Otherwise a random ordering could cause us to include low-probability tokens before high-probability ones.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Top-p operates on probabilities ordered from largest to smallest}.
+}
+</div>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-2-4-i24-0" data-full-review="added"><p>Correction: The four displayed France probabilities sum .9667 and are an excerpt; missing tail mass .0333 exists. Their nucleus prefix computation is valid without pretending the four form the whole vocabulary.</p><p><a href="#audit-full-chunk-les-step-2-4-i24">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-2-4-i24-40">2.4.7 Exact Slide Example</h3>
+<p>Your decoding slides use:</p>
+<div class="math block">
+p=0.90
+</div>
+<p>with the probability distribution:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FRANCE</td>
+<td style="text-align:right">0.8062</td>
+</tr>
+<tr>
+<td>EUROPE</td>
+<td style="text-align:right">0.0662</td>
+</tr>
+<tr>
+<td>THE</td>
+<td style="text-align:right">0.0542</td>
+</tr>
+<tr>
+<td>A</td>
+<td style="text-align:right">0.0401</td>
+</tr>
+</tbody>
+</table>
+<p>The tokens are already sorted.</p>
+<p>Now calculate the cumulative probability.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-41">After FRANCE</h5>
+<div class="math block">
+0.8062
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-42">After EUROPE</h5>
+<div class="math block">
+0.8062+0.0662
+=
+0.8724
+</div>
+<p>Still below:</p>
+<div class="math block">
+0.90.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-43">After THE</h5>
+<div class="math block">
+0.8724+0.0542
+=
+0.9266.
+</div>
+<p>Now:</p>
+<div class="math block">
+0.9266\ge0.90.
+</div>
+<p>So we stop.</p>
+<p>The nucleus is:</p>
+<div class="math block">
+\boxed{
+\{\text{FRANCE},\text{EUROPE},\text{THE}\}
+}
+</div>
+<p>and the token <strong>A</strong> is removed. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-44">2.4.8 The Nucleus Does Not Need to Sum Exactly to <span class="math inline">p</span></h3>
+<p>This is a very important exam point.</p>
+<p>We wanted:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>But our cumulative probability became:</p>
+<div class="math block">
+0.9266.
+</div>
+<p>Not:</p>
+<div class="math block">
+0.9000.
+</div>
+<p>Why?</p>
+<p>Because we cannot usually include a fraction of a token.</p>
+<p>Therefore top-p takes the <strong>smallest complete set</strong> that crosses the threshold.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{cumulative probability can exceed }p.
+}
+</div>
+<p>It does not have to equal <span class="math inline">p</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-45">2.4.9 Renormalization</h3>
+<p>After filtering we retain:</p>
+<div class="math block">
+[0.8062,0.0662,0.0542].
+</div>
+<p>Their sum is:</p>
+<div class="math block">
+0.9266.
+</div>
+<p>But probabilities must sum to 1.</p>
+<p>Therefore:</p>
+<div class="math block">
+P'_i=\frac{P_i}{0.9266}.
+</div>
+<p>For FRANCE:</p>
+<div class="math block">
+P'(\text{FRANCE})
+=
+\frac{0.8062}{0.9266}
+\approx0.8701.
+</div>
+<p>For EUROPE:</p>
+<div class="math block">
+P'(\text{EUROPE})
+=
+\frac{0.0662}{0.9266}
+\approx0.0714.
+</div>
+<p>For THE:</p>
+<div class="math block">
+P'(\text{THE})
+=
+\frac{0.0542}{0.9266}
+\approx0.0585.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+[0.8701,\;0.0714,\;0.0585,\;0].
+}
+</div>
+<p>These are the renormalized values shown on the slide. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-46">2.4.10 Why Renormalization Is Necessary</h3>
+<p>Before filtering:</p>
+<div class="math block">
+\sum_iP_i=1.
+</div>
+<p>After filtering:</p>
+<div class="math block">
+\sum_{i\in Nucleus}P_i=0.9266.
+</div>
+<p>But sampling requires:</p>
+<div class="math block">
+\sum_iP_i'=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+P_i'=
+\frac{P_i}
+{\sum_{j\in Nucleus}P_j}
+}
+</div>
+<p>for retained tokens.</p>
+<p>The removed tokens receive:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-47">2.4.11 A Complete Top-p Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=
+[0.40,0.25,0.15,0.10,0.06,0.04].
+</div>
+<p>Let:</p>
+<div class="math block">
+p=0.80.
+</div>
+<p>Calculate cumulative probabilities.</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Probability</th>
+<th style="text-align:right">Cumulative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align:right">0.40</td>
+<td style="text-align:right">0.40</td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align:right">0.25</td>
+<td style="text-align:right">0.65</td>
+</tr>
+<tr>
+<td>C</td>
+<td style="text-align:right">0.15</td>
+<td style="text-align:right">0.80</td>
+</tr>
+</tbody>
+</table>
+<p>We have reached:</p>
+<div class="math block">
+0.80.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Nucleus=\{A,B,C\}
+}
+</div>
+<p>and retained mass is:</p>
+<div class="math block">
+0.80.
+</div>
+<p>Renormalize:</p>
+<div class="math block">
+P'(A)=\frac{0.40}{0.80}=0.50
+</div>
+<div class="math block">
+P'(B)=\frac{0.25}{0.80}=0.3125
+</div>
+<div class="math block">
+P'(C)=\frac{0.15}{0.80}=0.1875.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+[0.50,0.3125,0.1875,0,0,0].
+}
+</div>
+<p>Interesting:</p>
+<p>This happens to be exactly the same numerical result as our earlier top-k example with <span class="math inline">k=3</span>, but for a very different reason.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-48">2.4.12 Top-k and Top-p Can Sometimes Produce the Same Result</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.40,0.25,0.15,0.10,0.06,0.04]
+</div>
+<p>and:</p>
+<div class="math block">
+k=3.
+</div>
+<p>Top-k keeps:</p>
+<div class="math block">
+A,B,C.
+</div>
+<p>Now choose:</p>
+<div class="math block">
+p=0.80.
+</div>
+<p>Top-p also keeps:</p>
+<div class="math block">
+A,B,C.
+</div>
+<p>Therefore both methods produce the same candidate set.</p>
+<p>But this does <strong>not</strong> mean they are the same algorithm.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-49">2.4.13 The Critical Difference</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=
+[0.60,0.20,0.10,0.05,0.03,0.02].
+</div>
+<p>Use:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.60
+</div>
+<div class="math block">
+0.60+0.20=0.80
+</div>
+<div class="math block">
+0.80+0.10=0.90.
+</div>
+<p>So top-p keeps:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>tokens.</p>
+<p>Now suppose the distribution changes to:</p>
+<div class="math block">
+P=
+[0.30,0.25,0.20,0.15,0.07,0.03].
+</div>
+<p>Again:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.30
+</div>
+<div class="math block">
+0.55
+</div>
+<div class="math block">
+0.75
+</div>
+<div class="math block">
+0.90.
+</div>
+<p>Now it keeps:</p>
+<div class="math block">
+\boxed{4}
+</div>
+<p>tokens.</p>
+<p>Same <span class="math inline">p</span>, different number of candidates.</p>
+<p>That is the defining advantage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-50">2.4.14 Top-p Is Adaptive</h3>
+<p>We can state the key idea mathematically:</p>
+<div class="math block">
+\boxed{
+|V^{(p)}|
+\text{ depends on the shape of the probability distribution}.
+}
+</div>
+<p>For a sharp distribution:</p>
+<div class="math block">
+|V^{(p)}|
+</div>
+<p>can be small.</p>
+<p>For a flat distribution:</p>
+<div class="math block">
+|V^{(p)}|
+</div>
+<p>can be large.</p>
+<p>This is why nucleus sampling is often described as an <strong>adaptive candidate set</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-51">2.4.15 Sharp Distribution Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.85,0.08,0.03,0.02,0.01,0.01].
+</div>
+<p>Take:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.85
+</div>
+<div class="math block">
+0.85+0.08=0.93.
+</div>
+<p>So only:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>tokens are retained.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-52">2.4.16 Flat Distribution Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=
+[0.15,0.14,0.13,0.12,0.11,0.10,0.09,0.08,0.08].
+</div>
+<p>Take:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.15
+</div>
+<div class="math block">
+0.29
+</div>
+<div class="math block">
+0.42
+</div>
+<div class="math block">
+0.54
+</div>
+<div class="math block">
+0.65
+</div>
+<div class="math block">
+0.75
+</div>
+<div class="math block">
+0.84
+</div>
+<div class="math block">
+0.92.
+</div>
+<p>So top-p retains:</p>
+<div class="math block">
+\boxed{8}
+</div>
+<p>tokens.</p>
+<p>Notice how dramatically the candidate count changed.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-53">2.4.17 This Is Why Top-p Is Different From Top-k</h3>
+<p>Top-k:</p>
+<div class="math block">
+\boxed{|S|=k}
+</div>
+<p>Top-p:</p>
+<div class="math block">
+\boxed{
+\sum_{i\in S}P_i\ge p
+}
+</div>
+<p>with <span class="math inline">S</span> chosen minimally.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Top-k asks &quot;how many?&quot;}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Top-p asks &quot;how much probability mass?&quot;}
+}
+</div>
+<p>This is probably the single most important comparison for this section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-54">2.4.18 What Does <span class="math inline">p=0.90</span> Actually Mean?</h3>
+<p>It does <strong>not</strong> mean:</p>
+<blockquote>
+<p>keep exactly 90% of the vocabulary.</p>
+</blockquote>
+<p>It means:</p>
+<blockquote>
+<p>keep the smallest set of highest-probability tokens whose total probability mass is at least 90%.</p>
+</blockquote>
+<p>For example, if vocabulary size is:</p>
+<div class="math block">
+50,000,
+</div>
+<p>top-p might retain:</p>
+<div class="math block">
+5
+</div>
+<p>tokens in one context and:</p>
+<div class="math block">
+500
+</div>
+<p>in another.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+p\text{ is a probability-mass threshold, not a vocabulary percentage}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-55">2.4.19 Very Important: Top-p Uses Probabilities</h3>
+<p>Top-k can be naturally described using logits because selecting the largest logits gives the same ranking as selecting the largest probabilities.</p>
+<p>But top-p requires cumulative <strong>probability mass</strong>.</p>
+<p>So the clean conceptual pipeline is:</p>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+softmax
+\rightarrow
+sort probabilities
+\rightarrow
+cumulative sum
+\rightarrow
+top-p filter
+\rightarrow
+renormalize
+\rightarrow
+sample
+}
+</div>
+<p>The source slide describes top-p directly using the probability distribution. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-56">2.4.20 Where Does Temperature Fit?</h3>
+<p>Recall temperature:</p>
+<div class="math block">
+q_i(T)
+=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}.
+</div>
+<p>Top-p is usually applied to the resulting probability distribution.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{logits}
+\rightarrow
+\text{temperature}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{top-p}
+\rightarrow
+\text{renormalize}
+\rightarrow
+\text{sample}
+}
+</div>
+<p>The precise implementation ordering can vary, but the mathematical role is clear:</p>
+<ul>
+<li>temperature changes the distribution;</li>
+<li>top-p chooses the probability-mass nucleus.</li>
+</ul>
+<p>For exam questions, follow the ordering specified in the question/source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-57">2.4.21 Temperature Can Change the Top-p Candidate Set</h3>
+<p>This is different from top-k.</p>
+<p>For positive <span class="math inline">T</span>, temperature preserves the ranking.</p>
+<p>But it changes the probability values.</p>
+<p>Since top-p depends on <strong>cumulative probability</strong>, temperature can therefore change how many tokens are needed to reach <span class="math inline">p</span>.</p>
+<p>This is an important distinction:</p>
+<div class="math block">
+\boxed{
+\text{Temperature does not change top-k membership}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{Temperature can change top-p membership}.
+}
+</div>
+<p>Why?</p>
+<p>Because top-k only cares about ranking.</p>
+<p>Top-p cares about cumulative probabilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-58">2.4.22 Numerical Demonstration</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[4,3,2,1].
+</div>
+<p>Take:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>At:</p>
+<div class="math block">
+T=1,
+</div>
+<p>the softmax probabilities are approximately:</p>
+<div class="math block">
+[0.6439,0.2369,0.0871,0.0321].
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.6439
+</div>
+<div class="math block">
+0.8808
+</div>
+<div class="math block">
+0.9679.
+</div>
+<p>So top-p <span class="math inline">=0.90</span> needs:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>tokens.</p>
+<hr />
+<p>Now increase temperature:</p>
+<div class="math block">
+T=2.
+</div>
+<p>Scaled logits:</p>
+<div class="math block">
+[2,1.5,1,0.5].
+</div>
+<p>The distribution becomes flatter.</p>
+<p>Approx:</p>
+<div class="math block">
+[0.4551,0.2760,0.1674,0.1015].
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.4551
+</div>
+<div class="math block">
+0.7311
+</div>
+<div class="math block">
+0.8985
+</div>
+<div class="math block">
+1.0000.
+</div>
+<p>Notice:</p>
+<div class="math block">
+0.8985&lt;0.90.
+</div>
+<p>So top-p now needs:</p>
+<div class="math block">
+\boxed{4}
+</div>
+<p>tokens.</p>
+<p>That is a very important numerical fact.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-59">2.4.23 Compare With Top-k on the Same Example</h3>
+<p>For:</p>
+<div class="math block">
+z=[4,3,2,1]
+</div>
+<p>and:</p>
+<div class="math block">
+k=3,
+</div>
+<p>top-k always retains:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>tokens, regardless of whether temperature is 1 or 2.</p>
+<p>Top-p with:</p>
+<div class="math block">
+p=0.90
+</div>
+<p>changed from:</p>
+<div class="math block">
+3
+</div>
+<p>to:</p>
+<div class="math block">
+4.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Top-p adapts to temperature-induced distribution changes}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-60">2.4.24 The Renormalization Formula</h3>
+<p>Let the nucleus be:</p>
+<div class="math block">
+V^{(p)}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+q'(v)=
+\begin{cases}
+\dfrac{q(v)}
+{\sum_{u\in V^{(p)}}q(u)},
+&amp;v\in V^{(p)}\\[8pt]
+0,
+&amp;\text{otherwise}
+\end{cases}
+}
+</div>
+<p>This is exactly the mathematical structure displayed in the decoding slide. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-61">2.4.25 Why Does the Source Say &quot;Nucleus&quot;?</h3>
+<p>The retained tokens collectively form a high-probability core of the distribution.</p>
+<p>That core is called the:</p>
+<div class="math block">
+\boxed{\text{nucleus}}.
+</div>
+<p>Instead of exploring the entire vocabulary, sampling occurs inside this high-probability region.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-62">2.4.26 Complete Example With <span class="math inline">p=0.75</span></h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.35,0.20,0.15,0.12,0.10,0.08].
+</div>
+<p>We want:</p>
+<div class="math block">
+p=0.75.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.35
+</div>
+<div class="math block">
+0.55
+</div>
+<div class="math block">
+0.70
+</div>
+<div class="math block">
+0.82.
+</div>
+<p>Therefore stop after token 4.</p>
+<p>The nucleus:</p>
+<div class="math block">
+\boxed{
+\{1,2,3,4\}
+}
+</div>
+<p>Retained mass:</p>
+<div class="math block">
+0.82.
+</div>
+<p>Renormalized:</p>
+<div class="math block">
+P'_1=\frac{0.35}{0.82}\approx0.4268
+</div>
+<div class="math block">
+P'_2=\frac{0.20}{0.82}\approx0.2439
+</div>
+<div class="math block">
+P'_3=\frac{0.15}{0.82}\approx0.1829
+</div>
+<div class="math block">
+P'_4=\frac{0.12}{0.82}\approx0.1463.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+P'\approx
+[0.4268,0.2439,0.1829,0.1463,0,0]
+}
+</div>
+<p>Check:</p>
+<div class="math block">
+0.4268+0.2439+0.1829+0.1463
+\approx1.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-63">2.4.27 What If <span class="math inline">p=1</span>?</h3>
+<p>Suppose:</p>
+<div class="math block">
+p=1.
+</div>
+<p>Then we need all probability mass.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+V^{(1)}=V
+}
+</div>
+<p>and top-p filtering does nothing.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+p=1\Rightarrow\text{ordinary sampling}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-64">2.4.28 What Happens As <span class="math inline">p</span> Gets Smaller?</h3>
+<p>Smaller <span class="math inline">p</span>:</p>
+<div class="math block">
+\boxed{\text{smaller candidate set}}
+</div>
+<p>usually.</p>
+<p>Larger <span class="math inline">p</span>:</p>
+<div class="math block">
+\boxed{\text{larger candidate set}}
+</div>
+<p>usually.</p>
+<p>For example:</p>
+<div class="math block">
+p=0.50
+</div>
+<p>might keep 1–3 tokens.</p>
+<div class="math block">
+p=0.90
+</div>
+<p>might keep 3–10 tokens.</p>
+<div class="math block">
+p=0.99
+</div>
+<p>could keep many tokens.</p>
+<p>The exact count depends on the distribution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-65">2.4.29 Important Exam Trap — &quot;At Least&quot;</h3>
+<p>The definition says:</p>
+<div class="math block">
+\boxed{
+\text{cumulative probability }\ge p
+}
+</div>
+<p>not:</p>
+<div class="math block">
+=p.
+</div>
+<p>Therefore:</p>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.51,0.30,0.10,0.09]
+</div>
+<p>and:</p>
+<div class="math block">
+p=0.80.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.51
+</div>
+<div class="math block">
+0.81.
+</div>
+<p>Therefore we stop after token 2.</p>
+<p>Even though:</p>
+<div class="math block">
+0.81\neq0.80.
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{2\text{ tokens}}
+</div>
+<p>not 3.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-66">2.4.30 Important Exam Trap — Don't Stop Before Crossing</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.45,0.25,0.20,0.10]
+</div>
+<p>and:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.45
+</div>
+<div class="math block">
+0.70
+</div>
+<div class="math block">
+0.90.
+</div>
+<p>We stop exactly at token 3.</p>
+<p>But if:</p>
+<div class="math block">
+P=[0.45,0.25,0.19,0.11],
+</div>
+<p>then:</p>
+<div class="math block">
+0.45+0.25+0.19
+=
+0.89.
+</div>
+<p>Still insufficient.</p>
+<p>So we must include token 4:</p>
+<div class="math block">
+0.89+0.11=1.
+</div>
+<p>Thus the nucleus contains all 4 tokens.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-67">2.4.31 Important Exam Trap — Sort First</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.1,0.5,0.2,0.2].
+</div>
+<p>For:</p>
+<div class="math block">
+p=0.70,
+</div>
+<p>you must sort:</p>
+<div class="math block">
+[0.5,0.2,0.2,0.1].
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.5
+</div>
+<div class="math block">
+0.7.
+</div>
+<p>Therefore 2 tokens survive.</p>
+<p>If you accumulate in original order:</p>
+<div class="math block">
+0.1+0.5+0.2=0.8,
+</div>
+<p>you might incorrectly say 3 tokens.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Never perform top-p cumulative selection without sorting by probability.}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-68">2.4.32 Top-k vs Top-p — The Definitive Comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Top-k</th>
+<th>Top-p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Selection basis</td>
+<td>Rank</td>
+<td>Cumulative probability</td>
+</tr>
+<tr>
+<td>Candidate count</td>
+<td>Fixed <span class="math inline">k</span></td>
+<td>Variable</td>
+</tr>
+<tr>
+<td>Needs sorting?</td>
+<td>Conceptually yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Probability threshold?</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Adapts to uncertainty?</td>
+<td>Limited</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><span class="math inline">k=V</span></td>
+<td>Ordinary sampling</td>
+<td>—</td>
+</tr>
+<tr>
+<td><span class="math inline">p=1</span></td>
+<td>—</td>
+<td>Ordinary sampling</td>
+</tr>
+</tbody>
+</table>
+<p>The key formulas are:</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-69">Top-k</h5>
+<div class="math block">
+\boxed{|S|=k}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-70">Top-p</h5>
+<div class="math block">
+\boxed{
+\min |S|
+\quad
+\text{s.t. }
+\sum_{i\in S}P_i\ge p
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-71">2.4.33 A Very Powerful Mental Model</h3>
+<p>Imagine 100,000 vocabulary tokens.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-72">Top-k says:</h5>
+<blockquote>
+<p>&quot;Give me the best 50.&quot;</p>
+</blockquote>
+<p>No matter what the model thinks.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-73">Top-p says:</h5>
+<blockquote>
+<p>&quot;Give me enough of the best tokens to cover 90% of the probability mass.&quot;</p>
+</blockquote>
+<p>Thus the second strategy asks the <strong>model's uncertainty</strong> to determine the candidate count.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-74">2.4.34 Connection to Temperature</h3>
+<p>Now the whole picture becomes:</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-75">Low temperature</h5>
+<p>Distribution becomes sharp.</p>
+<p>Top-p nucleus often becomes:</p>
+<div class="math block">
+\boxed{\text{small}}
+</div>
+<p>because a few tokens contain most of the probability.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-76">High temperature</h5>
+<p>Distribution becomes flatter.</p>
+<p>Top-p nucleus often becomes:</p>
+<div class="math block">
+\boxed{\text{larger}}
+</div>
+<p>because more tokens are needed to reach the same probability mass.</p>
+<p>This is one reason temperature and top-p interact strongly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-77">2.4.35 Top-p + Sampling</h3>
+<p>Suppose after top-p we obtain:</p>
+<div class="math block">
+P'=[0.70,0.20,0.10].
+</div>
+<p>Top-p does <strong>not</strong> mean:</p>
+<div class="math block">
+\text{choose }0.70\text{ token}.
+</div>
+<p>Instead we sample:</p>
+<div class="math block">
+y_t\sim P'.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+70\%\rightarrow\text{first token}
+}
+</div>
+<div class="math block">
+20\%\rightarrow\text{second}
+</div>
+<div class="math block">
+10\%\rightarrow\text{third}.
+</div>
+<p>This maintains stochasticity.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-78">2.4.36 Top-p Does Not Mean &quot;Top Probability&quot;</h3>
+<p>Another common misunderstanding:</p>
+<div class="math block">
+\boxed{
+\text{Top-p}\neq\text{pick the single token with highest probability}.
+}
+</div>
+<p>That would be greedy decoding.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{Top-p defines the allowed candidate set}.
+}
+</div>
+<p>Sampling then chooses from that set.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-79">2.4.37 Complete Decoding Pipeline</h3>
+<p>We can now write the full process:</p>
+<div class="math block">
+\boxed{
+\text{Context}
+\rightarrow
+\text{Transformer}
+\rightarrow
+\text{logits}
+\rightarrow
+\text{temperature}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{top-p filtering}
+\rightarrow
+\text{renormalization}
+\rightarrow
+\text{sampling}
+\rightarrow
+\text{next token}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{append token}
+\rightarrow
+\text{run again}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-80">2.4.38 Numerical Exam — Level 1</h3>
+<p>Given:</p>
+<div class="math block">
+P=[0.50,0.20,0.15,0.10,0.05]
+</div>
+<p>and:</p>
+<div class="math block">
+p=0.80.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.50
+</div>
+<div class="math block">
+0.70
+</div>
+<div class="math block">
+0.85.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{3\text{ tokens}}
+</div>
+<p>are retained.</p>
+<p>Retained mass:</p>
+<div class="math block">
+0.85.
+</div>
+<p>Renormalized:</p>
+<div class="math block">
+\boxed{
+[0.5882,0.2353,0.1765,0,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-81">2.4.39 Numerical Exam — Level 2</h3>
+<p>Given:</p>
+<div class="math block">
+P=[0.31,0.28,0.18,0.12,0.07,0.04]
+</div>
+<p>and:</p>
+<div class="math block">
+p=0.75.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.31
+</div>
+<div class="math block">
+0.59
+</div>
+<div class="math block">
+0.77.
+</div>
+<p>So retain:</p>
+<div class="math block">
+\boxed{3}.
+</div>
+<p>Renormalization denominator:</p>
+<div class="math block">
+0.77.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P'_1=\frac{0.31}{0.77}\approx0.4026
+</div>
+<div class="math block">
+P'_2=\frac{0.28}{0.77}\approx0.3636
+</div>
+<div class="math block">
+P'_3=\frac{0.18}{0.77}\approx0.2338.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+[0.4026,0.3636,0.2338,0,0,0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-82">2.4.40 Numerical Exam — Level 3</h3>
+<p>Given:</p>
+<div class="math block">
+P=[0.22,0.19,0.17,0.13,0.11,0.10,0.08].
+</div>
+<p>Take:</p>
+<div class="math block">
+p=0.80.
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.22
+</div>
+<div class="math block">
+0.41
+</div>
+<div class="math block">
+0.58
+</div>
+<div class="math block">
+0.71
+</div>
+<div class="math block">
+0.82.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{5}
+</div>
+<p>tokens survive.</p>
+<p>Renormalization denominator:</p>
+<div class="math block">
+0.82.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P'
+=
+\left[
+\frac{0.22}{0.82},
+\frac{0.19}{0.82},
+\frac{0.17}{0.82},
+\frac{0.13}{0.82},
+\frac{0.11}{0.82}
+\right]
+</div>
+<div class="math block">
+\boxed{
+\approx[0.2683,0.2317,0.2073,0.1585,0.1341].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-83">2.4.41 Numerical Exam — Level 4: Compare Two Distributions</h3>
+<p>Use:</p>
+<div class="math block">
+p=0.90.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-84">Distribution A</h5>
+<div class="math block">
+[0.80,0.10,0.05,0.03,0.02]
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.80
+</div>
+<div class="math block">
+0.90
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{2\text{ tokens}}
+</div>
+<p>survive.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-85">Distribution B</h5>
+<div class="math block">
+[0.30,0.25,0.20,0.10,0.08,0.07]
+</div>
+<p>Cumulative:</p>
+<div class="math block">
+0.30
+</div>
+<div class="math block">
+0.55
+</div>
+<div class="math block">
+0.75
+</div>
+<div class="math block">
+0.85
+</div>
+<div class="math block">
+0.93.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{5\text{ tokens}}
+</div>
+<p>survive.</p>
+<p>Same:</p>
+<div class="math block">
+p=0.90,
+</div>
+<p>different nucleus size.</p>
+<p>That is the core adaptive property of top-p.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-86">2.4.42 Numerical Exam — Level 5: Temperature + Top-p</h3>
+<p>Suppose the logits are:</p>
+<div class="math block">
+z=[4,3,2,1].
+</div>
+<p>Use:</p>
+<div class="math block">
+T=2,\qquad p=0.90.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-87">Step 1 — Temperature</h5>
+<div class="math block">
+z/T=[2,1.5,1,0.5].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-88">Step 2 — Softmax</h5>
+<p>Approximately:</p>
+<div class="math block">
+P=[0.4551,0.2760,0.1674,0.1015].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-89">Step 3 — Sort</h5>
+<p>Already sorted.</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-90">Step 4 — Cumulative</h5>
+<div class="math block">
+0.4551
+</div>
+<div class="math block">
+0.7311
+</div>
+<div class="math block">
+0.8985
+</div>
+<div class="math block">
+1.0000.
+</div>
+<p>Since:</p>
+<div class="math block">
+0.8985&lt;0.90,
+</div>
+<p>we must include the fourth token.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{nucleus size}=4.
+}
+</div>
+<p>This is exactly the sort of multi-step numerical question worth practicing because it combines:</p>
+<div class="math block">
+\boxed{
+\text{logits}
+\rightarrow
+\text{temperature}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{cumulative probability}
+\rightarrow
+\text{top-p}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-91">2.4.43 Exam-Level Conceptual Question</h3>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-92">Question</h5>
+<p>Why can temperature change the top-p candidate set but not the positive-temperature top-k candidate set?</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-93">Answer</h5>
+<p>For <span class="math inline">T&gt;0</span>, temperature divides every logit by the same positive number, so ranking does not change:</p>
+<div class="math block">
+z_i&gt;z_j
+\Rightarrow
+\frac{z_i}{T}&gt;\frac{z_j}{T}.
+</div>
+<p>Therefore top-k membership remains unchanged.</p>
+<p>However, temperature changes the <strong>probability magnitudes</strong> after softmax. Since top-p depends on the cumulative probability mass, changing those probabilities can change how many tokens are required to cross <span class="math inline">p</span>.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+\text{Top-k depends on ranking}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Top-p depends on probability mass}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-94">2.4.44 Exam-Level Conceptual Question</h3>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-95">Why is top-p usually more adaptive than top-k?</h5>
+<p>Because the candidate count is not fixed.</p>
+<p>Top-p chooses:</p>
+<div class="math block">
+\boxed{
+\text{the smallest candidate set that covers a chosen probability mass}.
+}
+</div>
+<p>Therefore the number of candidates can increase when the distribution becomes flatter and decrease when it becomes sharper.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-96">2.4.45 Another Important Connection — Entropy</h3>
+<p>We previously introduced entropy:</p>
+<div class="math block">
+H(P)=-\sum_iP_i\log P_i.
+</div>
+<p>High entropy means the distribution is relatively spread out.</p>
+<p>Low entropy means it is concentrated.</p>
+<p>Therefore, intuitively:</p>
+<div class="math block">
+\boxed{
+\text{high entropy}
+\Rightarrow
+\text{top-p may need more tokens}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{low entropy}
+\Rightarrow
+\text{top-p may need fewer tokens}.
+}
+</div>
+<p>This is not an explicit additional formula in the decoding slide, but it follows directly from the cumulative-probability definition.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-97">2.4.46 Top-k and Top-p Together</h3>
+<p>They can both be applied.</p>
+<p>For example:</p>
+<div class="math block">
+k=50
+</div>
+<p>and:</p>
+<div class="math block">
+p=0.90.
+</div>
+<p>Conceptually:</p>
+<ol>
+<li>Limit to a maximum candidate pool with top-k.</li>
+<li>Within that distribution, apply the nucleus threshold.</li>
+<li>Sample.</li>
+</ol>
+<p>The exact order and implementation depend on the decoding system, so in an exam or source-specific question we should follow the stated procedure rather than assume a universal implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-98">2.4.47 What the Slides Recommend</h3>
+<p>Your decoding slides summarize the typical use cases as:</p>
+<ul>
+<li>tasks with one/few correct outputs → beam search is often used;</li>
+<li>tasks with many valid outputs such as chat, stories, brainstorming → temperature + top-k and/or top-p;</li>
+<li>exact reproducibility → greedy decoding.</li>
+</ul>
+<p><em>(Source: decoding-sampling-slides)</em></p>
+<p>So top-p is part of the <strong>stochastic decoding family</strong>, not a replacement for beam search in every task.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-99">2.4.48 The Three Most Important Equations So Far</h3>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-100">Temperature</h5>
+<div class="math block">
+\boxed{
+q_i(T)=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-101">Top-k</h5>
+<div class="math block">
+\boxed{
+S_k=\text{indices of the }k\text{ largest logits}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+z_i'=
+-\infty
+\quad\text{for }i\notin S_k.
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-102">Top-p</h5>
+<div class="math block">
+\boxed{
+V^{(p)}
+=
+\text{smallest set such that }
+\sum_{v\in V^{(p)}}q(v)\ge p.
+}
+</div>
+<p>These three equations represent three different controls:</p>
+<div class="math block">
+\boxed{
+T=\text{reshape}
+}
+</div>
+<div class="math block">
+\boxed{
+k=\text{fixed count}
+}
+</div>
+<div class="math block">
+\boxed{
+p=\text{probability mass}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-103">2.4.49 Master Comparison</h3>
+<p>Think of the decoder asking three different questions:</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-104">Temperature</h5>
+<blockquote>
+<p>How sharply should I distribute probability?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-105">Top-k</h5>
+<blockquote>
+<p>How many of the highest-ranked candidates am I allowed to consider?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-106">Top-p</h5>
+<blockquote>
+<p>How much total probability mass should my candidate set contain?</p>
+</blockquote>
+<p>That is the conceptual foundation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-107">2.4.50 Final Numerical Checklist for Top-p</h3>
+<p>When you see a top-p numerical in the exam, immediately do:</p>
+<div class="math block">
+\boxed{1.\ \text{Sort probabilities descending}}
+</div>
+<div class="math block">
+\boxed{2.\ \text{Compute cumulative sum}}
+</div>
+<div class="math block">
+\boxed{3.\ \text{Stop at the first cumulative}\ge p}
+</div>
+<div class="math block">
+\boxed{4.\ \text{Discard the rest}}
+</div>
+<div class="math block">
+\boxed{5.\ \text{Renormalize}}
+</div>
+<div class="math block">
+\boxed{6.\ \text{Sample from the new distribution}}
+</div>
+<p>Do <strong>not</strong> stop merely because you are &quot;close&quot; to <span class="math inline">p</span>.</p>
+<p>You stop only when:</p>
+<div class="math block">
+\boxed{\text{cumulative}\ge p}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-108">2.4.51 The Whole Decoding Family We've Built</h3>
+<p>We can now see the progression clearly:</p>
+<div class="math block">
+\boxed{
+\text{Greedy}
+}
+</div>
+<p>Choose:</p>
+<div class="math block">
+\arg\max_i P_i.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Sampling}
+}
+</div>
+<p>Choose randomly according to <span class="math inline">P</span>.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Temperature}
+}
+</div>
+<p>reshape <span class="math inline">P</span>.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Top-k}
+}
+</div>
+<p>remove everything except a fixed number of top candidates.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{Top-p}
+}
+</div>
+<p>remove everything outside an adaptive probability-mass nucleus.</p>
+<p>This builds the conceptual bridge to the next decoding topics.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-4-i24-109">Step 2.4 — One-Page Memory Map</h3>
+<div class="math block">
+\boxed{
+\text{Logits}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{\text{Temperature}}
+</div>
+<div class="math block">
+z_i\rightarrow z_i/T
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{\text{Softmax}}
+</div>
+<div class="math block">
+P_i=\frac{e^{z_i}}{\sum_j e^{z_j}}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-110">Top-k</h5>
+<div class="math block">
+\boxed{
+\text{keep exactly }k\text{ highest}
+}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-2-4-i24-111">Top-p</h5>
+<div class="math block">
+\boxed{
+\text{keep smallest set with cumulative mass }\ge p
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{\text{Renormalize}}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{\text{Sample}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-2-4-i24-112">What you should now be able to answer</h4>
+<p>Without hesitation, you should be able to explain:</p>
+<div class="math block">
+\boxed{
+\text{Why top-p was introduced}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{how to calculate the nucleus}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{why cumulative probability can exceed }p
+}
+</div>
+<div class="math block">
+\boxed{
+\text{why renormalization is required}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{why top-p has a variable candidate count}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{why temperature can alter top-p membership}
+}
+</div>
+<p>and especially:</p>
+<div class="math block">
+\boxed{
+\text{Top-k = fixed count}
+\qquad
+\text{Top-p = cumulative probability mass}
+}
+</div>
+<hr />
+</section>

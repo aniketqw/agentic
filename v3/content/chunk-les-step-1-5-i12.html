@@ -1,0 +1,1112 @@
+<section class="chunk" id="chunk-les-step-1-5-i12" data-id="les-step-1-5-i12"><details class="audit-card" id="audit-full-chunk-les-step-1-5-i12" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-1">Motivation</h4><p>Motivation: let learned compatibility and transmitted content use different projections. Prerequisites: dot products, row-oriented matrix multiplication, stable softmax and dimensions. The database analogy describes roles; it does not establish literal semantic labels or explain a trained model causally.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-2">Prerequisites</h4><ul><li>Read the prerequisite chain stated in the original lesson and this review motivation.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-3">Notation and units</h4><ul><li>A_{ij}=\operatorname{softmax}_{j}\left(\frac{QK^\top}{\sqrt{d_k}}+M\right)_{ij}</li><li>O=AV,\qquad O_i=\sum_j A_{ij}V_j</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-4">Assumptions</h4><ul><li>X=[T,d], W_Q/W_K=[d,d_k], W_V=[d,d_v]; Q/K have matching head width, while d_v can differ. The equal-width multi-head companion specializes to d_k=d_v=d/h. Printed Raschka values are rounded; source-seeded PyTorch parameters have not been regenerated in this environment.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-5">Step-by-step derivation</h4><ol><li>Project Q=XW_Q, K=XW_K and V=XW_V. Entry S_ij is the contraction Σ_c Q_ic K_jc, giving [T,T] scores. The query index is the row; the key index is the column.</li><li>With q=[1,2], k1=[1,0], k2=[0,1], the unscaled scores are [1,2]. After division by √2, normalize only over the permitted keys. Multiply those weights by values [10,0] and [0,20] to get a content mixture.</li><li>The book shows the second query [0.4306,1.4551] on physical page 168, scores [1.2705,1.8524,1.8111,1.0795,0.5577,1.5440] on page 172 and scaled weights on page 174. Normalizing these rounded scores agrees with the printed weights within 0.00006. It is a consistency check from rounded inputs, not a full-precision regeneration of the source initialization.</li><li>For a complete fully specified application, inspect the decoder trace: each independent layer prints Q/K/V, scaled scores, causal weights, concatenated heads and output. The scalar-loop reference reconstructs the complete logits without calling these forward functions.</li><li>Backpropagate through the output projection, AV, row softmax and QKᵀ. Accumulate Q, K and V input gradients before returning to normalization. The finite-difference checks cover all projections in both blocks.</li></ol><h4 id="v3-heading-chunk-les-step-1-5-i12-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-5-i12-7">Integrated decoder two_block_logits</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Project Q=XW_Q, K=XW_K and V=XW_V. Entry S_ij is the contraction Σ_c Q_ic K_jc, giving [T,T] scores. The query index is the row; the key index is the column.</li><li>With q=[1,2], k1=[1,0], k2=[0,1], the unscaled scores are [1,2]. After division by √2, normalize only over the permitted keys. Multiply those weights by values [10,0] and [0,20] to get a content mixture.</li><li>The book shows the second query [0.4306,1.4551] on physical page 168, scores [1.2705,1.8524,1.8111,1.0795,0.5577,1.5440] on page 172 and scaled weights on page 174. Normalizing these rounded scores agrees with the printed weights within 0.00006. It is a consistency check from rounded inputs, not a full-precision regeneration of the source initialization.</li><li>For a complete fully specified application, inspect the decoder trace: each independent layer prints Q/K/V, scaled scores, causal weights, concatenated heads and output. The scalar-loop reference reconstructs the complete logits without calling these forward functions.</li><li>Backpropagate through the output projection, AV, row softmax and QKᵀ. Accumulate Q, K and V input gradients before returning to normalization. The finite-difference checks cover all projections in both blocks.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_logits · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-5-i12-8">Integrated decoder two_block_mean_ce</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Project Q=XW_Q, K=XW_K and V=XW_V. Entry S_ij is the contraction Σ_c Q_ic K_jc, giving [T,T] scores. The query index is the row; the key index is the column.</li><li>With q=[1,2], k1=[1,0], k2=[0,1], the unscaled scores are [1,2]. After division by √2, normalize only over the permitted keys. Multiply those weights by values [10,0] and [0,20] to get a content mixture.</li><li>The book shows the second query [0.4306,1.4551] on physical page 168, scores [1.2705,1.8524,1.8111,1.0795,0.5577,1.5440] on page 172 and scaled weights on page 174. Normalizing these rounded scores agrees with the printed weights within 0.00006. It is a consistency check from rounded inputs, not a full-precision regeneration of the source initialization.</li><li>For a complete fully specified application, inspect the decoder trace: each independent layer prints Q/K/V, scaled scores, causal weights, concatenated heads and output. The scalar-loop reference reconstructs the complete logits without calling these forward functions.</li><li>Backpropagate through the output projection, AV, row softmax and QKᵀ. Accumulate Q, K and V input gradients before returning to normalization. The finite-difference checks cover all projections in both blocks.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / two_block_mean_ce · reused earlier evidence; not counted again</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-5-i12-9">Integrated decoder future_token_invariance</h5><p>Given: Seed7 float64 two-block toy: B=2,T=3,d=4,h=2,d_ff=8,V=6,eps=1e-5; parameters in prior decoder.</p><ol><li>Project Q=XW_Q, K=XW_K and V=XW_V. Entry S_ij is the contraction Σ_c Q_ic K_jc, giving [T,T] scores. The query index is the row; the key index is the column.</li><li>With q=[1,2], k1=[1,0], k2=[0,1], the unscaled scores are [1,2]. After division by √2, normalize only over the permitted keys. Multiply those weights by values [10,0] and [0,20] to get a content mixture.</li><li>The book shows the second query [0.4306,1.4551] on physical page 168, scores [1.2705,1.8524,1.8111,1.0795,0.5577,1.5440] on page 172 and scaled weights on page 174. Normalizing these rounded scores agrees with the printed weights within 0.00006. It is a consistency check from rounded inputs, not a full-precision regeneration of the source initialization.</li><li>For a complete fully specified application, inspect the decoder trace: each independent layer prints Q/K/V, scaled scores, causal weights, concatenated heads and output. The scalar-loop reference reconstructs the complete logits without calling these forward functions.</li><li>Backpropagate through the output projection, AV, row softmax and QKᵀ. Accumulate Q, K and V input gradients before returning to normalization. The finite-difference checks cover all projections in both blocks.</li></ol><p>Answer: Passed independent reference; detailed values in prior expected_outputs.json</p><p>Verification: foundations_decoding / future_token_invariance · reused earlier evidence; not counted again</p></div><h4 id="v3-heading-chunk-les-step-1-5-i12-10">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-11">Mastery answers and retained exercise context</h4><ol><li>Q1: Q has shape [10,64].</li><li>Q2: QKᵀ has shape [10,10].</li><li>Q3: Every one of n query rows has a compatibility score for every one of n key rows.</li><li>Q4: A query supplies the matching vector for the receiving position; a key supplies the matching vector for a candidate source position.</li><li>Q5: V supplies transmitted content; Q/K determine the coefficients used to combine it.</li><li>Q6: W_Q is a persistent learned parameter tensor; A_ij is a coefficient computed for the current input and mask.</li><li>Q7: Learning projections lets loss gradients adjust the compatibility and content spaces.</li><li>Q8: k2, since its score is 2 versus 1 for k1.</li><li>Q9: QKᵀ computes every query-key dot product in one matrix operation.</li><li>Q10: X → Q/K/V projections → QKᵀ/√d_k → add mask → row softmax A → AV (then concatenate/project for MHA).</li></ol><h4 id="v3-heading-chunk-les-step-1-5-i12-12">Edge cases and remaining gaps</h4><ul><li>A high raw score is relative to the other permitted scores; it is not a probability or semantic proof. Softmax probabilities need their normalization set.</li><li>In a causal decoder, future keys are masked before softmax. The book example quoted here is an unmasked attention illustration; do not transfer its six-key weights directly to a causal second-token query.</li><li>Scaling by √d_k controls score variance under suitable distributional assumptions; it does not guarantee a particular gradient magnitude for arbitrary trained vectors.</li><li>All-masked rows have no defined categorical distribution and are rejected. Stable max subtraction prevents overflow on finite logits; it does not make NaNs valid.</li><li>Attention weights are input-dependent coefficients, not generally faithful standalone explanations. Q/K/V role language remains an analogy.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-13">Connections and progression</h4><ul><li>These contractions explain head splitting, causal masks, the residual attention update and the gradient routes used in the complete decoder. Original seeded PyTorch replay remains a distinct open task.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-14">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 167, 168, 169 · projection initialization, displayed query and parameter-versus-attention weights</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 172, 173, 174, 175, 176 · printed scores, scaling, weights and value mixing</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-15">Executable code and explained functions</h4><p>transformer_review/examples/decoder.py</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (48)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.5 — Q, K, V: Why Are There Three Different Vectors?</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.5.1 First Understand the Goal</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.2 Start With One Token</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.3 Why Not Just Use X Directly?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Role 1: Matching</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Role 2: Information transfer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.5.4 The Database Analogy</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.5 Important Warning About This Analogy</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.6 Shapes First</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.7 Why Can d_k Be Different From d?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.8 The First Really Important Equation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.9 From One Dot Product to the Whole Matrix</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.10 What Does One Row Mean?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.11 Why the Value Vector Is Separate</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.12 Full Numerical Example From Your Source</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.13 Query for the Second Token</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.14 Keys for All Tokens</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.15 Now Compare the Query With Every Key</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.16 Let&#x27;s Interpret the Six Scores</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.17 The Difference Between Parameter Weights and Attention Weights</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Parameter weights</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Attention weights</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.5.18 Why Are the Projection Matrices Trainable?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.19 Why Three Different Matrices Instead of One?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.20 A Tiny Hand Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.21 Matrix-Level View</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.22 Why Is the Score Matrix n\times n?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.23 Self-Attention vs Cross-Attention</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.24 What We Have NOT Done Yet</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.25 The Complete Attention Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.26 Source-Grounded Numerical Check</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.5.27 The Deepest Intuition to Keep</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Ask</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Match</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Retrieve</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mix</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.5.28 Connect It Back to the Residual Stream</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.5 Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-transformer-1-5" data-transformer-review="added"><summary>Verified reconstruction and answer key — Q/K/V roles and reproducible score calculations</summary><p>This addendum qualifies the retained original lesson. It distinguishes source-derived mechanisms, printed approximations, independently calculated teaching fixtures and remaining gaps.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-16">Motivation, prerequisites and notation</h4><p>Motivation: let learned compatibility and transmitted content use different projections. Prerequisites: dot products, row-oriented matrix multiplication, stable softmax and dimensions. The database analogy describes roles; it does not establish literal semantic labels or explain a trained model causally.</p><p>X=[T,d], W_Q/W_K=[d,d_k], W_V=[d,d_v]; Q/K have matching head width, while d_v can differ. The equal-width multi-head companion specializes to d_k=d_v=d/h. Printed Raschka values are rounded; source-seeded PyTorch parameters have not been regenerated in this environment.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-17">Step-by-step derivation and numerical results</h4><ol><li>Project Q=XW_Q, K=XW_K and V=XW_V. Entry S_ij is the contraction Σ_c Q_ic K_jc, giving [T,T] scores. The query index is the row; the key index is the column.</li><li>With q=[1,2], k1=[1,0], k2=[0,1], the unscaled scores are [1,2]. After division by √2, normalize only over the permitted keys. Multiply those weights by values [10,0] and [0,20] to get a content mixture.</li><li>The book shows the second query [0.4306,1.4551] on physical page 168, scores [1.2705,1.8524,1.8111,1.0795,0.5577,1.5440] on page 172 and scaled weights on page 174. Normalizing these rounded scores agrees with the printed weights within 0.00006. It is a consistency check from rounded inputs, not a full-precision regeneration of the source initialization.</li><li>For a complete fully specified application, inspect the decoder trace: each independent layer prints Q/K/V, scaled scores, causal weights, concatenated heads and output. The scalar-loop reference reconstructs the complete logits without calling these forward functions.</li><li>Backpropagate through the output projection, AV, row softmax and QKᵀ. Accumulate Q, K and V input gradients before returning to normalization. The finite-difference checks cover all projections in both blocks.</li></ol><div class="math block">A_{ij}=\operatorname{softmax}_{j}\left(\frac{QK^\top}{\sqrt{d_k}}+M\right)_{ij}</div><div class="math block">O=AV,\qquad O_i=\sum_j A_{ij}V_j</div><h4 id="v3-heading-chunk-les-step-1-5-i12-18">Edge cases and limits</h4><ul><li>A high raw score is relative to the other permitted scores; it is not a probability or semantic proof. Softmax probabilities need their normalization set.</li><li>In a causal decoder, future keys are masked before softmax. The book example quoted here is an unmasked attention illustration; do not transfer its six-key weights directly to a causal second-token query.</li><li>Scaling by √d_k controls score variance under suitable distributional assumptions; it does not guarantee a particular gradient magnitude for arbitrary trained vectors.</li><li>All-masked rows have no defined categorical distribution and are rejected. Stable max subtraction prevents overflow on finite logits; it does not make NaNs valid.</li><li>Attention weights are input-dependent coefficients, not generally faithful standalone explanations. Q/K/V role language remains an analogy.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-19">Complete inherited mastery answer key</h4><ol><li>Q1: Q has shape [10,64].</li><li>Q2: QKᵀ has shape [10,10].</li><li>Q3: Every one of n query rows has a compatibility score for every one of n key rows.</li><li>Q4: A query supplies the matching vector for the receiving position; a key supplies the matching vector for a candidate source position.</li><li>Q5: V supplies transmitted content; Q/K determine the coefficients used to combine it.</li><li>Q6: W_Q is a persistent learned parameter tensor; A_ij is a coefficient computed for the current input and mask.</li><li>Q7: Learning projections lets loss gradients adjust the compatibility and content spaces.</li><li>Q8: k2, since its score is 2 versus 1 for k1.</li><li>Q9: QKᵀ computes every query-key dot product in one matrix operation.</li><li>Q10: X → Q/K/V projections → QKᵀ/√d_k → add mask → row softmax A → AV (then concatenate/project for MHA).</li></ol><h4 id="v3-heading-chunk-les-step-1-5-i12-20">Exact grounding</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 167, 168, 169 · projection initialization, displayed query and parameter-versus-attention weights</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 172, 173, 174, 175, 176 · printed scores, scaling, weights and value mixing</li></ul><p>Physical-page text and PDF identities are fingerprinted in source_locators.json and source_page_excerpts.json. These are selected supporting passages, not certification of every sentence or a pretrained-model result.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-21">Progression and executable application</h4><p>These contractions explain head splitting, causal masks, the residual attention update and the gradient routes used in the complete decoder. Original seeded PyTorch replay remains a distinct open task.</p><p><a href="#audit-transformer-code">Complete CPU decoder, function explanations and outputs</a> · <a href="#audit-transformer-checks">Independent verification evidence</a></p></details><details class="audit-card" id="audit-T03" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T03 — Three projections: Q, K, and V</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T02">← Previous audit card</a> · <a href="#audit-T04">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-5-i12-22">Why this matters</h4><p>Queries and keys determine weights; values supply the information combined by those weights. Separate projections let these roles be learned differently.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a>, <a href="#audit-T02">Embedding lookup and one-hot equivalence</a></p><h4 id="v3-heading-chunk-les-step-1-5-i12-23">Symbols, shapes and assumptions</h4><p>X is T×d. WQ/WK are d×dk; WV is d×dv. Q/K are T×dk and V is T×dv. The analogy of searching/advertising is intuition rather than a constraint on learned features.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-24">Derivation or mechanism</h4><ol><li>Compute each projection with the F01 matrix rule.</li><li>Check that Q and K share a score dimension.</li><li>Keep values separate from attention probabilities.</li></ol><div class="math block" data-tex="Q=XW_Q,\quad K=XW_K,\quad V=XW_V">Q=XW_Q,\quad K=XW_K,\quad V=XW_V</div><h4 id="v3-heading-chunk-les-step-1-5-i12-25">Worked numerical</h4><p>The provided slide p. 11 supplies a 3-token, width-3 projection example. The verified Q/K/V matrices are reproduced in the audit hub. For its first query entry, 1×1+0×0+1×1=2. Every entry is checked against explicit expected matrices.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-26">Edge cases and limits</h4><ul><li>Q and K must have compatible widths; dk need not equal dv.</li><li>Attention heads are not guaranteed to correspond to named linguistic roles.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-27">Connections</h4><ul><li>T04 turns these projections into attention.</li><li>F08 provides the basic linear-projection gradient rule.</li></ul><h4 id="v3-heading-chunk-les-step-1-5-i12-28">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 7, 11 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 167, 168, 169, 170 · §3.4</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-5-i12-29">Executable companion and checking evidence</h4><p>Functions: <code>matmul</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T03-QKV. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-5-i12"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-5-i12" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-4-i11">← Previous lesson</a> · <a href="#chunk-les-step-1-6-i13">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-4-i11">Step 1.4 — The Residual Stream</a></p><p><strong>This lesson:</strong> Step 1.5 — Q, K, V: Why Are There Three Different Vectors?</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-5-i12"></a></p>
+<h2>Step 1.5 — Q, K, V: Why Are There Three Different Vectors?</h2>
+<p><em>Plan node: I1 · chat order #12</em></p>
+<p>We are now entering the <strong>core of the Transformer</strong>.</p>
+<p>So far we have:</p>
+<div class="math block">
+\boxed{
+\text{text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{IDs}
+\rightarrow
+\text{embeddings}
+\rightarrow
+\text{position}
+\rightarrow
+\text{residual stream }X
+}
+</div>
+<p>Now we need the mechanism that lets one token decide:</p>
+<blockquote>
+<p><strong>Which other tokens should I use, and how much information should I take from them?</strong></p>
+</blockquote>
+<p>That mechanism is self-attention.</p>
+<p>The first step of self-attention is:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q,\qquad K=XW_K,\qquad V=XW_V
+}
+</div>
+<p>Your Transformer slides define these three projections and give the intuition:</p>
+<ul>
+<li>Query: what this token is looking for</li>
+<li>Key: what this token advertises about itself</li>
+<li>Value: what this token hands over if attended to.</li>
+</ul>
+<p>Raschka's book derives the same construction using three trainable matrices and then computes attention scores from query-key dot products.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-30">1.5.1 First Understand the Goal</h3>
+<p>Suppose we have:</p>
+<blockquote>
+<p><strong>The animal didn't cross the road because it was tired.</strong></p>
+</blockquote>
+<p>When processing:</p>
+<blockquote>
+<p><code>it</code></p>
+</blockquote>
+<p>the model wants to determine which previous tokens are relevant.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                 &quot;it&quot;
+                  │
+                  │
+           Which tokens matter?
+          /      |       |      \
+       animal   road    tired   the
+         ↑       ↑
+       maybe    maybe
+</code></pre>
+<p>We need a numerical mechanism for doing this.</p>
+<p>Our earlier foundation already gave us the key mathematical operation:</p>
+<div class="math block">
+\boxed{x^Ty}
+</div>
+<p>the dot product.</p>
+<p>The idea is:</p>
+<blockquote>
+<p>Compare one vector against other vectors using dot products.</p>
+</blockquote>
+<p>But we need more than the raw token embedding.</p>
+<p>That is why we construct <strong>Q, K, and V</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-31">1.5.2 Start With One Token</h3>
+<p>Suppose a token's current representation is:</p>
+<div class="math block">
+x_i\in\mathbb R^d
+</div>
+<p>We create three different versions:</p>
+<div class="math block">
+q_i=x_iW_Q
+</div>
+<div class="math block">
+k_i=x_iW_K
+</div>
+<div class="math block">
+v_i=x_iW_V
+</div>
+<p>So the same underlying representation <span class="math inline">x_i</span> is transformed in three different ways.</p>
+<p>Think:</p>
+<pre><code class="language-text">                 x_i
+              /   |   \
+             /    |    \
+           W_Q   W_K   W_V
+            ↓     ↓     ↓
+           q_i   k_i   v_i
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-32">1.5.3 Why Not Just Use <span class="math inline">X</span> Directly?</h3>
+<p>This is the most important conceptual question of this step.</p>
+<p>Suppose we used:</p>
+<div class="math block">
+X X^T
+</div>
+<p>directly.</p>
+<p>That would say:</p>
+<blockquote>
+<p>similarity is determined by comparing the original token representations in exactly the same space.</p>
+</blockquote>
+<p>But attention needs two different roles:</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-33">Role 1: Matching</h5>
+<p>We need to ask:</p>
+<blockquote>
+<p>&quot;Does this token's current need match that token's available information?&quot;</p>
+</blockquote>
+<p>That requires a <strong>query space</strong> and a <strong>key space</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-34">Role 2: Information transfer</h5>
+<p>After deciding which token matters, we need to decide:</p>
+<blockquote>
+<p>&quot;What information should I actually take from it?&quot;</p>
+</blockquote>
+<p>That is the <strong>value</strong>.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+Q,K\text{ determine relevance}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+V\text{ carries the information}
+}
+</div>
+<p>That separation is the fundamental reason for the three projections.</p>
+<p>Raschka's source explicitly explains that the trainable matrices project input embeddings into query, key, and value vectors and that keys/queries are used for attention scores while values are weighted to produce the context vector.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-35">1.5.4 The Database Analogy</h3>
+<p>Your source gives a very useful analogy.</p>
+<p>Imagine a database:</p>
+<pre><code class="language-text">Query → search
+Key   → matching/index
+Value → retrieved content
+</code></pre>
+<p>Suppose you search:</p>
+<blockquote>
+<p><code>&quot;students interested in AI&quot;</code></p>
+</blockquote>
+<p>The query describes what you're looking for.</p>
+<p>Each database record has a key describing how it can be matched.</p>
+<p>Once a record matches, you retrieve its value.</p>
+<p>Attention does something mathematically analogous:</p>
+<div class="math block">
+\boxed{
+\text{Query} \rightarrow \text{match Keys} \rightarrow \text{retrieve Values}
+}
+</div>
+<p>Raschka explicitly uses this query/key/value analogy from information retrieval and databases.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-36">1.5.5 Important Warning About This Analogy</h3>
+<p>The database analogy helps intuition, but don't take it literally.</p>
+<p>A Transformer does not have a literal database lookup table where each key corresponds to one fixed semantic label.</p>
+<p>Instead, the model <strong>learns continuous vectors</strong> and compares them through dot products.</p>
+<p>So:</p>
+<div class="math block">
+q_i^Tk_j
+</div>
+<p>is a learned numerical compatibility score.</p>
+<p>The words:</p>
+<blockquote>
+<p>&quot;what it is looking for&quot;</p>
+</blockquote>
+<p>and:</p>
+<blockquote>
+<p>&quot;what it advertises&quot;</p>
+</blockquote>
+<p>are intuition, not formal definitions.</p>
+<p>Formally:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q,\quad K=XW_K,\quad V=XW_V
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+S=QK^T
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-37">1.5.6 Shapes First</h3>
+<p>Let:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">n</span> = number of tokens</li>
+<li><span class="math inline">d</span> = model width</li>
+</ul>
+<p>Choose:</p>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_k}
+</div>
+<div class="math block">
+W_K\in\mathbb R^{d\times d_k}
+</div>
+<div class="math block">
+W_V\in\mathbb R^{d\times d_v}
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>has shape:</p>
+<div class="math block">
+(n\times d)(d\times d_k)
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{Q\in\mathbb R^{n\times d_k}}
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{K\in\mathbb R^{n\times d_k}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{V\in\mathbb R^{n\times d_v}}
+</div>
+<p>These are the shapes shown in your Transformer slides.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-38">1.5.7 Why Can <span class="math inline">d_k</span> Be Different From <span class="math inline">d</span>?</h3>
+<p>Because we may want the attention mechanism to work in a smaller space.</p>
+<p>For example:</p>
+<div class="math block">
+d=768
+</div>
+<p>but a head may use:</p>
+<div class="math block">
+d_k=64
+</div>
+<p>Then:</p>
+<div class="math block">
+768\rightarrow64
+</div>
+<p>for queries and keys.</p>
+<p>Similarly values may have:</p>
+<div class="math block">
+d_v=64
+</div>
+<p>This reduces the size of the individual attention computation.</p>
+<p>In multi-head attention, we use several such smaller spaces.</p>
+<p>We will get there later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-39">1.5.8 The First Really Important Equation</h3>
+<p>Once we have:</p>
+<div class="math block">
+Q
+</div>
+<p>and:</p>
+<div class="math block">
+K
+</div>
+<p>we compare them.</p>
+<p>For query <span class="math inline">q_i</span> and key <span class="math inline">k_j</span>:</p>
+<div class="math block">
+\boxed{
+s_{ij}=q_i^Tk_j
+}
+</div>
+<p>This is simply a dot product.</p>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{
+\text{How compatible is query }i\text{ with key }j?
+}
+</div>
+<p>If:</p>
+<div class="math block">
+q_i^Tk_j
+</div>
+<p>is large, they are strongly aligned in the learned attention space.</p>
+<p>If it's small or negative, they are less aligned.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-40">1.5.9 From One Dot Product to the Whole Matrix</h3>
+<p>Suppose:</p>
+<div class="math block">
+Q=
+\begin{bmatrix}
+q_1\\
+q_2\\
+q_3
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+K=
+\begin{bmatrix}
+k_1\\
+k_2\\
+k_3
+\end{bmatrix}
+</div>
+<p>Then:</p>
+<div class="math block">
+QK^T
+=
+\begin{bmatrix}
+q_1^Tk_1&amp;q_1^Tk_2&amp;q_1^Tk_3\\
+q_2^Tk_1&amp;q_2^Tk_2&amp;q_2^Tk_3\\
+q_3^Tk_1&amp;q_3^Tk_2&amp;q_3^Tk_3
+\end{bmatrix}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+S=QK^T
+}
+</div>
+<p>contains <strong>every query-key comparison</strong>.</p>
+<p>Shape:</p>
+<div class="math block">
+(n\times d_k)(d_k\times n)
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+S\in\mathbb R^{n\times n}
+}
+</div>
+<p>This is why we emphasized matrix multiplication in Step 0.1.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-41">1.5.10 What Does One Row Mean?</h3>
+<p>This is extremely important.</p>
+<p>Take row <span class="math inline">i</span>:</p>
+<div class="math block">
+S_{i,:}
+</div>
+<p>It contains:</p>
+<div class="math block">
+[q_i^Tk_1,\;q_i^Tk_2,\ldots,q_i^Tk_n]
+</div>
+<p>So row <span class="math inline">i</span> answers:</p>
+<blockquote>
+<p><strong>For token <span class="math inline">i</span>, how well does my query match every token's key?</strong></p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+S_{2,:}
+=
+[1.2,\;2.8,\;0.4,\;1.7]
+</div>
+<p>means token 2 has strongest raw compatibility with token 2 itself, then token 4, then token 1, then token 3.</p>
+<p>But these are still <strong>scores</strong>, not probabilities.</p>
+<p>We will convert them to attention weights in the next step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-42">1.5.11 Why the Value Vector Is Separate</h3>
+<p>This is one of the most subtle ideas.</p>
+<p>Suppose:</p>
+<div class="math block">
+q_i^Tk_j=10
+</div>
+<p>That tells us:</p>
+<blockquote>
+<p>token <span class="math inline">j</span> is highly relevant to query <span class="math inline">i</span>.</p>
+</blockquote>
+<p>But it does <strong>not</strong> tell us what information token <span class="math inline">j</span> should contribute.</p>
+<p>That's what:</p>
+<div class="math block">
+v_j
+</div>
+<p>contains.</p>
+<p>Therefore the architecture separates:</p>
+<div class="math block">
+\boxed{
+\text{matching}
+\quad\text{from}\quad
+\text{content transfer}
+}
+</div>
+<p>Mathematically:</p>
+<div class="math block">
+\text{matching}
+=
+q_i^Tk_j
+</div>
+<p>then later:</p>
+<div class="math block">
+\text{information received}
+=
+a_{ij}v_j
+</div>
+<p>and finally:</p>
+<div class="math block">
+o_i=\sum_j a_{ij}v_j
+</div>
+<p>This separation is the conceptual heart of attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-43">1.5.12 Full Numerical Example From Your Source</h3>
+<p>Raschka uses the sentence:</p>
+<blockquote>
+<p><strong>Your journey starts with one step.</strong></p>
+</blockquote>
+<p>with six 3-dimensional input vectors. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>The input matrix is:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+0.43&amp;0.15&amp;0.89\\
+0.55&amp;0.87&amp;0.66\\
+0.57&amp;0.85&amp;0.64\\
+0.22&amp;0.58&amp;0.33\\
+0.77&amp;0.25&amp;0.10\\
+0.05&amp;0.80&amp;0.55
+\end{bmatrix}
+</div>
+<p>So:</p>
+<div class="math block">
+n=6,\qquad d=3
+</div>
+<p>For illustration, the book uses:</p>
+<div class="math block">
+d_{\text{out}}=2
+</div>
+<p>and therefore:</p>
+<div class="math block">
+W_Q,W_K,W_V\in\mathbb R^{3\times2}
+</div>
+<p>The three matrices are initialized as trainable parameters.</p>
+<hr />
+<aside class="audit-card" id="audit-transformer-correction-rounded-query" data-transformer-review="added"><p>Precision qualification: [0.4306,1.4551] is the rounded printed book output. It is not an exact full-precision query. The original source-seeded PyTorch initialization has not been regenerated here; the separate complete mathematical companion uses fully specified illustrative parameters.</p><a href="#audit-transformer-1-5">Derivation, sources and checked result</a></aside><h3 id="v3-heading-chunk-les-step-1-5-i12-44">1.5.13 Query for the Second Token</h3>
+<p>The second token is:</p>
+<blockquote>
+<p><code>journey</code></p>
+</blockquote>
+<p>Therefore:</p>
+<div class="math block">
+x_2=
+[0.55,0.87,0.66]
+</div>
+<p>The model computes:</p>
+<div class="math block">
+q_2=x_2W_Q
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+q_2=[0.4306,\;1.4551]
+}
+</div>
+<p>This is the exact result shown in the book.</p>
+<p>Now notice:</p>
+<p>The original token representation had dimension:</p>
+<div class="math block">
+3
+</div>
+<p>but the query has dimension:</p>
+<div class="math block">
+2
+</div>
+<p>So the projection has changed the coordinate system.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-45">1.5.14 Keys for All Tokens</h3>
+<p>We can't compare the query to just one key.</p>
+<p>We need every key:</p>
+<div class="math block">
+K=
+\begin{bmatrix}
+k_1\\
+k_2\\
+k_3\\
+k_4\\
+k_5\\
+k_6
+\end{bmatrix}
+</div>
+<p>Since:</p>
+<div class="math block">
+X\in\mathbb R^{6\times3}
+</div>
+<p>and:</p>
+<div class="math block">
+W_K\in\mathbb R^{3\times2}
+</div>
+<p>we get:</p>
+<div class="math block">
+K=XW_K
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+K\in\mathbb R^{6\times2}
+}
+</div>
+<p>Likewise:</p>
+<div class="math block">
+V=XW_V
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V\in\mathbb R^{6\times2}
+}
+</div>
+<p>The book explicitly computes all six keys and all six values for this reason.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-46">1.5.15 Now Compare the Query With Every Key</h3>
+<p>For the second token:</p>
+<div class="math block">
+q_2=[0.4306,1.4551]
+</div>
+<p>The six raw attention scores are:</p>
+<div class="math block">
+\boxed{
+[1.2705,\;1.8524,\;1.8111,\;1.0795,\;0.5577,\;1.5440]
+}
+</div>
+<p>The book computes them using:</p>
+<div class="math block">
+\boxed{
+q_2K^T
+}
+</div>
+<p>which is a compact way of performing all six dot products at once.</p>
+<p>This is a perfect example of why matrix multiplication matters.</p>
+<p>Instead of:</p>
+<pre><code class="language-text">q2 · k1
+q2 · k2
+q2 · k3
+q2 · k4
+q2 · k5
+q2 · k6
+</code></pre>
+<p>we do one matrix multiplication:</p>
+<div class="math block">
+q_2K^T
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-47">1.5.16 Let's Interpret the Six Scores</h3>
+<p>For query token <code>&quot;journey&quot;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key token</th>
+<th style="text-align:right">Score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Your</td>
+<td style="text-align:right">1.2705</td>
+</tr>
+<tr>
+<td>journey</td>
+<td style="text-align:right">1.8524</td>
+</tr>
+<tr>
+<td>starts</td>
+<td style="text-align:right">1.8111</td>
+</tr>
+<tr>
+<td>with</td>
+<td style="text-align:right">1.0795</td>
+</tr>
+<tr>
+<td>one</td>
+<td style="text-align:right">0.5577</td>
+</tr>
+<tr>
+<td>step</td>
+<td style="text-align:right">1.5440</td>
+</tr>
+</tbody>
+</table>
+<p>At this point:</p>
+<div class="math block">
+1.8524&gt;1.8111&gt;1.5440&gt;1.2705&gt;1.0795&gt;0.5577
+</div>
+<p>So the query has the strongest raw compatibility with:</p>
+<blockquote>
+<p><code>journey</code></p>
+</blockquote>
+<p>followed closely by:</p>
+<blockquote>
+<p><code>starts</code>.</p>
+</blockquote>
+<p>But we still shouldn't interpret these as percentages.</p>
+<p>They are just learned compatibility scores.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-48">1.5.17 The Difference Between Parameter Weights and Attention Weights</h3>
+<p>This distinction is so important that your book gives it its own section.</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-49">Parameter weights</h5>
+<div class="math block">
+W_Q,W_K,W_V
+</div>
+<p>These are learned model parameters.</p>
+<p>They are updated during training.</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-50">Attention weights</h5>
+<p>Later we compute:</p>
+<div class="math block">
+A_{ij}
+</div>
+<p>These depend on the current input.</p>
+<p>They change from context to context.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_Q,W_K,W_V
+=
+\text{learned parameters}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+A
+=
+\text{dynamic, input-dependent weights}
+}
+</div>
+<p>Raschka explicitly warns not to confuse these two meanings of &quot;weight.&quot;</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-51">1.5.18 Why Are the Projection Matrices Trainable?</h3>
+<p>Suppose we used fixed projections.</p>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>would always create the same type of query transformation.</p>
+<p>But we want the model to <strong>learn what dimensions are useful for matching</strong>.</p>
+<p>During training, the loss produces gradients such as:</p>
+<div class="math block">
+\frac{\partial L}{\partial W_Q}
+</div>
+<div class="math block">
+\frac{\partial L}{\partial W_K}
+</div>
+<div class="math block">
+\frac{\partial L}{\partial W_V}
+</div>
+<p>and these are updated:</p>
+<div class="math block">
+W_Q
+\leftarrow
+W_Q-\eta\frac{\partial L}{\partial W_Q}
+</div>
+<p>and similarly for <span class="math inline">W_K,W_V</span>.</p>
+<p>Thus the model learns:</p>
+<blockquote>
+<p>What should a query look like?</p>
+</blockquote>
+<blockquote>
+<p>What should a key look like?</p>
+</blockquote>
+<blockquote>
+<p>What information should a value carry?</p>
+</blockquote>
+<p>That is why attention becomes useful through training.</p>
+<p>Raschka explicitly says these matrices are trained so the attention module can learn to produce useful context vectors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-52">1.5.19 Why Three Different Matrices Instead of One?</h3>
+<p>Suppose we used:</p>
+<div class="math block">
+Q=K=V=X
+</div>
+<p>Then one representation would simultaneously have to serve three purposes:</p>
+<ol>
+<li>search query,</li>
+<li>search key,</li>
+<li>transmitted information.</li>
+</ol>
+<p>That's unnecessarily restrictive.</p>
+<p>Instead:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V
+</div>
+<p>allows three different learned transformations.</p>
+<p>This gives the model much more flexibility.</p>
+<p>For example, one dimension of <span class="math inline">Q</span> might learn to represent something useful for determining:</p>
+<blockquote>
+<p>&quot;Am I looking for a subject?&quot;</p>
+</blockquote>
+<p>while a dimension of <span class="math inline">K</span> may learn to represent:</p>
+<blockquote>
+<p>&quot;I can serve as a subject.&quot;</p>
+</blockquote>
+<p>Meanwhile <span class="math inline">V</span> can encode the content that should actually be transmitted.</p>
+<p>Again, this is an intuition about what the learned spaces <em>can</em> represent, not a guarantee that individual dimensions correspond to such human labels.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-53">1.5.20 A Tiny Hand Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+q=[1,2]
+</div>
+<p>and two keys are:</p>
+<div class="math block">
+k_1=[1,0]
+</div>
+<div class="math block">
+k_2=[0,1]
+</div>
+<p>Compute:</p>
+<div class="math block">
+q^Tk_1
+=
+1(1)+2(0)
+=
+1
+</div>
+<p>and:</p>
+<div class="math block">
+q^Tk_2
+=
+1(0)+2(1)
+=
+2
+</div>
+<p>Therefore:</p>
+<div class="math block">
+k_2
+</div>
+<p>matches the query more strongly.</p>
+<p>Now suppose values are:</p>
+<div class="math block">
+v_1=[10,0]
+</div>
+<div class="math block">
+v_2=[0,20]
+</div>
+<p>Later, after converting scores into attention weights, the model will take a weighted combination of these values.</p>
+<p>Notice the separation:</p>
+<pre><code class="language-text">Q × K  → decide relevance
+
+relevance × V → transfer information
+</code></pre>
+<p>That is the entire basic mechanism in one picture.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-54">1.5.21 Matrix-Level View</h3>
+<p>For the entire sequence:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V
+</div>
+<p>Then:</p>
+<div class="math block">
+S=QK^T
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+(Q,K,V)
+\rightarrow
+S
+}
+</div>
+<p>Shapes:</p>
+<div class="math block">
+X:n\times d
+</div>
+<div class="math block">
+Q:n\times d_k
+</div>
+<div class="math block">
+K:n\times d_k
+</div>
+<div class="math block">
+V:n\times d_v
+</div>
+<div class="math block">
+S:n\times n
+</div>
+<p>This is exactly the shape checklist included in your mathematical Transformer cheat sheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-55">1.5.22 Why Is the Score Matrix <span class="math inline">n\times n</span>?</h3>
+<p>Because every query compares to every key.</p>
+<p>If:</p>
+<div class="math block">
+n=4
+</div>
+<p>then:</p>
+<pre><code class="language-text">          Keys
+         k1 k2 k3 k4
+       ┌──────────────┐
+q1     │ •  •  •  •   │
+q2     │ •  •  •  •   │
+q3     │ •  •  •  •   │
+q4     │ •  •  •  •   │
+       └──────────────┘
+</code></pre>
+<p>There are:</p>
+<div class="math block">
+4\times4=16
+</div>
+<p>query-key comparisons.</p>
+<p>For a sequence of length:</p>
+<div class="math block">
+n=1000
+</div>
+<p>there are:</p>
+<div class="math block">
+1,000,000
+</div>
+<p>pairwise scores in one attention head before considering batching and heads.</p>
+<p>This <span class="math inline">n^2</span> behavior will later become central to the <strong>attention complexity problem</strong> and motivates efficient-attention techniques.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-56">1.5.23 Self-Attention vs Cross-Attention</h3>
+<p>At this stage, we're discussing <strong>self-attention</strong>.</p>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+Q,K,V
+</div>
+<p>all come from the same input sequence:</p>
+<div class="math block">
+X
+</div>
+<p>That is:</p>
+<div class="math block">
+Q=XW_Q,\quad K=XW_K,\quad V=XW_V
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\text{self-attention}}
+</div>
+<p>means:</p>
+<blockquote>
+<p>queries, keys, and values are derived from the same sequence.</p>
+</blockquote>
+<p>In cross-attention, the query source and key/value source differ.</p>
+<p>We will not divert into that yet because your current course is centered on decoder-only self-attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-57">1.5.24 What We Have NOT Done Yet</h3>
+<p>We've only reached:</p>
+<div class="math block">
+\boxed{
+Q,K,V
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+S=QK^T
+}
+</div>
+<p>The scores are still raw.</p>
+<p>For example:</p>
+<div class="math block">
+[1.2705,1.8524,1.8111,\ldots]
+</div>
+<p>But we want something like:</p>
+<div class="math block">
+[0.15,0.23,0.22,\ldots]
+</div>
+<p>that can act as normalized attention weights.</p>
+<p>Therefore we still need:</p>
+<div class="math block">
+\boxed{
+\frac{QK^T}{\sqrt{d_k}}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}
+}
+</div>
+<p>and eventually:</p>
+<div class="math block">
+\boxed{
+AV
+}
+</div>
+<p>And because we are building a <strong>decoder-only</strong> language model, we also need the causal mask.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-58">1.5.25 The Complete Attention Pipeline</h3>
+<p>Now you can see the entire structure emerging:</p>
+<div class="math block">
+\boxed{
+X
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+Q=XW_Q,\quad K=XW_K,\quad V=XW_V
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+S=QK^T
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\tilde S=\frac{S}{\sqrt{d_k}}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\tilde S+M
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+A=\operatorname{softmax}(\tilde S+M)
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+O=AV
+}
+</div>
+<p>This is the equation we have been building toward from the beginning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-59">1.5.26 Source-Grounded Numerical Check</h3>
+<p>The exact Raschka example gives:</p>
+<div class="math block">
+q_2=[0.4306,1.4551]
+</div>
+<p>then:</p>
+<div class="math block">
+q_2K^T
+=
+[1.2705,1.8524,1.8111,1.0795,0.5577,1.5440]
+</div>
+<p>and later the scaled softmax produces:</p>
+<div class="math block">
+[0.1500,0.2264,0.2199,0.1311,0.0906,0.1820]
+</div>
+<p>before producing the context vector:</p>
+<div class="math block">
+[0.3061,0.8210].
+</div>
+<p>Those latter steps are from the same worked example; we will derive each one separately rather than skipping ahead.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-60">1.5.27 The Deepest Intuition to Keep</h3>
+<p>Forget the terminology for a moment.</p>
+<p>Self-attention is essentially:</p>
+<blockquote>
+<p><strong>Ask → Match → Retrieve → Mix</strong></p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-61">Ask</h5>
+<div class="math block">
+q_i
+</div>
+<p>What does the current token need?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-62">Match</h5>
+<div class="math block">
+q_i^Tk_j
+</div>
+<p>Which tokens are relevant?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-63">Retrieve</h5>
+<div class="math block">
+v_j
+</div>
+<p>What information does each relevant token provide?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-64">Mix</h5>
+<div class="math block">
+o_i=\sum_j a_{ij}v_j
+</div>
+<p>Combine the useful information.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+Q=\text{asking}
+}
+</div>
+<div class="math block">
+\boxed{
+K=\text{matching}
+}
+</div>
+<div class="math block">
+\boxed{
+V=\text{information}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-65">1.5.28 Connect It Back to the Residual Stream</h3>
+<p>Remember Step 1.4.</p>
+<p>Attention does not usually replace the residual stream.</p>
+<p>It creates an update:</p>
+<div class="math block">
+O=\operatorname{Attention}(X)
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+X_{\text{new}}
+=
+X+O
+}
+</div>
+<p>So the flow is:</p>
+<pre><code class="language-text">Residual stream X
+       ↓
+   Q, K, V
+       ↓
+attention
+       ↓
+   update O
+       ↓
+X + O
+       ↓
+new residual stream
+</code></pre>
+<p>This is exactly the architecture described in your slides.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-5-i12-66">Step 1.5 Master Check</h3>
+<p>Now test yourself.</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-67">Q1</h5>
+<p>Given:</p>
+<div class="math block">
+X\in\mathbb R^{10\times512}
+</div>
+<p>and:</p>
+<div class="math block">
+W_Q\in\mathbb R^{512\times64}
+</div>
+<p>what is the shape of <span class="math inline">Q</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-68">Q2</h5>
+<p>Given:</p>
+<div class="math block">
+Q\in\mathbb R^{10\times64}
+</div>
+<p>and:</p>
+<div class="math block">
+K\in\mathbb R^{10\times64}
+</div>
+<p>what is the shape of:</p>
+<div class="math block">
+QK^T?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-69">Q3</h5>
+<p>Why does:</p>
+<div class="math block">
+QK^T
+</div>
+<p>contain <span class="math inline">n^2</span> values?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-70">Q4</h5>
+<p>What is the conceptual difference between:</p>
+<div class="math block">
+Q
+</div>
+<p>and:</p>
+<div class="math block">
+K?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-71">Q5</h5>
+<p>Why do we need <span class="math inline">V</span> if <span class="math inline">Q</span> and <span class="math inline">K</span> already determine relevance?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-72">Q6</h5>
+<p>Explain the difference between:</p>
+<div class="math block">
+W_Q
+</div>
+<p>and an attention weight:</p>
+<div class="math block">
+A_{ij}.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-73">Q7</h5>
+<p>Why are <span class="math inline">W_Q,W_K,W_V</span> trainable?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-74">Q8</h5>
+<p>Suppose:</p>
+<div class="math block">
+q=[1,2]
+</div>
+<div class="math block">
+k_1=[1,0],\quad k_2=[0,1].
+</div>
+<p>Which key has the higher score and why?</p>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-75">Q9</h5>
+<p>Explain this in plain English:</p>
+<div class="math block">
+\boxed{
+QK^T
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-5-i12-76">Q10</h5>
+<p>Complete the entire pipeline:</p>
+<div class="math block">
+X
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+\rightarrow
+?
+</div>
+<hr />
+</section>

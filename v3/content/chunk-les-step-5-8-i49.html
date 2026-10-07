@@ -1,0 +1,1102 @@
+<section class="chunk" id="chunk-les-step-5-8-i49" data-id="les-step-5-8-i49"><details class="audit-card" id="audit-full-chunk-les-step-5-8-i49" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-8-i49-1">Motivation</h4><p>Diagnostics and reward design: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-8-i49-2">Prerequisites</h4><ul><li>entropy</li><li>group statistics</li><li>held-out evaluation</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-5">Step-by-step derivation</h4><ol><li>Track correctness separately from total shaped reward; an auxiliary format reward can increase while genuine task accuracy falls.</li><li>For V-token probabilities entropy lies in [0,ln V]. V=7 cannot have entropy above 1.945910149 nats; units and vocabulary must be fixed before thresholds are interpreted.</li><li>Normalized advantages have near-zero group mean by construction. With negligible epsilon their std is fixed by the chosen ddof; very large std is not an independent ordinary healthy/unstable metric under that exact normalization.</li><li>All-equal reward groups give zero policy-advantage gradient. KL, optimizer weight decay, stored momentum and other minibatch groups may still change parameters.</li><li>R=correct+w*format permits wrong formatted outputs to collect w. Conditional shaping correct*(1+w*format) gives wrong outputs zero in the 0/1 convention.</li><li>Reward rising, held-out accuracy falling, entropy collapsing and response length shrinking suggests reward gaming or distribution collapse; verify extraction, leakage and length truncation before naming a unique cause.</li></ol><h4 id="v3-heading-chunk-les-step-5-8-i49-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-8-i49-7">Entropy bound</h5><p>Given: V=7 uniform categories</p><ol><li>Each probability=1/7.</li><li>Entropy=-7*(1/7)*ln(1/7).</li></ol><p>Answer: 1.9459101491 nats, the maximum</p><p>Verification: rl_retool / entropy_bound · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-8-i49-8">Conditional shaping</h5><p>Given: correct=0,format=1,w=.25</p><ol><li>Unconditional correct+w*format=.25.</li><li>Conditional correct*(1+w*format)=0.</li></ol><p>Answer: Wrong answer collects.25 unconditionally;0 conditionally</p><p>Verification: rl_retool / format_shaping · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-8-i49-9">Corrections and source qualifications</h4><ul><li>heading: Entropy diagnostics; text: For seven categories H cannot exceed ln7=1.9459101491 nats. The source slide wording “much greater than2” is impossible in that example. Exactly normalized advantage std is determined largely by normalization/ddof and is not a free metric that ordinarily spikes arbitrarily.</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-10">Mastery answers and retained exercise context</h4><ol><li>N 1 mean=.5; N 2 437/500=87.4%; N 3 H[.7,.2,.1]=.8018185525 nats; N 4 equalrewardadvantageszero.</li><li>N 5 unconditional.25; conditional 0. N 6 decliningeval with risingreward,lowentropy andshortoutputs suggests gaming/collapse; not enough to identifyunique cause.</li></ol><h4 id="v3-heading-chunk-les-step-5-8-i49-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-12">Connections and progression</h4><ul><li>Previous lesson builds Complete rollout-to-update contract.</li><li>Next lesson develops Math corpus and RL lineage.</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-13">Exact source support</h4><ul><li>rl-grpo-slides(1).pdf · physical PDF pages 21, 22, 23, 29, 30, 31, 32 · Entropy, advantage statistics, collapse and shaping</li></ul><h4 id="v3-heading-chunk-les-step-5-8-i49-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (64)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.8 — Reading and Debugging GRPO Training Dynamics</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.1 First principle: RL training is noisy</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.2 The four basic metrics</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.3 Metric 1 — Average reward</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.4 Why reward increasing is usually good</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.5 Metric 2 — Average response length</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.6 But longer is not automatically better</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.7 Metric 3 — Evaluation accuracy</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.8 Why evaluation every step is expensive</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.9 Metric 4 — Loss</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.10 Why does the loss behave differently?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.11 The first failure pattern: reward rises, then stalls</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.12 The second failure pattern: reward rises, evaluation accuracy falls</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.13 Why can this happen?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.14 The third failure pattern: response length suddenly decreases</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.15 The fourth failure pattern: large loss spikes</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.16 Now connect diagnostics to clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.17 Advanced metric — Advantage mean and standard deviation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.18 Why advantage standard deviation matters</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.19 The extreme case</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.20 Advanced metric — Entropy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.21 Numerical entropy example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.22 Uniform distribution</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.23 Source&#x27;s rough entropy interpretation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.24 Why entropy is useful in reasoning RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.25 Important distinction: low entropy is not automatically bad</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.26 Put the advanced metrics together</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.27 This is why metrics must be interpreted jointly</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.28 Now the most interesting source experiment: format reward</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.29 What is the format reward?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.30 Total reward with format</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.31 Why was this experiment done?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.32 The surprising result</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.33 Why can this happen?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Response A</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Response B</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.34 This is a reward-hacking-like phenomenon</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.35 Proposed solution 1 — reduce format weight</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Correct + correctly formatted</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Wrong + correctly formatted</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.36 Proposed solution 2 — conditional format reward</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Correct + correct format</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Wrong + correct format</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.37 This creates a cleaner reward structure</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.38 Numerical comparison</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Case 1: Correct + formatted</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Case 2: Wrong + formatted</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.39 Important tokenizer issue</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.40 Why this matters conceptually</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.41 The full diagnostic mental model</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.42 Exam numerical — reward design</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Unconditional</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Conditional</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.43 Exam numerical — evaluation accuracy</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>5.8.44 Exam numerical — entropy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.45 Exam numerical — advantage collapse</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.46 Exam numerical — diagnose the run</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.47 The deepest idea from this step</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Level 1 — The optimizer is numerically running</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Level 2 — The reward improves</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Level 3 — Actual reasoning ability improves</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.8.48 Step 5.8 master summary</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Cumulative numerical bank — new additions</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>What is now complete</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-8-i49"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-8-i49" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-7-i48">← Previous lesson</a> · <a href="#v3-grpo-kl">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a></p><p><strong>This lesson:</strong> Step 5.8 — Reading and Debugging GRPO Training Dynamics</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-8-i49"></a></p>
+<h2>Step 5.8 — Reading and Debugging GRPO Training Dynamics</h2>
+<p><em>Plan node: I6 · chat order #49</em></p>
+<p>We have finished the <strong>mathematical update itself</strong>. Now we need to answer a different question:</p>
+<blockquote>
+<p><strong>How do we know whether GRPO training is actually working?</strong></p>
+</blockquote>
+<p>This is important because a GRPO run can produce a decreasing/increasing loss while the reasoning ability itself gets worse. The source therefore shifts from the algorithm to <strong>training diagnostics and failure modes</strong> in Chapter 7. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-8-i49-15">5.8.1 First principle: RL training is noisy</h4>
+<p>In ordinary supervised learning, we often expect something like:</p>
+<div class="math block">
+L\downarrow
+</div>
+<p>and:</p>
+<div class="math block">
+\text{accuracy}\uparrow.
+</div>
+<p>With GRPO, the source explicitly warns that the <strong>loss itself is less informative</strong> and is mainly a sanity check. Some fluctuations are expected, while large spikes are concerning. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So do <strong>not</strong> use:</p>
+<div class="math block">
+\boxed{\text{GRPO loss alone}}
+</div>
+<p>as your definition of success.</p>
+<p>Instead, look at several signals together.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-16">5.8.2 The four basic metrics</h3>
+<p>The source's training analysis plots:</p>
+<div class="math block">
+\boxed{\text{loss}}
+</div>
+<div class="math block">
+\boxed{\text{reward\_avg}}
+</div>
+<div class="math block">
+\boxed{\text{avg\_response\_len}}
+</div>
+<div class="math block">
+\boxed{\text{eval\_acc}}
+</div>
+<p>The evaluation accuracy is measured on MATH-500 in the source experiment. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Let's understand each one.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-17">5.8.3 Metric 1 — Average reward</h3>
+<p>Suppose a group contains:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+R_{\text{avg}}
+=
+\frac{1+1+0+0}{4}
+=
+0.5.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{reward\_avg}=0.5}
+</div>
+<p>means half the sampled responses received reward 1 in this particular binary-reward setup.</p>
+<p>The source says that an average reward of:</p>
+<div class="math block">
+\boxed{1.00}
+</div>
+<p>means all sampled responses are correct.</p>
+<p>But there is a subtle consequence:</p>
+<div class="math block">
+R_i=1\quad\forall i
+</div>
+<p>means:</p>
+<div class="math block">
+A_i=0\quad\forall i.
+</div>
+<p>Therefore the relative learning signal disappears. The source says that when average reward reaches 1.00, further training is unlikely to be useful and early stopping can save resources. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-18">5.8.4 Why reward increasing is usually good</h3>
+<p>Suppose:</p>
+<div class="math block">
+0.20\rightarrow0.35\rightarrow0.50\rightarrow0.70.
+</div>
+<p>That generally means the sampled responses are receiving better verifier outcomes.</p>
+<p>So initially:</p>
+<div class="math block">
+\boxed{\text{reward}\uparrow}
+</div>
+<p>is a healthy sign.</p>
+<p>But now comes the important RL lesson:</p>
+<div class="math block">
+\boxed{
+\text{reward}\uparrow
+\not\Rightarrow
+\text{generalization}\uparrow
+}
+</div>
+<p>The source actually shows a case where evaluation accuracy later declines even though reward stays high or relatively stable. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-19">5.8.5 Metric 2 — Average response length</h3>
+<p>Suppose the model generates:</p>
+<div class="math block">
+100,\;150,\;220,\;300
+</div>
+<p>tokens over successive stages.</p>
+<p>Then the average response length is increasing.</p>
+<p>Why is this interesting?</p>
+<p>Because reasoning models may benefit from producing enough intermediate reasoning.</p>
+<p>The source observes that response length should initially increase alongside improving accuracy in its training run. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So initially:</p>
+<div class="math block">
+\boxed{
+\text{response length}\uparrow
++
+\text{accuracy}\uparrow
+}
+</div>
+<p>can be a healthy pattern.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-20">5.8.6 But longer is not automatically better</h3>
+<p>This is critical.</p>
+<p>Suppose:</p>
+<div class="math block">
+\text{accuracy}=40\%\rightarrow42\%
+</div>
+<p>but:</p>
+<div class="math block">
+\text{response length}=200\rightarrow2000.
+</div>
+<p>That does <strong>not</strong> mean the model learned ten times more reasoning.</p>
+<p>It may simply be generating unnecessarily long responses.</p>
+<p>Therefore response length is a <strong>diagnostic</strong>, not the optimization objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-21">5.8.7 Metric 3 — Evaluation accuracy</h3>
+<p>This is perhaps the most important external sanity check.</p>
+<p>Training reward is generated from the training process.</p>
+<p>Evaluation accuracy asks:</p>
+<blockquote>
+<p>Does the updated model actually solve unseen evaluation problems?</p>
+</blockquote>
+<p>The source computes this using MATH-500. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>For example:</p>
+<div class="math block">
+\text{eval\_acc}
+=
+\frac{\text{number correct}}{500}.
+</div>
+<p>If:</p>
+<div class="math block">
+375
+</div>
+<p>out of 500 are correct:</p>
+<div class="math block">
+\text{eval\_acc}
+=
+\frac{375}{500}
+=
+0.75
+=
+75\%.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-22">5.8.8 Why evaluation every step is expensive</h3>
+<p>The source notes that evaluation accuracy is not tracked at every step by default because doing so substantially slows training.</p>
+<p>Instead, it can be computed periodically, such as at checkpoints. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This gives us an important engineering tradeoff:</p>
+<div class="math block">
+\boxed{
+\text{more frequent evaluation}
+\rightarrow
+\text{better observability}
+\rightarrow
+\text{higher training cost}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-23">5.8.9 Metric 4 — Loss</h3>
+<p>The source specifically tells us to interpret GRPO loss differently from ordinary pretraining loss.</p>
+<p>A rough conceptual expectation is:</p>
+<div class="math block">
+\boxed{\text{loss should remain reasonably stable}}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{\text{loss must monotonically decrease}}.
+</div>
+<p>Large spikes are more concerning than small fluctuations. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-24">5.8.10 Why does the loss behave differently?</h3>
+<p>Because the training target itself is changing.</p>
+<p>In supervised learning:</p>
+<div class="math block">
+(x,y)
+</div>
+<p>is fixed.</p>
+<p>In GRPO:</p>
+<div class="math block">
+x
+\rightarrow
+\text{sample responses}
+\rightarrow
+\text{verify}
+\rightarrow
+\text{advantages}
+\rightarrow
+\text{update policy}
+</div>
+<p>and then the model changes, which changes future samples.</p>
+<p>Therefore the training process is much more dynamic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-25">5.8.11 The first failure pattern: reward rises, then stalls</h3>
+<p>Consider:</p>
+<div class="math block">
+0.1\rightarrow0.3\rightarrow0.5\rightarrow0.7\rightarrow0.72\rightarrow0.72.
+</div>
+<p>Possible interpretation:</p>
+<p>The model has improved, but is approaching the point where most sampled responses are already successful.</p>
+<p>As reward approaches:</p>
+<div class="math block">
+1.0,
+</div>
+<p>the relative advantage signal becomes weaker because successful rollouts become more homogeneous.</p>
+<p>The source explicitly points out that when all sampled responses are correct, the training signal disappears. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-26">5.8.12 The second failure pattern: reward rises, evaluation accuracy falls</h3>
+<p>This is much more serious.</p>
+<p>Example:</p>
+<pre><code class="language-text">Step       Reward      Eval Accuracy
+------------------------------------
+0          0.20        30%
+100        0.45        45%
+200        0.65        55%
+300        0.72        52%
+400        0.73        44%
+</code></pre>
+<p>A naive interpretation would be:</p>
+<blockquote>
+<p>Reward increased, so training improved.</p>
+</blockquote>
+<p>But the evaluation tells us:</p>
+<div class="math block">
+55\%\rightarrow44\%.
+</div>
+<p>The model got worse on the external task.</p>
+<p>The source reports this kind of behavior in its unclipped training analysis: evaluation accuracy initially improves and later declines, indicating instability/problems in the training process. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-27">5.8.13 Why can this happen?</h3>
+<p>The source discusses instability as one likely explanation, while noting that harder later training examples alone would not explain the evaluation decline because evaluation uses the same fixed MATH-500 examples each time. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{training signal improves}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{general task performance deteriorates}
+}
+</div>
+<p>is possible.</p>
+<p>That is exactly why external evaluation is essential.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-28">5.8.14 The third failure pattern: response length suddenly decreases</h3>
+<p>The format-reward experiment gives an especially useful example.</p>
+<p>The source observes:</p>
+<div class="math block">
+\boxed{
+\text{accuracy drops sharply}
+}
+</div>
+<p>while average response length decreases before later recovering. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The source associates this decline in evaluation accuracy with the shorter responses produced after that point. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This gives a useful diagnostic pattern:</p>
+<pre><code class="language-text">reward ──────────────── relatively stable
+accuracy ────────╲
+response length ───────╲
+</code></pre>
+<p>So when accuracy falls, response length is one of the first things worth checking.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-29">5.8.15 The fourth failure pattern: large loss spikes</h3>
+<p>Suppose:</p>
+<div class="math block">
+L:
+\quad
+-0.3,-0.2,-0.4,-0.1,-5.2,-0.2
+</div>
+<p>The source's interpretation is that occasional fluctuations are expected, but increasingly large spikes are concerning. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This can indicate unstable updates.</p>
+<p>That is one motivation for introducing:</p>
+<div class="math block">
+\boxed{\text{clipped policy ratios}}
+</div>
+<p>later in Chapter 7.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-30">5.8.16 Now connect diagnostics to clipping</h3>
+<p>The source's clipped-ratio training run is more stable than the earlier run.</p>
+<p>It reports:</p>
+<ul>
+<li>no visible drop in average reward around the problematic later region,</li>
+<li>no sudden decline in evaluation accuracy,</li>
+<li>fewer worrying loss spikes.</li>
+</ul>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So we can think of clipping as:</p>
+<div class="math block">
+\boxed{\text{update stabilization mechanism}}
+</div>
+<p>while the metrics act as:</p>
+<div class="math block">
+\boxed{\text{instrument panel}}
+</div>
+<p>You need both.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-31">5.8.17 Advanced metric — Advantage mean and standard deviation</h3>
+<p>Recall:</p>
+<div class="math block">
+A_i=
+\frac{R_i-\mu_R}{\sigma_R+\epsilon}.
+</div>
+<p>The source tracks two summary statistics:</p>
+<div class="math block">
+\boxed{\operatorname{mean}(A)}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\operatorname{std}(A)}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Because the advantages are group-normalized, the mean is expected to be approximately zero.</p>
+<p>The more interesting quantity for training dynamics is often:</p>
+<div class="math block">
+\boxed{\operatorname{std}(A)}
+</div>
+<p>because it tells us how much relative distinction exists between sampled responses.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-32">5.8.18 Why advantage standard deviation matters</h3>
+<p>Imagine:</p>
+<div class="math block">
+R=[0.5,0.51,0.50,0.51].
+</div>
+<p>The rewards are almost identical.</p>
+<p>Then:</p>
+<div class="math block">
+R_i-\mu_R
+</div>
+<p>are tiny.</p>
+<p>So the group contains little relative information.</p>
+<p>Contrast:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Now there is a strong distinction between good and bad rollouts.</p>
+<p>Therefore intuitively:</p>
+<div class="math block">
+\boxed{
+\text{larger reward separation}
+\rightarrow
+\text{stronger relative learning signal}
+}
+</div>
+<p>The source uses advantage statistics specifically to inspect these training dynamics. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-33">5.8.19 The extreme case</h3>
+<p>If:</p>
+<div class="math block">
+R=[1,1,1,1],
+</div>
+<p>then:</p>
+<div class="math block">
+\mu_R=1
+</div>
+<p>and:</p>
+<div class="math block">
+R_i-\mu_R=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{A=[0,0,0,0]}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+R=[0,0,0,0]
+</div>
+<p>also gives:</p>
+<div class="math block">
+\boxed{A=[0,0,0,0]}.
+</div>
+<p>The source explicitly emphasizes this behavior. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-34">5.8.20 Advanced metric — Entropy</h3>
+<p>Now we look at:</p>
+<div class="math block">
+\boxed{
+H(P)=-\sum_xP(x)\log P(x)
+}
+</div>
+<p>for each generated token distribution.</p>
+<p>The source calculates token-level entropy and then averages it across the generated answer tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-35">5.8.21 Numerical entropy example</h3>
+<p>Suppose a vocabulary has only two possible tokens:</p>
+<div class="math block">
+P=[0.9,0.1].
+</div>
+<p>Then:</p>
+<div class="math block">
+H
+=
+-(0.9\ln0.9+0.1\ln0.1).
+</div>
+<p>Using:</p>
+<div class="math block">
+\ln0.9\approx-0.1053
+</div>
+<p>and:</p>
+<div class="math block">
+\ln0.1\approx-2.3026,
+</div>
+<p>we get:</p>
+<div class="math block">
+H\approx0.325.
+</div>
+<p>So the model is relatively confident.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-36">5.8.22 Uniform distribution</h3>
+<p>For two tokens:</p>
+<div class="math block">
+P=[0.5,0.5].
+</div>
+<p>Then:</p>
+<div class="math block">
+H
+=
+-(0.5\ln0.5+0.5\ln0.5)
+</div>
+<div class="math block">
+=\ln2
+\approx0.693.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{more uncertainty}\rightarrow\text{higher entropy}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-37">5.8.23 Source's rough entropy interpretation</h3>
+<p>The source gives rough rules of thumb:</p>
+<div class="math block">
+0\text{–}0.5
+</div>
+<p>→ very low entropy, highly confident.</p>
+<div class="math block">
+1\text{–}2
+</div>
+<p>→ moderate entropy.</p>
+<p>High entropy approaching:</p>
+<div class="math block">
+\log(|V|)
+</div>
+<p>means probabilities are spread across many tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>For the source's toy vocabulary:</p>
+<div class="math block">
+|V|=7.
+</div>
+<p>Maximum entropy:</p>
+<div class="math block">
+H_{\max}=\ln7\approx1.9459.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-38">5.8.24 Why entropy is useful in reasoning RL</h3>
+<p>Suppose:</p>
+<div class="math block">
+H:
+1.8\rightarrow1.5\rightarrow1.2\rightarrow0.8.
+</div>
+<p>The model is becoming increasingly confident.</p>
+<p>That can be healthy.</p>
+<p>But suppose:</p>
+<div class="math block">
+1.8\rightarrow1.3\rightarrow0.2
+</div>
+<p>very rapidly.</p>
+<p>That may indicate:</p>
+<div class="math block">
+\boxed{\text{entropy collapse}}
+</div>
+<p>where the policy becomes too deterministic too quickly.</p>
+<p>The source explicitly identifies a sudden collapse to very low entropy as a warning sign of unstable training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-39">5.8.25 Important distinction: low entropy is not automatically bad</h3>
+<p>A reasoning model eventually becoming more confident can be desirable.</p>
+<p>The source actually says:</p>
+<blockquote>
+<p>entropy should gradually decrease as the model becomes more confident.</p>
+</blockquote>
+<p>The problem is <strong>sudden collapse</strong>, not merely decreasing entropy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{gradual entropy decrease}
+\approx
+\text{potentially healthy}
+}
+</div>
+<p>whereas:</p>
+<div class="math block">
+\boxed{
+\text{rapid entropy collapse}
+\approx
+\text{warning}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-40">5.8.26 Put the advanced metrics together</h3>
+<p>Now imagine this training history:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Step</th>
+<th style="text-align:right">Reward</th>
+<th style="text-align:right">Eval Acc</th>
+<th style="text-align:right">Resp. Len</th>
+<th style="text-align:right">Entropy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0.20</td>
+<td style="text-align:right">30%</td>
+<td style="text-align:right">180</td>
+<td style="text-align:right">1.80</td>
+</tr>
+<tr>
+<td style="text-align:right">100</td>
+<td style="text-align:right">0.40</td>
+<td style="text-align:right">42%</td>
+<td style="text-align:right">240</td>
+<td style="text-align:right">1.55</td>
+</tr>
+<tr>
+<td style="text-align:right">200</td>
+<td style="text-align:right">0.60</td>
+<td style="text-align:right">51%</td>
+<td style="text-align:right">310</td>
+<td style="text-align:right">1.30</td>
+</tr>
+<tr>
+<td style="text-align:right">300</td>
+<td style="text-align:right">0.68</td>
+<td style="text-align:right">54%</td>
+<td style="text-align:right">360</td>
+<td style="text-align:right">1.10</td>
+</tr>
+<tr>
+<td style="text-align:right">400</td>
+<td style="text-align:right">0.70</td>
+<td style="text-align:right">45%</td>
+<td style="text-align:right">180</td>
+<td style="text-align:right">0.30</td>
+</tr>
+</tbody>
+</table>
+<p>Look carefully.</p>
+<p>At step 400:</p>
+<div class="math block">
+R\approx0.70
+</div>
+<p>still looks good.</p>
+<p>But:</p>
+<div class="math block">
+\text{Eval Acc}:54\%\rightarrow45\%
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Length}:360\rightarrow180
+</div>
+<p>and:</p>
+<div class="math block">
+H:1.10\rightarrow0.30.
+</div>
+<p>That is a much stronger warning than reward alone.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-41">5.8.27 This is why metrics must be interpreted jointly</h3>
+<p>Never say:</p>
+<blockquote>
+<p>“Reward increased, therefore training succeeded.”</p>
+</blockquote>
+<p>Instead ask:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+&amp;\text{Did reward improve?}\\
+&amp;\text{Did evaluation accuracy improve?}\\
+&amp;\text{Is response length sensible?}\\
+&amp;\text{Are loss spikes controlled?}\\
+&amp;\text{Are advantages providing useful variation?}\\
+&amp;\text{Is entropy changing gradually?}
+\end{aligned}
+}
+</div>
+<p>That is the correct GRPO-debugging mindset.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-42">5.8.28 Now the most interesting source experiment: format reward</h3>
+<p>So far the reward was primarily:</p>
+<div class="math block">
+\boxed{\text{answer correctness}}
+</div>
+<p>For example:</p>
+<div class="math block">
+R_{\text{correct}}=
+\begin{cases}
+1 &amp; \text{correct}\\
+0 &amp; \text{wrong}
+\end{cases}
+</div>
+<p>The source then adds an auxiliary signal:</p>
+<div class="math block">
+\boxed{\text{format reward}}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-43">5.8.29 What is the format reward?</h3>
+<p>The experiment wants the model to structure reasoning as:</p>
+<pre><code class="language-text">&lt;think&gt;
+reasoning...
+&lt;/think&gt;
+
+\boxed{answer}
+</code></pre>
+<p>The source defines:</p>
+<div class="math block">
+R_{\text{format}}=
+\begin{cases}
+1 &amp; \text{&lt;think&gt; appears before &lt;/think&gt;}\\
+0 &amp; \text{otherwise}.
+\end{cases}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-44">5.8.30 Total reward with format</h3>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+R=
+R_{\text{RLVR}}
++
+w_fR_{\text{format}}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+w_f=\text{format\_reward\_weight}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Suppose:</p>
+<div class="math block">
+R_{\text{correct}}=1
+</div>
+<p>and:</p>
+<div class="math block">
+R_{\text{format}}=1
+</div>
+<p>with:</p>
+<div class="math block">
+w_f=1.
+</div>
+<p>Then:</p>
+<div class="math block">
+R=1+1=2.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-45">5.8.31 Why was this experiment done?</h3>
+<p>Because the researchers/book want to make the output structure explicit:</p>
+<div class="math block">
+\boxed{
+\text{reasoning}
+\rightarrow
+\text{final answer}
+}
+</div>
+<p>The <code>&lt;think&gt;</code> markers separate those parts.</p>
+<p>But now we have created a new problem:</p>
+<blockquote>
+<p>What happens if the model learns to optimize <strong>format</strong> rather than <strong>correct reasoning</strong>?</p>
+</blockquote>
+<p>And this is exactly what the source investigates.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-46">5.8.32 The surprising result</h3>
+<p>In the source's format-reward run:</p>
+<ul>
+<li>the model improves initially;</li>
+<li>later evaluation accuracy becomes worse;</li>
+<li>average reward stays approximately constant;</li>
+<li>shorter response lengths correlate with the later accuracy decline.</li>
+</ul>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is a beautiful RL example of:</p>
+<div class="math block">
+\boxed{\text{reward design matters}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-47">5.8.33 Why can this happen?</h3>
+<p>Suppose:</p>
+<div class="math block">
+R_{\text{correct}}\in\{0,1\}
+</div>
+<p>and:</p>
+<div class="math block">
+R_{\text{format}}\in\{0,1\}.
+</div>
+<p>With:</p>
+<div class="math block">
+w_f=1,
+</div>
+<p>consider these two responses:</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-48">Response A</h5>
+<p>Correct + correct format:</p>
+<div class="math block">
+R=1+1=2.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-49">Response B</h5>
+<p>Wrong + correct format:</p>
+<div class="math block">
+R=0+1=1.
+</div>
+<p>Therefore even a wrong answer gets positive reward.</p>
+<p>The model receives reinforcement for:</p>
+<div class="math block">
+\boxed{\text{format adherence}}
+</div>
+<p>without necessarily receiving reinforcement for:</p>
+<div class="math block">
+\boxed{\text{correctness}}.
+</div>
+<p>The source gives this as one possible explanation for the observed degradation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-50">5.8.34 This is a reward-hacking-like phenomenon</h3>
+<p>Conceptually:</p>
+<pre><code class="language-text">What we want:
+
+correct reasoning
+      +
+correct answer
+      +
+proper format
+</code></pre>
+<p>but our reward says:</p>
+<pre><code class="language-text">correctness reward + format reward
+</code></pre>
+<p>The model can discover that format is an easier source of guaranteed reward.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{easy reward component}
+\rightarrow
+\text{can dominate harder reward component}
+}
+</div>
+<p>This is one of the most important lessons from this experiment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-51">5.8.35 Proposed solution 1 — reduce format weight</h3>
+<p>The source suggests reducing:</p>
+<div class="math block">
+w_f:
+1.0\rightarrow0.1.
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-52">Correct + correctly formatted</h5>
+<div class="math block">
+R=1+0.1=1.1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-53">Wrong + correctly formatted</h5>
+<div class="math block">
+R=0+0.1=0.1.
+</div>
+<p>The correctness signal now dominates much more strongly. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-54">5.8.36 Proposed solution 2 — conditional format reward</h3>
+<p>Instead of always granting the format reward, use:</p>
+<div class="math block">
+\boxed{
+R_{\text{format,new}}
+=
+R_{\text{format}}
+\cdot
+R_{\text{correct}}
+}
+</div>
+<p>Therefore:</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-55">Correct + correct format</h5>
+<div class="math block">
+1\times1=1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-56">Wrong + correct format</h5>
+<div class="math block">
+1\times0=0.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{wrong answers receive no format bonus}}
+</div>
+<p>The source gives precisely this conditional implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-57">5.8.37 This creates a cleaner reward structure</h3>
+<p>Without conditioning:</p>
+<div class="math block">
+R=
+R_c+w_fR_f.
+</div>
+<p>With conditioning:</p>
+<div class="math block">
+\boxed{
+R=
+R_c+w_fR_fR_c
+}
+</div>
+<p>or equivalently:</p>
+<div class="math block">
+R=
+R_c(1+w_fR_f).
+</div>
+<p>This means:</p>
+<div class="math block">
+R_c=0
+\Rightarrow
+R=0.
+</div>
+<p>Thus the auxiliary reward cannot rescue an incorrect answer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-58">5.8.38 Numerical comparison</h3>
+<p>Take:</p>
+<div class="math block">
+w_f=1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-59">Case 1: Correct + formatted</h5>
+<div class="math block">
+R_c=1,\quad R_f=1.
+</div>
+<p>Unconditional:</p>
+<div class="math block">
+R=2.
+</div>
+<p>Conditional:</p>
+<div class="math block">
+R=1+(1)(1)(1)=2.
+</div>
+<p>No difference.</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-60">Case 2: Wrong + formatted</h5>
+<div class="math block">
+R_c=0,\quad R_f=1.
+</div>
+<p>Unconditional:</p>
+<div class="math block">
+R=1.
+</div>
+<p>Conditional:</p>
+<div class="math block">
+R=0.
+</div>
+<p>Huge difference.</p>
+<p>That is the entire motivation for the conditional reward.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-61">5.8.39 Important tokenizer issue</h3>
+<p>There is another subtle implementation point.</p>
+<p>The base model initially does <strong>not</strong> have <code>&lt;think&gt;</code> as one token in the source experiment.</p>
+<p>The tokenizer encodes:</p>
+<pre><code class="language-text">&lt;think&gt;
+</code></pre>
+<p>into several subword tokens.</p>
+<p>The reasoning tokenizer instead has dedicated IDs:</p>
+<div class="math block">
+\boxed{151667}
+</div>
+<p>for <code>&lt;think&gt;</code> and:</p>
+<div class="math block">
+\boxed{151668}
+</div>
+<p>for <code>&lt;/think&gt;</code>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The source says that simply training the base model with these new tokens would perform poorly because the base model has not previously encountered them in this form. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-62">5.8.40 Why this matters conceptually</h3>
+<p>A reward function can only reinforce behavior that the model can meaningfully represent.</p>
+<p>If your tokenizer/model setup has no learned familiarity with a new special token, merely writing:</p>
+<div class="math block">
+R_{\text{format}}=1
+</div>
+<p>does not magically give the model a pretrained concept of that token.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{reward design}
++
+\text{tokenization/model support}
+}
+</div>
+<p>must be considered together.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-63">5.8.41 The full diagnostic mental model</h3>
+<p>You should now think of GRPO training as a control system:</p>
+<pre><code class="language-text">                 REWARD
+                   │
+                   ▼
+               LEARNING
+                   │
+                   ▼
+               POLICY
+                   │
+         ┌─────────┼─────────┐
+         ▼         ▼         ▼
+      Reward    Accuracy   Length
+                             │
+                             ▼
+                          Entropy
+                             │
+                             ▼
+                         Stability
+</code></pre>
+<p>The model isn't judged by one scalar.</p>
+<p>You monitor the <strong>whole system</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-64">5.8.42 Exam numerical — reward design</h3>
+<p>Given:</p>
+<div class="math block">
+R_c=0,\quad R_f=1,\quad w_f=0.5.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-65">Unconditional</h5>
+<div class="math block">
+R=0+0.5(1)
+=\boxed{0.5}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-66">Conditional</h5>
+<div class="math block">
+R=0.5(1)(0)=\boxed{0}.
+</div>
+<p>This is a very likely conceptual numerical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-67">5.8.43 Exam numerical — evaluation accuracy</h3>
+<p>Suppose MATH-500 evaluation gives:</p>
+<div class="math block">
+420
+</div>
+<p>correct answers.</p>
+<p>Then:</p>
+<div class="math block">
+\text{accuracy}
+=
+\frac{420}{500}
+=
+0.84.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{84\%}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-68">5.8.44 Exam numerical — entropy</h3>
+<p>For:</p>
+<div class="math block">
+P=[0.8,0.2],
+</div>
+<p>calculate:</p>
+<div class="math block">
+H=-(0.8\ln0.8+0.2\ln0.2).
+</div>
+<div class="math block">
+H\approx0.500.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{H\approx0.50}.
+</div>
+<p>This is near the source's “very low to low” entropy boundary.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-69">5.8.45 Exam numerical — advantage collapse</h3>
+<p>Given:</p>
+<div class="math block">
+R=[1,1,1,1].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_i-\mu=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{A_i=0\;\forall i}.
+</div>
+<p>Consequently:</p>
+<div class="math block">
+\boxed{L_{\text{PG}}=0}.
+</div>
+<p>No relative update occurs for that group. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-70">5.8.46 Exam numerical — diagnose the run</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{reward}:0.3\rightarrow0.7
+</div>
+<div class="math block">
+\text{eval accuracy}:45\%\rightarrow35\%
+</div>
+<div class="math block">
+\text{response length}:500\rightarrow150
+</div>
+<div class="math block">
+\text{entropy}:1.2\rightarrow0.2.
+</div>
+<p>What should you conclude?</p>
+<p>Not:</p>
+<blockquote>
+<p>“Reward improved, so training succeeded.”</p>
+</blockquote>
+<p>The stronger diagnosis is:</p>
+<div class="math block">
+\boxed{
+\text{possible instability / collapse}
+}
+</div>
+<p>because reward improved while external accuracy dropped, response length sharply shortened, and entropy collapsed.</p>
+<p>This interpretation is consistent with the source's observed failure patterns. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-71">5.8.47 The deepest idea from this step</h3>
+<p>There are <strong>three levels of success</strong>:</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-72">Level 1 — The optimizer is numerically running</h5>
+<p>Gradients exist and parameters change.</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-73">Level 2 — The reward improves</h5>
+<p>The verifier likes the sampled behavior more.</p>
+<h5 id="v3-heading-chunk-les-step-5-8-i49-74">Level 3 — Actual reasoning ability improves</h5>
+<p>External evaluation improves.</p>
+<p>The real objective is:</p>
+<div class="math block">
+\boxed{
+\text{Level 3}
+}
+</div>
+<p>not merely Level 2.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-8-i49-75">5.8.48 Step 5.8 master summary</h3>
+<p>Remember this diagnostic sequence:</p>
+<div class="math block">
+\boxed{
+\text{Reward}
+\rightarrow
+\text{Accuracy}
+\rightarrow
+\text{Length}
+\rightarrow
+\text{Advantage stats}
+\rightarrow
+\text{Entropy}
+\rightarrow
+\text{Stability}
+}
+</div>
+<p>And for reward engineering:</p>
+<div class="math block">
+\boxed{
+R=R_{\text{correct}}+w_fR_{\text{format}}
+}
+</div>
+<p>can be problematic when the auxiliary reward is too strong.</p>
+<p>A safer source-proposed variant is:</p>
+<div class="math block">
+\boxed{
+R
+=
+R_{\text{correct}}
++
+w_fR_{\text{format}}R_{\text{correct}}
+}
+</div>
+<p>so that format cannot compensate for incorrectness. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-8-i49-76">Cumulative numerical bank — new additions</h4>
+<p>You should now be able to solve these without notes:</p>
+<p><strong>N1.</strong> Given rewards <span class="math inline">[1,0,1,0]</span>, calculate average reward.</p>
+<p><strong>N2.</strong> A MATH-500 checkpoint gets 437 correct. Calculate evaluation accuracy.</p>
+<p><strong>N3.</strong> For probabilities <span class="math inline">[0.7,0.2,0.1]</span>, calculate entropy.</p>
+<p><strong>N4.</strong> Given rewards <span class="math inline">[1,1,1,1]</span>, compute the GRPO advantages.</p>
+<p><strong>N5.</strong> Given <span class="math inline">R_c=0,\;R_f=1,\;w_f=0.25</span>, compute unconditional and conditional total rewards.</p>
+<p><strong>N6.</strong> A training run has reward <span class="math inline">0.8\to0.82</span>, evaluation accuracy <span class="math inline">62\%\to48\%</span>, entropy <span class="math inline">1.0\to0.15</span>, and response length <span class="math inline">700\to200</span>. Diagnose the likely problem.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-8-i49-77">What is now complete</h5>
+<div class="math block">
+\boxed{
+\text{GRPO mechanics}
++
+\text{training loop}
++
+\text{metrics}
++
+\text{failure diagnosis}
++
+\text{format reward}
+}
+</div>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-g4">G.4 — RL / GRPO slides not covered by the lessons (the KL term)</a> — <em>KL term: when it backfires</em></p>
+</blockquote>
+<hr />
+</section>

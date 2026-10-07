@@ -1,0 +1,60 @@
+"""Executable teaching primitives. Inputs are toys, not trained-model claims.
+softmax: stable row probability; nucleus: minimal crossing set; top_k: exact k
+with stable index ties; repetition: sign-aware optional history transform.
+position: original sine/cosine formula; rope: rotate each adjacent coordinate pair.
+normalize: token-feature population statistics, never a batch statistic.
+"""
+import math
+import numpy as np
+
+def softmax(z,T=1):
+    if T<=0 or not math.isfinite(T):raise ValueError('positive finite temperature required')
+    x=np.array(z,dtype=float)/T
+    if x.size==0 or np.isnan(x).any() or np.isposinf(x).any() or not np.isfinite(x).any():raise ValueError('invalid scores or all masked')
+    e=np.exp(x-x.max());return e/e.sum()
+
+def top_k(z,k):
+    x=np.array(z,dtype=float)
+    if isinstance(k,bool) or not isinstance(k,int) or not 1<=k<=len(x):raise ValueError('1 <= k <= V')
+    keep=np.argsort(-x,kind='stable')[:k];out=np.full_like(x,-np.inf);out[keep]=x[keep];return out
+
+def nucleus(p,threshold):
+    x=np.array(p,dtype=float)
+    if not 0<threshold<=1 or x.size==0 or (x<0).any() or not np.isclose(x.sum(),1,atol=1e-12,rtol=0):raise ValueError('normalized distribution and 0<p<=1 required')
+    order=np.argsort(-x,kind='stable');c=np.cumsum(x[order]);count=min(np.searchsorted(c,threshold,side='left')+1,len(x));keep=order[:count];out=np.zeros_like(x);out[keep]=x[keep]/x[keep].sum();return out,keep.tolist()
+
+def repetition(z,seen,factor,sign_aware=True):
+    if factor<1 or not math.isfinite(factor):raise ValueError('penalty factor >=1')
+    x=np.array(z,dtype=float)
+    for i in set(seen):x[i]=x[i]*factor if sign_aware and x[i]<0 else x[i]/factor
+    return x
+
+def position(pos,d):
+    if d<=0 or d%2:raise ValueError('positive even width')
+    return np.array([f(pos/(10000**(2*i/d))) for i in range(d//2) for f in (math.sin,math.cos)])
+
+def rope(x,pos,base=10000):
+    x=np.array(x,dtype=float)
+    if x.size%2:raise ValueError('even rotary width')
+    out=x.copy()
+    for i in range(x.size//2):
+        angle=pos/base**(2*i/x.size);a,b=x[2*i:2*i+2];out[2*i:2*i+2]=[a*math.cos(angle)-b*math.sin(angle),a*math.sin(angle)+b*math.cos(angle)]
+    return out
+
+def normalize(x,rms=False,eps=1e-5):
+    a=np.array(x,dtype=float)
+    if a.size==0 or eps<0:raise ValueError('nonempty and epsilon>=0')
+    c=a if rms else a-a.mean();v=np.mean(a*a) if rms else np.mean(c*c)
+    if v+eps==0:raise ValueError('zero denominator')
+    return c/math.sqrt(v+eps)
+
+def attention(q,k,v):
+    q,k,v=map(lambda x:np.array(x,dtype=float),(q,k,v));s=q@k.T/math.sqrt(q.shape[-1]);s[np.triu_indices(len(q),1)]=-np.inf;a=np.array([softmax(row) for row in s]);return a@v,a
+
+def sequence_score(probabilities,alpha=0):
+    p=list(probabilities)
+    if not p or any(not 0<x<=1 for x in p):raise ValueError('positive probabilities required')
+    logp=sum(map(math.log,p));lp=((5+len(p))/6)**alpha;return math.prod(p),logp,lp,logp/lp
+
+if __name__=='__main__':
+    print('sinusoidal',position(1,4).tolist());print('causal',attention([[1,0],[0,1],[1,1]],[[1,0],[0,1],[1,1]],[[1,0],[0,2],[3,1]])[0].tolist());print('combined',softmax(top_k(repetition([5,4,2,0],[0],2),3),2).tolist())

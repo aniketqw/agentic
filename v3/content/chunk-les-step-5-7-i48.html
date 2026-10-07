@@ -1,0 +1,1340 @@
+<section class="chunk" id="chunk-les-step-5-7-i48" data-id="les-step-5-7-i48"><details class="audit-card" id="audit-full-chunk-les-step-5-7-i48" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-7-i48-1">Motivation</h4><p>Complete rollout-to-update contract: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-7-i48-2">Prerequisites</h4><ul><li>advantages</li><li>clipping</li><li>KL</li><li>tensor masks</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-5">Step-by-step derivation</h4><ol><li>Split held-out evaluation problems before generation. Select prompts, snapshot old probabilities, sample multiple completions, and save generation metadata.</li><li>Score correctness and format with a declared verifier, normalize rewards within each prompt, and detach rewards/advantages/old log probabilities.</li><li>Teacher-force generated tokens under current weights; gather only the selected target-token log probabilities. Mask prompts, pads, and any external observation tokens.</li><li>For token GRPO average valid token contributions per response, then average responses. A global token mean gives long responses more weight and is a different objective.</li><li>Combine surrogate and an explicitly defined KL term, zero gradients, backpropagate, optionally clip gradient norm, and step optimizer. Gradient-norm clipping and ratio clipping are separate operations.</li><li>Synchronize old/reference models at declared boundaries, log held-out accuracy plus reward, and checkpoint configuration, optimizer and RNG state. This companion checks mathematics; it does not reproduce a trained reasoning LLM.</li></ol><h4 id="v3-heading-chunk-les-step-5-7-i48-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-7-i48-7">Masked token GRPO update</h5><p>Given: rewards=[1,0], ratios=[[1.5,.9],[.5,1.1]], masks=[[1,1],[1,0]]</p><ol><li>Sample normalized advantages are approximately ±.7070068.</li><li>First response mean clipped coefficient=(1.2+.9)/2=1.05.</li><li>Second policy position contributes -.8 times positive magnitude.</li><li>Mean two responses, then negate.</li></ol><p>Answer: Loss approximately-.08837585</p><p>Verification: rl_retool / masked_grpo · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-7-i48-8">All-equal group</h5><p>Given: rewards=[1,1,1,1]</p><ol><li>Mean=1, every centered reward=0.</li><li>Return zeros before dividing by zero spread.</li></ol><p>Answer: Policy-advantage signal=0; other update terms may remain</p><p>Verification: rl_retool / equal_group · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-7-i48-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-10">Mastery answers and retained exercise context</h4><ol><li>Generate,verify,normalize,teacher-force,gather,mask,ratio,clip,reduce,penalize,backprop,clipgrad,step.</li><li>B 2 G 4 T 128 yields 8 responses. Prompt/padding/interpreter positions are masked according to declared objective.</li><li>Allzero advantages eliminate that policy term; other losses and optimizer state may still updateweights.</li></ol><h4 id="v3-heading-chunk-les-step-5-7-i48-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-12">Connections and progression</h4><ul><li>Previous lesson builds KL direction and sampling measure.</li><li>Next lesson develops Diagnostics and reward design.</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-13">Exact source support</h4><ul><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 236, 237, 238, 239, 240, 241, 275, 276, 277 · Training loop and stabilized book loss</li></ul><h4 id="v3-heading-chunk-les-step-5-7-i48-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (62)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.7 — The Full GRPO Training Algorithm</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>1. Before GRPO starts</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>2. Stage 1 — Choose a prompt</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>3. Stage 2 — Generate a group of rollouts</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>4. Why do we sample instead of using argmax?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5. Stage 3 — Verify each rollout</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>6. Stage 4 — Compute group-relative advantages</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>7. What information exists after this stage?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>8. Stage 5 — Compute current-policy log probabilities</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>9. Why do prompt tokens not receive the policy loss?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>10. Stage 6 — Save old-policy log probabilities</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>11. Stage 7 — Compute the policy ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>12. Interpret the ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>13. Stage 8 — Clip the ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>14. Why clipping belongs here</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>15. Stage 9 — Build the clipped policy objective</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>16. Why is the objective negative?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>17. Stage 10 — Compute reference-policy KL regularization</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>18. What is the reference model doing?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>19. Stage 11 — Combine the objectives</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>20. Stage 12 — Backpropagation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>21. Stage 13 — Gradient clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Policy-ratio clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Gradient clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>22. Stage 14 — Optimizer update</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>23. Stage 15 — Log metrics</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>24. Stage 16 — Save checkpoints</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>25. Complete algorithm in pseudocode</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>26. Now understand the training iteration as data flow</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>27. A subtle issue: where does “old policy” come from?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>28. A subtle issue: old policy versus reference policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>29. Full numerical training step</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>Rollout 1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>30. Rollout 2</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>31. Rollout 3</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>32. Rollout 4</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>33. Compute the clipped loss</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>34. What if clipping did not exist?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>35. What if KL did not exist?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>36. Why reward alone can be misleading</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>37. Advantage statistics</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>38. Entropy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>39. Why entropy matters in RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>40. The three most useful training diagnostics</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>41. Very important source observation: reward can improve but accuracy can later decline</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>42. Another important source observation: all-zero rewards</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>43. Another important case: all-one rewards</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>44. Full training-loop architecture</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>One step</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Repeated training</td><td>educationally expanded; source-located at concept-group level</td><td>Full-scale training, backend execution and benchmark replication were not performed.</td></tr><tr><td>45. The complete stack you have now learned</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>46. Master equation for this entire step</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>47. Numerical bank — Level 1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>48. Level 2</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>49. Level 3</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>50. Level 4</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>51. Level 5</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>52. Level 5 mixed numerical</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>53. Interview question you should now be able to answer</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>“Explain GRPO in 60 seconds.”</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>54. The full GRPO algorithm — one-page memory structure</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 5.7 final checkpoint</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-7-i48"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-7-i48" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-6-i47">← Previous lesson</a> · <a href="#chunk-les-step-5-8-i49">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-6-i47">Step 5.6 — KL Regularization: Why Do We Need a Reference Model?</a></p><p><strong>This lesson:</strong> Step 5.7 — The Full GRPO Training Algorithm</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-7-i48"></a></p>
+<h2>Step 5.7 — The Full GRPO Training Algorithm</h2>
+<p><em>Plan node: I6 · chat order #48</em></p>
+<p>We have now learned every individual component:</p>
+<div class="math block">
+\boxed{
+\text{rollout}
+\rightarrow
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{logprob}
+\rightarrow
+\text{ratio}
+\rightarrow
+\text{clipping}
+\rightarrow
+\text{KL}
+}
+</div>
+<p>Now we put them together into <strong>one training iteration</strong>.</p>
+<p>The source first implements a simplified Chapter 6 version, then adds clipped ratios and KL regularization in Chapter 7. The final conceptual pipeline is exactly this assembly. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-15">1. Before GRPO starts</h3>
+<p>We begin with a pretrained language model:</p>
+<div class="math block">
+\boxed{\pi_\theta}
+</div>
+<p>and a training set containing prompts and verifiable answers.</p>
+<p>For example:</p>
+<pre><code class="language-text">Prompt:
+Half the value of 3x - 9 is x + 37. Find x.
+</code></pre>
+<p>Ground truth:</p>
+<div class="math block">
+x=83.
+</div>
+<p>The model starts with parameters:</p>
+<div class="math block">
+\theta_0.
+</div>
+<p>The goal is to obtain:</p>
+<div class="math block">
+\theta_1,\theta_2,\ldots
+</div>
+<p>such that the model increasingly produces high-reward reasoning behavior.</p>
+<p>The source's training loop begins with a pretrained model and a MATH training subset. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-16">2. Stage 1 — Choose a prompt</h3>
+<p>At training step <span class="math inline">k</span>, select:</p>
+<div class="math block">
+q_k.
+</div>
+<p>For simplicity, suppose:</p>
+<div class="math block">
+q_k=q.
+</div>
+<p>The important point is that <strong>multiple responses will be sampled for this same prompt</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-17">3. Stage 2 — Generate a group of rollouts</h3>
+<p>Use the current/rollout policy to generate:</p>
+<div class="math block">
+G
+</div>
+<p>responses:</p>
+<div class="math block">
+o_1,o_2,\ldots,o_G.
+</div>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+o_i\sim\pi_{\theta_{\text{old}}}(\cdot\mid q)
+}
+</div>
+<p>for:</p>
+<div class="math block">
+i=1,\ldots,G.
+</div>
+<p>For example:</p>
+<pre><code class="language-text">o1 = \boxed{83}
+o2 = The correct answer is \boxed{83}
+o3 = The final answer is 83
+o4 = We get \boxed{38}
+</code></pre>
+<p>The source uses exactly this type of four-rollout example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-18">4. Why do we sample instead of using argmax?</h3>
+<p>This is essential.</p>
+<p>If the model always chooses:</p>
+<div class="math block">
+\arg\max_y \pi_\theta(y\mid q),
+</div>
+<p>then every attempt could be nearly identical.</p>
+<p>GRPO needs <strong>variation</strong>.</p>
+<p>We want:</p>
+<div class="math block">
+o_1\neq o_2\neq\cdots
+</div>
+<p>often enough that the model has different strategies to compare.</p>
+<p>So sampling provides the exploration that creates the group-relative learning signal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-19">5. Stage 3 — Verify each rollout</h3>
+<p>The verifier calculates:</p>
+<div class="math block">
+R_i=R(q,o_i).
+</div>
+<p>For the source's math verifier:</p>
+<div class="math block">
+R_i=
+\begin{cases}
+1 &amp; \text{correct and required format}\\
+0 &amp; \text{otherwise}.
+\end{cases}
+</div>
+<p>So:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>The source explicitly computes rewards this way. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-20">6. Stage 4 — Compute group-relative advantages</h3>
+<p>Calculate:</p>
+<div class="math block">
+\mu_R=\frac1G\sum_{i=1}^{G}R_i.
+</div>
+<p>For:</p>
+<div class="math block">
+[1,1,0,0],
+</div>
+<p>we have:</p>
+<div class="math block">
+\mu_R=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+\sigma_R\approx0.577.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\mu_R}
+{\sigma_R+\epsilon}
+}
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+A=[0.8659,0.8659,-0.8659,-0.8659].
+}
+</div>
+<p>This is the group-relative learning signal. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-21">7. What information exists after this stage?</h3>
+<p>We now know:</p>
+<div class="math block">
+\boxed{
+A_i&gt;0
+}
+</div>
+<p>for successful relative-to-group responses.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+A_i&lt;0
+}
+</div>
+<p>for unsuccessful relative-to-group responses.</p>
+<p>But we still haven't told the optimizer <strong>how much probability the model currently assigns to each response</strong>.</p>
+<p>That is the next stage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-22">8. Stage 5 — Compute current-policy log probabilities</h3>
+<p>For each rollout:</p>
+<div class="math block">
+o_i=(y_1,\ldots,y_T),
+</div>
+<p>calculate:</p>
+<div class="math block">
+\log\pi_\theta(o_i\mid q).
+</div>
+<p>Because the response is autoregressive:</p>
+<div class="math block">
+\boxed{
+\log\pi_\theta(o_i\mid q)
+=
+\sum_t
+\log\pi_\theta(y_t\mid q,y_{&lt;t})
+}
+</div>
+<p>The source implements this by selecting the log probability of each generated answer token and summing over the answer positions. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-23">9. Why do prompt tokens not receive the policy loss?</h3>
+<p>Suppose:</p>
+<pre><code class="language-text">[prompt tokens][answer tokens]
+</code></pre>
+<p>We do not want to train the model to reproduce the prompt.</p>
+<p>We want the policy gradient to act on:</p>
+<div class="math block">
+\boxed{\text{generated response tokens}}
+</div>
+<p>So the sequence-logprob computation begins at the response portion.</p>
+<p>The source's code uses:</p>
+<div class="math block">
+\texttt{prompt\_len - 1}
+</div>
+<p>as the starting offset for selected answer log probabilities. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-24">10. Stage 6 — Save old-policy log probabilities</h3>
+<p>We also need:</p>
+<div class="math block">
+\boxed{
+\log\pi_{\text{old}}(o_i\mid q)
+}
+</div>
+<p>for the same generated response.</p>
+<p>Why?</p>
+<p>Because after the model starts updating, the probability of the response changes.</p>
+<p>We need to compare:</p>
+<div class="math block">
+\text{before update}
+</div>
+<p>against:</p>
+<div class="math block">
+\text{current}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\log p_{\text{old}}
+}
+</div>
+<p>acts as our baseline for measuring policy movement.</p>
+<p>The source explicitly describes storing/using old log probabilities for fixed rollouts before comparing them with the changing policy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-25">11. Stage 7 — Compute the policy ratio</h3>
+<p>For each rollout:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\frac{
+\pi_\theta(o_i\mid q)
+}{
+\pi_{\text{old}}(o_i\mid q)
+}
+}
+</div>
+<p>or in log space:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\exp(
+\log p_{\text{new},i}
+-
+\log p_{\text{old},i}
+)
+}
+</div>
+<p>This tells us how much the policy has changed its probability for that sampled behavior.</p>
+<p>The source uses this exact log-difference/exponential implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-26">12. Interpret the ratio</h3>
+<div class="math block">
+r_i=1
+</div>
+<p>means:</p>
+<div class="math block">
+\boxed{\text{no change}}
+</div>
+<div class="math block">
+r_i&gt;1
+</div>
+<p>means:</p>
+<div class="math block">
+\boxed{\text{current policy favors this rollout more}}
+</div>
+<div class="math block">
+r_i&lt;1
+</div>
+<p>means:</p>
+<div class="math block">
+\boxed{\text{current policy favors it less}}
+</div>
+<p>So ratio is fundamentally a <strong>policy movement measurement</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-27">13. Stage 8 — Clip the ratio</h3>
+<p>Now define:</p>
+<div class="math block">
+\boxed{
+\tilde r_i
+=
+\operatorname{clip}
+(r_i,1-\epsilon_c,1+\epsilon_c)
+}
+</div>
+<p>where <span class="math inline">\epsilon_c</span> is the clipping parameter.</p>
+<p>The clipping bounds individual update influence.</p>
+<p>The source's example uses:</p>
+<div class="math block">
+\epsilon_c=10
+</div>
+<p>for its DeepSeek-R1 illustration, giving an upper limit:</p>
+<div class="math block">
+1+\epsilon_c=11.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-28">14. Why clipping belongs here</h3>
+<p>We already have:</p>
+<div class="math block">
+A_i.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+A_i=1.
+</div>
+<p>This is a good rollout.</p>
+<p>Now suppose the ratio becomes:</p>
+<div class="math block">
+r_i=100.
+</div>
+<p>Without clipping:</p>
+<div class="math block">
+r_iA_i=100.
+</div>
+<p>A single sample could dominate the update.</p>
+<p>With clipping:</p>
+<div class="math block">
+r_i\rightarrow11
+</div>
+<p>in the source-specific example.</p>
+<p>Thus:</p>
+<div class="math block">
+100
+\rightarrow
+11.
+</div>
+<p>The rollout still has positive influence, but it cannot explode arbitrarily.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-29">15. Stage 9 — Build the clipped policy objective</h3>
+<p>For every rollout:</p>
+<div class="math block">
+u_i=r_iA_i
+</div>
+<p>and:</p>
+<div class="math block">
+c_i=\tilde r_iA_i.
+</div>
+<p>Take:</p>
+<div class="math block">
+\boxed{
+m_i=\min(u_i,c_i)
+}
+</div>
+<p>and average:</p>
+<div class="math block">
+\boxed{
+L_{\text{clip}}
+=
+-\frac1G\sum_i m_i
+}
+</div>
+<p>This is the source's implementation:</p>
+<pre><code class="language-python">unclipped = ratio * adv
+clipped = clipped_ratio * adv
+obj = torch.minimum(unclipped, clipped)
+clipped_pg_loss = -torch.mean(obj)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-30">16. Why is the objective negative?</h3>
+<p>We want to maximize:</p>
+<div class="math block">
+\mathbb E[m_i].
+</div>
+<p>But the PyTorch optimizer minimizes losses.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L=-\text{objective}.
+}
+</div>
+<p>This sign-flip principle was already used in the simplified Chapter 6 policy-gradient objective. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-31">17. Stage 10 — Compute reference-policy KL regularization</h3>
+<p>Now introduce the frozen reference policy:</p>
+<div class="math block">
+\boxed{\pi_{\text{ref}}}.
+</div>
+<p>Compute:</p>
+<div class="math block">
+\log p_{\text{ref},i}.
+</div>
+<p>The source's simplified KL implementation uses:</p>
+<div class="math block">
+\boxed{
+L_{\text{KL}}
+=
+\beta
+\operatorname{mean}
+(
+\log p_{\text{new}}
+-
+\log p_{\text{ref}}
+)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\beta=\text{kl\_coeff}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-32">18. What is the reference model doing?</h3>
+<p>Imagine the original model knows how to produce ordinary fluent language.</p>
+<p>RL starts changing it to improve mathematical reward.</p>
+<p>We want:</p>
+<div class="math block">
+\boxed{
+\text{better mathematical behavior}
+}
+</div>
+<p>but not:</p>
+<div class="math block">
+\boxed{
+\text{destroy general behavior while chasing reward}
+}
+</div>
+<p>The reference model is therefore an <strong>anchor</strong>.</p>
+<p>The source describes it as constraining the policy so that reward improvement does not cause excessive divergence from the original behavior. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-33">19. Stage 11 — Combine the objectives</h3>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{clip}}
++
+L_{\text{KL}}
+}
+</div>
+<p>In the source's simplified KL extension:</p>
+<div class="math block">
+-2.5764
++
+(-0.0075)
+=
+\boxed{-2.5839}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-34">20. Stage 12 — Backpropagation</h3>
+<p>Now we have one scalar:</p>
+<div class="math block">
+L_{\text{total}}.
+</div>
+<p>We calculate:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta L_{\text{total}}
+}
+</div>
+<p>using backpropagation.</p>
+<p>The reward itself is not differentiated.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+A_i=\text{fixed learning signal}
+}
+</div>
+<p>and gradients flow through the model's log probabilities.</p>
+<p>The source explicitly uses <code>.detach()</code> on advantages for this reason. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-35">21. Stage 13 — Gradient clipping</h3>
+<p>The source's training loop also applies:</p>
+<pre><code class="language-python">torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+</code></pre>
+<p>after the backward pass. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is <strong>different from policy-ratio clipping</strong>.</p>
+<p>Do not confuse:</p>
+<div class="math block">
+\boxed{\text{policy-ratio clipping}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{gradient-norm clipping}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-7-i48-36">Policy-ratio clipping</h5>
+<p>Controls:</p>
+<div class="math block">
+\boxed{\text{how much the policy objective can change}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-7-i48-37">Gradient clipping</h5>
+<p>Controls:</p>
+<div class="math block">
+\boxed{\text{the magnitude of the computed parameter gradient}}
+</div>
+<p>They operate at different points in the pipeline.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-38">22. Stage 14 — Optimizer update</h3>
+<p>After gradient clipping:</p>
+<div class="math block">
+\boxed{
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L
+}
+</div>
+<p>The source uses AdamW in its training loop. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Now the policy has changed.</p>
+<p>That finishes one training step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-39">23. Stage 15 — Log metrics</h3>
+<p>The source tracks:</p>
+<div class="math block">
+\boxed{\text{average reward}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{average response length}}
+</div>
+<p>along with loss values. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because loss alone is not enough to understand RL training.</p>
+<p>You want to know:</p>
+<blockquote>
+<p>Is reward actually improving?</p>
+</blockquote>
+<blockquote>
+<p>Are answers becoming abnormally long?</p>
+</blockquote>
+<blockquote>
+<p>Is training becoming unstable?</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-40">24. Stage 16 — Save checkpoints</h3>
+<p>The training loop periodically saves model checkpoints.</p>
+<p>The source's example uses:</p>
+<div class="math block">
+\boxed{\text{checkpoint\_every}=50}
+</div>
+<p>by default in the function signature. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This allows later evaluation of the policy at different stages of training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-41">25. Complete algorithm in pseudocode</h3>
+<p>Now write the whole algorithm as one thing:</p>
+<pre><code class="language-python">for each training step:
+
+    q = sample_prompt()
+
+    # 1. Generate multiple responses
+    rollouts = sample_G_responses(policy, q)
+
+    # 2. Verify
+    rewards = [verify(q, o) for o in rollouts]
+
+    # 3. Group-relative advantages
+    advantages = normalize_within_group(rewards)
+
+    # 4. Current-policy logprobs
+    new_logps = score(policy, q, rollouts)
+
+    # 5. Old-policy logprobs
+    old_logps = stored_rollout_logprobs
+
+    # 6. Policy ratio
+    ratio = exp(new_logps - old_logps)
+
+    # 7. Clip
+    clipped_ratio = clip(ratio, 1-eps, 1+eps)
+
+    # 8. Clipped policy objective
+    objective = minimum(
+        ratio * advantages,
+        clipped_ratio * advantages
+    )
+
+    # 9. Reference-policy regularization
+    ref_logps = score(reference_model, q, rollouts)
+    kl_loss = beta * mean(new_logps - ref_logps)
+
+    # 10. Total loss
+    loss = -mean(objective) + kl_loss
+
+    # 11. Optimize
+    loss.backward()
+    clip_grad_norm(...)
+    optimizer.step()
+</code></pre>
+<p>This mirrors the source's progressive Chapter 6 + Chapter 7 implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-42">26. Now understand the training iteration as data flow</h3>
+<p>Think in terms of <strong>objects moving through the system</strong>.</p>
+<pre><code class="language-text">                         PROMPT q
+                            │
+                            ▼
+                    ┌─────────────┐
+                    │ Policy      │
+                    │ π_old       │
+                    └──────┬──────┘
+                           │
+                     generate G
+                      responses
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+             o1           o2          ... oG
+              │            │             │
+              └────────────┼─────────────┘
+                           ▼
+                       VERIFIER
+                           │
+                           ▼
+                     rewards R
+                           │
+                           ▼
+                 group normalization
+                           │
+                           ▼
+                     advantages A
+                           │
+          ┌────────────────┴────────────────┐
+          │                                 │
+          ▼                                 ▼
+   current policy                    reference policy
+          │                                 │
+          ▼                                 ▼
+   new logprobs                        ref logprobs
+          │
+          ▼
+   compare with old
+      logprobs
+          │
+          ▼
+       ratio
+          │
+          ▼
+       clipping
+          │
+          ▼
+   clipped objective
+          │
+          └──────────────┐
+                         ▼
+                    + KL penalty
+                         │
+                         ▼
+                    TOTAL LOSS
+                         │
+                         ▼
+                      backward
+                         │
+                         ▼
+                  gradient clipping
+                         │
+                         ▼
+                    optimizer step
+                         │
+                         ▼
+                    NEW POLICY
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-43">27. A subtle issue: where does “old policy” come from?</h3>
+<p>There are multiple implementation arrangements.</p>
+<p>The source's large-scale description says:</p>
+<ol>
+<li>make a copy of the current model;</li>
+<li>generate the rollout pool from it;</li>
+<li>calculate old logprobs under that fixed version;</li>
+<li>update the current model;</li>
+<li>later refresh the reference model.</li>
+</ol>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{old policy must remain fixed while the corresponding update is evaluated}
+}
+</div>
+<p>Otherwise the ratio would not represent a meaningful before-vs-after comparison.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-44">28. A subtle issue: old policy versus reference policy</h3>
+<p>Now put them side by side:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\pi_{\text{old}}</span></td>
+<td>How likely was this rollout when it was generated?</td>
+</tr>
+<tr>
+<td><span class="math inline">\pi_\theta</span></td>
+<td>How likely does the current policy consider it now?</td>
+</tr>
+<tr>
+<td><span class="math inline">\pi_{\text{ref}}</span></td>
+<td>How far have we drifted from the long-term reference?</td>
+</tr>
+</tbody>
+</table>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{old} \rightarrow \text{ratio}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{reference} \rightarrow \text{KL}
+}
+</div>
+<p>This is one of the easiest places to make an interview mistake.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-45">29. Full numerical training step</h3>
+<p>Let's build one compact example.</p>
+<p>Suppose:</p>
+<div class="math block">
+R=[1,1,0,0]
+</div>
+<p>and therefore:</p>
+<div class="math block">
+A=[0.866,0.866,-0.866,-0.866].
+</div>
+<p>Suppose old logprobs are:</p>
+<div class="math block">
+[-10,-9,-12,-11].
+</div>
+<p>Current logprobs:</p>
+<div class="math block">
+[-9,-8.8,-12.5,-11].
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-7-i48-46">Rollout 1</h4>
+<div class="math block">
+\log r=-9-(-10)=1
+</div>
+<p>so:</p>
+<div class="math block">
+r=e^1=2.718.
+</div>
+<p>With <span class="math inline">\epsilon=0.2</span>:</p>
+<div class="math block">
+r_{\text{clip}}=1.2.
+</div>
+<p>Advantage:</p>
+<div class="math block">
+A=0.866.
+</div>
+<p>Unclipped:</p>
+<div class="math block">
+2.718(0.866)
+\approx2.354.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.866)
+\approx1.039.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\min(2.354,1.039)
+=
+\boxed{1.039}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-47">30. Rollout 2</h3>
+<div class="math block">
+\log r=-8.8-(-9)=0.2.
+</div>
+<p>Thus:</p>
+<div class="math block">
+r=e^{0.2}
+\approx1.221.
+</div>
+<p>This is already inside the clipping range.</p>
+<p>Therefore:</p>
+<div class="math block">
+r_{\text{clip}}=1.2
+</div>
+<p>with <span class="math inline">\epsilon=0.2</span>.</p>
+<p>Then:</p>
+<div class="math block">
+1.221(0.866)\approx1.057
+</div>
+<p>and:</p>
+<div class="math block">
+1.2(0.866)\approx1.039.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{1.039}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-48">31. Rollout 3</h3>
+<div class="math block">
+\log r=-12.5-(-12)=-0.5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=e^{-0.5}
+\approx0.607.
+</div>
+<p>Since:</p>
+<div class="math block">
+0.607&lt;0.8,
+</div>
+<p>it gets clipped:</p>
+<div class="math block">
+r_{\text{clip}}=0.8.
+</div>
+<p>Advantage:</p>
+<div class="math block">
+A=-0.866.
+</div>
+<p>Unclipped:</p>
+<div class="math block">
+0.607(-0.866)\approx-0.526.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+0.8(-0.866)\approx-0.693.
+</div>
+<p>Take minimum:</p>
+<div class="math block">
+\boxed{-0.693}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-49">32. Rollout 4</h3>
+<div class="math block">
+\log r=-11-(-11)=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=1.
+</div>
+<p>No clipping.</p>
+<p>Advantage:</p>
+<div class="math block">
+A=-0.866.
+</div>
+<p>Contribution:</p>
+<div class="math block">
+1(-0.866)
+=
+\boxed{-0.866}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-50">33. Compute the clipped loss</h3>
+<p>Our objective terms are approximately:</p>
+<div class="math block">
+[1.039,\;1.039,\;-0.693,\;-0.866].
+</div>
+<p>Average:</p>
+<div class="math block">
+\frac{1.039+1.039-0.693-0.866}{4}
+\approx0.130.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_{\text{clip}}\approx-0.130
+}
+</div>
+<p>Then we would add the reference-policy KL term.</p>
+<p>This is the pattern you need to reproduce in an exam.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-51">34. What if clipping did not exist?</h3>
+<p>The first rollout would contribute:</p>
+<div class="math block">
+2.354
+</div>
+<p>instead of:</p>
+<div class="math block">
+1.039.
+</div>
+<p>Thus one response gets disproportionately strong influence.</p>
+<p>That is precisely what the clipping mechanism is designed to prevent. The source reports more stable training when clipped ratios are used. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-52">35. What if KL did not exist?</h3>
+<p>Each training update could still be locally controlled by clipping.</p>
+<p>But across many updates:</p>
+<div class="math block">
+\theta_0
+\rightarrow
+\theta_1
+\rightarrow
+\theta_2
+\rightarrow
+\cdots
+</div>
+<p>the policy could drift substantially from the original reference.</p>
+<p>That is why:</p>
+<div class="math block">
+\boxed{\text{clipping and KL solve different stability problems}}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-53">36. Why reward alone can be misleading</h3>
+<p>Suppose average reward rises:</p>
+<div class="math block">
+0.2\rightarrow0.4\rightarrow0.7.
+</div>
+<p>That sounds good.</p>
+<p>But suppose simultaneously response length becomes:</p>
+<div class="math block">
+200\rightarrow500\rightarrow2000.
+</div>
+<p>The model may be finding increasingly long strategies that exploit the reward structure.</p>
+<p>Therefore the source also tracks response length and other metrics. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-54">37. Advantage statistics</h3>
+<p>Chapter 7 additionally tracks:</p>
+<div class="math block">
+\boxed{\text{advantage mean}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{advantage standard deviation}}.
+</div>
+<p>The source notes that these are useful for understanding training dynamics beyond their role in the actual loss. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>For normalized advantages, the mean should be around zero within a group.</p>
+<p>If you see surprising behavior, these statistics help diagnose it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-55">38. Entropy</h3>
+<p>Another diagnostic is:</p>
+<div class="math block">
+\boxed{
+H(P)=-\sum_i P_i\log P_i
+}
+</div>
+<p>Entropy measures uncertainty in the token distribution.</p>
+<p>The source uses it to monitor whether the model remains exploratory or becomes excessively deterministic. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Roughly:</p>
+<div class="math block">
+\text{high entropy}
+\rightarrow
+\text{many plausible next tokens}
+</div>
+<div class="math block">
+\text{low entropy}
+\rightarrow
+\text{one/few tokens dominate}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-56">39. Why entropy matters in RL</h3>
+<p>Imagine the model starts producing one token with near certainty at every position.</p>
+<p>Then:</p>
+<div class="math block">
+P_{\max}\rightarrow1
+</div>
+<p>and:</p>
+<div class="math block">
+H\rightarrow0.
+</div>
+<p>The model may have become too deterministic too quickly.</p>
+<p>The source treats sudden collapse to very low entropy as a warning sign of unstable training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-57">40. The three most useful training diagnostics</h3>
+<p>For this stage, remember:</p>
+<div class="math block">
+\boxed{\text{reward}}
+</div>
+<p>tells you whether the model is improving at the verified task.</p>
+<div class="math block">
+\boxed{\text{response length}}
+</div>
+<p>helps identify undesirable output-length behavior.</p>
+<div class="math block">
+\boxed{\text{entropy}}
+</div>
+<p>helps identify confidence/exploration collapse.</p>
+<p>The source tracks these alongside loss and evaluation performance. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-58">41. Very important source observation: reward can improve but accuracy can later decline</h3>
+<p>The source's motivation for stabilization comes from actual training behavior: unclipped or less-stable runs can experience reward/accuracy degradation, whereas clipped policy ratios gave a more stable run in the reported example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{higher training reward}
+\neq
+\text{guaranteed better generalization}
+}
+</div>
+<p>This is a general RL lesson.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-59">42. Another important source observation: all-zero rewards</h3>
+<p>Suppose:</p>
+<div class="math block">
+R=[0,0,0,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+A=[0,0,0,0].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{PG}}=0.
+</div>
+<p>The source explicitly points out that the model should not reinforce an arbitrary wrong behavior when all sampled attempts fail. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-60">43. Another important case: all-one rewards</h3>
+<p>Suppose:</p>
+<div class="math block">
+R=[1,1,1,1].
+</div>
+<p>Again:</p>
+<div class="math block">
+A=[0,0,0,0].
+</div>
+<p>The group provides no relative distinction.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{no update from this group's relative signal}}
+</div>
+<p>because every sampled answer was equally successful.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-61">44. Full training-loop architecture</h3>
+<p>Now we can distinguish <strong>one GRPO step</strong> from <strong>many GRPO steps</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-5-7-i48-62">One step</h5>
+<div class="math block">
+q
+\rightarrow
+G\text{ rollouts}
+\rightarrow
+R
+\rightarrow
+A
+\rightarrow
+\text{policy loss}
+\rightarrow
+\theta'
+</div>
+<h5 id="v3-heading-chunk-les-step-5-7-i48-63">Repeated training</h5>
+<div class="math block">
+\theta_0
+\rightarrow
+\theta_1
+\rightarrow
+\theta_2
+\rightarrow
+\theta_3
+\rightarrow
+\cdots
+</div>
+<p>with new prompts and new sampled rollouts at each iteration.</p>
+<p>That repeated loop is what actually produces learning.</p>
+<p>The source's training function wraps the GRPO loss computation inside a standard PyTorch optimization loop. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-64">45. The complete stack you have now learned</h3>
+<p>We can now build the whole hierarchy:</p>
+<div class="math block">
+\boxed{
+\text{Transformer}
+}
+</div>
+<p>gives us:</p>
+<div class="math block">
+P_\theta(y_t\mid y_{&lt;t}).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{sampling}
+}
+</div>
+<p>gives us diverse responses.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{RLVR}
+}
+</div>
+<p>gives us a verifier-defined reward.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{GRPO}
+}
+</div>
+<p>turns group rewards into policy updates.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{clipping + KL}
+}
+</div>
+<p>make those updates more controlled and stable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-65">46. Master equation for this entire step</h3>
+<p>At the highest level:</p>
+<div class="math block">
+\boxed{
+\theta_{k+1}
+=
+\theta_k
+-
+\eta
+\nabla_\theta
+\left[
+L_{\text{clip}}
++
+L_{\text{KL}}
+\right]
+}
+</div>
+<p>where:</p>
+<div class="math block">
+L_{\text{clip}}
+=
+-
+\mathbb E
+\left[
+\min
+\left(
+rA,
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)A
+\right)
+\right]
+</div>
+<p>and:</p>
+<div class="math block">
+A=
+\frac{R-\mu_R}
+{\sigma_R+\epsilon_a}.
+</div>
+<p>The source's implementation progressively constructs precisely these pieces. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-66">47. Numerical bank — Level 1</h3>
+<p>Given:</p>
+<div class="math block">
+R=[1,1,0,0],
+</div>
+<p>find mean:</p>
+<div class="math block">
+\boxed{0.5}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-67">48. Level 2</h3>
+<p>Using:</p>
+<div class="math block">
+\sigma=0.577,
+</div>
+<p>find the advantage for a reward-1 rollout:</p>
+<div class="math block">
+\boxed{0.866}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-68">49. Level 3</h3>
+<p>Given:</p>
+<div class="math block">
+\log p_{\text{new}}=-6,
+\quad
+\log p_{\text{old}}=-7,
+</div>
+<p>find ratio:</p>
+<div class="math block">
+r=e^1
+=
+\boxed{2.718}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-69">50. Level 4</h3>
+<p>With:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>the ratio becomes:</p>
+<div class="math block">
+\boxed{1.2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-70">51. Level 5</h3>
+<p>Given:</p>
+<div class="math block">
+A=0.8,
+\quad
+r=2,
+\quad
+r_{\text{clip}}=1.2,
+</div>
+<p>calculate:</p>
+<div class="math block">
+\min(rA,r_{\text{clip}}A).
+</div>
+<p>Unclipped:</p>
+<div class="math block">
+2(0.8)=1.6.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.8)=0.96.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{0.96}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-71">52. Level 5 mixed numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=[1,-1],
+</div>
+<div class="math block">
+r=[2,0.5],
+</div>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r_{\text{clip}}=[1.2,0.8].
+</div>
+<p>For rollout 1:</p>
+<div class="math block">
+\min(2,1.2)=1.2.
+</div>
+<p>For rollout 2:</p>
+<div class="math block">
+\min(-0.5,-0.8)=-0.8.
+</div>
+<p>Average:</p>
+<div class="math block">
+\frac{1.2-0.8}{2}
+=
+0.2.
+</div>
+<p>Loss:</p>
+<div class="math block">
+\boxed{-0.2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-72">53. Interview question you should now be able to answer</h3>
+<h5 id="v3-heading-chunk-les-step-5-7-i48-73">“Explain GRPO in 60 seconds.”</h5>
+<p>A strong answer is:</p>
+<blockquote>
+<p>GRPO is a policy-optimization method introduced in DeepSeekMath and later used in DeepSeek-style reasoning training. For each prompt, the current policy samples multiple responses. A verifier assigns rewards, and the rewards are normalized within the group to produce relative advantages. The policy then increases the probability of positively advantaged responses and decreases the probability of negatively advantaged responses. A clipped policy ratio limits how much the current policy can move relative to the rollout policy, while a KL regularization term constrains longer-term drift from a reference policy. Unlike PPO, GRPO does not require a separate learned value model. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-74">54. The full GRPO algorithm — one-page memory structure</h3>
+<pre><code class="language-text">                 PROMPT q
+                    │
+                    ▼
+           Sample G completions
+                    │
+                    ▼
+               o1 ... oG
+                    │
+                    ▼
+                 VERIFIER
+                    │
+                    ▼
+                R1 ... RG
+                    │
+                    ▼
+      mean / std normalization
+                    │
+                    ▼
+               A1 ... AG
+                    │
+                    ▼
+          Current-policy logprobs
+                    │
+                    ├───────────────┐
+                    │               │
+                    ▼               ▼
+            Old-policy logprobs  Reference logprobs
+                    │               │
+                    ▼               ▼
+                 RATIO              KL
+                    │
+                    ▼
+                CLIPPING
+                    │
+                    ▼
+          min(rA, clipped-rA)
+                    │
+                    ▼
+             POLICY OBJECTIVE
+                    │
+                    └──────────────┐
+                                   ▼
+                             + KL term
+                                   │
+                                   ▼
+                              TOTAL LOSS
+                                   │
+                                   ▼
+                                BACKWARD
+                                   │
+                                   ▼
+                           GRADIENT CLIP
+                                   │
+                                   ▼
+                            OPTIMIZER STEP
+                                   │
+                                   ▼
+                            UPDATED POLICY
+</code></pre>
+<p>This is the architecture you should have in your head before moving forward.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-7-i48-75">Step 5.7 final checkpoint</h3>
+<p>At this point, you have moved through the entire mathematical RL pipeline:</p>
+<div class="math block">
+\boxed{
+P_\theta
+\rightarrow
+\text{sampling}
+\rightarrow
+R
+\rightarrow
+A
+\rightarrow
+\log p
+\rightarrow
+r
+\rightarrow
+\text{clip}
+\rightarrow
+KL
+\rightarrow
+L
+\rightarrow
+\nabla L
+\rightarrow
+\theta'
+}
+</div>
+<p>The source's Chapter 6 supplies the basic RLVR/GRPO implementation, while Chapter 7 adds the stability machinery and diagnostics.</p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-b1">B.1 — RL for LLMs, PPO and GRPO (book view)</a> — <em>RL / PPO / GRPO (book view)</em>  ·  <a href="#app-b2">B.2 — RLVR and the Full DeepSeek-R1 Pipeline (book view)</a> — <em>RLVR</em></p>
+</blockquote>
+<hr />
+</section>

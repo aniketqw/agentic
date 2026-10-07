@@ -1,0 +1,700 @@
+<section class="chunk" id="chunk-les-r102-4-i121" data-id="les-r102-4-i121"><details class="audit-card" id="audit-full-chunk-les-r102-4-i121" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-r102-4-i121-1">Motivation</h4><p>Separate parameter-learning stages from data-generation/filtering stages so the full R1 recipe has coherent provenance.</p><h4 id="v3-heading-chunk-les-r102-4-i121-2">Prerequisites</h4><ul><li>SFT versus RL</li><li>Verifier design</li><li>Dataset curation and held-out evaluation</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-3">Notation and units</h4><ul><li>pi_base</li><li>D_cold</li><li>pi_reason</li><li>D_filtered</li><li>R_final</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-4">Assumptions</h4><ul><li>Teaching five-operation view expands the paper four-stage grouping</li><li>No invented undisclosed reward weights</li><li>Filtered data lineage is recorded</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-5">Step-by-step derivation</h4><ol><li>Begin with pretrained V3-Base and curated cold-start examples; SFT establishes readable initial response patterns.</li><li>Apply reasoning-oriented RL to the cold-start checkpoint using objective task rewards and the documented language-consistency component.</li><li>Sample multiple responses from the reasoning checkpoint, verify and filter; this creates data and does not itself update the generator.</li><li>Combine curated reasoning examples with broad non-reasoning examples. The original report gives about600k reasoning plus200k non-reasoning.</li><li>The later mixed-data SFT retrains V3-Base on that curated data; do not assume every arrow denotes continuation of the preceding checkpoint weights.</li><li>Apply final RL to the mixed-SFT checkpoint: rule-based reward on verifiable tasks and preference reward models for general behavior.</li><li>Record which arrows carry weights, which carry examples and which carry rewards. Splitting rejection sampling and mixed SFT gives five named operations while the report groups them into four stages.</li><li>Assess each transition on held-out correctness, readability, language consistency and broad instruction behavior rather than one final metric alone.</li></ol><h4 id="v3-heading-chunk-les-r102-4-i121-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-r102-4-i121-7">Candidate retention</h5><p>Given: 8 candidates,3 satisfy declared correctness+quality filters</p><ol><li>Count retained examples3</li><li>Divide3/8</li></ol><p>Answer: Acceptance rate37.5%;5 rejected</p><p>Verification: mini_deepseek_integration / MD118-FILTER-RATE · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r102-4-i121-8">Mixed supervision</h5><p>Given: 600k reasoning plus200k general</p><ol><li>Add to800k</li><li>Reasoning fraction600/800</li></ol><p>Answer: 800k total;75% reasoning</p><p>Verification: mini_deepseek_integration / MD118-DATA · passing independent check</p></div><h4 id="v3-heading-chunk-les-r102-4-i121-9">Corrections and source qualifications</h4><ul><li>heading: 2. The complete R1 pipeline; text: The original report groups rejection sampling and supervised fine-tuning into one of four stages; the educational list names five operations. Also distinguish data provenance from weight lineage: later mixed SFT retrains V3-Base using curated data, rather than assuming a single uninterrupted weight path.</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-10">Mastery answers and retained exercise context</h4><ol><li>Cold-start SFT establishes readable starting examples.</li><li>Reasoning RL improves objective outcomes.</li><li>Rejection sampling curates examples rather than updates parameters.</li><li>Mixed SFT includes general tasks to preserve breadth.</li><li>Final RL combines rule-based and preference-related reward channels.</li></ol><h4 id="v3-heading-chunk-les-r102-4-i121-11">Edge cases and remaining gaps</h4><ul><li>Filtering can narrow coverage and amplify teacher/style bias.</li><li>The full production recipe is not reproduced by the toy numerical.</li><li>A five-operation educational list is not evidence of five separate source training stages.</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-12">Connections and progression</h4><ul><li>R1-Zero helps reveal behaviors and supply cold-start data</li><li>Filtered examples also feed distilled students</li><li>SFT and RL solve complementary behavior targets</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 393, 394, 395, 396, 397, 398, 399 · Original lesson mechanisms and source-specific implementation; corrections separately identify derivations and implementation gaps.</li><li>Primary paper (web) · Four grouped stages and later SFT base-weight lineage · https://arxiv.org/html/2501.12948v1#S2.SS3</li></ul><h4 id="v3-heading-chunk-les-r102-4-i121-14">Executable code and explained functions</h4><p>file: companion.py; checker: check_companion.py; evidence: evidence.json; outputs: outputs.json; scope: Executed deterministic NumPy teaching reconstruction; original PyTorch and full training are separate.</p><p><a href="#audit-full-code-mini_deepseek_integration">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (40)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R102.4 — DeepSeek-R1: Why the Final Pipeline Is More Than “Just GRPO”</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>1. Start from the problem R1 is trying to solve</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>2. The complete R1 pipeline</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>3. Stage 1 — Cold-start supervised fine-tuning</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>4. Why is this called “cold-start”?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>5. What exactly is SFT contributing?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6. Why cold-start data can improve RL itself</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>7. Stage 2 — Reasoning-oriented RL</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>8. What reward is used here?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>9. Conceptually, this stage does the hard capability optimization</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>10. Stage 3 — Rejection sampling</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>11. Why reject responses?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>12. This is NOT another RL algorithm</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>13. Why does rejection sampling happen after RL?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>14. What does the filtering check?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>15. Stage 4 — Mixed-data supervised fine-tuning</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>16. Why do we need non-reasoning data?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>17. What is in the broader data?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>18. This stage is restoring breadth</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>19. Stage 5 — Final RL</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Verifiable tasks</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Open-ended helpfulness / harmlessness</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>20. Why a hybrid reward?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>21. This explains a common misconception</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>22. Why R1-Zero and R1 are different</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>R1-Zero asks:</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>R1 asks:</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>23. The arrows have different meanings</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>SFT arrow</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>RL arrow</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Rejection-sampling arrow</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>24. Full R1 knowledge graph</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>25. Why not just keep running GRPO?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>26. This is the bigger post-training principle</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>27. R1 → Distill</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>28. The complete DeepSeek journey</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>29. Exam/interview version</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>“Explain DeepSeek-R1 training.”</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>30. One sentence for each model</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>R102.4 checkpoint</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr></tbody></table></details></details><aside class="audit-card" data-continuation="added" id="audit-finding-E05-chunk-les-r102-4-i121"><h3 id="v3-heading-chunk-les-r102-4-i121-15">DeepSeek-V3 cost is not an R1 development-cost estimate</h3><p>Status: primary_table_scope_checked</p><p>V3 report v2 Table1 lists2,664K pretraining+119K context extension+5K posttraining=2,788K H800GPUhours. At the assumed$2/hour that is$5.576M. The report excludes prior research and ablation costs. This figure is for the reported V3 training run; it does not establish total R1 research/development cost.</p><p><a href="https://arxiv.org/html/2412.19437v2">Primary/official source</a> · Table1 and accompanying training-cost paragraph</p><p>Remaining evidence: Any separate R1 cost claim requires a separate primary disclosure.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-4-i121"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-4-i121" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r102-3-i120">← Previous lesson</a> · <a href="#chunk-les-r102-5-i122">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r102-3-i120">R102.3 — RLVR: Turning a Verifier Into the Reward Function</a></p><p><strong>This lesson:</strong> R102.4 — DeepSeek-R1: Why the Final Pipeline Is More Than “Just GRPO”</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-4-i121"></a></p>
+<h3 id="v3-heading-chunk-les-r102-4-i121-16">R102.4 — DeepSeek-R1: Why the Final Pipeline Is More Than “Just GRPO”</h3>
+<p><em>Plan node: B2 · chat order #121</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a> · <a href="#les-step-5-12-i53">Step 5.12 — DeepSeek-R1 From Scratch: R1-Zero → R1 → Distill</a></p>
+</blockquote>
+<p>We have now reached the point where the separate ideas finally assemble into the <strong>DeepSeek-R1 post-training pipeline</strong>.</p>
+<p>A very common oversimplification is:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1}=\text{GRPO + RLVR}}
+</div>
+<p>That describes an important ingredient, but not the complete pipeline.</p>
+<p>The source makes the distinction very clearly:</p>
+<div class="math block">
+\boxed{
+\text{R1-Zero}
+=
+\text{pure RL experiment}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{R1}
+=
+\text{staged post-training pipeline}
+}
+</div>
+<p>containing supervised learning, reasoning RL, rejection sampling, another supervised stage, and final RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-17">1. Start from the problem R1 is trying to solve</h4>
+<p>R1-Zero showed something extremely interesting:</p>
+<div class="math block">
+\text{Base model}
++
+\text{GRPO}
++
+\text{verifiable reward}
+</div>
+<p>can produce reasoning-like behavior.</p>
+<p>But R1-Zero also had practical problems.</p>
+<p>The source highlights:</p>
+<div class="math block">
+\boxed{\text{poor readability}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{language mixing}}
+</div>
+<p>among the issues motivating a more engineered pipeline. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the objective changes from:</p>
+<blockquote>
+<p>“Can RL make the model reason?”</p>
+</blockquote>
+<p>to:</p>
+<blockquote>
+<p>“Can we make the reasoning capability usable as a general assistant?”</p>
+</blockquote>
+<p>That is why the pipeline becomes multi-stage.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-r102-4-i121-0" data-full-review="added"><p>Correction: The original report groups rejection sampling and supervised fine-tuning into one of four stages; the educational list names five operations. Also distinguish data provenance from weight lineage: later mixed SFT retrains V3-Base using curated data, rather than assuming a single uninterrupted weight path.</p><p><a href="#audit-full-chunk-les-r102-4-i121">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-r102-4-i121-18">2. The complete R1 pipeline</h4>
+<p>The source gives the following conceptual sequence:</p>
+<div class="math block">
+\boxed{
+\text{Cold-start SFT}
+\rightarrow
+\text{Reasoning RL}
+\rightarrow
+\text{Rejection Sampling}
+\rightarrow
+\text{Mixed-data SFT}
+\rightarrow
+\text{Final RL}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's understand <strong>why every arrow exists</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-19">3. Stage 1 — Cold-start supervised fine-tuning</h4>
+<p>Start with:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-V3 base}}
+</div>
+<p>Then create a relatively small set of curated reasoning examples.</p>
+<p>The source describes these as long chain-of-thought examples with a more readable style.</p>
+<p>The base model is fine-tuned on them before the heavy reasoning RL stage. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<pre><code class="language-text">DeepSeek-V3 Base
+       │
+       ▼
+small curated reasoning dataset
+       │
+       ▼
+      SFT
+       │
+       ▼
+better initial reasoning behavior
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-20">4. Why is this called “cold-start”?</h4>
+<p>Because this is the model's initial starting point for the later reasoning-RL stage.</p>
+<p>The important idea is:</p>
+<div class="math block">
+\boxed{
+\text{Don't force RL to discover everything from scratch}
+}
+</div>
+<p>The model is first given a small amount of useful structure.</p>
+<p>The source says this gives the model a better initial response style and reasoning format before heavy RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-21">5. What exactly is SFT contributing?</h4>
+<p>Supervised fine-tuning is especially good at teaching:</p>
+<div class="math block">
+\boxed{\text{format}}
+</div>
+<div class="math block">
+\boxed{\text{style}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{imitation of known examples}}.
+</div>
+<p>RL is better suited to optimizing outcomes when we can score them.</p>
+<p>The source explicitly says SFT and RL are <strong>not competing tools</strong>; they solve different parts of the problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the division of labor is:</p>
+<pre><code class="language-text">SFT → &quot;Here is what a useful response should look like.&quot;
+
+RL  → &quot;Now improve the behavior according to reward.&quot;
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-22">6. Why cold-start data can improve RL itself</h4>
+<p>This is a subtle but important point from the source.</p>
+<p>Suppose the model already knows to produce:</p>
+<pre><code class="language-text">reasoning...
+Final answer: ...
+</code></pre>
+<p>Then the verifier can more reliably extract the final answer.</p>
+<p>Without that structure, the model may generate:</p>
+<pre><code class="language-text">multiple candidate answers
+mixed formatting
+unclear conclusion
+</code></pre>
+<p>The verifier may struggle to determine what should be scored.</p>
+<p>So cold-start SFT can improve the <strong>quality of the RL signal</strong> itself.</p>
+<p>The source explicitly says that structured initial behavior can reduce wasted exploration and make verification cleaner. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-23">7. Stage 2 — Reasoning-oriented RL</h4>
+<p>Now we take the better-formatted model and apply RL.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Cold-start model}
+\rightarrow
+\text{GRPO/RL}
+}
+</div>
+<p>The source says this stage resembles the R1-Zero experiment but begins from a better-formatted model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-24">8. What reward is used here?</h4>
+<p>The source describes rule-based reasoning rewards.</p>
+<p>So for verifiable tasks:</p>
+<div class="math block">
+\text{response}
+\rightarrow
+\text{verifier}
+\rightarrow
+\text{reward}.
+</div>
+<p>The pipeline can therefore continue to exploit:</p>
+<div class="math block">
+\boxed{\text{RLVR}}
+</div>
+<p>for tasks such as mathematical reasoning.</p>
+<p>The source also mentions a <strong>language-consistency reward</strong> in this stage, motivated by the language-mixing problem observed in R1-Zero. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the reasoning-RL stage is not simply “reward correctness and ignore everything else.”</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-25">9. Conceptually, this stage does the hard capability optimization</h4>
+<p>Think of Stage 1 as setting the initial behavior distribution:</p>
+<div class="math block">
+\pi_{\text{cold}}.
+</div>
+<p>Then Stage 2 applies reward pressure:</p>
+<div class="math block">
+\pi_{\text{cold}}
+\rightarrow
+\pi_{\text{reasoning}}.
+</div>
+<p>The desired behavior becomes more likely because successful reasoning trajectories receive better learning signals.</p>
+<p>This is where the RL machinery we've already derived—GRPO, group advantages, clipping, and reference control—becomes operational.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-26">10. Stage 3 — Rejection sampling</h4>
+<p>Now something interesting happens.</p>
+<p>We don't immediately keep training with RL forever.</p>
+<p>Instead, we use the improved model as a <strong>data generator</strong>.</p>
+<p>The source describes the process:</p>
+<div class="math block">
+\boxed{
+\text{sample many responses}
+\rightarrow
+\text{filter}
+\rightarrow
+\text{keep good responses}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is called:</p>
+<div class="math block">
+\boxed{\text{Rejection Sampling}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-27">11. Why reject responses?</h4>
+<p>Suppose the RL-trained model produces:</p>
+<pre><code class="language-text">Response A → correct + readable
+Response B → wrong
+Response C → correct + messy
+Response D → correct + readable
+Response E → wrong
+</code></pre>
+<p>We don't want all of them in our next supervised dataset.</p>
+<p>We keep high-quality responses and reject poor ones.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{generated distribution}
+\rightarrow
+\text{quality-filtered distribution}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-28">12. This is NOT another RL algorithm</h4>
+<p>The source explicitly emphasizes this.</p>
+<p>Rejection sampling is:</p>
+<div class="math block">
+\boxed{\text{data generation + filtering}}
+</div>
+<p>not RL itself. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This distinction is very important.</p>
+<p>RL changes model parameters through a reward-based objective.</p>
+<p>Rejection sampling creates a cleaner training dataset.</p>
+<p>So:</p>
+<pre><code class="language-text">RL:
+parameters ← reward signal
+
+Rejection sampling:
+responses → filtering → dataset
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-29">13. Why does rejection sampling happen after RL?</h4>
+<p>Because the RL-trained model is now a stronger generator.</p>
+<p>If we started rejection sampling from the original base model, we would have fewer high-quality reasoning trajectories available.</p>
+<p>The source explicitly describes the logic as:</p>
+<div class="math block">
+\boxed{
+\text{RL improves generator}
+\rightarrow
+\text{filter generator's best outputs}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the <strong>data-flow bridge</strong> from R1-Zero-style discovery to R1-style refinement.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-30">14. What does the filtering check?</h4>
+<p>For reasoning tasks, the source says correctness can be checked with a rule-based verifier.</p>
+<p>For broader quality, filtering can involve:</p>
+<ul>
+<li>heuristics,</li>
+<li>model-based judgments,</li>
+<li>preference data.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So &quot;correct&quot; isn't the only criterion.</p>
+<p>We also care about:</p>
+<div class="math block">
+\boxed{\text{readability}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{consistency / quality}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-31">15. Stage 4 — Mixed-data supervised fine-tuning</h4>
+<p>Now we have a valuable dataset of strong reasoning examples.</p>
+<p>We use it for SFT again.</p>
+<p>But this time something changes.</p>
+<p>We <strong>mix reasoning data with broader non-reasoning instruction data</strong>.</p>
+<p>The source explicitly describes this as a way to restore general assistant behavior. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-32">16. Why do we need non-reasoning data?</h4>
+<p>Imagine we train almost exclusively on:</p>
+<pre><code class="language-text">Math problem
+Math problem
+Code problem
+Math problem
+Code problem
+...
+</code></pre>
+<p>What is the model being optimized to become?</p>
+<p>A very strong reasoning solver.</p>
+<p>But perhaps not a well-balanced general assistant.</p>
+<p>It may:</p>
+<ul>
+<li>overuse long reasoning,</li>
+<li>behave awkwardly on simple requests,</li>
+<li>become excessively optimized for benchmark-style answer formats.</li>
+</ul>
+<p>The source explicitly warns about this specialization effect. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-33">17. What is in the broader data?</h4>
+<p>The source gives examples such as:</p>
+<div class="math block">
+\boxed{\text{writing}}
+</div>
+<div class="math block">
+\boxed{\text{editing}}
+</div>
+<div class="math block">
+\boxed{\text{factual QA}}
+</div>
+<div class="math block">
+\boxed{\text{role play}}
+</div>
+<p>and other general assistant tasks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So now the training distribution looks more like:</p>
+<pre><code class="language-text">Reasoning examples
+       +
+General instruction examples
+       ↓
+      SFT
+       ↓
+balanced model
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-34">18. This stage is restoring breadth</h4>
+<p>A useful conceptual interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{Reasoning RL increases depth}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{mixed-data SFT preserves breadth}
+}
+</div>
+<p>This phrasing is a conceptual summary of the source's stated roles for the stages.</p>
+<p>The important source point is that a narrow reward creates narrow improvement unless combined with broader data and alignment signals. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-35">19. Stage 5 — Final RL</h4>
+<p>Now we have a model that is:</p>
+<ul>
+<li>better at reasoning,</li>
+<li>better formatted,</li>
+<li>trained on broader assistant data.</li>
+</ul>
+<p>The source then describes a <strong>final RL stage</strong> with a hybrid reward design. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is crucial.</p>
+<p>The reward is no longer exclusively:</p>
+<div class="math block">
+\text{rule-based correctness}.
+</div>
+<p>Instead:</p>
+<h6 id="v3-heading-chunk-les-r102-4-i121-36">Verifiable tasks</h6>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{rule-based rewards}}
+</div>
+<h6 id="v3-heading-chunk-les-r102-4-i121-37">Open-ended helpfulness / harmlessness</h6>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{learned reward models}}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-38">20. Why a hybrid reward?</h4>
+<p>Because by this point the goal isn't merely:</p>
+<blockquote>
+<p>“Solve math correctly.”</p>
+</blockquote>
+<p>The goal is closer to:</p>
+<blockquote>
+<p>“Be a strong reasoning model <strong>and</strong> a useful assistant.”</p>
+</blockquote>
+<p>Some properties are mechanically checkable.</p>
+<p>Others are preference-based.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+R_{\text{final}}
+=
+\text{verifiable rewards where possible}
++
+\text{learned preference rewards where necessary}
+}
+</div>
+<p>The exact weighting isn't established by the excerpt we are using, so we should not invent one.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-39">21. This explains a common misconception</h4>
+<p>Don't summarize DeepSeek-R1 as:</p>
+<blockquote>
+<p>“DeepSeek removed reward models.”</p>
+</blockquote>
+<p>That is incorrect according to the source.</p>
+<p>A better statement is:</p>
+<div class="math block">
+\boxed{
+\text{Use deterministic verifiers when correctness is objectively checkable;}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{use learned reward models when the desired behavior is subjective.}
+}
+</div>
+<p>The source makes this distinction explicitly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-40">22. Why R1-Zero and R1 are different</h4>
+<p>Now the difference becomes very intuitive.</p>
+<h6 id="v3-heading-chunk-les-r102-4-i121-41">R1-Zero asks:</h6>
+<div class="math block">
+\boxed{
+\text{Can RL discover reasoning?}
+}
+</div>
+<p>Pipeline:</p>
+<pre><code class="language-text">DeepSeek-V3-Base
+      ↓
+GRPO + verifiable rewards
+      ↓
+R1-Zero
+</code></pre>
+<h6 id="v3-heading-chunk-les-r102-4-i121-42">R1 asks:</h6>
+<div class="math block">
+\boxed{
+\text{Can we turn that reasoning capability into a usable assistant?}
+}
+</div>
+<p>Pipeline:</p>
+<pre><code class="language-text">V3 Base
+   ↓
+Cold-start SFT
+   ↓
+Reasoning RL
+   ↓
+Rejection sampling
+   ↓
+Mixed-data SFT
+   ↓
+Final hybrid RL
+   ↓
+R1
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-43">23. The arrows have different meanings</h4>
+<p>This is worth slowing down for.</p>
+<h6 id="v3-heading-chunk-les-r102-4-i121-44">SFT arrow</h6>
+<div class="math block">
+\text{dataset}
+\rightarrow
+\text{parameter update}
+</div>
+<h6 id="v3-heading-chunk-les-r102-4-i121-45">RL arrow</h6>
+<div class="math block">
+\text{reward}
+\rightarrow
+\text{policy update}
+</div>
+<h6 id="v3-heading-chunk-les-r102-4-i121-46">Rejection-sampling arrow</h6>
+<div class="math block">
+\text{model outputs}
+\rightarrow
+\text{filtered dataset}.
+</div>
+<p>Therefore the pipeline isn't one single training algorithm.</p>
+<p>It is a <strong>system of different learning/data-construction mechanisms</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-47">24. Full R1 knowledge graph</h4>
+<pre><code class="language-text">                  DeepSeek-V3 Base
+                         │
+                         ▼
+                 Cold-start SFT
+                         │
+             teach initial format/style
+                         │
+                         ▼
+               Reasoning-oriented RL
+                         │
+                  GRPO + rewards
+                         │
+                         ▼
+               Stronger reasoning model
+                         │
+                         ▼
+                Rejection Sampling
+                         │
+              generate many outputs
+                         │
+              filter correctness/quality
+                         │
+                         ▼
+              Curated reasoning dataset
+                         │
+                         ├──────────────┐
+                         │              │
+                         ▼              ▼
+                  reasoning data   general data
+                         │              │
+                         └──────┬───────┘
+                                ▼
+                       Mixed-data SFT
+                                │
+                                ▼
+                       Balanced model
+                                │
+                                ▼
+                            Final RL
+                       ┌────────┴────────┐
+                       │                 │
+               rule-based reward   learned reward
+                 verifiable          preferences
+                       │                 │
+                       └────────┬────────┘
+                                ▼
+                         DeepSeek-R1
+</code></pre>
+<p>This captures the source's staged description. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-48">25. Why not just keep running GRPO?</h4>
+<p>This is the deeper engineering lesson.</p>
+<p>Because each optimization method has a target.</p>
+<p>Pure reasoning RL strongly rewards:</p>
+<div class="math block">
+\text{task success}.
+</div>
+<p>But the model also needs:</p>
+<div class="math block">
+\text{readability}
++
+\text{general instruction following}
++
+\text{language consistency}
++
+\text{preference-sensitive behavior}.
+</div>
+<p>The source's R1 pipeline therefore uses different stages rather than expecting one objective to solve everything. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-49">26. This is the bigger post-training principle</h4>
+<p>The source's broader lesson can be summarized as:</p>
+<div class="math block">
+\boxed{
+\text{One objective rarely captures the entire behavior you want.}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{stage the training process}
+}
+</div>
+<p>so each stage solves a different problem.</p>
+<p>For R1:</p>
+<pre><code class="language-text">SFT
+→ initialize useful behavior
+
+RL
+→ optimize reasoning outcome
+
+Rejection sampling
+→ manufacture high-quality training data
+
+Mixed SFT
+→ restore/generalize assistant behavior
+
+Final RL
+→ optimize the final mixture of goals
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-50">27. R1 → Distill</h4>
+<p>Now notice what we have accidentally created.</p>
+<p>After all this RL and filtering, R1 can generate <strong>high-quality reasoning traces</strong>.</p>
+<p>Those traces themselves are valuable data.</p>
+<p>So the natural next question becomes:</p>
+<blockquote>
+<p>Can we train a much smaller model to imitate those reasoning behaviors?</p>
+</blockquote>
+<p>That is the transition to:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1-Distill}}
+</div>
+<p>The source describes R1-Distill as smaller student models trained using data generated by R1. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-51">28. The complete DeepSeek journey</h4>
+<p>We can now connect the entire book:</p>
+<pre><code class="language-text">                 PRE-TRAINING
+                     │
+                     ▼
+              DeepSeek-V3 Base
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+      Architecture          Scale training
+      MLA / MoE             DDP / Pipeline /
+      MTP / FP8             DualPipe
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+                Post-training
+                     │
+                     ▼
+               R1-style RL
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+       R1-Zero                  R1
+       pure RL            staged pipeline
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+               R1 reasoning data
+                     │
+                     ▼
+                Distillation
+                     │
+                     ▼
+             smaller R1 students
+</code></pre>
+<p>The source's Chapter 7 is therefore not an isolated discussion of GRPO. It is the bridge from the <strong>trained foundation model</strong> we built in Chapter 6 to the <strong>reasoning model and then the distilled students</strong> discussed in Chapter 8. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-52">29. Exam/interview version</h4>
+<p>If someone asks:</p>
+<h6 id="v3-heading-chunk-les-r102-4-i121-53">“Explain DeepSeek-R1 training.”</h6>
+<p>A strong structured answer is:</p>
+<div class="math block">
+\boxed{
+\text{V3 Base}
+\rightarrow
+\text{cold-start SFT}
+\rightarrow
+\text{reasoning RL}
+\rightarrow
+\text{rejection sampling}
+\rightarrow
+\text{mixed-data SFT}
+\rightarrow
+\text{final hybrid RL}
+}
+</div>
+<p>Then explain each:</p>
+<p><strong>Cold-start SFT:</strong> establish readable structured reasoning behavior.</p>
+<p><strong>Reasoning RL:</strong> use reward pressure to strengthen reasoning, with rule-based rewards for suitable verifiable tasks.</p>
+<p><strong>Rejection sampling:</strong> generate many responses and retain high-quality ones.</p>
+<p><strong>Mixed-data SFT:</strong> train on curated reasoning data plus broader assistant data to restore general capabilities.</p>
+<p><strong>Final RL:</strong> combine rule-based rewards for verifiable tasks with learned preference rewards for open-ended behavior. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-4-i121-54">30. One sentence for each model</h4>
+<div class="math block">
+\boxed{
+\text{R1-Zero: Can RL discover reasoning?}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{R1: Can we turn that capability into a usable assistant?}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{R1-Distill: Can we transfer that capability to smaller models?}
+}
+</div>
+<p>This is the cleanest way to keep the three names separate. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-r102-4-i121-55">R102.4 checkpoint</h5>
+<p>You should now understand <strong>why every stage exists</strong>, not just memorize the sequence:</p>
+<div class="math block">
+\boxed{
+\text{SFT initializes}
+\rightarrow
+\text{RL discovers/strengthens}
+\rightarrow
+\text{rejection sampling curates}
+\rightarrow
+\text{SFT balances}
+\rightarrow
+\text{final RL aligns}
+}
+</div>
+<p>And the deepest connection is:</p>
+<div class="math block">
+\boxed{
+\text{RL creates better behavior}
+\rightarrow
+\text{rejection sampling turns behavior into data}
+\rightarrow
+\text{SFT transfers that behavior}
+}
+</div>
+<p>That exact data-flow idea becomes the foundation for the <strong>next chapter on DeepSeek-R1 knowledge distillation</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

@@ -1,0 +1,379 @@
+<section class="chunk audit-hub" id="audit-inherited-review" data-inherited-review="added"><h2>Inherited review: foundation corrections, answers and source recovery</h2><p>All original content remains. This review reads the six inherited foundation lessons, reconciles their stated numerical examples, adds 51 mastery-check answers and checks the declared fixtures and boundaries with 72 independent checks. Together with the earlier 162 checks, there are 234 scoped independent checks. These counts do not certify the whole course.</p><h3 id="v3-heading-audit-inherited-review-1">Reviewed foundation progression</h3><ol><li><a href="#audit-inherited-0-1">Linear algebra: reviewed examples and shape contract</a></li><li><a href="#audit-inherited-0-2">Probability and softmax: numerical correction and stable losses</a></li><li><a href="#audit-inherited-0-3">Entropy, cross-entropy and KL: support conditions and checked values</a></li><li><a href="#audit-inherited-0-4">Calculus and training: local descent, step size and branch gradients</a></li><li><a href="#audit-inherited-0-5">Expectation: completed numericals and policy-gradient assumptions</a></li><li><a href="#audit-inherited-0-6">Matrix calculus: explicit contractions and gradient accumulation</a></li></ol><h3 id="v3-heading-audit-inherited-review-2">Source availability recovered</h3><p>All 24 inherited source labels now resolve to indexed source files. NLP_TRANSFORMER and the long NLP-book title refer to the same supplied book. The two AI-agent PDFs have identical byte hashes and are treated as one source for audit purposes. Availability is not a claim that every citation or every page has been checked.</p><details><summary>Exact source identities</summary><table><thead><tr><th>Inherited label</th><th>Resolved file</th><th>Physical pages</th></tr></thead><tbody><tr><td>Build a DeepSeek Model (From Scratch)</td><td>Build a DeepSeek Model (From Scratch)(2).pdf</td><td>493</td></tr><tr><td>Build a Reasoning Model (From Scratch)</td><td>Build a Reasoning Model (From Scratch)(2).pdf</td><td>440</td></tr><tr><td>indicxtreme-slides</td><td>indicxtreme-slides(1).pdf</td><td>28</td></tr><tr><td>indicgenbench-slides</td><td>indicgenbench-slides(1).pdf</td><td>30</td></tr><tr><td>retool-slides</td><td>retool-slides(1).pdf</td><td>19</td></tr><tr><td>Build a Large Language Model (From Scratch)</td><td>Build a Large Language Model (From Scratch)(2).pdf</td><td>789</td></tr><tr><td>quantization-slides</td><td>quantization-slides(1).pdf</td><td>56</td></tr><tr><td>deepseekmath-slides</td><td>deepseekmath-slides(1).pdf</td><td>23</td></tr><tr><td>decoding-sampling-slides</td><td>decoding-sampling-slides(1).pdf</td><td>22</td></tr><tr><td>peft-slides</td><td>peft-slides(1).pdf</td><td>8</td></tr><tr><td>deepseek-r1-slides</td><td>deepseek-r1-slides(1).pdf</td><td>21</td></tr><tr><td>Step1_Transformers_Mathematical_Cheatsheet</td><td>Step1_Transformers_Mathematical_Cheatsheet.pdf</td><td>2</td></tr><tr><td>Understanding_Attention_Handbook_01</td><td>Understanding_Attention_Handbook_01.pdf</td><td>33</td></tr><tr><td>transformers-slides</td><td>transformers-slides(1).pdf</td><td>20</td></tr><tr><td>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2</td><td>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2.pdf</td><td>2</td></tr><tr><td>NLP_TRANSFORMER</td><td>Natural language processing with Transformers _ building.pdf</td><td>409</td></tr><tr><td>minillm-slides</td><td>minillm-slides(1).pdf</td><td>35</td></tr><tr><td>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</td><td>MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs.pdf</td><td>2</td></tr><tr><td>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron</td><td>Hands-On Machine Learning with Scikit-Lear - Aurelien Geron.pdf</td><td>1182</td></tr><tr><td>rl-grpo-slides</td><td>rl-grpo-slides(1).pdf</td><td>34</td></tr><tr><td>Natural language processing with Transformers _ building</td><td>Natural language processing with Transformers _ building.pdf</td><td>409</td></tr><tr><td>Building LLMs for Production</td><td>Building LLMs for Production.pdf</td><td>571</td></tr><tr><td>5. Linear Regression</td><td>5. Linear Regression.pdf</td><td>82</td></tr><tr><td>Build an AI Agent (From Scratch)</td><td>Build an AI Agent (From Scratch)(1).pdf</td><td>336</td></tr></tbody></table></details><h3 id="v3-heading-audit-inherited-review-3">Original code presentation</h3><p>All 1,193 inherited lesson code blocks were classified. Six unmodified standalone CPU snippets executed successfully. Syntax acceptance, illustrative literals and context-dependent fragments are separately recorded; none implies model/backend execution.</p><table><thead><tr><th>Conservative classification</th><th>Blocks</th></tr></thead><tbody><tr><td>candidate standalone cpu program</td><td>6</td></tr><tr><td>context dependent python fragment</td><td>208</td></tr><tr><td>dependency backed program or fragment</td><td>12</td></tr><tr><td>explicit placeholder or ellipsis</td><td>25</td></tr><tr><td>literal configuration or symbolic fragment</td><td>170</td></tr><tr><td>non python text or incomplete fragment</td><td>772</td></tr></tbody></table><h3 id="audit-inherited-code">CPU companion and complete outputs</h3><p>Run python3 foundation_examples.py. The independent checker uses NumPy, Decimal precision 60 and central finite differences. The source PyTorch examples are reconciled analytically, not represented as executed PyTorch runs.</p><details><summary>Read explained functions</summary><pre><code class="language-python">&quot;&quot;&quot;Executable counterparts to the inherited Step 0 numerical examples.
+
+Python standard library only. These functions compute the written examples;
+they do not emulate PyTorch&#x27;s autograd engine or certify a training backend.
+&quot;&quot;&quot;
+import math
+
+
+def matmul(a, b):
+    &quot;&quot;&quot;Multiply nonempty rectangular matrices, rejecting incompatible shapes.&quot;&quot;&quot;
+    if not a or not b or not a[0] or not b[0]:
+        raise ValueError(&#x27;nonempty matrices required&#x27;)
+    if any(len(r) != len(a[0]) for r in a) or any(len(r) != len(b[0]) for r in b):
+        raise ValueError(&#x27;rectangular matrices required&#x27;)
+    if len(a[0]) != len(b):
+        raise ValueError(&#x27;inner dimensions must match&#x27;)
+    return [[sum(x*y for x,y in zip(row,col)) for col in zip(*b)] for row in a]
+
+
+def softmax(scores):
+    &quot;&quot;&quot;Normalize finite scores and permitted -infinity masks; reject all-masked rows.&quot;&quot;&quot;
+    if not scores or any(math.isnan(x) or x == math.inf for x in scores):
+        raise ValueError(&#x27;finite scores or negative-infinity masks required&#x27;)
+    m=max(scores)
+    if m == -math.inf:
+        raise ValueError(&#x27;at least one permitted key required&#x27;)
+    e=[math.exp(x-m) for x in scores]
+    return [x/sum(e) for x in e]
+
+
+def log_softmax(scores):
+    &quot;&quot;&quot;Compute log probabilities directly, without taking log of underflowed softmax.&quot;&quot;&quot;
+    if not scores or not all(math.isfinite(x) for x in scores):
+        raise ValueError(&#x27;finite logits required&#x27;)
+    m=max(scores); log_z=math.log(sum(math.exp(x-m) for x in scores))
+    return [(x-m)-log_z for x in scores]
+
+
+def distribution(p):
+    if not p or not all(math.isfinite(x) and x&gt;=0 for x in p) or not math.isclose(sum(p),1,abs_tol=1e-12):
+        raise ValueError(&#x27;normalized finite nonnegative distribution required&#x27;)
+
+
+def cross_entropy(p,q):
+    &quot;&quot;&quot;Expected negative log probability, with zero-mass and support conventions.&quot;&quot;&quot;
+    distribution(p);distribution(q)
+    if len(p)!=len(q):raise ValueError(&#x27;same support size required&#x27;)
+    if any(a&gt;0 and b==0 for a,b in zip(p,q)):return math.inf
+    return -sum(a*math.log(b) for a,b in zip(p,q) if a&gt;0)
+
+
+def entropy(p):
+    return cross_entropy(p,p)
+
+
+def kl(p,q):
+    &quot;&quot;&quot;Forward discrete KL; an absent Q event with positive P mass gives infinity.&quot;&quot;&quot;
+    distribution(p);distribution(q)
+    if len(p)!=len(q):raise ValueError(&#x27;same support size required&#x27;)
+    if any(a&gt;0 and b==0 for a,b in zip(p,q)):return math.inf
+    return sum(a*math.log(a/b) for a,b in zip(p,q) if a&gt;0)
+
+
+def moments(values,p):
+    &quot;&quot;&quot;Return E[X], E[X^2] and population variance under the declared probabilities.&quot;&quot;&quot;
+    distribution(p)
+    if len(values)!=len(p):raise ValueError(&#x27;one probability per value required&#x27;)
+    mean=sum(x*w for x,w in zip(values,p))
+    return mean,sum(x*x*w for x,w in zip(values,p)),sum(w*(x-mean)**2 for x,w in zip(values,p))
+
+
+def scalar_update(w,x,target,learning_rate):
+    &quot;&quot;&quot;Squared-error scalar forward, exact analytic derivative, update and new loss.&quot;&quot;&quot;
+    y=w*x;loss=(y-target)**2;gradient=2*(y-target)*x
+    updated=w-learning_rate*gradient
+    return {&#x27;y&#x27;:y,&#x27;loss&#x27;:loss,&#x27;gradient&#x27;:gradient,&#x27;updated&#x27;:updated,&#x27;new_loss&#x27;:(updated*x-target)**2}
+
+
+def attention_training_trace(x,wq,wk,wv,target):
+    &quot;&quot;&quot;One causal head with full analytic backward pass and a half-sum MSE loss.
+
+    No bias, dropout, positional transform or learned normalizer. Wq/Wk have
+    matching key widths; Wv can have a different width. Masks are fixed.
+    Returns all forward intermediates and the three shared-weight/input gradients.
+    &quot;&quot;&quot;
+    transpose=lambda a:[list(row) for row in zip(*a)]
+    q=matmul(x,wq);k=matmul(x,wk);v=matmul(x,wv)
+    scale=math.sqrt(len(q[0]));scores=matmul(q,transpose(k))
+    masked=[[z/scale if j&lt;=i else -math.inf for j,z in enumerate(row)] for i,row in enumerate(scores)]
+    a=[softmax(row) for row in masked];o=matmul(a,v)
+    if len(target)!=len(o) or any(len(t)!=len(row) for t,row in zip(target,o)):
+        raise ValueError(&#x27;target must match output shape&#x27;)
+    go=[[z-t for z,t in zip(row,tr)] for row,tr in zip(o,target)]
+    loss=.5*sum(z*z for row in go for z in row)
+    ga=matmul(go,transpose(v));gv=matmul(transpose(a),go)
+    # Row softmax Jacobian-vector contraction; future-key entries stay zero.
+    gs=[]
+    for ar,gr in zip(a,ga):
+        average=sum(p*g for p,g in zip(ar,gr))
+        gs.append([p*(g-average) for p,g in zip(ar,gr)])
+    gq=[[z/scale for z in row] for row in matmul(gs,k)]
+    gk=[[z/scale for z in row] for row in matmul(transpose(gs),q)]
+    gxq=matmul(gq,transpose(wq));gxk=matmul(gk,transpose(wk));gxv=matmul(gv,transpose(wv))
+    gx=[[u+v+w for u,v,w in zip(ar,br,cr)] for ar,br,cr in zip(gxq,gxk,gxv)]
+    return {&#x27;Q&#x27;:q,&#x27;K&#x27;:k,&#x27;V&#x27;:v,&#x27;attention&#x27;:a,&#x27;output&#x27;:o,&#x27;loss&#x27;:loss,
+            &#x27;gradient_Wq&#x27;:matmul(transpose(x),gq),&#x27;gradient_Wk&#x27;:matmul(transpose(x),gk),
+            &#x27;gradient_Wv&#x27;:matmul(transpose(x),gv),&#x27;gradient_X_all_branches&#x27;:gx}
+
+
+def fixtures():
+    p=[.7,.2,.1];q=[.6,.3,.1]
+    return {
+      &#x27;0.1 matrix product&#x27;:matmul([[1,2],[3,4]],[[5,6],[7,8]]),
+      &#x27;0.1 dot product&#x27;:sum(x*y for x,y in zip([2,3,1],[4,-1,2])),
+      &#x27;0.1 complete raw attention scores&#x27;:matmul([[1,2],[3,4],[5,6]],[[1,3,5],[2,4,6]]),
+      &#x27;0.2 softmax 1 2 3&#x27;:softmax([1,2,3]),
+      &#x27;0.2.15 corrected masked distribution&#x27;:softmax([1.2,2,.4,-math.inf]),
+      &#x27;0.2.16 all three causal rows&#x27;:[softmax([2,-math.inf,-math.inf]),softmax([3,2,-math.inf]),softmax([1,4,2])],
+      &#x27;0.2.27 exact unrounded target loss&#x27;:-log_softmax([2,1,0])[1],
+      &#x27;0.3 entropy cross entropy forward reverse KL&#x27;:[entropy(p),cross_entropy(p,q),kl(p,q),kl(q,p)],
+      &#x27;0.3 one hot loss&#x27;:cross_entropy([0,0,1,0,0],[.05,.1,.6,.05,.2]),
+      &#x27;0.4 squared loss step&#x27;:scalar_update(2,3,10,.1),
+      &#x27;0.4 excessive step counterexample&#x27;:scalar_update(2,3,10,.2),
+      &#x27;0.5 small moments&#x27;:moments([1,2,3],[.2,.5,.3]),
+      &#x27;0.5 mastery check moments&#x27;:moments([10,20,40],[.2,.5,.3]),
+      &#x27;0.5 attention weighted values&#x27;:matmul([[.2,.5,.3]],[[1,0],[0,2],[3,1]]),
+      &#x27;0.5 reward expectation&#x27;:sum(x*w for x,w in zip([10,4,-2],[.2,.5,.3])),
+      &#x27;0.5 conditional temperature&#x27;:sum(x*w for x,w in zip([15,20,25],[.2,.5,.3])),
+      &#x27;0.5 discounted return&#x27;:sum(.9**i*10 for i in range(3)),
+      &#x27;0.6 matrix gradient&#x27;:matmul([[1,3],[2,4]],[[-1,1],[-1,1]]),
+      &#x27;0.6 parameter update&#x27;:[[.98,2.05],[2.99,3.97]],
+      &#x27;0.6 applied causal attention forward and backward&#x27;:attention_training_trace(
+          [[1,2],[3,4],[5,6]],[[.1,.2],[.3,.4]],[[-.2,.1],[.1,.3]],[[.4,-.1],[.2,.3]],[[1,0],[0,1],[1,1]]),
+    }
+
+
+if __name__==&#x27;__main__&#x27;:
+    import json
+    print(json.dumps(fixtures(),indent=2,allow_nan=False))
+</code></pre></details><p><a download="foundation_examples.py" href="assets/6920475b253c74ea2b49.bin">Download foundation companion</a></p><details><summary>Inspect all reproducible fixture outputs</summary><pre><code>{
+  &quot;0.1 matrix product&quot;: [
+    [
+      19,
+      22
+    ],
+    [
+      43,
+      50
+    ]
+  ],
+  &quot;0.1 dot product&quot;: 7,
+  &quot;0.1 complete raw attention scores&quot;: [
+    [
+      5,
+      11,
+      17
+    ],
+    [
+      11,
+      25,
+      39
+    ],
+    [
+      17,
+      39,
+      61
+    ]
+  ],
+  &quot;0.2 softmax 1 2 3&quot;: [
+    0.09003057317038046,
+    0.24472847105479764,
+    0.6652409557748218
+  ],
+  &quot;0.2.15 corrected masked distribution&quot;: [
+    0.27211847744896767,
+    0.6056108089617321,
+    0.12227071358930015,
+    0.0
+  ],
+  &quot;0.2.16 all three causal rows&quot;: [
+    [
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.7310585786300049,
+      0.2689414213699951,
+      0.0
+    ],
+    [
+      0.04201006613406605,
+      0.8437947344813395,
+      0.11419519938459449
+    ]
+  ],
+  &quot;0.2.27 exact unrounded target loss&quot;: 1.4076059644443804,
+  &quot;0.3 entropy cross entropy forward reverse KL&quot;: [
+    0.8018185525433373,
+    0.8286310068007853,
+    0.026812454257447993,
+    0.029149124536094334
+  ],
+  &quot;0.3 one hot loss&quot;: 0.5108256237659907,
+  &quot;0.4 squared loss step&quot;: {
+    &quot;y&quot;: 6,
+    &quot;loss&quot;: 16,
+    &quot;gradient&quot;: -24,
+    &quot;updated&quot;: 4.4,
+    &quot;new_loss&quot;: 10.240000000000007
+  },
+  &quot;0.4 excessive step counterexample&quot;: {
+    &quot;y&quot;: 6,
+    &quot;loss&quot;: 16,
+    &quot;gradient&quot;: -24,
+    &quot;updated&quot;: 6.800000000000001,
+    &quot;new_loss&quot;: 108.16000000000004
+  },
+  &quot;0.5 small moments&quot;: [
+    2.1,
+    4.8999999999999995,
+    0.49
+  ],
+  &quot;0.5 mastery check moments&quot;: [
+    24.0,
+    700.0,
+    124.0
+  ],
+  &quot;0.5 attention weighted values&quot;: [
+    [
+      1.0999999999999999,
+      1.3
+    ]
+  ],
+  &quot;0.5 reward expectation&quot;: 3.4,
+  &quot;0.5 conditional temperature&quot;: 20.5,
+  &quot;0.5 discounted return&quot;: 27.1,
+  &quot;0.6 matrix gradient&quot;: [
+    [
+      -4,
+      4
+    ],
+    [
+      -6,
+      6
+    ]
+  ],
+  &quot;0.6 parameter update&quot;: [
+    [
+      0.98,
+      2.05
+    ],
+    [
+      2.99,
+      3.97
+    ]
+  ],
+  &quot;0.6 applied causal attention forward and backward&quot;: {
+    &quot;Q&quot;: [
+      [
+        0.7,
+        1.0
+      ],
+      [
+        1.5,
+        2.2
+      ],
+      [
+        2.3,
+        3.4000000000000004
+      ]
+    ],
+    &quot;K&quot;: [
+      [
+        0.0,
+        0.7
+      ],
+      [
+        -0.20000000000000007,
+        1.5
+      ],
+      [
+        -0.3999999999999999,
+        2.3
+      ]
+    ],
+    &quot;V&quot;: [
+      [
+        0.8,
+        0.5
+      ],
+      [
+        2.0,
+        0.8999999999999999
+      ],
+      [
+        3.2,
+        1.2999999999999998
+      ]
+    ],
+    &quot;attention&quot;: [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.26262374563825797,
+        0.7373762543617421,
+        0.0
+      ],
+      [
+        0.032915273597082864,
+        0.16271466064195236,
+        0.8043700657609648
+      ]
+    ],
+    &quot;output&quot;: [
+      [
+        0.8,
+        0.5
+      ],
+      [
+        1.6848515052340907,
+        0.794950501744697
+      ],
+      [
+        2.9257457505966586,
+        1.2085819168655527
+      ]
+    ],
+    &quot;loss&quot;: 3.4613865017043643,
+    &quot;gradient_Wq&quot;: [
+      [
+        -0.5693325611770308,
+        2.2773302447081214
+      ],
+      [
+        -0.7044489069621497,
+        2.817795627848597
+      ]
+    ],
+    &quot;gradient_Wk&quot;: [
+      [
+        2.6826792820634786,
+        3.9564607502026594
+      ],
+      [
+        2.682679282063478,
+        3.956460750202657
+      ]
+    ],
+    &quot;gradient_Wv&quot;: [
+      [
+        12.718079316768629,
+        0.9401220290261734
+      ],
+      [
+        16.128676572599378,
+        1.443654447636423
+      ]
+    ],
+    &quot;gradient_X_all_branches&quot;: [
+      [
+        0.11014190578054248,
+        -0.14147391110751428
+      ],
+      [
+        0.6754526771228974,
+        0.2945284104602937
+      ],
+      [
+        0.6228725196174184,
+        0.8557759269170992
+      ]
+    ]
+  }
+}
+</code></pre></details><h3 id="audit-inherited-checks">Independent evidence</h3><details><summary>72 checking methods and results</summary><table><thead><tr><th>Check</th><th>Reference method</th><th>Status</th></tr></thead><tbody><tr><td>0.2.11</td><td>Decimal 60-digit exponential normalization</td><td>passed</td></tr><tr><td>0.2.27</td><td>Decimal 60-digit exponential normalization</td><td>passed</td></tr><tr><td>0.2.mastery</td><td>Decimal 60-digit exponential normalization</td><td>passed</td></tr><tr><td>0.2.15.correction</td><td>Decimal 60-digit masked distribution</td><td>passed</td></tr><tr><td>0.2.15.old-result-refuted</td><td>compare actual result to inherited displayed distribution</td><td>passed</td></tr><tr><td>0.2.16.row1</td><td>Decimal 60-digit masked row</td><td>passed</td></tr><tr><td>0.2.16.row2</td><td>Decimal 60-digit masked row</td><td>passed</td></tr><tr><td>0.2.16.row3</td><td>Decimal 60-digit masked row</td><td>passed</td></tr><tr><td>negative-log-1</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>negative-log-2</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>negative-log-3</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>negative-log-4</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>negative-log-5</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>negative-log-6</td><td>Decimal 60-digit natural logarithm</td><td>passed</td></tr><tr><td>0.2.6.product</td><td>Decimal product</td><td>passed</td></tr><tr><td>0.2.7.product</td><td>Decimal product</td><td>passed</td></tr><tr><td>0.2.27.loss</td><td>Decimal log-sum-exp</td><td>passed</td></tr><tr><td>0.1.4</td><td>independent NumPy matrix multiplication</td><td>passed</td></tr><tr><td>0.1.13</td><td>independent NumPy matrix multiplication</td><td>passed</td></tr><tr><td>0.5.9</td><td>independent NumPy matrix multiplication</td><td>passed</td></tr><tr><td>0.6.20</td><td>independent NumPy matrix multiplication</td><td>passed</td></tr><tr><td>0.1.6.dot</td><td>NumPy dot</td><td>passed</td></tr><tr><td>0.2.shift</td><td>shift-invariance equality</td><td>passed</td></tr><tr><td>0.2.underflow-log</td><td>analytic extreme-logit result; direct softmax then log would underflow</td><td>passed</td></tr><tr><td>0.3.certain</td><td>limiting zero-mass convention</td><td>passed</td></tr><tr><td>0.3.uniform2</td><td>analytic entropy maximum</td><td>passed</td></tr><tr><td>0.3.uniform3</td><td>analytic entropy maximum</td><td>passed</td></tr><tr><td>0.3.11.entropy</td><td>NumPy expected log probability</td><td>passed</td></tr><tr><td>0.3.11.crossentropy</td><td>NumPy expected log probability</td><td>passed</td></tr><tr><td>0.3.17.forwardKL</td><td>NumPy likelihood ratio</td><td>passed</td></tr><tr><td>0.3.20.reverseKL</td><td>NumPy reversed likelihood ratio</td><td>passed</td></tr><tr><td>0.3.14.identity</td><td>CE=H+KL algebraic identity</td><td>passed</td></tr><tr><td>0.3.support-infinity</td><td>positive target mass absent from model support</td><td>passed</td></tr><tr><td>0.3.22.onehot</td><td>NumPy natural log of observed token probability</td><td>passed</td></tr><tr><td>0.3.mastery-KL</td><td>analytic log-ratio sum</td><td>passed</td></tr><tr><td>0.3.34.CEgradient</td><td>central finite difference of independent NumPy log-sum-exp loss</td><td>passed</td></tr><tr><td>0.4.13.chain</td><td>central finite difference</td><td>passed</td></tr><tr><td>0.4.scalar-gradient-0.1</td><td>central finite difference of scalar squared error</td><td>passed</td></tr><tr><td>0.4.new-loss-0.1</td><td>direct substitution into original objective</td><td>passed</td></tr><tr><td>0.4.scalar-gradient-0.2</td><td>central finite difference of scalar squared error</td><td>passed</td></tr><tr><td>0.4.new-loss-0.2</td><td>direct substitution into original objective</td><td>passed</td></tr><tr><td>0.4.descent-overshoot</td><td>explicit counterexample to unconditional downhill finite updates</td><td>passed</td></tr><tr><td>0.4.10.square-steps</td><td>direct scalar arithmetic</td><td>passed</td></tr><tr><td>0.5.6</td><td>independent NumPy probability-weighted moments</td><td>passed</td></tr><tr><td>0.5.mastery</td><td>independent NumPy probability-weighted moments</td><td>passed</td></tr><tr><td>0.5.7</td><td>explicit weighted arithmetic</td><td>passed</td></tr><tr><td>0.5.13.linearity</td><td>direct linearity example</td><td>passed</td></tr><tr><td>0.5.15.reward</td><td>NumPy dot</td><td>passed</td></tr><tr><td>0.5.19.condition</td><td>NumPy conditional weighted dot</td><td>passed</td></tr><tr><td>0.5.27.discount</td><td>finite geometric-series example</td><td>passed</td></tr><tr><td>0.5.28.sample</td><td>independent sample average</td><td>passed</td></tr><tr><td>0.6.20.gradient-fd</td><td>independent central finite differences for every matrix entry</td><td>passed</td></tr><tr><td>0.6.11.input-gradient</td><td>independent central finite differences of input matrix</td><td>passed</td></tr><tr><td>0.6.26.jacobian</td><td>separate finite differences for both vector outputs</td><td>passed</td></tr><tr><td>0.6.31.update</td><td>NumPy elementwise parameter update</td><td>passed</td></tr><tr><td>0.6.30.parameter-count</td><td>integer product</td><td>passed</td></tr><tr><td>0.6.4.vector-gradient</td><td>central differences of weighted quadratic</td><td>passed</td></tr><tr><td>0.6.5.matrix-gradient</td><td>central differences of every weighted quadratic matrix entry</td><td>passed</td></tr><tr><td>0.6.attention-forward</td><td>independent NumPy masked attention forward calculation</td><td>passed</td></tr><tr><td>0.6.attention-loss</td><td>independent NumPy half-sum squared loss</td><td>passed</td></tr><tr><td>0.6.attention-gradient_Wq</td><td>central finite differences through complete attention objective; includes every affected branch</td><td>passed</td></tr><tr><td>0.6.attention-gradient_Wk</td><td>central finite differences through complete attention objective; includes every affected branch</td><td>passed</td></tr><tr><td>0.6.attention-gradient_Wv</td><td>central finite differences through complete attention objective; includes every affected branch</td><td>passed</td></tr><tr><td>0.6.attention-gradient_X_all_branches</td><td>central finite differences through complete attention objective; includes every affected branch</td><td>passed</td></tr><tr><td>0.6.attention-mask</td><td>future-key attention coefficients must remain zero</td><td>passed</td></tr><tr><td>edge.all-masked</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.nan</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.positive-infinity</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.invalid-distribution</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.negative-mass</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.incompatible-matmul</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr><tr><td>edge.ragged-matmul</td><td>invalid-input boundary requires ValueError</td><td>passed</td></tr></tbody></table></details><h3 id="v3-heading-audit-inherited-review-6">Completion gates and estimated effort</h3><p>Full completion remains open: inherited claims and attributions, full numerical/application depth, executable model/backend reconstruction, research/data provenance and real-browser review. The six foundation lessons have mathematical/numerical review with scoped evidence; they are not whole-lesson provenance certifications.</p><p>Provisional remaining effort: 40–80 active review/implementation hours, excluding large training experiments. This is a workload estimate from 133 lessons and the code/source inventory, not a wall-clock deadline or an unattended background process. Refine it after resolving the remaining lessons into claim-level work units.</p></section>

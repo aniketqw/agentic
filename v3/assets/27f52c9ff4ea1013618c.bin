@@ -1,0 +1,10 @@
+"""Restore the manually copyedited canonical snapshot after a fresh builder run."""
+from pathlib import Path
+import hashlib,json
+p=Path(__file__).parent
+a=p/"reviews.canonical.json"
+b=p/"reviews.json"
+raw=a.read_bytes(); rows=json.loads(raw)
+assert len(rows)==20 and len({r["anchor"] for r in rows})==20
+b.write_bytes(raw)
+print(json.dumps({"reviews":20,"canonical_sha256":hashlib.sha256(raw).hexdigest()}))

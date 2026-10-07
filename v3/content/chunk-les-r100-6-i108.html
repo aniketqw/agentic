@@ -1,0 +1,1063 @@
+<section class="chunk" id="chunk-les-r100-6-i108" data-id="les-r100-6-i108"><details class="audit-card" id="audit-full-chunk-les-r100-6-i108" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-r100-6-i108-1">Motivation</h4><p>Scale stored expert capacity while computing only selected routed transformations and a shared path per token.</p><h4 id="v3-heading-chunk-les-r100-6-i108-2">Prerequisites</h4><ul><li>Two-layer GELU FFN</li><li>Top-k selection</li><li>Weighted accumulation and routing feedback</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-3">Notation and units</h4><ul><li>M=B*S tokens</li><li>E experts</li><li>k selected experts</li><li>b_e: balancing buffer</li><li>g_e: selected softmax gate</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-4">Assumptions</h4><ul><li>The mini source adds bias before selection and selected-softmax weighting</li><li>One shared expert in the teaching toy</li><li>Expert top-k ties use a declared stable rule in companion</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-5">Step-by-step derivation</h4><ol><li>Each expert computes GELU(x W1) W2 with bias-free matrices and optional source dropout.</li><li>Flatten[B,S,D] to[M,D]; router x W_gate yields E scores per token.</li><li>Add buffer b_e, select k scores, and softmax those selected scores so their weights sum to one.</li><li>For each expert gather only its assigned tokens; evaluate its FFN, multiply each output by the matching gate and sum contributions at their original token rows.</li><li>Add every shared expert output; return this sum only. The residual x is added by the enclosing block exactly once.</li><li>Count assignments, whose total is M*k; ideal count per expert is M*k/E.</li><li>During training update b_e +=.01*tanh((ideal-count_e)/(ideal+1e-6)); overloaded experts move down, underloaded move up. This explicit buffer update is separate from gradient descent.</li><li>The book mini routine includes bias in mixture weights as well as selection; distinguish that behavior from designs that use correction bias only to choose experts.</li></ol><h4 id="v3-heading-chunk-les-r100-6-i108-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-r100-6-i108-7">Selected routing weights</h5><p>Given: Selected logits4,3</p><ol><li>Subtract maximum to get0,-1</li><li>Normalize1 and exp(-1)</li></ol><p>Answer: [.7310585786,.2689414214]</p><p>Verification: mini_deepseek_integration / MD109-TOPK-WEIGHTS · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r100-6-i108-8">Load accounting</h5><p>Given: B24,S256,k2,E8</p><ol><li>M=6144</li><li>Assignments=12288</li><li>Ideal=12288/8</li></ol><p>Answer: 1536 assignments/expert</p><p>Verification: mini_deepseek_integration / MD109-IDEAL-LOAD · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r100-6-i108-9">Sparse dispatch</h5><p>Given: Toy six tokens,3 experts,k2</p><ol><li>Count exactly12 assignments</li><li>Reconstruct weighted output token by token</li><li>Compare feedback bias to independently counted loads</li></ol><p>Answer: Output and feedback equation match</p><p>Verification: mini_deepseek_integration / MD109-DISPATCH · passing independent check</p></div><h4 id="v3-heading-chunk-les-r100-6-i108-10">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-r100-6-i108-11">Mastery answers and retained exercise context</h4><ol><li>For logits[1.2,3.9,.4,2.1,5,.7,1.8,2.5], one-based experts5 and2 are selected.</li><li>Selected softmax gates for5 and3.9 are approximately.75026 and.24974.</li><li>Shared output+routed output is returned; residual is external.</li><li>Total assignments6144*2=12288; ideal per expert1536.</li><li>All8 routed expert parameter sets remain stored although2 are activated per token.</li></ol><h4 id="v3-heading-chunk-les-r100-6-i108-12">Edge cases and remaining gaps</h4><ul><li>Sparse activation does not delete unselected parameters.</li><li>Load-balancing feedback has no guarantee of perfect counts every step.</li><li>Multi-device dispatch communication can dominate; this CPU reconstruction does not measure it.</li><li>Mutable bias updates must be controlled during recomputation, evaluation and distributed training.</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-13">Connections and progression</h4><ul><li>Block adds residual once</li><li>MoE output preserves hidden width</li><li>MTP dedicated blocks include their own experts</li><li>Expert dispatch leads to all-to-all communication at scale</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 328, 329, 330, 331 · Original lesson mechanisms and source-specific implementation; corrections separately identify derivations and implementation gaps.</li></ul><h4 id="v3-heading-chunk-les-r100-6-i108-15">Executable code and explained functions</h4><p>file: companion.py; checker: check_companion.py; evidence: evidence.json; outputs: outputs.json; scope: Executed deterministic NumPy teaching reconstruction; original PyTorch and full training are separate.</p><p><a href="#audit-full-code-mini_deepseek_integration">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (53)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R100.6 — DeepSeekMoE: ExpertFFN → Router → Top-k → Shared + Routed Output</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>1. First understand the architectural replacement</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>2. Why call them &quot;experts&quot;?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>3. The ExpertFFN</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>4. What does one expert actually calculate?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>5. Dimensions of one expert</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>6. Why have many experts?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>7. Shared experts</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>8. Why have a shared expert at all?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>9. The router</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>10. What do those 8 outputs mean?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>11. Important: logits are not probabilities yet</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>12. The dynamic bias</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>13. Why add bias to router logits?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>14. Flatten the tokens</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>15. Shared expert path</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>16. Now the sparse routed path</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>17. Add the balancing bias</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>18. Top-k selection</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>19. Example of top-k routing</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>20. Convert the selected scores into routing weights</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>21. Why softmax only after top-k?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>22. Sparse dispatch</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>23. Why use row_idx?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>row_idx</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>which_k</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>24. Process only selected tokens</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>25. Weight the expert output</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>26. Put the routed results back together</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>27. Reshape back</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>28. The final MoE output</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>29. But there&#x27;s one important discrepancy to understand</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>30. Now the load-balancing mechanism</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>31. Calculate the ideal average load</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>32. Count actual assignments</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>33. Calculate the violation</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Underloaded expert</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Overloaded expert</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>34. Update the bias</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>35. Why torch.no_grad()?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>36. Why no auxiliary loss?</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>37. Complete MoE flow</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>38. Numerical routing example</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>39. The most important tensor shapes</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Input</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Flattened tokens</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Router logits</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Top-k indices</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Top-k weights</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>Routed output</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>40. Why MoE is called sparse</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>41. Important: sparse does NOT mean fewer parameters</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr><tr><td>42. Now reconnect to our Transformer block</td><td>read; educational conceptual review with explicit numerical/source/code scope</td><td>Original backend/full-scale training unexecuted; sentence-level claims use the supplied source and explicit corrections rather than a universal certification.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-r100-6-i108"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r100-6-i108" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r100-5-i107">← Previous lesson</a> · <a href="#chunk-les-r100-7-i109">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r100-5-i107">R100.5 — DeepSeekAttention: MLA + Decoupled RoPE + KV Cache</a></p><p><strong>This lesson:</strong> R100.6 — DeepSeekMoE: ExpertFFN → Router → Top-k → Shared + Routed Output</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r100-6-i108"></a></p>
+<h3 id="v3-heading-chunk-les-r100-6-i108-16">R100.6 — DeepSeekMoE: ExpertFFN → Router → Top-k → Shared + Routed Output</h3>
+<p><em>Plan node: A6 · chat order #108</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now move to the <strong>feed-forward half of the Transformer block</strong>.</p>
+<p>Until now, inside attention we had:</p>
+<div class="math block">
+x \rightarrow \text{MLA + RoPE} \rightarrow \text{attention output}.
+</div>
+<p>The next question is:</p>
+<blockquote>
+<p><strong>What happens after attention?</strong></p>
+</blockquote>
+<p>In this Mini-DeepSeek implementation, the ordinary dense FFN is replaced with:</p>
+<div class="math block">
+\boxed{\text{DeepSeekMoE}}
+</div>
+<p>The source says this implementation combines three ideas:</p>
+<div class="math block">
+\boxed{
+\text{shared experts}
++
+\text{routed experts}
++
+\text{auxiliary-loss-free load balancing}
+}
+</div>
+<p>and later the final Transformer block adds this MoE output through a residual connection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-17">1. First understand the architectural replacement</h4>
+<p>In a conventional Transformer block:</p>
+<pre><code class="language-text">x
+ │
+ ├── Attention
+ │
+ └── Dense FFN
+</code></pre>
+<p>The FFN is applied to every token.</p>
+<p>With MoE:</p>
+<pre><code class="language-text">x
+ │
+ ├── Attention
+ │
+ └── MoE
+      │
+      ├── Shared expert path
+      │
+      └── Routed expert path
+             │
+             └── Router chooses top-k
+</code></pre>
+<p>So instead of one FFN:</p>
+<div class="math block">
+\boxed{
+\text{one token}
+\rightarrow
+\text{one dense FFN}
+}
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+\text{one token}
+\rightarrow
+\text{selected specialists}
+}
+</div>
+<p>plus the shared path.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-18">2. Why call them &quot;experts&quot;?</h4>
+<p>An expert is simply an FFN.</p>
+<p>This is important because &quot;expert&quot; can sound like some completely different neural architecture.</p>
+<p>It isn't.</p>
+<p>The source explicitly defines:</p>
+<pre><code class="language-python">class ExpertFFN(nn.Module):
+</code></pre>
+<p>as a simple two-layer MLP. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Expert}=\text{small FFN}
+}
+</div>
+<p>in this implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-19">3. The ExpertFFN</h4>
+<p>The source defines:</p>
+<pre><code class="language-python">class ExpertFFN(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        hidden: int,
+        dropout: float = 0.0
+    ):
+        super().__init__()
+
+        self.fc1 = nn.Linear(
+            d_model,
+            hidden,
+            bias=False
+        )
+
+        self.fc2 = nn.Linear(
+            hidden,
+            d_model,
+            bias=False
+        )
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return self.fc2(
+            self.dropout(
+                F.gelu(
+                    self.fc1(x)
+                )
+            )
+        )
+</code></pre>
+<p>The source gives this structure in <code>Listing 6.11</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-20">4. What does one expert actually calculate?</h4>
+<p>Mathematically:</p>
+<div class="math block">
+x
+\rightarrow
+W_1x
+\rightarrow
+\operatorname{GELU}
+\rightarrow
+\text{dropout}
+\rightarrow
+W_2
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+E(x)=W_2\left(\operatorname{Dropout}(\operatorname{GELU}(W_1x))\right)
+}
+</div>
+<p>So it is just an MLP.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-21">5. Dimensions of one expert</h4>
+<p>For the source defaults:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<p>and:</p>
+<div class="math block">
+d_{\text{hidden}}=512.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+512\rightarrow512\rightarrow512.
+}
+</div>
+<p>The source's <code>moe_routed_hidden=512</code> feeds this hidden dimension. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-22">6. Why have many experts?</h4>
+<p>Suppose we have:</p>
+<div class="math block">
+8
+</div>
+<p>routed experts.</p>
+<p>Then we have:</p>
+<pre><code class="language-text">Expert 1
+Expert 2
+Expert 3
+Expert 4
+Expert 5
+Expert 6
+Expert 7
+Expert 8
+</code></pre>
+<p>Each one has its own parameters.</p>
+<p>So they can learn different transformations.</p>
+<p>The source describes them as routed specialists.</p>
+<p>The important concept is:</p>
+<div class="math block">
+\boxed{
+\text{different tokens can activate different experts}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-23">7. Shared experts</h4>
+<p>The source also creates:</p>
+<pre><code class="language-python">self.shared_experts = nn.ModuleList([
+    ExpertFFN(...)
+    for _ in range(args.moe_n_shared_experts)
+])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The default is:</p>
+<div class="math block">
+\boxed{1\text{ shared expert}}.
+</div>
+<p>The shared expert is not selected by the router.</p>
+<p>Every token goes through it.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{shared path = dense}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{routed path = sparse}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-24">8. Why have a shared expert at all?</h4>
+<p>The source's explanation is that shared experts provide a baseline transformation for every token, preserving common/foundational information, while routed experts specialize. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So you can think:</p>
+<div class="math block">
+\boxed{
+\text{Shared expert}
+=
+\text{common knowledge path}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Routed experts}
+=
+\text{specialized knowledge paths}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-25">9. The router</h4>
+<p>Now we need a mechanism to decide:</p>
+<blockquote>
+<p>Which experts should process this token?</p>
+</blockquote>
+<p>The source creates:</p>
+<pre><code class="language-python">self.gate = nn.Linear(
+    args.d_model,
+    self.n_routed,
+    bias=False
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So if:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<p>and:</p>
+<div class="math block">
+n_{\text{routed}}=8,
+</div>
+<p>then:</p>
+<div class="math block">
+512\rightarrow8.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-26">10. What do those 8 outputs mean?</h4>
+<p>For one token representation <span class="math inline">x</span>:</p>
+<div class="math block">
+x\in\mathbb R^{512}.
+</div>
+<p>The gate computes:</p>
+<div class="math block">
+g(x)\in\mathbb R^8.
+</div>
+<p>So we get:</p>
+<div class="math block">
+[g_1,g_2,\ldots,g_8].
+</div>
+<p>Each score represents how strongly the router prefers a particular expert.</p>
+<p>These are called <strong>router logits</strong> in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-27">11. Important: logits are not probabilities yet</h4>
+<p>Suppose the router produces:</p>
+<div class="math block">
+[2.1,\ 0.3,\ 1.7,\ -0.4,\ 3.0,\ 0.1,\ 1.0,\ 0.5].
+</div>
+<p>These aren't probabilities.</p>
+<p>They are raw scores.</p>
+<p>The source first adds the dynamic bias and then performs top-k selection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-28">12. The dynamic bias</h4>
+<p>The source registers:</p>
+<pre><code class="language-python">self.register_buffer(
+    &quot;bias&quot;,
+    torch.zeros(self.n_routed)
+)
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">self.bias_lr = 0.01
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So each expert has a bias:</p>
+<div class="math block">
+b_i.
+</div>
+<p>Initially:</p>
+<div class="math block">
+\boxed{
+b_i=0.
+}
+</div>
+<p>This bias isn't a normal trainable parameter.</p>
+<p>The source updates it separately during training.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-29">13. Why add bias to router logits?</h4>
+<p>Suppose expert 1 keeps receiving too many tokens.</p>
+<p>Then we would like to make expert 1 less attractive.</p>
+<p>Suppose expert 8 receives too few.</p>
+<p>Then we would like to make expert 8 more attractive.</p>
+<p>That is the purpose of the dynamic bias mechanism.</p>
+<p>The source describes it as a way of influencing the top-k selection to achieve load balancing without adding an auxiliary balancing loss. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{router score}
++
+\text{load-balancing bias}
+}
+</div>
+<p>determines the final selection.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-30">14. Flatten the tokens</h4>
+<p>The source begins its MoE forward pass with:</p>
+<pre><code class="language-python">B, S, D = x.shape
+x_flat = x.reshape(-1, D)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose:</p>
+<div class="math block">
+B=24,\quad S=256,\quad D=512.
+</div>
+<p>Then:</p>
+<div class="math block">
+x:[24,256,512].
+</div>
+<p>The number of tokens is:</p>
+<div class="math block">
+24\times256=6144.
+</div>
+<p>After flattening:</p>
+<div class="math block">
+\boxed{
+x_{\text{flat}}:[6144,512].
+}
+</div>
+<p>Why?</p>
+<p>Because routing is performed <strong>token by token</strong>.</p>
+<p>The router doesn't need the 2-D batch/sequence organization.</p>
+<p>It just needs a collection of token representations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-31">15. Shared expert path</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">shared_out = torch.zeros_like(x)
+
+for exp in self.shared_experts:
+    shared_out += exp(x)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For one shared expert:</p>
+<div class="math block">
+shared\_out=E_{\text{shared}}(x).
+</div>
+<p>Every token participates.</p>
+<p>So if there are:</p>
+<div class="math block">
+B\times S
+</div>
+<p>tokens, all of them go through the shared expert.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-32">16. Now the sparse routed path</h4>
+<p>The source calculates:</p>
+<pre><code class="language-python">router_logits = self.gate(x_flat)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+[BS,D]
+\rightarrow
+[BS,N]
+</div>
+<p>where:</p>
+<div class="math block">
+N=n_{\text{routed}}.
+</div>
+<p>With our example:</p>
+<div class="math block">
+[6144,512]
+\rightarrow
+\boxed{[6144,8]}.
+</div>
+<p>Each row contains the eight expert scores for one token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-33">17. Add the balancing bias</h4>
+<p>The source then does:</p>
+<pre><code class="language-python">router_logits_with_bias =
+    router_logits +
+    self.bias.to(router_logits.dtype)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r_{i,j}'=r_{i,j}+b_j
+}
+</div>
+<p>where <span class="math inline">i</span> is the token and <span class="math inline">j</span> is the expert.</p>
+<p>The bias is broadcast over all tokens.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-34">18. Top-k selection</h4>
+<p>Now:</p>
+<pre><code class="language-python">top_k_logits, top_k_indices = torch.topk(
+    router_logits_with_bias,
+    self.top_k,
+    dim=-1
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>With:</p>
+<div class="math block">
+N=8
+</div>
+<p>and:</p>
+<div class="math block">
+k=2,
+</div>
+<p>each token selects its top two experts.</p>
+<p>So:</p>
+<div class="math block">
+[6144,8]
+\rightarrow
+[6144,2]
+</div>
+<p>for the selected scores and:</p>
+<div class="math block">
+[6144,2]
+</div>
+<p>for the selected expert indices.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-35">19. Example of top-k routing</h4>
+<p>Suppose a token gets:</p>
+<div class="math block">
+[1.2,3.9,0.4,2.1,5.0,0.7,1.8,2.5].
+</div>
+<p>The two highest are:</p>
+<div class="math block">
+5.0
+</div>
+<p>and:</p>
+<div class="math block">
+3.9.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{selected experts}=(5,2)
+}
+</div>
+<p>using one-based human-readable numbering.</p>
+<p>The token will <strong>not</strong> be sent through experts 1, 3, 4, 6, 7, and 8 in the sparse path.</p>
+<p>This is what makes the routed path sparse.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-36">20. Convert the selected scores into routing weights</h4>
+<p>The source does:</p>
+<pre><code class="language-python">gates = F.softmax(
+    top_k_logits,
+    dim=-1,
+    dtype=torch.float
+).type_as(x)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose the selected logits are:</p>
+<div class="math block">
+[5.0,3.9].
+</div>
+<p>Softmax produces:</p>
+<div class="math block">
+w_1=
+\frac{e^{5.0}}{e^{5.0}+e^{3.9}}
+</div>
+<p>and:</p>
+<div class="math block">
+w_2=
+\frac{e^{3.9}}{e^{5.0}+e^{3.9}}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+w_1+w_2=1.
+</div>
+<p>So the selected experts don't just get selected.</p>
+<p>They also receive <strong>weights</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-37">21. Why softmax only after top-k?</h4>
+<p>This is important.</p>
+<p>The source does:</p>
+<div class="math block">
+\boxed{
+\text{all expert logits}
+\rightarrow
+\text{top-k}
+\rightarrow
+\text{softmax selected logits}
+}
+</div>
+<p>rather than softmax over all experts first.</p>
+<p>That means the normalization happens only among the experts that were selected.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-38">22. Sparse dispatch</h4>
+<p>The source initializes:</p>
+<pre><code class="language-python">routed_out_flat = torch.zeros_like(x_flat)
+</code></pre>
+<p>Then loops through the routed experts.</p>
+<p>For each expert <span class="math inline">i</span>, it builds a mask:</p>
+<pre><code class="language-python">mask = (top_k_indices == i)
+</code></pre>
+<p>and finds which tokens selected that expert. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we effectively construct:</p>
+<pre><code class="language-text">Expert 1 ← some tokens
+Expert 2 ← some tokens
+Expert 3 ← some tokens
+...
+Expert 8 ← some tokens
+</code></pre>
+<p>rather than feeding every token to every expert.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-39">23. Why use <code>row_idx</code>?</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">row_idx, which_k = torch.where(mask)
+</code></pre>
+<p>This tells us two things:</p>
+<h6 id="v3-heading-chunk-les-r100-6-i108-40"><code>row_idx</code></h6>
+<p>Which token selected this expert.</p>
+<h6 id="v3-heading-chunk-les-r100-6-i108-41"><code>which_k</code></h6>
+<p>Whether this expert was that token's first or second selected expert.</p>
+<p>For example:</p>
+<pre><code class="language-text">Token 17 → Expert 3 → first selected expert
+Token 17 → Expert 7 → second selected expert
+</code></pre>
+<p>Then the corresponding softmax routing weight can be recovered.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-42">24. Process only selected tokens</h4>
+<p>The source then obtains:</p>
+<pre><code class="language-python">exp_in = x_flat[row_idx]
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">exp_out = self.routed_experts[i](exp_in)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore only tokens assigned to expert <span class="math inline">i</span> are passed through expert <span class="math inline">i</span>.</p>
+<p>This is the essence of sparse computation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-43">25. Weight the expert output</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">w = gates[row_idx, which_k].unsqueeze(-1)
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">exp_out * w
+</code></pre>
+<p>So if a token has:</p>
+<div class="math block">
+w_1=0.7
+</div>
+<p>for expert 1 and:</p>
+<div class="math block">
+w_2=0.3
+</div>
+<p>for expert 2, the final routed contribution is:</p>
+<div class="math block">
+\boxed{
+0.7E_1(x)+0.3E_2(x).
+}
+</div>
+<p>That's the mixture in Mixture-of-Experts.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-44">26. Put the routed results back together</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">routed_out_flat.index_add_(
+    0,
+    row_idx,
+    exp_out * w
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<blockquote>
+<p>Multiple experts may contribute to the same token, so accumulate their weighted outputs into that token's output slot.</p>
+</blockquote>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+routed\_out(x)
+=
+\sum_{i\in TopK(x)}
+g_i(x)E_i(x).
+}
+</div>
+<p>That is the mathematical meaning of the sparse dispatch code.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-45">27. Reshape back</h4>
+<p>Initially:</p>
+<div class="math block">
+x:[B,S,D].
+</div>
+<p>We flattened:</p>
+<div class="math block">
+x_{\text{flat}}:[BS,D].
+</div>
+<p>After routing, we have:</p>
+<div class="math block">
+routed\_out_{\text{flat}}:[BS,D].
+</div>
+<p>Then:</p>
+<pre><code class="language-python">routed_out =
+    routed_out_flat.view(B,S,D)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[BS,D]\rightarrow[B,S,D].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-46">28. The final MoE output</h4>
+<p>The source returns:</p>
+<pre><code class="language-python">return shared_out + routed_out
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+MoE(x)
+=
+Shared(x)
++
+Routed(x).
+}
+</div>
+<p>This is the final output of this simplified <code>DeepSeekMoE</code> implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-47">29. But there's one important discrepancy to understand</h4>
+<p>The source's broader architectural explanation earlier describes the three contributions as:</p>
+<div class="math block">
+\boxed{
+x + shared\_out + routed\_out.
+}
+</div>
+<p>That is the residual connection.</p>
+<p>However, the <strong>MoE module itself</strong> returns:</p>
+<div class="math block">
+\boxed{
+shared\_out+routed\_out.
+}
+</div>
+<p>The residual <span class="math inline">x</span> is added later by <code>TransformerBlock</code>.</p>
+<p>The source's <code>TransformerBlock</code> does:</p>
+<pre><code class="language-python">x = x + self.feed_forward(self.norm2(x))
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the complete block contribution is:</p>
+<div class="math block">
+\boxed{
+x_{\text{after MoE}}
+=
+x+
+shared\_out+
+routed\_out.
+}
+</div>
+<p>This resolves the apparent difference cleanly.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-48">30. Now the load-balancing mechanism</h4>
+<p>The source's special feature is that it attempts to balance expert load <strong>without an auxiliary balancing loss</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>During training:</p>
+<pre><code class="language-python">if self.training:
+    with torch.no_grad():
+</code></pre>
+<p>the source calculates routing statistics. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-49">31. Calculate the ideal average load</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">avg_load =
+    x_flat.size(0) * self.top_k / self.n_routed
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's use:</p>
+<div class="math block">
+BS=6144
+</div>
+<p>tokens,</p>
+<div class="math block">
+k=2
+</div>
+<p>selected experts per token,</p>
+<p>and:</p>
+<div class="math block">
+N=8
+</div>
+<p>experts.</p>
+<p>Total routing assignments:</p>
+<div class="math block">
+6144\times2
+=
+12288.
+</div>
+<p>If perfectly balanced:</p>
+<div class="math block">
+\frac{12288}{8}
+=
+\boxed{1536}.
+</div>
+<p>So each routed expert ideally receives approximately 1536 assignments.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-50">32. Count actual assignments</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">counts = torch.bincount(
+    top_k_indices.flatten(),
+    minlength=self.n_routed
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose actual counts are:</p>
+<pre><code class="language-text">Expert 1 → 2200
+Expert 2 → 1600
+Expert 3 → 1000
+Expert 4 → 1400
+Expert 5 → 1300
+Expert 6 → 1500
+Expert 7 → 1200
+Expert 8 → 1588
+</code></pre>
+<p>The total will be approximately:</p>
+<div class="math block">
+12288.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-51">33. Calculate the violation</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">violation =
+    (avg_load - counts) /
+    (avg_load + 1e-6)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The intuition is:</p>
+<h6 id="v3-heading-chunk-les-r100-6-i108-52">Underloaded expert</h6>
+<div class="math block">
+count_i&lt;avg\_load
+</div>
+<p>then:</p>
+<div class="math block">
+avg\_load-count_i&gt;0
+</div>
+<p>so:</p>
+<div class="math block">
+violation_i&gt;0.
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-53">Overloaded expert</h6>
+<div class="math block">
+count_i&gt;avg\_load
+</div>
+<p>then:</p>
+<div class="math block">
+violation_i&lt;0.
+</div>
+<p>So the sign tells us which direction the bias should move.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-54">34. Update the bias</h4>
+<p>The source then does:</p>
+<pre><code class="language-python">self.bias.add_(
+    self.bias_lr *
+    torch.tanh(violation)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+
+\eta\tanh(v_i)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\eta=0.01
+</div>
+<p>in this implementation.</p>
+<p>The important idea is not the exact formula alone.</p>
+<p>It is the feedback loop:</p>
+<div class="math block">
+\boxed{
+\text{routing imbalance}
+\rightarrow
+\text{bias adjustment}
+\rightarrow
+\text{future routing changes}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-55">35. Why <code>torch.no_grad()</code>?</h4>
+<p>Because this bias update is not intended to be part of gradient-based parameter learning.</p>
+<p>The source explicitly wraps the update in:</p>
+<pre><code class="language-python">with torch.no_grad():
+</code></pre>
+<p>so it doesn't contribute to the gradient computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus we have two mechanisms:</p>
+<div class="math block">
+\boxed{
+\text{gradient learning}
+}
+</div>
+<p>for the actual neural-network parameters, and:</p>
+<div class="math block">
+\boxed{
+\text{explicit routing feedback}
+}
+</div>
+<p>for the load-balancing bias.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-56">36. Why no auxiliary loss?</h4>
+<p>A common MoE design can introduce another loss term to encourage balanced expert usage.</p>
+<p>This source instead uses the dynamic bias.</p>
+<p>So the training objective doesn't need an extra load-balancing loss in this implementation.</p>
+<p>That's why the source refers to this as an <strong>auxiliary-loss-free</strong> load-balancing mechanism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-57">37. Complete MoE flow</h4>
+<p>Now compress everything into one picture:</p>
+<pre><code class="language-text">                 x
+                 │
+          ┌──────┴──────┐
+          │             │
+          ▼             ▼
+   Shared experts     Router
+          │             │
+          │       router logits
+          │             │
+          │       + dynamic bias
+          │             │
+          │          top-k
+          │             │
+          │       selected experts
+          │             │
+          │        softmax gates
+          │             │
+          │         sparse FFNs
+          │             │
+          │       weighted sum
+          │             │
+          └──────┬──────┘
+                 ▼
+          shared + routed
+                 │
+                 ▼
+              MoE output
+</code></pre>
+<p>During training there is an additional feedback loop:</p>
+<pre><code class="language-text">expert token counts
+       ↓
+load imbalance
+       ↓
+dynamic bias
+       ↓
+next routing decision
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-58">38. Numerical routing example</h4>
+<p>Suppose one token has eight router logits:</p>
+<div class="math block">
+[1.0,2.0,0.5,4.0,1.5,3.0,0.2,2.5].
+</div>
+<p>Let:</p>
+<div class="math block">
+k=2.
+</div>
+<p>The top two are:</p>
+<div class="math block">
+4.0
+</div>
+<p>and:</p>
+<div class="math block">
+3.0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\text{experts}=(4,6).
+</div>
+<p>The routing softmax is:</p>
+<div class="math block">
+w_4=
+\frac{e^4}{e^4+e^3}
+\approx0.731
+</div>
+<p>and:</p>
+<div class="math block">
+w_6=
+\frac{e^3}{e^4+e^3}
+\approx0.269.
+</div>
+<p>Therefore the routed output is approximately:</p>
+<div class="math block">
+\boxed{
+0.731E_4(x)+0.269E_6(x).
+}
+</div>
+<p>Then the shared expert contributes:</p>
+<div class="math block">
+E_{\text{shared}}(x).
+</div>
+<p>So the MoE result is approximately:</p>
+<div class="math block">
+\boxed{
+E_{\text{shared}}(x)
++
+0.731E_4(x)
++
+0.269E_6(x).
+}
+</div>
+<p>And the Transformer residual later makes:</p>
+<div class="math block">
+\boxed{
+x+
+E_{\text{shared}}(x)
++
+0.731E_4(x)
++
+0.269E_6(x).
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-59">39. The most important tensor shapes</h4>
+<p>For:</p>
+<div class="math block">
+B=24,\quad S=256,\quad D=512,\quad N=8,\quad k=2,
+</div>
+<p>we have:</p>
+<h6 id="v3-heading-chunk-les-r100-6-i108-60">Input</h6>
+<div class="math block">
+\boxed{[24,256,512]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-61">Flattened tokens</h6>
+<div class="math block">
+\boxed{[6144,512]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-62">Router logits</h6>
+<div class="math block">
+\boxed{[6144,8]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-63">Top-k indices</h6>
+<div class="math block">
+\boxed{[6144,2]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-64">Top-k weights</h6>
+<div class="math block">
+\boxed{[6144,2]}
+</div>
+<h6 id="v3-heading-chunk-les-r100-6-i108-65">Routed output</h6>
+<div class="math block">
+\boxed{[6144,512]}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{[24,256,512]}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-66">40. Why MoE is called sparse</h4>
+<p>The architecture contains:</p>
+<div class="math block">
+8
+</div>
+<p>routed experts.</p>
+<p>But each token uses only:</p>
+<div class="math block">
+2.
+</div>
+<p>Thus the routing decision activates:</p>
+<div class="math block">
+\frac{2}{8}=25\%
+</div>
+<p>of the routed expert pool for a token.</p>
+<p>That is the basic meaning of sparse activation.</p>
+<p>The <strong>parameter pool</strong> can be much larger than the amount of routed computation per token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-67">41. Important: sparse does NOT mean fewer parameters</h4>
+<p>This is another common misunderstanding.</p>
+<p>If there are 8 experts, all 8 contain parameters.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{total model parameters}
+}
+</div>
+<p>can be large.</p>
+<p>But for each token, only a subset of those routed parameters is activated.</p>
+<p>Thus MoE separates:</p>
+<div class="math block">
+\boxed{
+\text{parameter capacity}
+}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{
+\text{per-token active computation}.
+}
+</div>
+<p>That distinction is central to the architecture.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-6-i108-68">42. Now reconnect to our Transformer block</h4>
+<p>We already have:</p>
+<div class="math block">
+\boxed{
+\text{Attention output}
+}
+</div>
+<p>and now:</p>
+<div class="math block">
+\boxed{
+\text{MoE output}.
+}
+</div>
+<p>The source's <code>TransformerBlock</code> puts them together in pre-norm style:</p>
+<pre><code class="language-text">x
+ │
+ ▼
+LayerNorm
+ │
+ ▼
+DeepSeekAttention
+ │
+ ▼
++h
+ │
+ ▼
+LayerNorm
+ │
+ ▼
+DeepSeekMoE
+ │
+ ▼
++x
+ │
+ ▼
+output
+</code></pre>
+<p>The source explicitly says the block uses pre-normalization and residual connections around both attention and feed-forward/MoE. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the block is:</p>
+<div class="math block">
+\boxed{
+h=x+\operatorname{Attention}(\operatorname{Norm}_1(x))
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+y=h+\operatorname{MoE}(\operatorname{Norm}_2(h)).
+}
+</div>
+<hr />
+</section>

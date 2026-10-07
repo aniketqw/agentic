@@ -1,0 +1,1524 @@
+<section class="chunk" id="chunk-les-step-1-11-i18" data-id="les-step-1-11-i18"><details class="audit-card" id="audit-full-chunk-les-step-1-11-i18" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-1">Motivation</h4><p>Normalize feature scale independently at each token while retaining learnable affine control.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-2">Prerequisites</h4><ul><li>Mean and population variance</li><li>Elementwise affine maps</li><li>Shape broadcasting</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-3">Notation and units</h4><ul><li>mu=mean_feature x; v=mean_feature (x-mu)^2</li><li>LN=gamma*(x-mu)/sqrt(v+eps)+beta</li><li>RMSNorm=gamma*x/sqrt(mean(x²)+eps)</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-4">Assumptions</h4><ul><li>Population denominator d, not d-1</li><li>Positive epsilon for constant/zero inputs</li><li>Basic RMSNorm omits bias, but variants may add it</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-5">Step-by-step derivation</h4><ol><li>For each [d] token compute mu, subtract it, compute population variance, add epsilon, take square root, divide, then affine-scale/shift.</li><li>For x=[1,2,3,4], mu=2.5, v=1.25. Ignoring epsilon gives [-1.3416407865,-.4472135955,.4472135955,1.3416407865].</li><li>RMS uses mean square 7.5 and produces [.3651483717,.7302967433,1.0954451150,1.4605934867], retaining positive mean.</li><li>With epsilon, LN intermediate variance is v/(v+epsilon), not exactly one; mean is zero up to floating precision. Learned gamma/beta generally change both mean and variance.</li><li>For [5,5,5,5], LN is beta and zero if beta=0. RMSNorm is 5/sqrt(25+eps) times gamma; it approaches ones but is not exactly one for eps&gt;0.</li><li>Standard affine LN has 2d parameters; basic RMSNorm has d. Both preserve [B,T,d] and use feature statistics independently of other examples.</li><li>Positive scaling invariance is exact only when epsilon=0. Negative rescaling changes signs, and finite epsilon makes both operators only approximately scale-invariant.</li></ol><h4 id="v3-heading-chunk-les-step-1-11-i18-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-11-i18-7">norm_[2, 4, 6, 8]_False</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>For each [d] token compute mu, subtract it, compute population variance, add epsilon, take square root, divide, then affine-scale/shift.</li><li>For x=[1,2,3,4], mu=2.5, v=1.25. Ignoring epsilon gives [-1.3416407865,-.4472135955,.4472135955,1.3416407865].</li><li>RMS uses mean square 7.5 and produces [.3651483717,.7302967433,1.0954451150,1.4605934867], retaining positive mean.</li><li>With epsilon, LN intermediate variance is v/(v+epsilon), not exactly one; mean is zero up to floating precision. Learned gamma/beta generally change both mean and variance.</li><li>For [5,5,5,5], LN is beta and zero if beta=0. RMSNorm is 5/sqrt(25+eps) times gamma; it approaches ones but is not exactly one for eps&gt;0.</li><li>Standard affine LN has 2d parameters; basic RMSNorm has d. Both preserve [B,T,d] and use feature statistics independently of other examples.</li><li>Positive scaling invariance is exact only when epsilon=0. Negative rescaling changes signs, and finite epsilon makes both operators only approximately scale-invariant.</li></ol><p>Answer: -1.3416394448610998; -0.4472131482870333; 0.4472131482870333; 1.3416394448610998</p><p>Verification: foundations_decoding / norm_[2, 4, 6, 8]_False · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-11-i18-8">norm_[2, 4, 6, 8]_True</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>For each [d] token compute mu, subtract it, compute population variance, add epsilon, take square root, divide, then affine-scale/shift.</li><li>For x=[1,2,3,4], mu=2.5, v=1.25. Ignoring epsilon gives [-1.3416407865,-.4472135955,.4472135955,1.3416407865].</li><li>RMS uses mean square 7.5 and produces [.3651483717,.7302967433,1.0954451150,1.4605934867], retaining positive mean.</li><li>With epsilon, LN intermediate variance is v/(v+epsilon), not exactly one; mean is zero up to floating precision. Learned gamma/beta generally change both mean and variance.</li><li>For [5,5,5,5], LN is beta and zero if beta=0. RMSNorm is 5/sqrt(25+eps) times gamma; it approaches ones but is not exactly one for eps&gt;0.</li><li>Standard affine LN has 2d parameters; basic RMSNorm has d. Both preserve [B,T,d] and use feature statistics independently of other examples.</li><li>Positive scaling invariance is exact only when epsilon=0. Negative rescaling changes signs, and finite epsilon makes both operators only approximately scale-invariant.</li></ol><p>Answer: 0.36514831081206406; 0.7302966216241281; 1.0954449324361921; 1.4605932432482562</p><p>Verification: foundations_decoding / norm_[2, 4, 6, 8]_True · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-1-11-i18-9">Corrections and source qualifications</h4><ul><li>heading: 1.11.9; text: Before affine transformation and with positive epsilon, variance is v/(v+eps), not exactly one.</li><li>heading: 1.11.21; text: Positive scale invariance is exact only for epsilon=0; finite epsilon changes it slightly.</li><li>heading: 1.11.22; text: RMS normalization preserves input signs before affine scaling. Learned negative gamma can reverse them.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-10">Mastery answers and retained exercise context</h4><ol><li>Q1: 5.</li><li>Q2: 5.</li><li>Q3: avoid zero denominator and improve numerical stability.</li><li>Q4: variance uses centered squares, RMS uses original squares then square root.</li><li>Q5: centered features sum to zero.</li><li>Q6: it does not subtract the mean.</li><li>Q7: LN zeros; RMS approximately ones, with positive epsilon correction.</li><li>Q8: [8,128,512].</li><li>Q9: 2048 versus 1024 in standard/basic variants.</li><li>Q10: MHA(Norm(x),causal mask); FFN(Norm(h)).</li><li>Numerical A: mu=5,v=5,sd=sqrt5, normalized [-3,-1,1,3]/sqrt5, ignoring epsilon.</li><li>Numerical B: RMS=sqrt30; [2,4,6,8]/sqrt30.</li><li>Numerical C: 1536 LN versus 768 RMS parameters.</li><li>Numerical D: both [16,128,512].</li><li>Numerical E: d_k=64; packed Q/K/V [4,8,64,64]; scores [4,8,64,64]; concat [4,64,512]; FFN hidden [4,64,2048]; block output [4,64,512].</li></ol><h4 id="v3-heading-chunk-les-step-1-11-i18-11">Edge cases and remaining gaps</h4><ul><li>Neither normalization guarantees stable training for arbitrary inputs/learning rates.</li><li>RMS denominator is positive but learned gamma can reverse signs; the sign-preservation claim assumes positive/unit gamma.</li><li>Normalization acts over specified axes; sequence-wise or batch-wise normalization would change the dependency structure.</li><li>RMSNorm source figure descriptions of exact unit variance should be read with epsilon/affine qualifications.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-12">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-13">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 241, 242, 243, 244, 245, 246 · LayerNorm statistics, epsilon and affine terms</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 363, 364 · RMSNorm and executable scale/bias variant</li><li>transformers-slides(1).pdf · physical PDF pages 14 · LN/RMS formulas</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-14">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (89)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.11 — Layer Normalization and RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.1 First: Why Do We Need Normalization?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.2 Very Important: What Dimension Do We Normalize?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.3 LayerNorm — Step 1: Calculate the Mean</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Numerical Example</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.4 LayerNorm — Step 2: Center the Values</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.5 LayerNorm — Step 3: Calculate Variance</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.6 LayerNorm — Step 4: Standard Deviation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.7 Why Do We Need \epsilon?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.8 LayerNorm — Step 5: Normalize</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.9 Check the Result</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.10 But There Is One More Stage: \gamma and \beta</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.11 Why Learn \gamma and \beta?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.12 Numerical Example With \gamma,\beta</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>First component</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Second</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Third</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Fourth</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.13 Now RMSNorm</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.14 RMSNorm Formula</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.15 RMSNorm Numerical Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.16 Divide the Original Values by the RMS</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.17 Notice the Biggest Difference</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.18 Why Is It Called &quot;Root Mean Square&quot;?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1. Square</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. Mean</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. Root</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.19 LayerNorm vs RMSNorm Side-by-Side</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.20 Parameter-Count Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.21 Numerical: Compare the Computation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.22 Exam Numerical: Can the Answer Be Negative?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.23 Numerical: What Happens to a Constant Vector?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.24 Why Is RMSNorm Sometimes Preferred in Modern LLMs?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.25 Pre-LN vs Post-LN</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Post-LN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Pre-LN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.26 Why Does Normalization Appear Before the Sub-layer?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.27 Important Numerical Shape Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.28 Why Does Normalization Not Change Dimensions?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.29 LayerNorm Numerical Checklist</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.30 RMSNorm Numerical Checklist</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.31 High-Probability Exam Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Question</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.32 High-Probability Conceptual Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.33 High-Probability Shape Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.34 High-Probability Parameter Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.35 The Entire Transformer Block Is Now Complete</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>First sublayer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Second sublayer</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.36 Full Data Flow</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.37 Numerical Architecture Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.11.38 What You Should Now Know Without Looking at Notes</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>LayerNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>RMSNorm</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Main difference</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Transformer pre-LN block</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.39 Master Numerical Set</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Numerical A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical C</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical D</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Numerical E — Integrated</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.11.40 One Final Conceptual Connection</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.11 Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Where We Are in the Transformer Derivation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-T17" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> T17 — RMSNorm and epsilon</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Control feature magnitude with a root mean square rather than mean centering.</p><p><strong>Prerequisites:</strong> <a href="#audit-T08">LayerNorm: variance, epsilon, and affine parameters</a>, <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-1-11-i18-15">Notation and assumptions</h4><p>Final feature axis, population mean-square; gain matches feature width. Epsilon is inside the square root. This fixture uses no additive bias.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-16">Derivation and mechanism</h4><ol><li>Square features and average.</li><li>Add epsilon and take a square root.</li><li>Divide original features and apply gain. Compare against LayerNorm, which subtracts the mean.</li></ol><div class="math block">y_i=g_i x_i/\sqrt{d^{-1}\sum_jx_j^2+\epsilon}</div><h4 id="v3-heading-chunk-les-step-1-11-i18-17">Worked example</h4><p>[1,3] has mean-square5. At epsilon0 and gain1, output=[1/√5,3/√5]≈[.447214,1.341641], not [-1,1]. Scaling input positively preserves this output at epsilon0; adding1 does not. Zero input with epsilon&gt;0 yields zero.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-18">Limitations</h4><ul><li>Exact scale invariance is qualified by epsilon.</li><li>RMSNorm and LayerNorm coincide on zero-mean data with matching epsilon/gain/bias conventions.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-19">Connections to later concepts</h4><ul><li>RMSNorm gain contributes to T19 parameter counts; its epsilon convention also affects every normalized decoder/MTP input.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-20">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 275 · Listing5.1</li><li><a href="https://arxiv.org/html/1910.07467v1" rel="noopener noreferrer">§4 Eq4</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-21">Executed code and evidence</h4><p>Functions: rmsnorm. Passed checks: RMS-value, RMS-epsilon, RMS-scale, RMS-not-shift-invariant</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-T10" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T10 — Positionwise MLP and GELU variants</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T09">← Previous audit card</a> · <a href="#audit-T11">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-11-i18-22">Why this matters</h4><p>Attention mixes information across positions; the MLP transforms each token feature vector using the same weights.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a>, <a href="#audit-F06">Chain rule and scalar gradients</a></p><h4 id="v3-heading-chunk-les-step-1-11-i18-23">Symbols, shapes and assumptions</h4><p>For the bias-free companion, W1 is d×dhidden and W2 is dhidden×d. GELU is applied elementwise. The exact erf form differs slightly from a tanh approximation.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-24">Derivation or mechanism</h4><ol><li>Project each token into the hidden feature width.</li><li>Apply the chosen nonlinear activation elementwise.</li><li>Project back to the residual width. No token-axis matrix multiplication occurs in this MLP.</li></ol><div class="math block" data-tex="\mathrm{MLP}(X)=\mathrm{GELU}(XW_1)W_2">\mathrm{MLP}(X)=\mathrm{GELU}(XW_1)W_2</div><div class="math block" data-tex="\mathrm{GELU}(x)=\tfrac12x\bigl(1+\mathrm{erf}(x/\sqrt2)\bigr)">\mathrm{GELU}(x)=\tfrac12x\bigl(1+\mathrm{erf}(x/\sqrt2)\bigr)</div><h4 id="v3-heading-chunk-les-step-1-11-i18-25">Worked numerical</h4><p>Exact GELU at [-1,0,1] gives [-0.158655254,0,0.841344746]. Negative inputs need not vanish as in ReLU. The complete block fixture uses d=2 and dhidden=3; the output returns to width 2.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-26">Edge cases and limits</h4><ul><li>The supplied book implements a tanh approximation; this companion explicitly uses exact erf GELU.</li><li>Modern gated FFNs and their parameter counts are additional concepts, not equivalent to this two-layer example.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-27">Connections</h4><ul><li>T12 inserts this token-local operation after attention.</li><li>A later SwiGLU capsule must specify its extra projection.</li></ul><h4 id="v3-heading-chunk-les-step-1-11-i18-28">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 253, 254, 255, 258, 259, 260, 261 · §4.3</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-11-i18-29">Executable companion and checking evidence</h4><p>Functions: <code>gelu</code>, <code>mlp</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T10-GELU, T12-block. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-11-i18"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-11-i18" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-10-i17">← Previous lesson</a> · <a href="#chunk-les-step-1-12-i19">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p><p><strong>This lesson:</strong> Step 1.11 — Layer Normalization and RMSNorm</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-11-i18"></a></p>
+<h2>Step 1.11 — Layer Normalization and RMSNorm</h2>
+<p><em>Plan node: I1 · chat order #18</em></p>
+<p>We now have both major computational parts of the Transformer block:</p>
+<div class="math block">
+\boxed{\text{Multi-Head Attention}}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\text{FFN / MLP}}
+</div>
+<p>But there is still a component surrounding them:</p>
+<div class="math block">
+\boxed{\text{Normalization}}
+</div>
+<p>Your cheatsheet identifies two forms we need to understand:</p>
+<div class="math block">
+\boxed{\text{LayerNorm}}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\text{RMSNorm}}
+</div>
+<p>The important idea is that normalization keeps activation scales in a useful range and supports stable optimization. Your reasoning-model source explicitly explains that both LayerNorm and RMSNorm serve this core purpose, while RMSNorm removes the mean-centering step. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>And because you specifically said the exam will include numericals, this step will be <strong>calculation-heavy</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-30">1.11.1 First: Why Do We Need Normalization?</h3>
+<p>Imagine that a token representation is:</p>
+<div class="math block">
+x=
+[10,\;20,\;30,\;40].
+</div>
+<p>Later in the network it could become:</p>
+<div class="math block">
+[100,\;200,\;300,\;400]
+</div>
+<p>or:</p>
+<div class="math block">
+[0.001,\;0.002,\;0.003,\;0.004].
+</div>
+<p>The network is repeatedly performing:</p>
+<div class="math block">
+\text{linear transformation}
+\rightarrow
+\text{nonlinearity}
+\rightarrow
+\text{residual addition}.
+</div>
+<p>The scale of the activations can therefore matter greatly for optimization.</p>
+<p>Normalization transforms the representation into a more controlled scale.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{raw activation}
+\rightarrow
+\text{normalize scale}
+\rightarrow
+\text{more stable computation}
+}
+</div>
+<p>The source describes LayerNorm as subtracting the mean and dividing by the standard deviation, giving zero mean and unit variance. RMSNorm instead scales by the root mean square without explicitly centering at zero. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-31">1.11.2 Very Important: What Dimension Do We Normalize?</h3>
+<p>Suppose a token has representation:</p>
+<div class="math block">
+x=
+[x_1,x_2,\ldots,x_d].
+</div>
+<p>LayerNorm computes statistics across the <strong>features of that token</strong>.</p>
+<p>So if:</p>
+<div class="math block">
+x\in\mathbb{R}^{d},
+</div>
+<p>we calculate one:</p>
+<div class="math block">
+\mu
+</div>
+<p>and one:</p>
+<div class="math block">
+\sigma^2
+</div>
+<p>for that token.</p>
+<p>We are <strong>not</strong> calculating the mean across all tokens in the sequence.</p>
+<p>This matters enormously in numerical questions.</p>
+<p>For:</p>
+<div class="math block">
+X\in\mathbb{R}^{B\times n\times d},
+</div>
+<p>LayerNorm is typically applied across the final dimension:</p>
+<div class="math block">
+\boxed{d}
+</div>
+<p>for each token independently.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-32">1.11.3 LayerNorm — Step 1: Calculate the Mean</h3>
+<p>Given:</p>
+<div class="math block">
+x=[x_1,x_2,\ldots,x_d],
+</div>
+<p>the mean is:</p>
+<div class="math block">
+\boxed{
+\mu=\frac1d\sum_{i=1}^{d}x_i
+}
+</div>
+<p>This is the average feature value of that token representation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-11-i18-33">Numerical Example</h4>
+<p>Take:</p>
+<div class="math block">
+x=[1,2,3,4].
+</div>
+<p>Then:</p>
+<div class="math block">
+d=4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\mu=
+\frac{1+2+3+4}{4}
+</div>
+<div class="math block">
+=\frac{10}{4}
+</div>
+<div class="math block">
+\boxed{\mu=2.5}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-34">1.11.4 LayerNorm — Step 2: Center the Values</h3>
+<p>Subtract the mean:</p>
+<div class="math block">
+x_i-\mu.
+</div>
+<p>So:</p>
+<div class="math block">
+[1,2,3,4]-2.5
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+[-1.5,-0.5,0.5,1.5]
+}
+</div>
+<p>This is the <strong>mean-centering</strong> step.</p>
+<p>Notice:</p>
+<div class="math block">
+-1.5-0.5+0.5+1.5=0.
+</div>
+<p>Therefore the centered vector has mean:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-35">1.11.5 LayerNorm — Step 3: Calculate Variance</h3>
+<p>The variance is:</p>
+<div class="math block">
+\boxed{
+\sigma^2
+=
+\frac1d
+\sum_{i=1}^{d}(x_i-\mu)^2
+}
+</div>
+<p>For our example:</p>
+<div class="math block">
+[-1.5,-0.5,0.5,1.5].
+</div>
+<p>Square each value:</p>
+<div class="math block">
+[2.25,0.25,0.25,2.25].
+</div>
+<p>Add:</p>
+<div class="math block">
+2.25+0.25+0.25+2.25=5.
+</div>
+<p>Divide by 4:</p>
+<div class="math block">
+\sigma^2=\frac54.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\sigma^2=1.25
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-36">1.11.6 LayerNorm — Step 4: Standard Deviation</h3>
+<p>We need:</p>
+<div class="math block">
+\sigma=\sqrt{\sigma^2}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\sigma=\sqrt{1.25}.
+</div>
+<div class="math block">
+\boxed{
+\sigma\approx1.1180
+}
+</div>
+<p>But in actual numerical implementations, we normally use:</p>
+<div class="math block">
+\sqrt{\sigma^2+\epsilon}
+</div>
+<p>rather than simply:</p>
+<div class="math block">
+\sqrt{\sigma^2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-37">1.11.7 Why Do We Need <span class="math inline">\epsilon</span>?</h3>
+<p>The normalization formula uses:</p>
+<div class="math block">
+\boxed{
+\sqrt{\sigma^2+\epsilon}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\epsilon
+</div>
+<p>is a small numerical stabilizer.</p>
+<p>Suppose all values were identical:</p>
+<div class="math block">
+x=[5,5,5,5].
+</div>
+<p>Then:</p>
+<div class="math block">
+\mu=5
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma^2=0.
+</div>
+<p>Without <span class="math inline">\epsilon</span>, we would divide by:</p>
+<div class="math block">
+\sqrt0=0.
+</div>
+<p>That's problematic.</p>
+<p>Adding a tiny:</p>
+<div class="math block">
+\epsilon&gt;0
+</div>
+<p>prevents division by zero.</p>
+<p>Your cheatsheet lists <span class="math inline">\epsilon</span> as the small numerical stabilizer in the notation. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-38">1.11.8 LayerNorm — Step 5: Normalize</h3>
+<p>The normalized value is:</p>
+<div class="math block">
+\boxed{
+\hat{x}_i
+=
+\frac{x_i-\mu}
+{\sqrt{\sigma^2+\epsilon}}
+}
+</div>
+<p>Ignoring the tiny effect of <span class="math inline">\epsilon</span> for our hand calculation:</p>
+<div class="math block">
+\hat{x}
+=
+\frac{[-1.5,-0.5,0.5,1.5]}{\sqrt{1.25}}.
+</div>
+<p>Since:</p>
+<div class="math block">
+\sqrt{1.25}\approx1.1180,
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+\hat{x}
+\approx
+[-1.3416,-0.4472,0.4472,1.3416]
+}
+</div>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-1-11-i18-0" data-full-review="added"><p>Correction: Before affine transformation and with positive epsilon, variance is v/(v+eps), not exactly one.</p><p><a href="#audit-full-chunk-les-step-1-11-i18">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-1-11-i18-39">1.11.9 Check the Result</h3>
+<p>Let's calculate the mean:</p>
+<div class="math block">
+\frac{-1.3416-0.4472+0.4472+1.3416}{4}=0.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{mean}=0}
+</div>
+<p>And the variance becomes approximately:</p>
+<div class="math block">
+\boxed{\text{variance}=1}.
+</div>
+<p>That is exactly the point of the normalization.</p>
+<p>Your reasoning-model source explicitly shows LayerNorm producing approximately zero mean and unit variance. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-40">1.11.10 But There Is One More Stage: <span class="math inline">\gamma</span> and <span class="math inline">\beta</span></h3>
+<p>The complete LayerNorm formula is:</p>
+<div class="math block">
+\boxed{
+LN(x)=
+\gamma\odot
+\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}
++\beta
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\mu</span> = mean</li>
+<li><span class="math inline">\sigma^2</span> = variance</li>
+<li><span class="math inline">\epsilon</span> = numerical stabilizer</li>
+<li><span class="math inline">\gamma</span> = learned scale</li>
+<li><span class="math inline">\beta</span> = learned shift</li>
+<li><span class="math inline">\odot</span> = element-wise multiplication.</li>
+</ul>
+<p>This is exactly the formulation on your mathematical cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-41">1.11.11 Why Learn <span class="math inline">\gamma</span> and <span class="math inline">\beta</span>?</h3>
+<p>This is a subtle but very important idea.</p>
+<p>Suppose normalization forces everything into:</p>
+<div class="math block">
+\text{mean}=0,\qquad \text{variance}=1.
+</div>
+<p>What if the network actually wants a different scale or offset?</p>
+<p>The learned parameters provide that flexibility.</p>
+<p>For example:</p>
+<div class="math block">
+\gamma=[2,1,1,0.5]
+</div>
+<p>and:</p>
+<div class="math block">
+\beta=[1,0,-1,2].
+</div>
+<p>Then:</p>
+<div class="math block">
+y_i=\gamma_i\hat{x}_i+\beta_i.
+</div>
+<p>So normalization gives a controlled baseline, while the model can learn how to rescale and shift the normalized representation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-42">1.11.12 Numerical Example With <span class="math inline">\gamma,\beta</span></h3>
+<p>We had:</p>
+<div class="math block">
+\hat{x}
+=
+[-1.3416,-0.4472,0.4472,1.3416].
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\gamma=[2,1,1,0.5]
+</div>
+<p>and:</p>
+<div class="math block">
+\beta=[1,0,-1,2].
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-43">First component</h5>
+<div class="math block">
+y_1=2(-1.3416)+1
+</div>
+<div class="math block">
+=-2.6832+1
+</div>
+<div class="math block">
+\boxed{y_1=-1.6832}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-44">Second</h5>
+<div class="math block">
+y_2=1(-0.4472)+0
+</div>
+<div class="math block">
+\boxed{y_2=-0.4472}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-45">Third</h5>
+<div class="math block">
+y_3=1(0.4472)-1
+</div>
+<div class="math block">
+\boxed{y_3=-0.5528}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-46">Fourth</h5>
+<div class="math block">
+y_4=0.5(1.3416)+2
+</div>
+<div class="math block">
+=0.6708+2
+</div>
+<div class="math block">
+\boxed{y_4=2.6708}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+LN(x)
+\approx
+[-1.6832,-0.4472,-0.5528,2.6708]
+}
+</div>
+<p>Notice something important:</p>
+<p>After applying <span class="math inline">\gamma,\beta</span>, the final output <strong>does not necessarily have zero mean and unit variance anymore</strong>.</p>
+<p>The normalized intermediate <span class="math inline">\hat{x}</span> has those properties; the learned affine transformation can change them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-47">1.11.13 Now RMSNorm</h3>
+<p>Now we move to the second normalization method.</p>
+<p>RMSNorm stands for:</p>
+<div class="math block">
+\boxed{\text{Root Mean Square Normalization}}
+</div>
+<p>The key conceptual difference:</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-48">LayerNorm</h5>
+<p>First subtract the mean.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-49">RMSNorm</h5>
+<p>Does <strong>not</strong> subtract the mean.</p>
+<p>Your reasoning-model source explicitly describes RMSNorm as removing the mean-centering step. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-50">1.11.14 RMSNorm Formula</h3>
+<p>The root mean square is:</p>
+<div class="math block">
+\boxed{
+RMS(x)
+=
+\sqrt{
+\frac1d\sum_{i=1}^{d}x_i^2+\epsilon
+}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+RMSNorm(x)
+=
+\gamma\odot\frac{x}{RMS(x)}
+}
+</div>
+<p>This is the formulation on your cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<p>Compare:</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-51">LayerNorm</h5>
+<div class="math block">
+\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-52">RMSNorm</h5>
+<div class="math block">
+\frac{x}{\sqrt{\frac1d\sum_i x_i^2+\epsilon}}
+</div>
+<p>The easiest memory trick is:</p>
+<div class="math block">
+\boxed{
+LN:\text{ subtract mean + divide by std}
+}
+</div>
+<div class="math block">
+\boxed{
+RMSNorm:\text{ divide by RMS only}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-53">1.11.15 RMSNorm Numerical Example</h3>
+<p>Use the same:</p>
+<div class="math block">
+x=[1,2,3,4].
+</div>
+<p>First square each value:</p>
+<div class="math block">
+[1,4,9,16].
+</div>
+<p>Sum:</p>
+<div class="math block">
+1+4+9+16=30.
+</div>
+<p>Average:</p>
+<div class="math block">
+\frac{30}{4}=7.5.
+</div>
+<p>Square root:</p>
+<div class="math block">
+RMS(x)=\sqrt{7.5}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+RMS(x)\approx2.7386
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-54">1.11.16 Divide the Original Values by the RMS</h3>
+<div class="math block">
+RMSNorm(x)
+=
+\frac{[1,2,3,4]}{2.7386}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+RMSNorm(x)
+\approx
+[0.3651,0.7303,1.0954,1.4606]
+}
+</div>
+<p>assuming:</p>
+<div class="math block">
+\gamma=[1,1,1,1].
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-55">1.11.17 Notice the Biggest Difference</h3>
+<p>For LayerNorm:</p>
+<div class="math block">
+\boxed{
+\text{mean}\approx0
+}
+</div>
+<p>after normalization.</p>
+<p>For RMSNorm:</p>
+<div class="math block">
+\boxed{
+\text{mean}\neq0
+}
+</div>
+<p>in general.</p>
+<p>Our RMSNorm output has mean:</p>
+<div class="math block">
+\frac{0.3651+0.7303+1.0954+1.4606}{4}
+</div>
+<div class="math block">
+\approx0.9129.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\mu_{\text{RMSNorm}}\approx0.913
+}
+</div>
+<p>It is not centered around zero.</p>
+<p>This is exactly the distinction emphasized in your source: RMSNorm keeps the activation magnitude controlled but does not enforce zero mean or unit variance. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-56">1.11.18 Why Is It Called &quot;Root Mean Square&quot;?</h3>
+<p>Because we literally:</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-57">1. Square</h5>
+<div class="math block">
+x_i^2
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-58">2. Mean</h5>
+<div class="math block">
+\frac1d\sum_i x_i^2
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-59">3. Root</h5>
+<div class="math block">
+\sqrt{
+\frac1d\sum_i x_i^2
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+RMS=\sqrt{\text{mean of squares}}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-60">1.11.19 LayerNorm vs RMSNorm Side-by-Side</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>LayerNorm</th>
+<th>RMSNorm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compute mean?</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Subtract mean?</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Compute variance?</td>
+<td>Yes</td>
+<td>No explicit variance</td>
+</tr>
+<tr>
+<td>Divide by</td>
+<td>Standard deviation</td>
+<td>RMS</td>
+</tr>
+<tr>
+<td>Center output?</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Learned scale</td>
+<td><span class="math inline">\gamma</span></td>
+<td><span class="math inline">\gamma</span></td>
+</tr>
+<tr>
+<td>Learned shift</td>
+<td><span class="math inline">\beta</span></td>
+<td>Not in the basic formulation</td>
+</tr>
+<tr>
+<td>Main goal</td>
+<td>Control activation scale</td>
+<td>Control activation scale with simpler computation</td>
+</tr>
+</tbody>
+</table>
+<p>The source explicitly describes RMSNorm as computationally simpler because it removes mean-centering. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-61">1.11.20 Parameter-Count Numerical</h3>
+<p>This can also become an exam numerical.</p>
+<p>For a hidden dimension:</p>
+<div class="math block">
+d.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-62">LayerNorm</h5>
+<p>The standard formulation has:</p>
+<div class="math block">
+\gamma\in\mathbb{R}^{d}
+</div>
+<p>and:</p>
+<div class="math block">
+\beta\in\mathbb{R}^{d}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+2d
+}
+</div>
+<p>learned affine parameters.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-63">RMSNorm</h5>
+<p>The basic formulation has:</p>
+<div class="math block">
+\gamma\in\mathbb{R}^{d}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+d
+}
+</div>
+<p>learned scale parameters.</p>
+<p>So for:</p>
+<div class="math block">
+d=768:
+</div>
+<p>LayerNorm:</p>
+<div class="math block">
+2(768)=
+\boxed{1536}
+</div>
+<p>RMSNorm:</p>
+<div class="math block">
+\boxed{768}
+</div>
+<p>trainable affine parameters in the basic formulations.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-1-11-i18-1" data-full-review="added"><p>Correction: Positive scale invariance is exact only for epsilon=0; finite epsilon changes it slightly.</p><p><a href="#audit-full-chunk-les-step-1-11-i18">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-1-11-i18-64">1.11.21 Numerical: Compare the Computation</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=[2,4,6,8].
+</div>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-65">LayerNorm</h4>
+<p>Mean:</p>
+<div class="math block">
+\mu=\frac{2+4+6+8}{4}
+=5.
+</div>
+<p>Centered:</p>
+<div class="math block">
+[-3,-1,1,3].
+</div>
+<p>Variance:</p>
+<div class="math block">
+\frac{9+1+1+9}{4}
+=
+\frac{20}{4}
+=5.
+</div>
+<p>Standard deviation:</p>
+<div class="math block">
+\sqrt5\approx2.236.
+</div>
+<p>Normalized:</p>
+<div class="math block">
+\boxed{
+[-1.3416,-0.4472,0.4472,1.3416]
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-11-i18-66">RMSNorm</h4>
+<p>Squares:</p>
+<div class="math block">
+[4,16,36,64].
+</div>
+<p>Mean square:</p>
+<div class="math block">
+\frac{4+16+36+64}{4}
+=
+\frac{120}{4}
+=30.
+</div>
+<p>RMS:</p>
+<div class="math block">
+\sqrt{30}\approx5.477.
+</div>
+<p>Normalized:</p>
+<div class="math block">
+\boxed{
+[0.3651,0.7303,1.0954,1.4606]
+}
+</div>
+<p>Notice something interesting.</p>
+<p>The LayerNorm normalized vector is the <strong>same</strong> as we got for <span class="math inline">[1,2,3,4]</span>.</p>
+<p>Why?</p>
+<p>Because multiplying every input by 2 does not change the LayerNorm normalized pattern.</p>
+<p>For RMSNorm, the same is also true after proportional scaling.</p>
+<p>This illustrates that both methods normalize scale, though they do it differently.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-1-11-i18-2" data-full-review="added"><p>Correction: RMS normalization preserves input signs before affine scaling. Learned negative gamma can reverse them.</p><p><a href="#audit-full-chunk-les-step-1-11-i18">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-1-11-i18-67">1.11.22 Exam Numerical: Can the Answer Be Negative?</h3>
+<p>Yes.</p>
+<p>LayerNorm:</p>
+<div class="math block">
+\boxed{\text{definitely can produce negative values}}
+</div>
+<p>because it subtracts the mean.</p>
+<p>RMSNorm can also produce negative values if the input value itself is negative.</p>
+<p>For:</p>
+<div class="math block">
+x=[-2,1,3,4],
+</div>
+<p>the RMS is positive, but:</p>
+<div class="math block">
+\frac{-2}{RMS}&lt;0.
+</div>
+<p>So don't associate &quot;RMSNorm&quot; with &quot;all positive values.&quot;</p>
+<p>The normalization denominator is positive; it does not change the sign of the original input.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-68">1.11.23 Numerical: What Happens to a Constant Vector?</h3>
+<p>This is a useful exam edge case.</p>
+<p>Take:</p>
+<div class="math block">
+x=[5,5,5,5].
+</div>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-69">LayerNorm</h4>
+<p>Mean:</p>
+<div class="math block">
+\mu=5.
+</div>
+<p>Centered:</p>
+<div class="math block">
+[0,0,0,0].
+</div>
+<p>Variance:</p>
+<div class="math block">
+0.
+</div>
+<p>With <span class="math inline">\epsilon</span>:</p>
+<div class="math block">
+LN(x)
+=
+\gamma\odot
+\frac{[0,0,0,0]}{\sqrt{\epsilon}}
++\beta.
+</div>
+<p>If:</p>
+<div class="math block">
+\beta=0,
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+LN(x)=[0,0,0,0].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-11-i18-70">RMSNorm</h4>
+<div class="math block">
+RMS(x)
+=
+\sqrt{
+\frac{25+25+25+25}{4}
+}
+=
+5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+RMSNorm(x)
+=
+[1,1,1,1]
+</div>
+<p>for:</p>
+<div class="math block">
+\gamma=1.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+LN([5,5,5,5])=[0,0,0,0]
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+RMSNorm([5,5,5,5])=[1,1,1,1].
+}
+</div>
+<p>This is a very nice numerical demonstration of the fundamental difference:</p>
+<div class="math block">
+\boxed{
+\text{LayerNorm removes common offset}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{RMSNorm preserves the offset information and only rescales magnitude}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-71">1.11.24 Why Is RMSNorm Sometimes Preferred in Modern LLMs?</h3>
+<p>Your source states that RMSNorm is often preferred in large-scale LLMs because it is computationally more efficient. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The reason follows directly from the formulas.</p>
+<p>LayerNorm needs:</p>
+<div class="math block">
+\mu
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma^2.
+</div>
+<p>RMSNorm does not explicitly compute the mean-centering step.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+LN=\text{mean + variance + normalization}
+}
+</div>
+<p>whereas:</p>
+<div class="math block">
+\boxed{
+RMSNorm=\text{mean-square + square-root + scaling}.
+}
+</div>
+<p>The exact performance advantage in a real implementation depends on the kernel and hardware, but mathematically RMSNorm removes the mean-centering computation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-72">1.11.25 Pre-LN vs Post-LN</h3>
+<p>Now we connect normalization to the Transformer block.</p>
+<p>There are two important structural choices.</p>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-73">Post-LN</h4>
+<p>Historically associated with the original Transformer:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+\text{Attention}
+\rightarrow
+\text{Residual}
+\rightarrow
+LN
+}
+</div>
+<p>and similarly for FFN.</p>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-74">Pre-LN</h4>
+<p>Used in GPT-style and many later architectures:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+LN
+\rightarrow
+\text{Attention}
+\rightarrow
+\text{Residual}
+}
+</div>
+<p>Your Raschka source explicitly distinguishes Post-LayerNorm, used in the original Transformer, from Pre-LayerNorm, adopted in GPT-2 and newer LLMs, and discusses the different training dynamics. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>For the architecture we are currently deriving, our cheatsheet uses the <strong>Pre-LN</strong> formulation:</p>
+<div class="math block">
+\boxed{
+h=x+MHA(LN(x))
+}
+</div>
+<div class="math block">
+\boxed{
+y=h+FFN(LN(h)).
+}
+</div>
+<p><em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-75">1.11.26 Why Does Normalization Appear Before the Sub-layer?</h3>
+<p>In Pre-LN:</p>
+<div class="math block">
+LN(x)
+</div>
+<p>is fed into attention.</p>
+<p>Then:</p>
+<div class="math block">
+MHA(LN(x))
+</div>
+<p>is computed.</p>
+<p>Then:</p>
+<div class="math block">
+x+MHA(LN(x)).
+</div>
+<p>Likewise for the FFN.</p>
+<p>So normalization controls the scale of what enters the sub-layer, while the residual path preserves the original stream.</p>
+<p>This gives us:</p>
+<div class="math block">
+\boxed{
+\text{Normalize}
+\rightarrow
+\text{Transform}
+\rightarrow
+\text{Residual addition}
+}
+</div>
+<p>as our basic pattern.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-76">1.11.27 Important Numerical Shape Question</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb{R}^{B\times n\times d}.
+</div>
+<p>What is the output shape of LayerNorm?</p>
+<div class="math block">
+\boxed{
+B\times n\times d
+}
+</div>
+<p>It does <strong>not</strong> change tensor shape.</p>
+<p>For example:</p>
+<div class="math block">
+X:
+16\times128\times768
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+16\times128\times768
+}
+</div>
+<p>after LayerNorm.</p>
+<p>Likewise RMSNorm preserves:</p>
+<div class="math block">
+\boxed{
+B\times n\times d.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-77">1.11.28 Why Does Normalization Not Change Dimensions?</h3>
+<p>Because normalization is performed element-wise after computing statistics over the feature dimension.</p>
+<p>For one token:</p>
+<div class="math block">
+d\rightarrow d.
+</div>
+<p>It changes:</p>
+<div class="math block">
+\text{values}
+</div>
+<p>but not:</p>
+<div class="math block">
+\text{number of features}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Normalization changes scale/distribution, not representation width.}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-78">1.11.29 LayerNorm Numerical Checklist</h3>
+<p>When you see a numerical question, do these steps in exactly this order:</p>
+<div class="math block">
+\boxed{1.\;\mu}
+</div>
+<div class="math block">
+\boxed{2.\;x-\mu}
+</div>
+<div class="math block">
+\boxed{3.\;\sigma^2}
+</div>
+<div class="math block">
+\boxed{4.\;\sigma^2+\epsilon}
+</div>
+<div class="math block">
+\boxed{5.\;\sqrt{\sigma^2+\epsilon}}
+</div>
+<div class="math block">
+\boxed{6.\;\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}}
+</div>
+<div class="math block">
+\boxed{7.\;\gamma\odot(\cdot)+\beta}
+</div>
+<p>Do not skip directly from <span class="math inline">x</span> to the final answer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-79">1.11.30 RMSNorm Numerical Checklist</h3>
+<p>For RMSNorm:</p>
+<div class="math block">
+\boxed{1.\;x_i^2}
+</div>
+<div class="math block">
+\boxed{2.\;\frac1d\sum_i x_i^2}
+</div>
+<div class="math block">
+\boxed{3.\;+\epsilon}
+</div>
+<div class="math block">
+\boxed{4.\;\sqrt{\cdot}}
+</div>
+<div class="math block">
+\boxed{5.\;\frac{x}{RMS(x)}}
+</div>
+<div class="math block">
+\boxed{6.\;\gamma\odot(\cdot)}
+</div>
+<p>Notice what is missing:</p>
+<div class="math block">
+\boxed{
+\text{no mean calculation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{no mean subtraction}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{no explicit variance calculation}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-80">1.11.31 High-Probability Exam Numerical</h3>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-81">Question</h5>
+<p>Given:</p>
+<div class="math block">
+x=[1,2,3,4],
+</div>
+<p>calculate LayerNorm and RMSNorm assuming:</p>
+<div class="math block">
+\gamma=[1,1,1,1]
+</div>
+<p>and:</p>
+<div class="math block">
+\beta=[0,0,0,0].
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-82">LayerNorm</h5>
+<div class="math block">
+\mu=2.5
+</div>
+<div class="math block">
+\sigma^2=1.25
+</div>
+<div class="math block">
+\sqrt{\sigma^2}=1.1180
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+LN(x)\approx
+[-1.3416,-0.4472,0.4472,1.3416]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-83">RMSNorm</h5>
+<div class="math block">
+RMS=\sqrt{7.5}=2.7386
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+RMSNorm(x)\approx
+[0.3651,0.7303,1.0954,1.4606]
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-84">1.11.32 High-Probability Conceptual Question</h3>
+<p><strong>Question:</strong></p>
+<p>Why doesn't RMSNorm force the output mean to zero?</p>
+<p>Because it doesn't calculate:</p>
+<div class="math block">
+x-\mu.
+</div>
+<p>It only rescales:</p>
+<div class="math block">
+x/RMS(x).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{RMSNorm controls magnitude but does not mean-center.}
+}
+</div>
+<p>Exactly as stated in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-85">1.11.33 High-Probability Shape Numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=8,\quad n=128,\quad d=512.
+</div>
+<p>Then:</p>
+<div class="math block">
+X\in\mathbb{R}^{8\times128\times512}.
+</div>
+<p>After LayerNorm:</p>
+<div class="math block">
+\boxed{
+8\times128\times512
+}
+</div>
+<p>After RMSNorm:</p>
+<div class="math block">
+\boxed{
+8\times128\times512
+}
+</div>
+<p>No dimension changes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-86">1.11.34 High-Probability Parameter Numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=1024.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-87">LayerNorm</h5>
+<div class="math block">
+\gamma:1024
+</div>
+<div class="math block">
+\beta:1024
+</div>
+<p>Total:</p>
+<div class="math block">
+\boxed{2048}
+</div>
+<p>trainable affine parameters.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-88">RMSNorm</h5>
+<div class="math block">
+\gamma:1024.
+</div>
+<p>Total:</p>
+<div class="math block">
+\boxed{1024}
+</div>
+<p>in the basic formulation.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+LN\text{ has twice as many affine normalization parameters as basic RMSNorm}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-89">1.11.35 The Entire Transformer Block Is Now Complete</h3>
+<p>We have now learned:</p>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-90">First sublayer</h4>
+<div class="math block">
+\boxed{
+h=x+MHA(LN(x))
+}
+</div>
+<p>where MHA itself is:</p>
+<div class="math block">
+\boxed{
+MHA(X)
+=
+Concat(head_1,\ldots,head_h)W_O
+}
+</div>
+<p>and each head is:</p>
+<div class="math block">
+\boxed{
+head_i=
+\operatorname{softmax}
+\left(
+\frac{Q_iK_i^T}{\sqrt{d_k}}+M
+\right)V_i.
+}
+</div>
+<p>Then:</p>
+<h4 id="v3-heading-chunk-les-step-1-11-i18-91">Second sublayer</h4>
+<div class="math block">
+\boxed{
+y=h+FFN(LN(h))
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\boxed{
+FFN(x)=W_2GELU(W_1x+b_1)+b_2.
+}
+</div>
+<p>This is the complete pre-LN Transformer block formulation on our cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-92">1.11.36 Full Data Flow</h3>
+<p>Put everything together:</p>
+<pre><code class="language-text">Token IDs
+   │
+   ▼
+Token Embeddings + Position
+   │
+   ▼
+Residual Stream X
+   │
+   ▼
+ LayerNorm / RMSNorm
+   │
+   ▼
+ Q ───── K ───── V
+ │        │       │
+ └──── attention ─┘
+          │
+     scaling / √dk
+          │
+      causal mask
+          │
+       softmax
+          │
+         AV
+          │
+    multiple heads
+          │
+       Concat
+          │
+         WO
+          │
+          ▼
+      + Residual
+          │
+          ▼
+ LayerNorm / RMSNorm
+          │
+          ▼
+         W1
+          │
+        GELU
+          │
+         W2
+          │
+          ▼
+      + Residual
+          │
+          ▼
+   Output of block
+</code></pre>
+<p>This is the point where the individual concepts finally become one architecture.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-93">1.11.37 Numerical Architecture Question</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=4,\quad n=32,\quad d=256
+</div>
+<p>and:</p>
+<div class="math block">
+h=8.
+</div>
+<p>Assume:</p>
+<div class="math block">
+d_k=d_v=d/h.
+</div>
+<p>First:</p>
+<div class="math block">
+d_k=d_v=\frac{256}{8}=32.
+</div>
+<p>Thus:</p>
+<div class="math block">
+Q,K:
+4\times8\times32\times32
+</div>
+<p>conceptually after head splitting.</p>
+<p>The attention score tensor:</p>
+<div class="math block">
+QK^T
+</div>
+<p>has shape:</p>
+<div class="math block">
+\boxed{
+4\times8\times32\times32
+}
+</div>
+<p>After attention and concatenation:</p>
+<div class="math block">
+\boxed{
+4\times32\times256
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+d_{ff}=4d=1024.
+</div>
+<p>Then FFN:</p>
+<div class="math block">
+4\times32\times256
+</div>
+<div class="math block">
+\rightarrow
+4\times32\times1024
+</div>
+<div class="math block">
+\rightarrow
+4\times32\times256.
+</div>
+<p>So the block starts and ends with:</p>
+<div class="math block">
+\boxed{
+4\times32\times256.
+}
+</div>
+<p>That's exactly the kind of multi-stage shape numerical that we will keep practicing.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-94">1.11.38 What You Should Now Know Without Looking at Notes</h3>
+<p>You should be able to derive:</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-95">LayerNorm</h5>
+<div class="math block">
+\boxed{
+LN(x)
+=
+\gamma\odot
+\frac{x-\mu}
+{\sqrt{\sigma^2+\epsilon}}
++\beta
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\mu=\frac1d\sum_i x_i
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma^2=
+\frac1d\sum_i(x_i-\mu)^2.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-96">RMSNorm</h5>
+<div class="math block">
+\boxed{
+RMSNorm(x)
+=
+\gamma\odot
+\frac{x}
+{\sqrt{\frac1d\sum_i x_i^2+\epsilon}}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-97">Main difference</h5>
+<div class="math block">
+\boxed{
+LN:\text{ center + scale}
+}
+</div>
+<div class="math block">
+\boxed{
+RMSNorm:\text{ scale only}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-98">Transformer pre-LN block</h5>
+<div class="math block">
+\boxed{
+h=x+MHA(Norm(x))
+}
+</div>
+<div class="math block">
+\boxed{
+y=h+FFN(Norm(h)).
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-99">1.11.39 Master Numerical Set</h3>
+<p>These are now part of your cumulative numerical bank.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-100">Numerical A</h5>
+<p>For:</p>
+<div class="math block">
+x=[2,4,6,8],
+</div>
+<p>calculate:</p>
+<div class="math block">
+\mu,\sigma^2,\sigma,LN(x).
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-101">Numerical B</h5>
+<p>For the same vector, calculate:</p>
+<div class="math block">
+RMS(x)
+</div>
+<p>and:</p>
+<div class="math block">
+RMSNorm(x).
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-102">Numerical C</h5>
+<p>For:</p>
+<div class="math block">
+d=768,
+</div>
+<p>calculate the number of normalization parameters in standard LayerNorm and basic RMSNorm.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-103">Numerical D</h5>
+<p>Given:</p>
+<div class="math block">
+B=16,\quad n=128,\quad d=512,
+</div>
+<p>what are the input/output shapes of normalization?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-104">Numerical E — Integrated</h5>
+<p>Given:</p>
+<div class="math block">
+d=512,\quad h=8,\quad d_{ff}=2048,\quad n=64,\quad B=4,
+</div>
+<p>find:</p>
+<div class="math block">
+d_k
+</div>
+<p>the Q/K/V per-head shape,</p>
+<p>the attention-score tensor shape,</p>
+<p>the concatenated MHA output shape,</p>
+<p>the FFN intermediate shape,</p>
+<p>and the final Transformer-block output shape.</p>
+<p>These integrated questions are exactly the style we will increasingly use instead of isolated calculations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-105">1.11.40 One Final Conceptual Connection</h3>
+<p>We can now explain <strong>why the Transformer block has this order</strong>:</p>
+<div class="math block">
+\boxed{
+Norm
+\rightarrow
+Attention
+\rightarrow
+Residual
+\rightarrow
+Norm
+\rightarrow
+FFN
+\rightarrow
+Residual
+}
+</div>
+<p>because the two major computations have fundamentally different jobs:</p>
+<div class="math block">
+\boxed{
+Attention:
+\text{mix information between positions}
+}
+</div>
+<div class="math block">
+\boxed{
+FFN:
+\text{nonlinearly transform each position}
+}
+</div>
+<p>and normalization controls the activation scale entering these operations.</p>
+<p>So the Transformer block is essentially:</p>
+<div class="math block">
+\boxed{
+\text{normalize}
+\rightarrow
+\text{communicate}
+\rightarrow
+\text{preserve residual}
+\rightarrow
+\text{normalize}
+\rightarrow
+\text{compute}
+\rightarrow
+\text{preserve residual}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-11-i18-106">Step 1.11 Master Check</h3>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-107">Q1</h5>
+<p>For:</p>
+<div class="math block">
+x=[2,4,6,8],
+</div>
+<p>calculate <span class="math inline">\mu</span>.</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-108">Q2</h5>
+<p>Calculate its variance using:</p>
+<div class="math block">
+\frac1d\sum_i(x_i-\mu)^2.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-109">Q3</h5>
+<p>Why is <span class="math inline">\epsilon</span> added?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-110">Q4</h5>
+<p>What is the difference between variance and RMS?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-111">Q5</h5>
+<p>Why does LayerNorm produce zero mean before the <span class="math inline">\gamma,\beta</span> transformation?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-112">Q6</h5>
+<p>Why does RMSNorm generally not produce zero mean?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-113">Q7</h5>
+<p>For:</p>
+<div class="math block">
+x=[5,5,5,5],
+</div>
+<p>what are the LayerNorm and RMSNorm outputs when <span class="math inline">\gamma=1,\beta=0</span> and ignoring <span class="math inline">\epsilon</span>'s tiny effect?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-114">Q8</h5>
+<p>For:</p>
+<div class="math block">
+B=8,n=128,d=512,
+</div>
+<p>what is the output shape after normalization?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-115">Q9</h5>
+<p>How many basic normalization parameters are there for <span class="math inline">d=1024</span> in LayerNorm versus RMSNorm?</p>
+<h5 id="v3-heading-chunk-les-step-1-11-i18-116">Q10</h5>
+<p>Complete the block:</p>
+<div class="math block">
+h=x+\boxed{?}
+</div>
+<div class="math block">
+y=h+\boxed{?}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-11-i18-117">Where We Are in the Transformer Derivation</h4>
+<p>We have now covered the major mathematical machinery:</p>
+<div class="math block">
+\boxed{
+\text{Embeddings}
+\rightarrow
+\text{Position}
+\rightarrow
+Q/K/V
+\rightarrow
+\text{Scaled Attention}
+\rightarrow
+\text{Causal Mask}
+\rightarrow
+\text{MHA}
+\rightarrow
+\text{Normalization}
+\rightarrow
+\text{FFN}
+\rightarrow
+\text{Residuals}
+}
+</div>
+<hr />
+</section>

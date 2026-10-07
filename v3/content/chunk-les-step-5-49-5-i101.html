@@ -1,0 +1,1142 @@
+<section class="chunk" id="chunk-les-step-5-49-5-i101" data-id="les-step-5-49-5-i101"><details class="audit-card" id="audit-full-chunk-les-step-5-49-5-i101" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-49-5-i101-1">Motivation</h4><p>Refresh local scale measurements when tensor distributions change between training steps.</p><h4 id="v3-heading-chunk-les-step-5-49-5-i101-2">Prerequisites</h4><ul><li>Linear algebra and chain rule</li><li>Binary floating-point normal/subnormal encodings</li><li>Quantization scale convention</li><li>Tensor shape and loss normalization</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-3">Notation and units</h4><ul><li>X:[N, K], W:[K, O], Y=XW:[N, O] row convention</li><li>s_q: fmax/amax quantization multiplier; s_d:1/s_q reconstruction multiplier</li><li>Nc:128 reduction/group channels in cited design</li><li>G: dL/dY; dX=GW^T; dW=X^TG</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Finite saturating E4M3FN RTNE is simulated; tensor arithmetic uses NumPy higher precision.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-5">Step-by-step derivation</h4><ol><li>Delayed scaling estimates amax from past tensors. If current amax grows, the old quantization multiplier is too large and clipping can occur; if the signal shrinks, it is too small and codes may underflow.</li><li>Online calibration measures current amax for each local group, then casts and stores the corresponding current scales. Perfect calibration means range alignment, not lossless reconstruction.</li><li>amax reduction and casting require memory reads and work; kernel fusion can reduce overhead but does not make it free. Running history remains useful in some frameworks.</li><li>Nonfinite amax, zero amax, rapid spikes and group-local outliers require explicit guards; scale metadata must remain aligned with the lifetime of its codes.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-5-i101-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-5-i101-7">Fresh versus stale real FP8 range</h5><p>Given: historyamax4, currenttensor[8]</p><ol><li>Stalemultiplier112 maps 8to896, saturates 448, reconstructs 4.</li><li>Freshmultiplier56maps8to448, reconstructs 8.</li></ol><p>Answer: stale4, fresh8</p><p>Verification: mtp_fp8_parallelism / FP8-delayed-clip · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-49-5-i101-8">Inherited small-signal INT8 toy</h5><p>Given: historicalamax 50, current amax 2, x=.1</p><ol><li>Stalescale127/50=2.54 givesround(.254)=0.</li><li>Freshscale63.5givesround(6.35)=6.</li><li>Freshreconstruction6/63.5=.09448818898; precisionerror remains.</li></ol><p>Answer: codes0vs6; onlineisnotexact</p><p>Verification: mtp_fp8_parallelism / ONLINE-INT8-small · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-49-5-i101-9">Corrections and source qualifications</h4><ul><li>heading: Quantization and dequantization scale convention; text: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-10">Mastery answers and retained exercise context</h4><ol><li>question: 5.49.5.28 The five pillars as five questions; answer: This is probably the cleanest way to remember them. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.5.29 Exam numerical — delayed vs online; answer: Suppose: q_{\max}=127. Historical maximum: \alpha_h=50. Current maximum: \alpha_t=2. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: 5.49.5.30 Exam numerical — reverse direction; answer: Historical: \alpha_h=2. Current: \alpha_t=50. Delayed scale: s_h=\frac{127}{2}=63.5. Current maximum quantizes to: 50(63.5)=3175. Therefore: \boxed{ 3175&gt;127 } and the representation cannot accommodate it. Online: s_t=\frac{127}{50}=2.54 and: 50(2.54)=127. Perfectly calibrated. Datatype qualification: Format/scale clarification: round(s*x) clipped to +/-127 is the inherited INT8 teaching example, not an FP8 cast. This companion simulates saturating E4M3FN with maximum 448 and RTNE representable-value rounding. Quantization multiplier s_q=fmax/amax and dequantization multiplier s_d=amax/fmax are reciprocals: q=cast(s_q*x), reconstructed=q/s_q=s_d*q. Never interchange them in a GEMM scale product. The simulation uses NumPy/double for arithmetic and does not certify Hopper FP8 kernels.; source of answer: Retained local solution plus explicit independently checked corrections; see companion numerical IDs.</li><li>question: Where does \alpha come from?; answer: 5.49.5.2 Two possibilities Suppose we are currently quantizing: X_t. There are two broad approaches. Approach A — use old statistics Use something like: \alpha_{t-1} or a running historical estimate. This is what the source calls: \boxed{\text{Delayed Quantization}}. Approach B — inspect the current tensor Calculate: \alpha_t=\max|X_t|. This is: \boxed{\text{Online Quantization}}. The source contrasts exactly these two approaches. (Source: Build a DeepSeek Model (From Scratch)) 5.49.5.3 What does “delayed” mean? Suppose the previous batches looked like: X_{t-3}, X_{t-2}, X_{t-1}. Their maximum magnitudes might have been: 10,\quad12,\quad11. A delayed scheme keeps history such as: \alpha_{\text{history}}\approx12. Then when the new tensor arrives: X_t, you quantize it using information derived from the past. The important point is: \boxed{ \text{the scale used now is not necessarily determined by the current tensor}. } The source explicitly describes delayed quantization as maintaining a running history of maximum values and using that historical information for the current step. (Source: Build a DeepSeek Model (From Scratch)) 5.49.5.4 Why could that be a problem? Because the distribution of neural-network tensors can change. The source identifies two opposite cases. Case 1 Current maximum: \alpha_t \gg \alpha_{\text{history}}. Case 2 Current maximum: \alpha_t \ll \alpha_{\text{history}}. These create two different numerical failures. 5.49.5.5 Case; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: Where should I use FP8?; answer: \boxed{\text{bulk computation}} Pillar 2 How do I prevent an outlier from destroying precision? \boxed{\text{small local groups/blocks}} Pillar 3 How do I safely add many FP8 products? \boxed{\text{FP32 accumulation}} Pillar 4 How should I spend the 8 FP8 bits? \boxed{\text{prefer mantissa → E4M3}} once range is locally controlled. Pillar 5 When do I calculate the scale? \boxed{\text{from the current tensor}} 5.49.5.29 Exam numerical — delayed vs online Suppose: q_{\max}=127. Historical maximum: \alpha_h=50. Current maximum: \alpha_t=2. Delayed s_h=\frac{127}{50}=2.54. For: x=0.1: q=\operatorname{round}(0.1\times 2.54) =\operatorname{round}(0.254) = \boxed0. Online s_t=\frac{127}{2}=63.5. Then: q= \operatorname{round}(0.1\times 63.5) = \operatorname{round}(6.35) = \boxed6. So: \boxed{ \text{online preserves the small value much better}. } 5.49.5.30 Exam numerical — reverse direction Historical: \alpha_h=2. Current: \alpha_t=50. Delayed scale: s_h=\frac{127}{2}=63.5. Current maximum quantizes to: 50(63.5)=3175. Therefore: \boxed{ 3175&gt;127 } and the representation cannot accommodate it. Online: s_t=\frac{127}{50}=2.54 and: 50(2.54)=127. Perfectly calibrated. 5.49.5.31 What online quantization does NOT solve This is important. Online quantization does not magically eliminate all quantization error. Even with a perfectly fresh scale: \boxed{ \text{rounding still occurs}. } There can still be: \boxed{\text{quantization erro; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: How do I prevent an outlier from destroying precision?; answer: \boxed{\text{small local groups/blocks}} Pillar 3 How do I safely add many FP8 products? \boxed{\text{FP32 accumulation}} Pillar 4 How should I spend the 8 FP8 bits? \boxed{\text{prefer mantissa → E4M3}} once range is locally controlled. Pillar 5 When do I calculate the scale? \boxed{\text{from the current tensor}} 5.49.5.29 Exam numerical — delayed vs online Suppose: q_{\max}=127. Historical maximum: \alpha_h=50. Current maximum: \alpha_t=2. Delayed s_h=\frac{127}{50}=2.54. For: x=0.1: q=\operatorname{round}(0.1\times 2.54) =\operatorname{round}(0.254) = \boxed0. Online s_t=\frac{127}{2}=63.5. Then: q= \operatorname{round}(0.1\times 63.5) = \operatorname{round}(6.35) = \boxed6. So: \boxed{ \text{online preserves the small value much better}. } 5.49.5.30 Exam numerical — reverse direction Historical: \alpha_h=2. Current: \alpha_t=50. Delayed scale: s_h=\frac{127}{2}=63.5. Current maximum quantizes to: 50(63.5)=3175. Therefore: \boxed{ 3175&gt;127 } and the representation cannot accommodate it. Online: s_t=\frac{127}{50}=2.54 and: 50(2.54)=127. Perfectly calibrated. 5.49.5.31 What online quantization does NOT solve This is important. Online quantization does not magically eliminate all quantization error. Even with a perfectly fresh scale: \boxed{ \text{rounding still occurs}. } There can still be: \boxed{\text{quantization error}} because FP8 has limited representational precision. Online quantization specifically attacks th; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li><li>question: How do I safely add many FP8 products?; answer: \boxed{\text{FP32 accumulation}} Pillar 4 How should I spend the 8 FP8 bits? \boxed{\text{prefer mantissa → E4M3}} once range is locally controlled. Pillar 5 When do I calculate the scale? \boxed{\text{from the current tensor}} 5.49.5.29 Exam numerical — delayed vs online Suppose: q_{\max}=127. Historical maximum: \alpha_h=50. Current maximum: \alpha_t=2. Delayed s_h=\frac{127}{50}=2.54. For: x=0.1: q=\operatorname{round}(0.1\times 2.54) =\operatorname{round}(0.254) = \boxed0. Online s_t=\frac{127}{2}=63.5. Then: q= \operatorname{round}(0.1\times 63.5) = \operatorname{round}(6.35) = \boxed6. So: \boxed{ \text{online preserves the small value much better}. } 5.49.5.30 Exam numerical — reverse direction Historical: \alpha_h=2. Current: \alpha_t=50. Delayed scale: s_h=\frac{127}{2}=63.5. Current maximum quantizes to: 50(63.5)=3175. Therefore: \boxed{ 3175&gt;127 } and the representation cannot accommodate it. Online: s_t=\frac{127}{50}=2.54 and: 50(2.54)=127. Perfectly calibrated. 5.49.5.31 What online quantization does NOT solve This is important. Online quantization does not magically eliminate all quantization error. Even with a perfectly fresh scale: \boxed{ \text{rounding still occurs}. } There can still be: \boxed{\text{quantization error}} because FP8 has limited representational precision. Online quantization specifically attacks the problem of: \boxed{ \text{using an inappropriate stale scale}. } Likewise, it does not re; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-step-5-49-5-i101-11">Edge cases and remaining gaps</h4><ul><li>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-12">Connections and progression</h4><ul><li>Local amax scales → range control → E4M3 significand precision</li><li>Group GEMMs → dequantization within reduction → safe accumulation</li><li>High-precision learning state → refreshed low-precision compute copies → communication/storage budget</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 314, 315, 316 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>DeepSeek-V3 Technical Report (arXiv:2412.19437v2) · FP8 operand GEMMs; local tiles; 128-element promotion; BF16 moments versus FP32 master/grad. Read 2026-10-07. · https://arxiv.org/html/2412.19437v2#S3.SS3</li><li>NVIDIA Transformer Engine FP8 Current Scaling documentation · E4M3 maximum 448 and E5M2 maximum 57344; cast-to-nearest-even; scale conventions. Read 2026-10-07. · https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html</li></ul><h4 id="v3-heading-chunk-les-step-5-49-5-i101-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (58)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R98 / Step 5.49.5 — Pillar 5: Online Quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.1 First: recall what a scaling factor is</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.2 Two possibilities</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Approach A — use old statistics</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Approach B — inspect the current tensor</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.3 What does “delayed” mean?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.4 Why could that be a problem?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Case 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Case 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.5 Case 1 — Current values are much larger</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.6 Concrete toy numerical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.7 Case 2 — Current values are much smaller</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.8 Why is this the same “squashing” problem?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.9 The important difference between Pillar 2 and Pillar 5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 2 — Fine-Grained Quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 5 — Online Quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.10 Online Quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.11 Step 1 — Current tensor arrives</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.12 Step 2 — Find current maximum</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.13 Step 3 — Calculate the fresh scale</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.14 Step 4 — Quantize</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.15 Why this is “perfectly calibrated”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.16 Compare delayed vs online numerically</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Historical tensor</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Current tensor</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Delayed</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Online</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.17 Now reverse it</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Delayed</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Online</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.18 So online quantization solves both directions</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Current tensor larger than historical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Current tensor smaller than historical</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.19 Why not use a running average?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.20 But there is a cost</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.21 Compare the complexity qualitatively</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.22 A concrete complexity intuition</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.23 But this is not literally “free”</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.24 Why online quantization complements fine-grained quantization</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.25 Spatial and temporal adaptation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.26 Connect online quantization to E4M3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.27 Now all five pillars fit</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.28 The five pillars as five questions</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Pillar 5</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.29 Exam numerical — delayed vs online</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Delayed</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Online</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.30 Exam numerical — reverse direction</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.31 What online quantization does NOT solve</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.32 The full DeepSeek FP8 philosophy</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.33 Full five-pillar dependency graph</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.34 One final subtle point</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.35 Step 5.49 is now complete</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5.49.5.36 Final source-grounded summary</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Actual GPU FP8 casts, tensor-core precision and training convergence were not executed; CPU finite-code simulation and exact linear derivatives are verified.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-5-i101"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-5-i101" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-4-i99">← Previous lesson</a> · <a href="#chunk-les-step-5-49-6-i102">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-4-i99">Step 5.49.4 — Pillar 4: Mantissa Over Exponents</a></p><p><strong>This lesson:</strong> R98 / Step 5.49.5 — Pillar 5: Online Quantization</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-5-i101"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-5-i101-15">R98 / Step 5.49.5 — Pillar 5: Online Quantization</h3>
+<p><em>Plan node: A4 · chat order #101</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We are now at the <strong>exact next node</strong> in the master sequence.</p>
+<p>We have already covered:</p>
+<div class="math block">
+\boxed{\text{Pillar 1 — Mixed Precision}}
+</div>
+<div class="math block">
+\boxed{\text{Pillar 2 — Fine-Grained Quantization}}
+</div>
+<div class="math block">
+\boxed{\text{Pillar 3 — Increasing Accumulation Precision}}
+</div>
+<div class="math block">
+\boxed{\text{Pillar 4 — Mantissa over Exponents}}
+</div>
+<p>So the only remaining piece of the source's five-pillar FP8 framework is:</p>
+<div class="math block">
+\boxed{\text{Pillar 5 — Online Quantization}}.
+</div>
+<p>The source explicitly presents it as the final part of the FP8 framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-16">5.49.5.1 First: recall what a scaling factor is</h4>
+<p>From our earlier quantization foundation:</p>
+<p>Suppose a tensor is:</p>
+<div class="math block">
+X=[x_1,x_2,\ldots,x_n].
+</div>
+<p>Find its maximum absolute value:</p>
+<div class="math block">
+\boxed{
+\alpha=\max_i|x_i|
+}
+</div>
+<p>Then derive a scaling factor from the target representable range.</p>
+<p>For the simple symmetric INT8 example we used:</p>
+<div class="math block">
+\boxed{
+s=\frac{q_{\max}}{\alpha}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+q_{\max}=127.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+q_i=\operatorname{round}(x_i s).
+}
+</div>
+<p>So everything depends on:</p>
+<div class="math block">
+\boxed{\alpha}.
+</div>
+<p>And that gives us the question behind Pillar 5:</p>
+<blockquote>
+<p><strong>Where does <span class="math inline">\alpha</span> come from?</strong></p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-17">5.49.5.2 Two possibilities</h4>
+<p>Suppose we are currently quantizing:</p>
+<div class="math block">
+X_t.
+</div>
+<p>There are two broad approaches.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-18">Approach A — use old statistics</h6>
+<p>Use something like:</p>
+<div class="math block">
+\alpha_{t-1}
+</div>
+<p>or a running historical estimate.</p>
+<p>This is what the source calls:</p>
+<div class="math block">
+\boxed{\text{Delayed Quantization}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-19">Approach B — inspect the current tensor</h6>
+<p>Calculate:</p>
+<div class="math block">
+\alpha_t=\max|X_t|.
+</div>
+<p>This is:</p>
+<div class="math block">
+\boxed{\text{Online Quantization}}.
+</div>
+<p>The source contrasts exactly these two approaches. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-20">5.49.5.3 What does “delayed” mean?</h4>
+<p>Suppose the previous batches looked like:</p>
+<div class="math block">
+X_{t-3},X_{t-2},X_{t-1}.
+</div>
+<p>Their maximum magnitudes might have been:</p>
+<div class="math block">
+10,\quad12,\quad11.
+</div>
+<p>A delayed scheme keeps history such as:</p>
+<div class="math block">
+\alpha_{\text{history}}\approx12.
+</div>
+<p>Then when the new tensor arrives:</p>
+<div class="math block">
+X_t,
+</div>
+<p>you quantize it using information derived from the past.</p>
+<p>The important point is:</p>
+<div class="math block">
+\boxed{
+\text{the scale used now is not necessarily determined by the current tensor}.
+}
+</div>
+<p>The source explicitly describes delayed quantization as maintaining a running history of maximum values and using that historical information for the current step. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-21">5.49.5.4 Why could that be a problem?</h4>
+<p>Because the distribution of neural-network tensors can change.</p>
+<p>The source identifies two opposite cases.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-22">Case 1</h6>
+<p>Current maximum:</p>
+<div class="math block">
+\alpha_t
+\gg
+\alpha_{\text{history}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-23">Case 2</h6>
+<p>Current maximum:</p>
+<div class="math block">
+\alpha_t
+\ll
+\alpha_{\text{history}}.
+</div>
+<p>These create two different numerical failures.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-24">5.49.5.5 Case 1 — Current values are much larger</h4>
+<p>Suppose historical maximum:</p>
+<div class="math block">
+\alpha_{\text{history}}=10.
+</div>
+<p>But the current tensor contains:</p>
+<div class="math block">
+\alpha_t=100.
+</div>
+<p>Suppose the target FP8 range has some maximum representable magnitude <span class="math inline">q_{\max}</span>.</p>
+<p>The old scale was derived from:</p>
+<div class="math block">
+10.
+</div>
+<p>Therefore the scale is approximately:</p>
+<div class="math block">
+s_{\text{old}}
+=
+\frac{q_{\max}}{10}.
+</div>
+<p>But the current value is:</p>
+<div class="math block">
+100.
+</div>
+<p>So its scaled value becomes:</p>
+<div class="math block">
+100
+\frac{q_{\max}}{10}
+=
+10q_{\max}.
+</div>
+<p>That is far beyond the intended target range.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{old scale + unexpectedly large current tensor}
+\rightarrow
+\text{overflow}.
+}
+</div>
+<p>The source explicitly identifies this failure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-25">5.49.5.6 Concrete toy numerical</h4>
+<p>For simplicity, use:</p>
+<div class="math block">
+q_{\max}=127.
+</div>
+<p>Historical maximum:</p>
+<div class="math block">
+\alpha_h=10.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s_h=\frac{127}{10}=12.7.
+</div>
+<p>Now current tensor contains:</p>
+<div class="math block">
+x=100.
+</div>
+<p>Quantization tries:</p>
+<div class="math block">
+100(12.7)=1270.
+</div>
+<p>But the target range is:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{1270&gt;127}.
+</div>
+<p>Overflow occurs.</p>
+<p>This example is derived from the source's stated failure mode.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-26">5.49.5.7 Case 2 — Current values are much smaller</h4>
+<p>Now reverse the situation.</p>
+<p>Historical maximum:</p>
+<div class="math block">
+\alpha_h=100.
+</div>
+<p>Current maximum:</p>
+<div class="math block">
+\alpha_t=1.
+</div>
+<p>The old scale:</p>
+<div class="math block">
+s_h=\frac{127}{100}=1.27.
+</div>
+<p>Take a current value:</p>
+<div class="math block">
+x=0.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+0.1(1.27)=0.127.
+</div>
+<p>After rounding:</p>
+<div class="math block">
+\boxed{q=0}.
+</div>
+<p>So:</p>
+<div class="math block">
+0.1
+\rightarrow
+0
+</div>
+<p>in the quantized representation.</p>
+<p>The source describes this as underflow / catastrophic precision loss, connected to the same “squashing” problem we encountered earlier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-27">5.49.5.8 Why is this the same “squashing” problem?</h4>
+<p>Remember our earlier example:</p>
+<div class="math block">
+[2,3,500].
+</div>
+<p>The <span class="math inline">500</span> forced the global scale to accommodate a huge range.</p>
+<p>Then:</p>
+<div class="math block">
+2,3
+</div>
+<p>were mapped into a tiny part of the quantized range.</p>
+<p>Here the problem is temporal rather than spatial.</p>
+<p>Previously:</p>
+<div class="math block">
+\boxed{
+\text{one scale is shared by very different values}.
+}
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+\text{one old scale is reused for a very different current tensor}.
+}
+</div>
+<p>So both create:</p>
+<div class="math block">
+\boxed{
+\text{poor use of the available quantization range}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-28">5.49.5.9 The important difference between Pillar 2 and Pillar 5</h4>
+<p>This is a very useful distinction.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-29">Pillar 2 — Fine-Grained Quantization</h6>
+<p>Question:</p>
+<div class="math block">
+\boxed{
+\text{How large should the region be?}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{small groups/blocks}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-30">Pillar 5 — Online Quantization</h6>
+<p>Question:</p>
+<div class="math block">
+\boxed{
+\text{When should the scaling factor be measured?}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{from the current tensor}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 2 = spatial/local adaptation}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 5 = temporal/current-step adaptation}.
+}
+</div>
+<p>This is an important conceptual connection that emerges from the source's two sections. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-31">5.49.5.10 Online Quantization</h4>
+<p>Now the DeepSeek solution.</p>
+<p>The source says:</p>
+<blockquote>
+<p>calculate the scaling factor in real time from the current tensor itself.</p>
+</blockquote>
+<p>The source's three-step workflow is:</p>
+<div class="math block">
+\boxed{
+1.\text{ scan current tensor}
+}
+</div>
+<div class="math block">
+\boxed{
+2.\text{ calculate current maximum}
+}
+</div>
+<div class="math block">
+\boxed{
+3.\text{ derive and apply fresh scale}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-32">5.49.5.11 Step 1 — Current tensor arrives</h4>
+<p>Suppose:</p>
+<div class="math block">
+X_t.
+</div>
+<p>We do not first consult:</p>
+<div class="math block">
+X_{t-1}.
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{inspect }X_t.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-33">5.49.5.12 Step 2 — Find current maximum</h4>
+<p>Compute:</p>
+<div class="math block">
+\boxed{
+\alpha_t=\max_i|x_i|.
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+X_t=
+[-2.1,\;0.4,\;1.7,\;-3.8,\;2.2].
+</div>
+<p>Then:</p>
+<div class="math block">
+|X_t|
+=
+[2.1,0.4,1.7,3.8,2.2].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\alpha_t=3.8.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-34">5.49.5.13 Step 3 — Calculate the fresh scale</h4>
+<p>Using our symmetric quantization example:</p>
+<div class="math block">
+s_t=\frac{127}{3.8}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+s_t\approx33.421.
+}
+</div>
+<p>Now the current tensor is calibrated specifically for the current dynamic range.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-35">5.49.5.14 Step 4 — Quantize</h4>
+<p>For:</p>
+<div class="math block">
+x=-2.1:
+</div>
+<div class="math block">
+q
+=
+\operatorname{round}
+(-2.1\times33.421).
+</div>
+<p>Approximately:</p>
+<div class="math block">
+-70.18.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{-70}.
+</div>
+<p>For:</p>
+<div class="math block">
+x=0.4:
+</div>
+<div class="math block">
+0.4\times33.421
+\approx13.37
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{13}.
+</div>
+<p>For:</p>
+<div class="math block">
+x=-3.8:
+</div>
+<div class="math block">
+-3.8\times33.421
+\approx-127
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{-127}.
+</div>
+<p>Notice that the largest current magnitude maps almost exactly to the maximum available representation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-36">5.49.5.15 Why this is “perfectly calibrated”</h4>
+<p>The source uses the phrase that the fresh scaling factor is tailored to the dynamic range of the tensor being processed at that exact moment. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The important idea is:</p>
+<div class="math block">
+\boxed{
+\alpha_t
+\rightarrow
+s_t
+\rightarrow
+X_t
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\alpha_{t-1}
+\rightarrow
+s_{t-1}
+\rightarrow
+X_t.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-37">5.49.5.16 Compare delayed vs online numerically</h4>
+<p>Suppose:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-38">Historical tensor</h6>
+<div class="math block">
+X_{t-1}
+</div>
+<p>has:</p>
+<div class="math block">
+\alpha_{t-1}=100.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-39">Current tensor</h6>
+<div class="math block">
+X_t
+</div>
+<p>has:</p>
+<div class="math block">
+\alpha_t=1.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-5-i101-40">Delayed</h5>
+<div class="math block">
+s_{\text{old}}=\frac{127}{100}=1.27.
+</div>
+<p>A current value:</p>
+<div class="math block">
+x=0.1
+</div>
+<p>becomes:</p>
+<div class="math block">
+0.127\rightarrow0.
+</div>
+<p>So the value is lost.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-5-i101-41">Online</h5>
+<div class="math block">
+s_t=\frac{127}{1}=127.
+</div>
+<p>Then:</p>
+<div class="math block">
+0.1\times127=12.7
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{q=13}.
+</div>
+<p>Much more of the quantization range is used.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{online scaling preserves small current values much better}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-42">5.49.5.17 Now reverse it</h4>
+<p>Historical:</p>
+<div class="math block">
+\alpha_{t-1}=1.
+</div>
+<p>Current:</p>
+<div class="math block">
+\alpha_t=100.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-43">Delayed</h6>
+<div class="math block">
+s_{\text{old}}=127.
+</div>
+<p>Current maximum:</p>
+<div class="math block">
+100\times127=12,700.
+</div>
+<p>But target:</p>
+<div class="math block">
+127.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{overflow}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-44">Online</h6>
+<div class="math block">
+s_t=127/100=1.27.
+</div>
+<p>Current maximum:</p>
+<div class="math block">
+100(1.27)=127.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{properly scaled}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-45">5.49.5.18 So online quantization solves both directions</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-46">Current tensor larger than historical</h6>
+<div class="math block">
+\boxed{
+\alpha_t\uparrow
+\rightarrow
+s_t\downarrow
+}
+</div>
+<p>so overflow risk is reduced.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-47">Current tensor smaller than historical</h6>
+<div class="math block">
+\boxed{
+\alpha_t\downarrow
+\rightarrow
+s_t\uparrow
+}
+</div>
+<p>so the smaller values use more of the available representation range.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{online scaling adapts in both directions}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-48">5.49.5.19 Why not use a running average?</h4>
+<p>You might ask:</p>
+<blockquote>
+<p>Why not estimate the current maximum from an exponential moving average?</p>
+</blockquote>
+<p>That is precisely the general family of delayed/statistical approaches the source contrasts with online calculation.</p>
+<p>The source's argument is that the current tensor provides the most direct information about the current dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So DeepSeek prioritizes:</p>
+<div class="math block">
+\boxed{
+\text{current information}
+}
+</div>
+<p>over:</p>
+<div class="math block">
+\boxed{
+\text{historical prediction of current information}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-49">5.49.5.20 But there is a cost</h4>
+<p>Online quantization requires:</p>
+<div class="math block">
+\boxed{
+\text{an additional pass over the tensor}
+}
+</div>
+<p>to compute:</p>
+<div class="math block">
+\max|X|.
+</div>
+<p>So we have:</p>
+<div class="math block">
+\boxed{
+\text{extra computation}.
+}
+</div>
+<p>Why accept that?</p>
+<p>Because the source says maximum-finding is much cheaper than the massive matrix multiplications that dominate the workload. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-50">5.49.5.21 Compare the complexity qualitatively</h4>
+<p>Suppose a matrix multiplication performs approximately:</p>
+<div class="math block">
+O(MNK)
+</div>
+<p>arithmetic work.</p>
+<p>Finding the maximum of a tensor with:</p>
+<div class="math block">
+N
+</div>
+<p>elements costs approximately:</p>
+<div class="math block">
+O(N)
+</div>
+<p>work.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+O(N)\ll O(MNK)
+}
+</div>
+<p>for a large GEMM.</p>
+<p>This is the fundamental reason the extra maximum-finding pass can be acceptable.</p>
+<p>The source explicitly makes this comparison qualitatively, describing max-finding as an order of magnitude faster than the dominant matrix multiplication workload. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-51">5.49.5.22 A concrete complexity intuition</h4>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{4096\times4096}.
+</div>
+<p>Number of values:</p>
+<div class="math block">
+4096^2
+=
+16,777,216.
+</div>
+<p>Finding the maximum requires scanning approximately:</p>
+<div class="math block">
+\boxed{16.8M}
+</div>
+<p>values.</p>
+<p>Now suppose the same matrix participates in a multiplication:</p>
+<div class="math block">
+4096\times4096
+</div>
+<p>with another compatible matrix.</p>
+<p>The multiplication requires approximately:</p>
+<div class="math block">
+4096^3
+=
+68,719,476,736
+</div>
+<p>multiply operations under a simple count.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+16.8M
+\ll
+68.7B.
+}
+</div>
+<p>This is our derived illustration of why the calibration pass can be relatively inexpensive.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-52">5.49.5.23 But this is not literally “free”</h4>
+<p>Even if:</p>
+<div class="math block">
+O(N)
+</div>
+<p>is much smaller than:</p>
+<div class="math block">
+O(N^3),
+</div>
+<p>the max operation still consumes:</p>
+<ul>
+<li>memory bandwidth,</li>
+<li>GPU cycles,</li>
+<li>synchronization,</li>
+<li>kernel-launch resources.</li>
+</ul>
+<p>So the correct statement is:</p>
+<div class="math block">
+\boxed{
+\text{small relative overhead}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{\text{zero overhead}}.
+</div>
+<p>The source explicitly acknowledges a small computational overhead. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-53">5.49.5.24 Why online quantization complements fine-grained quantization</h4>
+<p>Now combine Pillar 2 and Pillar 5.</p>
+<p>Suppose we have activation groups:</p>
+<div class="math block">
+G_1,G_2,\ldots,G_m.
+</div>
+<p>Fine-grained quantization says:</p>
+<div class="math block">
+\alpha_{t,g}
+=
+\max_{x\in G_g}|x|.
+</div>
+<p>Online quantization says:</p>
+<div class="math block">
+\boxed{
+\alpha_{t,g}
+\text{ is calculated from the current tensor/group}
+}
+</div>
+<p>rather than a stale:</p>
+<div class="math block">
+\alpha_{t-1,g}.
+</div>
+<p>So the combination is:</p>
+<div class="math block">
+\boxed{
+\text{local}
++
+\text{current}.
+}
+</div>
+<p>That is an excellent way to remember the two techniques.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-54">5.49.5.25 Spatial and temporal adaptation</h4>
+<p>This is the clean conceptual model:</p>
+<div class="math block">
+\boxed{
+\text{Fine-Grained}
+=
+\text{where do I measure?}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{locally}.
+</div>
+<div class="math block">
+\boxed{
+\text{Online}
+=
+\text{when do I measure?}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{now}.
+</div>
+<p>Therefore DeepSeek's scaling strategy is approximately:</p>
+<div class="math block">
+\boxed{
+\text{local spatial statistics}
++
+\text{current temporal statistics}.
+}
+</div>
+<p>That is the strongest conceptual connection to retain.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-55">5.49.5.26 Connect online quantization to E4M3</h4>
+<p>Remember Pillar 4.</p>
+<p>DeepSeek wants:</p>
+<div class="math block">
+\boxed{E4M3}
+</div>
+<p>because it gives more mantissa bits.</p>
+<p>But E4M3 has less dynamic range than E5M2.</p>
+<p>Fine-grained quantization reduces:</p>
+<div class="math block">
+\boxed{\text{local range problem}}.
+</div>
+<p>Online quantization reduces:</p>
+<div class="math block">
+\boxed{\text{stale-scale problem}}.
+</div>
+<p>Therefore the model can more aggressively exploit:</p>
+<div class="math block">
+\boxed{
+\text{precision-oriented E4M3}.
+}
+</div>
+<p>The source's five-pillar presentation specifically treats these ideas as synergistic.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-56">5.49.5.27 Now all five pillars fit</h4>
+<p>We can finally draw the complete FP8 logic.</p>
+<pre><code class="language-text">                   FP8 TRAINING
+                        │
+                        ▼
+              ┌──────────────────┐
+              │ Pillar 1          │
+              │ Mixed Precision   │
+              └────────┬─────────┘
+                       │
+                       ▼
+                  Use FP8 in
+                  bulk GEMMs
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Pillar 2          │
+              │ Fine-Grained      │
+              │ Quantization      │
+              └────────┬─────────┘
+                       │
+                       ▼
+               Local scales for
+               local dynamic range
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Pillar 3          │
+              │ Accumulation      │
+              │ Precision         │
+              └────────┬─────────┘
+                       │
+                       ▼
+                FP32 promotion
+                / accumulation
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Pillar 4          │
+              │ E4M3              │
+              └────────┬─────────┘
+                       │
+                       ▼
+               More mantissa /
+                 precision
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Pillar 5          │
+              │ Online            │
+              │ Quantization      │
+              └────────┬─────────┘
+                       │
+                       ▼
+                 Fresh current
+                  tensor scale
+                       │
+                       ▼
+             stable FP8 training
+</code></pre>
+<p>The source's summary describes exactly these five components: mixed precision, local block scaling, higher-precision accumulation, uniform E4M3, and real-time current-batch scaling. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-57">5.49.5.28 The five pillars as five questions</h4>
+<p>This is probably the cleanest way to remember them.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-58">Pillar 1</h6>
+<blockquote>
+<p><strong>Where should I use FP8?</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{bulk computation}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-59">Pillar 2</h6>
+<blockquote>
+<p><strong>How do I prevent an outlier from destroying precision?</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{small local groups/blocks}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-60">Pillar 3</h6>
+<blockquote>
+<p><strong>How do I safely add many FP8 products?</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{FP32 accumulation}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-61">Pillar 4</h6>
+<blockquote>
+<p><strong>How should I spend the 8 FP8 bits?</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{prefer mantissa → E4M3}}
+</div>
+<p>once range is locally controlled.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-62">Pillar 5</h6>
+<blockquote>
+<p><strong>When do I calculate the scale?</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{from the current tensor}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-63">5.49.5.29 Exam numerical — delayed vs online</h4>
+<p>Suppose:</p>
+<div class="math block">
+q_{\max}=127.
+</div>
+<p>Historical maximum:</p>
+<div class="math block">
+\alpha_h=50.
+</div>
+<p>Current maximum:</p>
+<div class="math block">
+\alpha_t=2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-64">Delayed</h6>
+<div class="math block">
+s_h=\frac{127}{50}=2.54.
+</div>
+<p>For:</p>
+<div class="math block">
+x=0.1:
+</div>
+<div class="math block">
+q=\operatorname{round}(0.1\times2.54)
+</div>
+<div class="math block">
+=\operatorname{round}(0.254)
+=
+\boxed0.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-5-i101-65">Online</h6>
+<div class="math block">
+s_t=\frac{127}{2}=63.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+q=
+\operatorname{round}(0.1\times63.5)
+=
+\operatorname{round}(6.35)
+=
+\boxed6.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{online preserves the small value much better}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-66">5.49.5.30 Exam numerical — reverse direction</h4>
+<p>Historical:</p>
+<div class="math block">
+\alpha_h=2.
+</div>
+<p>Current:</p>
+<div class="math block">
+\alpha_t=50.
+</div>
+<p>Delayed scale:</p>
+<div class="math block">
+s_h=\frac{127}{2}=63.5.
+</div>
+<p>Current maximum quantizes to:</p>
+<div class="math block">
+50(63.5)=3175.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+3175&gt;127
+}
+</div>
+<p>and the representation cannot accommodate it.</p>
+<p>Online:</p>
+<div class="math block">
+s_t=\frac{127}{50}=2.54
+</div>
+<p>and:</p>
+<div class="math block">
+50(2.54)=127.
+</div>
+<p>Perfectly calibrated.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-67">5.49.5.31 What online quantization does NOT solve</h4>
+<p>This is important.</p>
+<p>Online quantization does not magically eliminate all quantization error.</p>
+<p>Even with a perfectly fresh scale:</p>
+<div class="math block">
+\boxed{
+\text{rounding still occurs}.
+}
+</div>
+<p>There can still be:</p>
+<div class="math block">
+\boxed{\text{quantization error}}
+</div>
+<p>because FP8 has limited representational precision.</p>
+<p>Online quantization specifically attacks the problem of:</p>
+<div class="math block">
+\boxed{
+\text{using an inappropriate stale scale}.
+}
+</div>
+<p>Likewise, it does not replace:</p>
+<ul>
+<li>fine-grained grouping,</li>
+<li>FP32 accumulation,</li>
+<li>mixed precision,</li>
+<li>E4M3 selection.</li>
+</ul>
+<p>It is one component of the complete framework.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-68">5.49.5.32 The full DeepSeek FP8 philosophy</h4>
+<p>We can now state the complete design in one sentence:</p>
+<div class="math block">
+\boxed{
+\text{Compute cheaply in FP8, scale locally, calculate scales currently, accumulate safely, and retain high precision where it matters.}
+}
+</div>
+<p>That is much more accurate than:</p>
+<blockquote>
+<p>“DeepSeek uses FP8.”</p>
+</blockquote>
+<p>The source's entire Section 5.5 is really explaining <strong>how FP8 can be made usable for large-scale training</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-69">5.49.5.33 Full five-pillar dependency graph</h4>
+<pre><code class="language-text">             FP8 alone
+                │
+                ▼
+        numerical difficulties
+                │
+       ┌────────┼─────────┐
+       ▼        ▼         ▼
+    outliers  accumulation  range
+       │        │         │
+       ▼        ▼         ▼
+    Pillar 2  Pillar 3  Pillar 4
+       │
+       ▼
+   local scaling
+       │
+       ▼
+    E4M3 becomes
+     more viable
+
+Pillar 5
+   │
+   ▼
+current-batch scale
+   │
+   ▼
+avoid stale-scale
+overflow/squashing
+
+Pillar 1
+   │
+   ▼
+choose FP8 only where
+the efficiency matters
+</code></pre>
+<p>So the pillars aren't five independent tricks.</p>
+<p>They form a dependency chain.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-70">5.49.5.34 One final subtle point</h4>
+<p>The source says that the current tensor's maximum is used to calculate the scaling factor and that this avoids overflow/underflow caused by stale historical information. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This means the conceptual sequence is:</p>
+<div class="math block">
+\boxed{
+\text{current tensor}
+\rightarrow
+\max|X|
+\rightarrow
+\text{scale}
+\rightarrow
+\text{quantize}
+\rightarrow
+\text{GEMM}.
+}
+</div>
+<p>Not:</p>
+<div class="math block">
+\boxed{
+\text{GEMM}
+\rightarrow
+\text{discover scale afterwards}.
+}
+</div>
+<p>The scale must be available <strong>before</strong> the low-precision representation is used.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-71">5.49.5.35 Step 5.49 is now complete</h4>
+<p>We have now completed the entire FP8 section:</p>
+<div class="math block">
+\boxed{
+5.49.1\ \text{Mixed Precision}
+}
+</div>
+<div class="math block">
+\boxed{
+5.49.2\ \text{Fine-Grained Quantization}
+}
+</div>
+<div class="math block">
+\boxed{
+5.49.3\ \text{Increasing Accumulation Precision}
+}
+</div>
+<div class="math block">
+\boxed{
+5.49.4\ \text{Mantissa over Exponents}
+}
+</div>
+<div class="math block">
+\boxed{
+5.49.5\ \text{Online Quantization}
+}
+</div>
+<p>The source's own summary then confirms these five ideas as the FP8 framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-5-i101-72">5.49.5.36 Final source-grounded summary</h4>
+<p>The source says:</p>
+<div class="math block">
+\boxed{\text{Online Quantization}}
+</div>
+<p>calculates scaling factors from the <strong>current batch/tensor in real time</strong>, rather than relying on historical maximum values. This avoids the source's two stale-scale failure modes:</p>
+<div class="math block">
+\boxed{
+\text{current max larger}
+\rightarrow
+\text{overflow}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{current max smaller}
+\rightarrow
+\text{underflow / squashing / precision loss}.
+}
+</div>
+<p>The cost is a small max-finding pre-pass, which the source argues is inexpensive relative to the dominant matrix multiplications. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>And this completes the source's FP8 framework before the book moves to the actual <strong>Mini-DeepSeek training pipeline</strong>. The source's roadmap says Chapter 6 now assembles the model, prepares data, trains the model, generates text, and then introduces DualPipe for large-scale distributed training.</p>
+<hr />
+</section>

@@ -1,0 +1,124 @@
+"""Independent Decimal/scalar/reference checks; run: python check_math.py."""
+import json,math
+from decimal import Decimal,getcontext
+from pathlib import Path
+import numpy as np
+import math_companion as m
+getcontext().prec=50
+checks=[]
+def check(cid,actual,expected,method='independent exact arithmetic',atol=1e-10):
+    ok=bool(np.allclose(actual,expected,atol=atol,rtol=1e-11))
+    checks.append(dict(check_id=cid,method=method,status='passed' if ok else 'failed',actual=np.asarray(actual).tolist(),expected=np.asarray(expected).tolist()))
+    if not ok: print('FAILED',cid,actual,expected)
+def scalar_softmax(z):
+    ds=[Decimal(str(v)).exp() for v in z];s=sum(ds)
+    return [float(v/s) for v in ds]
+
+# Corpus/coverage and benchmark calculations, not claimed real evaluation runs.
+check('indic.coverage',22-15,7)
+check('indic.corpus_growth',20.9/8.79,float(Decimal('20.9')/Decimal('8.79')))
+check('indic.removal_tokens',23.1-20.9,2.2)
+check('indic.removal_percent',(23.1-20.9)/23.1*100,float(Decimal('2.2')/Decimal('23.1')*100))
+check('indic.tail_share',1.08/20.9*100,float(Decimal('1.08')/Decimal('20.9')*100))
+check('indic.new_evaluation_share',52/105*100,float(Decimal(52)/Decimal(105)*100))
+check('indic.qa_count_discrepancy',18579-(13283+5292),4)
+check('indic.script_boundary',150/200,.75)
+check('indic.script_reject',140/200,.7)
+check('indic.url_filter',10000*(1-.2),8000)
+check('indic.crosssum_count',700*29,20300)
+check('indic.flores_count',(997+1012)*29,58261)
+check('indic.xquad_qa_count',1390*12,16680)
+check('indic.xquad_passages',280*12,3360)
+check('indic.xor_existing',302+237,539)
+check('indic.gen_tiers',9+7+13,29)
+check('indic.xquad_coverage',12/29*100,float(Decimal(12)/Decimal(29)*100))
+check('indic.xor_coverage',28/29*100,float(Decimal(28)/Decimal(29)*100))
+check('indic.direction_drop_forward',56.9-41.9,15)
+check('indic.direction_drop_reverse',68.2-62.6,5.6)
+check('indic.direction_drop_ratio',(56.9-41.9)/(68.2-62.6),float(Decimal(15)/Decimal('5.6')))
+check('indic.one_shot_gain',24-.8,23.2)
+check('indic.relative_gain',(24-.8)/.8*100,2900)
+check('indic.fertility_pashto',500*4.1,2050)
+check('indic.fertility_tibetan',200*19.9,3980)
+check('indic.context_examples',(1920-320)//(200*8),1)
+check('indic.qa_partial',m.qa_f1(['Delhi'],['New','Delhi']),2/3,'independent multiset overlap')
+check('indic.qa_duplicate',m.qa_f1(['a','a','b'],['a','b','b']),2/3,'explicit overlap=2, lengths=3+3')
+check('indic.qa_empty',m.qa_f1([],[]),1,'SQuAD empty-answer convention')
+check('indic.qa_disjoint',m.qa_f1(['a'],['b']),0,'explicit overlap=0')
+check('indic.ner_f1',2*.8*(80/90)/(.8+80/90),160/190,'TP80 FP20 FN10: 2TP/(2TP+FP+FN)')
+check('indic.chrf_identity',m.chrf('abc','abc'),100,'all n-grams match')
+check('indic.chrf_unigram',m.chrf('ab','ac',max_order=1),50,'one overlap out of two on both sides')
+check('indic.chrf_recall_weight',m.chrf('aab','ab',max_order=1),float(Decimal(10)/Decimal(11)*100),'P=2/3 R=1 beta2 via Decimal')
+check('indic.chrf_whitespace',m.chrf('a b','ab'),100,'explicit ignore-whitespace convention')
+
+# Storage units: sizes are decimal bytes unless a GiB conversion is named.
+check('mla.mha_cache_bytes',m.cache_bytes(1,60,4096,32768),16106127360)
+check('mla.latent_cache_bytes',m.cache_bytes(1,60,4096,576),283115520)
+check('mla.cache_width_ratio',32768/576,float(Decimal(32768)/Decimal(576)))
+check('mla.cache_batch_scaling',m.cache_bytes(4,2,3,8),384)
+check('mla.mha_gqa_ratio',128/8,16)
+check('mla.cache_gib',m.cache_bytes(1,60,4096,32768)/2**30,15)
+a=m.absorption_trace()
+check('mla.original_query',a['query'],[[1,2],[1,2]],'manual matrix multiplication')
+check('mla.original_latent',a['latent'],[[1,2],[1,0]],'manual matrix multiplication')
+check('mla.original_keys',a['key'],[[1,4],[1,2]],'manual matrix multiplication')
+check('mla.original_scores',a['scores'],[[9,5],[9,5]],'manual dot products')
+check('mla.score_absorption',a['absorbed_scores'],a['scores'],'two independently evaluated computational paths')
+check('mla.output_absorption',a['absorbed_output'],a['output'],'explicit value reconstruction versus absorbed output map')
+check('mla.cached_parity',a['cached_output'],a['output'],'incremental prefix cache versus full causal path')
+check('mla.first_causal_row',a['attention'][0],[1,0],'no future position visible')
+check('mla.second_causal_row',a['attention'][1],scalar_softmax([9/math.sqrt(2),5/math.sqrt(2)]),'Decimal exponential softmax')
+d=m.decoupled_rope_trace()
+for i in range(2):check('mla.decoupled_cache_row'+str(i),d['cached_scores'][i,:i+1],d['full_scores'][i,:i+1],'absorbed content plus independently rotated key cache')
+
+# Expert counts from actual allocated arrays and scalar arithmetic.
+p=m.moe_parameters(2048,64,8,1024,2)
+check('moe.routed_expert',m.expert_parameters(2048,1024),4194304)
+check('moe.total_shared_routed',p['expert_total'],276824064)
+check('moe.active_shared_routed',p['expert_active'],41943040)
+check('moe.router_count',p['router'],131072)
+check('moe.fine_grained_total',16*m.expert_parameters(3,4096),64*m.expert_parameters(3,1024),'independent equivalence under expert splitting')
+check('moe.fine_grained_active',2*m.expert_parameters(3,4096),8*m.expert_parameters(3,1024),'independent equivalence kH preserved')
+check('moe.two_matrix_allocated',m.expert_parameters(3,5),np.zeros((3,5)).size+np.zeros((5,3)).size,'actual allocated matrix element counts')
+check('moe.swiglu_allocated',m.expert_parameters(3,5,3),np.zeros((3,5)).size*2+np.zeros((5,3)).size,'actual three-matrix element counts')
+check('moe.active_fraction',8/64,.125)
+check('moe.r1_active_percent',37/671*100,float(Decimal(37)/Decimal(671)*100))
+check('moe.r1_weight_gb',671e9*2/1e9,1342)
+check('moe.r1_active_gb',37e9*2/1e9,74)
+check('moe.assignments',8*1024*8,65536)
+check('moe.average_load',8*1024*8/128,512)
+check('moe.throughput_gain',(428.6-350)/350*100,float((Decimal('428.6')-Decimal(350))/Decimal(350)*100))
+check('moe.time_reduction',(14.29-11.67)/14.29*100,float((Decimal('14.29')-Decimal('11.67'))/Decimal('14.29')*100))
+check('moe.loss_reduction',1.9854-1.9451,.0403)
+r=m.routing_trace()
+expected_indices=[[3,0],[2,1],[2,3],[3,2],[2,1],[3,2],[2,1],[2,3]]
+check('moe.full_indices',r['indices'],expected_indices,'manual top-two sets; row4 pair order reflects floating-point rounding of 3.7')
+check('moe.full_loads',r['loads'],[1,3,7,5],'independent manual routing-table tally')
+check('moe.assignment_conservation',r['loads'].sum(),16,'tokens times top-k')
+for t in range(8):
+ chosen=[r['logits'][t,i]+[0,.1,-.2,.2][i] for i in expected_indices[t]]
+ check('moe.gates_token'+str(t+1),r['gates'][t],scalar_softmax(chosen),'50-digit Decimal exp normalization')
+ # Independent scalar expert formulas instead of dispatch/gather implementation.
+ x,y=r['x'][t];outs=[(x,y),(2*x,2*y),(x+y,y),(x,x+y)]
+ gates=scalar_softmax(chosen);manual=[sum(gates[j]*outs[expected_indices[t][j]][axis] for j in range(2)) for axis in range(2)]
+ check('moe.output_token'+str(t+1),r['routed'][t],manual,'direct per-token scalar expert functions and Decimal gates')
+ check('moe.residual_token'+str(t+1),r['final'][t],[manual[0]+1.5*x,manual[1]+1.5*y],'independent residual plus half-input shared path')
+check('moe.bias_direction',np.sign(r['new_bias']-[0,.1,-.2,.2]),[1,1,-1,-1],'load deviations versus mean4')
+idx,gates,counts=m.route([[1,2,3,.5]],[0,0,0,0],2,mode='v3')
+sg=[float(1/(1+Decimal(-3).exp())),float(1/(1+Decimal(-2).exp()))]
+check('moe.v3_indices',idx,[[2,1]],'unbiased affinity ordering')
+check('moe.v3_gates',gates,[[sg[0]/sum(sg),sg[1]/sum(sg)]],'independent Decimal sigmoid normalization')
+check('moe.v3_bias_only_selection',m.route([[1,2,3,.5]],[0,0,.01,0],2,mode='v3')[1],gates,'fixed selected set, changed balancing bias must not change gates')
+check('moe.empty_update',m.bias_update([0,.1],[0,0]),[0,.1],'empty-batch guard')
+check('moe.top1_gate',m.route([[1,2,3]],[0,0,0],1)[1],[[1]],'one selected gate sums to1')
+check('moe.topall_normalization',m.route([[1,2,3]],[0,0,0],3)[1].sum(),1,'all selected gates normalize')
+for name,fn in [('invalid_k',lambda:m.route([[1,2]],[0,0],3)),('nonfinite',lambda:m.route([[float('nan'),2]],[0,0],1)),('cache_negative',lambda:m.cache_bytes(1,1,-1,2))]:
+ try:fn();status='failed'
+ except ValueError:status='passed'
+ checks.append(dict(check_id='edge.'+name,method='invalid-input contract',status=status))
+e=dict(passed=sum(c['status']=='passed' for c in checks),failed=sum(c['status']=='failed' for c in checks),checks=checks,scope='Pedagogical benchmark arithmetic/metric functions, storage accounting, single-head content and decoupled-RoPE absorption/cache parity, educational and V3 routing distinctions, eight-token sparse dispatch, bias feedback and parameter counts; no pretrained evaluation or distributed performance benchmark.')
+Path(__file__).with_name('evidence.json').write_text(json.dumps(e,indent=2))
+expected=dict(routing={k:v.tolist() for k,v in r.items()},mla={k:v.tolist() for k,v in a.items()},parameters=p)
+Path(__file__).with_name('expected_outputs.json').write_text(json.dumps(expected,indent=2))
+print(json.dumps({k:e[k] for k in ('passed','failed','scope')},indent=2))
+raise SystemExit(bool(e['failed']))

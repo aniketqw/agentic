@@ -1,0 +1,1162 @@
+<section class="chunk" id="chunk-les-step-3-1-i26" data-id="les-step-3-1-i26"><details class="audit-card" id="audit-full-chunk-les-step-3-1-i26" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-3-1-i26-1">Motivation</h4><p>Adapt an already capable model while separating base-weight storage from trainable gradients and optimizer state.</p><h4 id="v3-heading-chunk-les-step-3-1-i26-2">Prerequisites</h4><ul><li>Gradient descent and chain rule</li><li>Matrix dimensions and rank</li><li>Bits, bytes and decimal GB</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-3">Notation and units</h4><ul><li>Nbase: frozen/base parameter count</li><li>Ntrain: optimizer-updated parameter count</li><li>W: d×out row-input weight; rank r</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-4">Assumptions</h4><ul><li>Parameter-count examples exclude biases unless named</li><li>Storage uses decimal GB and 16-bit values only</li><li>PEFT can still require activation gradients through frozen layers</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-5">Step-by-step derivation</h4><ol><li>Full update has d·out independent entries. A factorization through r has dr+r·out entries.</li><li>Each column of the factor product lies in the span of the d×r input factor; rank cannot exceed r.</li><li>Trainable fraction=Ntrain/Nbase; reduction in trainable count does not remove the base weights.</li><li>Memory separates base bytes, adapter bytes, gradients, optimizer state, activations and cache. A count reduction is not an equal wall-clock speedup.</li><li>Adapters add modules, BitFit selects biases, LoRA reparameterizes updates, and soft prompts train vectors; the four families need different execution paths.</li></ol><h4 id="v3-heading-chunk-les-step-3-1-i26-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-1-i26-7">One projection</h5><p>Given: d=out=4096, r=8</p><ol><li>Full entries=4096²=16,777,216.</li><li>Factor entries=8(4096+4096)=65,536.</li><li>Reduction=16,777,216/65,536=256.</li></ol><p>Answer: 65536</p><p>Verification: peft_distillation / P31-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-1-i26-8">Alternative shape</h5><p>Given: d=out=2048, r=4</p><ol><li>Count both thin matrices.</li><li>4×4096=16,384; full 4,194,304; ratio 256.</li></ol><p>Answer: 16384</p><p>Verification: peft_distillation / P31-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-3-1-i26-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-10">Mastery answers and retained exercise context</h4><ol><li>Full fine-tuning 2B parameters trains 2B;2048²=4194304; rank 4 adapter: 16384; reduction 256; rank 4→16 quadruples count.</li><li>For 7B with .1%trainable,7M parameters and 1000×trainable count reduction. A 7B FP16 base requires 14 GB and a 10M-parameter adapter requires 20 MB; three customers: 14 GB+3×20 MB rather than 42 GB of raw full models.</li><li>3.1.31 Exam Numerical Bank — Step 3.1
+Level 1
+A model has 2 billion parameters. Full fine-tuning trains how many?
+
+\boxed{2\text{ billion}}
+
+
+Level 2
+A 2048\times 2048 matrix is fully fine-tuned.
+
+2048^2
+=
+\boxed{4,194,304}
+
+trainable parameters.
+
+Level 3
+For the same matrix with:
+
+r=4,
+
+LoRA trains:
+
+4(2048+2048)
+=
+\boxed{16,384}.
+
+
+Level 4
+Reduction factor:
+
+\frac{4,194,304}{16,384}
+=
+\boxed{256}.
+
+
+Level 5
+Explain why increasing r from 4 to 16 increases LoRA trainable parameters by a factor of 4.
+Because:
+
+N_{\text{LoRA}}=r(d+d_{\text{out}})
+
+and therefore:
+
+N\propto r.
+
+So:
+
+\frac{16}{4}
+=
+\boxed{4}.</li></ol><h4 id="v3-heading-chunk-les-step-3-1-i26-11">Edge cases and remaining gaps</h4><ul><li>Often under 1% is descriptive, not a definition or guarantee</li><li>Frozen weights still support derivatives into upstream trainable components</li><li>Rank constrains update, not total adapted weight rank</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-12">Connections and progression</h4><ul><li>LoRA mechanics → model-wide target selection → QLoRA frozen-base compression</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-13">Exact source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 2, 3, 4, 5, 7 · Full FT motivation, four PEFT families, rank, shapes and concrete savings</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 746, 747, 748, 753 · LoRA low-rank module and concrete adapter parameter count</li></ul><h4 id="v3-heading-chunk-les-step-3-1-i26-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (58)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 3.1 — Why PEFT Exists: Full Fine-Tuning as the Baseline</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.1 Start With a Pretrained LLM</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.2 What Does Fine-Tuning Actually Do?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.3 The Important Problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.4 What Does &quot;Trainable&quot; Actually Mean?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.5 Frozen vs Trainable</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Full fine-tuning</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>PEFT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.6 Why Not Simply Train a Smaller Model?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.7 The Four PEFT Families in Your Slides</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>1. Additive</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>2. Selective</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3. Reparameterization</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>4. Soft-prompt</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.8 Full Fine-Tuning vs PEFT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Full fine-tuning</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>PEFT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.9 Numerical Example — 7B Model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.10 Important: Fewer Trainable Parameters Does Not Mean Smaller Base Model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.11 What Is Actually Saved?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.12 Multiple Customers Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Full fine-tuning</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>PEFT</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.13 Numerical Example — Storage</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Full model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Adapter</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.14 But Why Should a Tiny Update Be Enough?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.15 Before LoRA, We Need Rank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.16 Simple Rank Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.17 Full-Rank Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.18 Why Is Rank Relevant to Fine-Tuning?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.19 The Transition to LoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Full fine-tuning</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>LoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.20 Why Does This Save Parameters?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.21 First LoRA Numerical</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.22 Why Does Rank r Control the Cost?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.23 Numerical — Different Ranks</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>r=4</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>r=8</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>r=16</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>r=32</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.24 The Big-O Picture</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.25 Ratio Formula</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.26 One More Important Distinction</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.27 Why the Update Is Called &quot;Low Rank&quot;</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.28 Example of the Dimension Bottleneck</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.29 This Is the Key Mathematical Trick</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.30 What We Have Established</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.31 Exam Numerical Bank — Step 3.1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 4</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 5</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.32 Exam Trap</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.1.33 Step 3.1 Master Picture</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>What We Have Finished</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-1-i26"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-1-i26" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-decoding">← Previous lesson</a> · <a href="#chunk-les-step-3-2-i27">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-6-i7">STEP 0.6 — TENSOR / MATRIX CALCULUS</a>, <a href="#chunk-les-step-1-12-i19">Step 1.12 — Complete Transformer Block: One Forward Pass From Start to Finish</a></p><p><strong>This lesson:</strong> Step 3.1 — Why PEFT Exists: Full Fine-Tuning as the Baseline</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-10">peft-slides</a>; <a href="#source-15">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2</a>; <a href="#source-18">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-1-i26"></a></p>
+<h2>Step 3.1 — Why PEFT Exists: Full Fine-Tuning as the Baseline</h2>
+<p><em>Plan node: I3 · chat order #26</em></p>
+<p>We are now moving from:</p>
+<div class="math block">
+\boxed{\text{How do we generate text?}}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{\text{How do we adapt a pretrained LLM to a new task?}}
+</div>
+<p>The first thing we must understand is <strong>ordinary full fine-tuning</strong>. LoRA only makes sense once the cost of full fine-tuning is completely clear.</p>
+<p>Your PEFT slides define full fine-tuning as updating <strong>every weight matrix</strong> of a pretrained model using gradients computed from a smaller task-specific labeled dataset. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-15">3.1.1 Start With a Pretrained LLM</h3>
+<p>Suppose we have a pretrained model:</p>
+<div class="math block">
+f_\theta(x)
+</div>
+<p>where:</p>
+<div class="math block">
+\theta=\{W_1,W_2,\ldots,W_L\}
+</div>
+<p>represents all learned parameters.</p>
+<p>The model has already learned general language structure from large-scale pretraining.</p>
+<p>For example, imagine a pretrained LLM understands:</p>
+<ul>
+<li>grammar,</li>
+<li>syntax,</li>
+<li>general facts,</li>
+<li>language patterns,</li>
+<li>long-range dependencies.</li>
+</ul>
+<p>Now we want to specialize it for:</p>
+<div class="math block">
+\boxed{\text{medical classification}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{spam detection}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{instruction following}}.
+</div>
+<p>We have a smaller task-specific dataset:</p>
+<div class="math block">
+D=\{(x_i,y_i)\}_{i=1}^{N}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-16">3.1.2 What Does Fine-Tuning Actually Do?</h3>
+<p>During fine-tuning, we calculate the task loss:</p>
+<div class="math block">
+\boxed{
+L(\theta)
+}
+</div>
+<p>and use backpropagation to determine how each parameter should change.</p>
+<p>For a parameter matrix <span class="math inline">W</span>:</p>
+<div class="math block">
+\boxed{
+\Delta W
+}
+</div>
+<p>represents the desired update.</p>
+<p>Ordinary gradient descent is conceptually:</p>
+<div class="math block">
+\boxed{
+W' = W-\eta\nabla_W L
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">W</span> = pretrained weights,</li>
+<li><span class="math inline">L</span> = loss,</li>
+<li><span class="math inline">\nabla_W L</span> = gradient of the loss with respect to <span class="math inline">W</span>,</li>
+<li><span class="math inline">\eta</span> = learning rate,</li>
+<li><span class="math inline">W'</span> = updated weight matrix.</li>
+</ul>
+<p>So full fine-tuning means:</p>
+<div class="math block">
+\boxed{
+\text{every trainable weight gets updated}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-17">3.1.3 The Important Problem</h3>
+<p>Suppose the LLM contains:</p>
+<div class="math block">
+7\text{ billion parameters}.
+</div>
+<p>Full fine-tuning says:</p>
+<div class="math block">
+\boxed{
+\text{train all 7 billion}.
+}
+</div>
+<p>Even though the task-specific dataset may be relatively small.</p>
+<p>This creates a huge computational and storage burden.</p>
+<p>The PEFT slides specifically motivate PEFT because storing and updating gradients for every parameter of a multi-billion-parameter model can make fine-tuning impractical on a single consumer GPU. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-18">3.1.4 What Does &quot;Trainable&quot; Actually Mean?</h3>
+<p>A parameter is trainable if:</p>
+<div class="math block">
+\boxed{
+\text{gradient is computed for it and optimizer can update it}.
+}
+</div>
+<p>For full fine-tuning:</p>
+<div class="math block">
+\boxed{
+\text{almost/all pretrained parameters are trainable}.
+}
+</div>
+<p>For PEFT:</p>
+<div class="math block">
+\boxed{
+\text{most pretrained parameters are frozen}
+}
+</div>
+<p>and only a small set is trained.</p>
+<p>The PEFT slides describe this as often training <strong>under 1%</strong> of the model's parameters while keeping the rest frozen. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-19">3.1.5 Frozen vs Trainable</h3>
+<p>Imagine:</p>
+<div class="math block">
+\theta=
+\{W_1,W_2,W_3,W_4,W_5\}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-20">Full fine-tuning</h5>
+<div class="math block">
+W_1,W_2,W_3,W_4,W_5
+</div>
+<p>all update.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-21">PEFT</h5>
+<p>We might have:</p>
+<div class="math block">
+W_1,W_2,W_3,W_4,W_5
+</div>
+<p>frozen and introduce a small trainable component:</p>
+<div class="math block">
+\phi.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\theta_{\text{base}} \text{ is frozen}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\phi \text{ is trainable}.
+}
+</div>
+<p>The model becomes conceptually:</p>
+<div class="math block">
+f_{\theta,\phi}(x)
+</div>
+<p>where:</p>
+<div class="math block">
+\boxed{
+\theta=\text{large frozen base}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\phi=\text{small trainable adaptation}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-22">3.1.6 Why Not Simply Train a Smaller Model?</h3>
+<p>This is an important conceptual question.</p>
+<p>Suppose you already have a powerful pretrained model.</p>
+<p>Its millions or billions of parameters contain useful general knowledge.</p>
+<p>The PEFT idea is:</p>
+<blockquote>
+<p>Don't throw away that pretrained knowledge or rebuild it from scratch. Keep the base model and learn a small task-specific modification.</p>
+</blockquote>
+<p>So we want:</p>
+<div class="math block">
+\boxed{
+\text{retain general knowledge}
++
+\text{learn small task-specific change}.
+}
+</div>
+<p>This is the fundamental motivation for parameter-efficient fine-tuning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-23">3.1.7 The Four PEFT Families in Your Slides</h3>
+<p>Your PEFT slides divide PEFT methods into four families. <em>(Source: peft-slides)</em></p>
+<h4 id="v3-heading-chunk-les-step-3-1-i26-24">1. Additive</h4>
+<p>Introduce new trainable modules.</p>
+<p>Example:</p>
+<div class="math block">
+\boxed{\text{Adapters}}
+</div>
+<p>The original model remains mostly frozen, while a small bottleneck module is trained.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-1-i26-25">2. Selective</h4>
+<p>Train only a subset of existing parameters.</p>
+<p>Example:</p>
+<div class="math block">
+\boxed{\text{BitFit}}
+</div>
+<p>where only bias terms are trained.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-1-i26-26">3. Reparameterization</h4>
+<p>Represent the weight update in a compressed form.</p>
+<p>Example:</p>
+<div class="math block">
+\boxed{\text{LoRA}}
+</div>
+<p>This is our main focus.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-1-i26-27">4. Soft-prompt</h4>
+<p>Add trainable vectors to the input or activations.</p>
+<p>Examples:</p>
+<div class="math block">
+\boxed{\text{Prompt tuning}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Prefix tuning}}.
+</div>
+<p>The important point is that all four share the same broad goal:</p>
+<div class="math block">
+\boxed{
+\text{adapt the model without updating the full base model}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-28">3.1.8 Full Fine-Tuning vs PEFT</h3>
+<p>Let's make the contrast mathematically.</p>
+<p>Suppose the model has:</p>
+<div class="math block">
+N_\theta
+</div>
+<p>parameters.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-29">Full fine-tuning</h5>
+<p>Trainable parameters:</p>
+<div class="math block">
+\boxed{
+N_{\text{train}}=N_\theta
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-30">PEFT</h5>
+<p>Trainable parameters:</p>
+<div class="math block">
+\boxed{
+N_{\text{train}}\ll N_\theta.
+}
+</div>
+<p>Often:</p>
+<div class="math block">
+\boxed{
+N_{\text{train}}&lt;1\%\times N_\theta
+}
+</div>
+<p>according to the PEFT lecture's characterization. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-31">3.1.9 Numerical Example — 7B Model</h3>
+<p>Suppose:</p>
+<div class="math block">
+N_\theta=7,000,000,000.
+</div>
+<p>For full fine-tuning:</p>
+<div class="math block">
+\boxed{
+7,000,000,000
+}
+</div>
+<p>parameters are trainable.</p>
+<p>Now suppose a PEFT method trains:</p>
+<div class="math block">
+0.1\%
+</div>
+<p>of the model.</p>
+<p>Calculate:</p>
+<div class="math block">
+7,000,000,000\times0.001
+=
+7,000,000.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+7\text{ million trainable parameters}
+}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{
+7\text{ billion}.
+}
+</div>
+<p>Reduction factor:</p>
+<div class="math block">
+\frac{7,000,000,000}{7,000,000}
+=
+\boxed{1000}.
+</div>
+<p>So the trainable parameter count is reduced by:</p>
+<div class="math block">
+\boxed{1000\times}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-32">3.1.10 Important: Fewer Trainable Parameters Does Not Mean Smaller Base Model</h3>
+<p>This is a common misconception.</p>
+<p>Suppose:</p>
+<div class="math block">
+N_\theta=7B.
+</div>
+<p>and:</p>
+<div class="math block">
+N_{\text{adapter}}=7M.
+</div>
+<p>The model is still fundamentally a:</p>
+<div class="math block">
+\boxed{7B\text{-parameter base model}}.
+</div>
+<p>We are just training:</p>
+<div class="math block">
+\boxed{7M}
+</div>
+<p>additional/task-specific parameters.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{parameter-efficient training}
+\neq
+\text{parameter-free inference}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-33">3.1.11 What Is Actually Saved?</h3>
+<p>PEFT reduces the amount of <strong>trainable state</strong>.</p>
+<p>The PEFT slides emphasize that full fine-tuning requires gradients and optimizer-related training state for the full parameter set, while PEFT keeps most pretrained weights untouched. <em>(Source: peft-slides)</em></p>
+<p>So the major benefit is:</p>
+<div class="math block">
+\boxed{
+\text{less training memory and computation}.
+}
+</div>
+<p>It also makes it much easier to create multiple task-specific versions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-34">3.1.12 Multiple Customers Example</h3>
+<p>Imagine we have one base model:</p>
+<div class="math block">
+W_0.
+</div>
+<p>Suppose we want specialized versions for:</p>
+<div class="math block">
+\text{Customer A}
+</div>
+<div class="math block">
+\text{Customer B}
+</div>
+<div class="math block">
+\text{Customer C}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-35">Full fine-tuning</h5>
+<p>We might store:</p>
+<div class="math block">
+W_A
+</div>
+<div class="math block">
+W_B
+</div>
+<div class="math block">
+W_C.
+</div>
+<p>Each is a complete model copy.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-36">PEFT</h5>
+<p>Instead, keep:</p>
+<div class="math block">
+W_0
+</div>
+<p>once, and store:</p>
+<div class="math block">
+\phi_A,\quad\phi_B,\quad\phi_C.
+</div>
+<p>Then:</p>
+<div class="math block">
+f_A=f(W_0,\phi_A)
+</div>
+<div class="math block">
+f_B=f(W_0,\phi_B)
+</div>
+<div class="math block">
+f_C=f(W_0,\phi_C).
+</div>
+<p>The Raschka appendix specifically highlights this advantage: keeping LoRA matrices separate allows multiple customized versions without storing multiple complete LLM copies. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>This becomes extremely useful in multi-customer or multi-task deployment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-37">3.1.13 Numerical Example — Storage</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_0=7B\text{ parameters}.
+</div>
+<p>Imagine a specialized adapter contains:</p>
+<div class="math block">
+10M
+</div>
+<p>trainable parameters.</p>
+<p>If we use 16-bit values:</p>
+<div class="math block">
+2\text{ bytes/parameter}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-38">Full model</h5>
+<div class="math block">
+7B\times2
+=
+14B\text{ bytes}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{14\text{ GB}}
+</div>
+<p>using decimal GB.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-39">Adapter</h5>
+<div class="math block">
+10M\times2
+=
+20M\text{ bytes}
+</div>
+<p>approximately:</p>
+<div class="math block">
+\boxed{20\text{ MB}}.
+</div>
+<p>This illustrates why task-specific adapter storage can be dramatically smaller.</p>
+<p>This storage comparison is a derived numerical illustration; the supplied sources establish the architectural advantage, not this particular 7B/10M example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-40">3.1.14 But Why Should a Tiny Update Be Enough?</h3>
+<p>This is the key question.</p>
+<p>Suppose a weight matrix is:</p>
+<div class="math block">
+W\in\mathbb{R}^{d\times d_{\text{out}}}.
+</div>
+<p>Full fine-tuning learns:</p>
+<div class="math block">
+\Delta W
+</div>
+<p>with:</p>
+<div class="math block">
+d\times d_{\text{out}}
+</div>
+<p>free entries.</p>
+<p>That is potentially a huge number of independent changes.</p>
+<p>PEFT asks:</p>
+<blockquote>
+<p>Do we actually need arbitrary changes in every direction?</p>
+</blockquote>
+<p>LoRA's answer is:</p>
+<div class="math block">
+\boxed{\text{perhaps not}.}
+</div>
+<p>Many task-specific adaptations may be approximated using a much smaller number of effective directions.</p>
+<p>That brings us directly to:</p>
+<div class="math block">
+\boxed{\text{rank}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{low-rank updates}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-41">3.1.15 Before LoRA, We Need Rank</h3>
+<p>Your PEFT slides explicitly introduce rank before LoRA. <em>(Source: peft-slides)</em></p>
+<p>For a matrix:</p>
+<div class="math block">
+M,
+</div>
+<p>the rank is:</p>
+<div class="math block">
+\boxed{
+\text{number of linearly independent rows}
+}
+</div>
+<p>which is equivalently the number of linearly independent columns.</p>
+<p>Your source emphasizes the idea as:</p>
+<blockquote>
+<p>how much genuinely new information the matrix contains.</p>
+</blockquote>
+<p>A row that is merely a multiple or linear combination of existing rows does not add a new independent direction. <em>(Source: peft-slides)</em></p>
+<p>This concept is the mathematical foundation of LoRA.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-42">3.1.16 Simple Rank Example</h3>
+<p>Consider:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+1&amp;2\\
+2&amp;4
+\end{bmatrix}.
+</div>
+<p>Notice:</p>
+<div class="math block">
+R_2=2R_1.
+</div>
+<p>Therefore only one row is independent.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(M)=1.
+}
+</div>
+<p>Even though:</p>
+<div class="math block">
+M\in\mathbb{R}^{2\times2},
+</div>
+<p>its rank is only 1.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-43">3.1.17 Full-Rank Example</h3>
+<p>Consider:</p>
+<div class="math block">
+I_3=
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0&amp;1&amp;0\\
+0&amp;0&amp;1
+\end{bmatrix}.
+</div>
+<p>No row can be written as a linear combination of the others.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(I_3)=3.
+}
+</div>
+<p>Your PEFT slides use essentially these two examples to introduce rank. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-44">3.1.18 Why Is Rank Relevant to Fine-Tuning?</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_0
+</div>
+<p>is a pretrained matrix.</p>
+<p>Full fine-tuning gives:</p>
+<div class="math block">
+W'=W_0+\Delta W.
+</div>
+<p>Here:</p>
+<div class="math block">
+\Delta W
+</div>
+<p>could be a full-rank matrix.</p>
+<p>LoRA instead tries to constrain:</p>
+<div class="math block">
+\boxed{
+\Delta W
+}
+</div>
+<p>to have low rank.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{full update}
+\rightarrow
+\text{potentially huge number of directions}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{low-rank update}
+\rightarrow
+\text{small number of important directions}.
+}
+</div>
+<p>Raschka describes LoRA precisely as restricting model adjustments to a lower-dimensional subspace and aiming to capture influential directions of the weight changes. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-45">3.1.19 The Transition to LoRA</h3>
+<p>Now we're ready for the fundamental transformation.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-46">Full fine-tuning</h5>
+<div class="math block">
+\boxed{
+W'=W_0+\Delta W
+}
+</div>
+<p>where <span class="math inline">\Delta W</span> is fully learned.</p>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-47">LoRA</h5>
+<p>Instead of directly learning every element of <span class="math inline">\Delta W</span>, represent it as:</p>
+<div class="math block">
+\boxed{
+\Delta W\approx BA
+}
+</div>
+<p>where <span class="math inline">A</span> and <span class="math inline">B</span> are much smaller matrices.</p>
+<p>The PEFT slides summarize LoRA exactly this way: constrain the update to a low-rank product of two thin matrices. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-48">3.1.20 Why Does This Save Parameters?</h3>
+<p>Suppose:</p>
+<div class="math block">
+W\in\mathbb{R}^{d\times d_{\text{out}}}.
+</div>
+<p>Full update:</p>
+<div class="math block">
+\Delta W\in\mathbb{R}^{d\times d_{\text{out}}}.
+</div>
+<p>Therefore full trainable parameter count is:</p>
+<div class="math block">
+\boxed{
+d\,d_{\text{out}}.
+}
+</div>
+<p>LoRA instead uses:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{r\times d_{\text{out}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+|B|=dr
+</div>
+<p>and:</p>
+<div class="math block">
+|A|=rd_{\text{out}}.
+</div>
+<p>Total:</p>
+<div class="math block">
+\boxed{
+r(d+d_{\text{out}})
+}
+</div>
+<p>trainable parameters.</p>
+<p>Your master cheatsheet gives exactly these two formulas. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-49">3.1.21 First LoRA Numerical</h3>
+<p>Take a square matrix:</p>
+<div class="math block">
+W\in\mathbb{R}^{4096\times4096}.
+</div>
+<p>Full fine-tuning:</p>
+<div class="math block">
+4096\times4096
+=
+\boxed{16,777,216}
+</div>
+<p>trainable parameters.</p>
+<p>Now use:</p>
+<div class="math block">
+r=8.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+r(d+d_{\text{out}})
+</div>
+<p>because:</p>
+<div class="math block">
+d=d_{\text{out}}=4096.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+8(4096+4096)
+</div>
+<div class="math block">
+=8(8192)
+</div>
+<div class="math block">
+=\boxed{65,536}.
+</div>
+<p>Reduction factor:</p>
+<div class="math block">
+\frac{16,777,216}{65,536}
+=
+\boxed{256}.
+</div>
+<p>Your PEFT slides use this exact numerical example. <em>(Source: peft-slides)</em></p>
+<p>So a single <span class="math inline">4096\times4096</span> matrix changes from:</p>
+<div class="math block">
+16.78\text{ million}
+</div>
+<p>trainable parameters to:</p>
+<div class="math block">
+65,536.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-50">3.1.22 Why Does Rank <span class="math inline">r</span> Control the Cost?</h3>
+<p>The LoRA parameter count is:</p>
+<div class="math block">
+\boxed{
+r(d+d_{\text{out}})
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{trainable parameters grow linearly with }r.
+}
+</div>
+<p>If we double <span class="math inline">r</span>:</p>
+<div class="math block">
+r\rightarrow2r,
+</div>
+<p>the number of LoRA parameters approximately doubles.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r=\text{adaptation capacity vs efficiency knob}.
+}
+</div>
+<p>Your Raschka source explicitly explains that the inner dimension <span class="math inline">r</span> determines the number of extra trainable parameters and balances adaptability against efficiency. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-51">3.1.23 Numerical — Different Ranks</h3>
+<p>Again let:</p>
+<div class="math block">
+d=d_{\text{out}}=4096.
+</div>
+<p>Then:</p>
+<div class="math block">
+N_{\text{LoRA}}=8192r.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-52"><span class="math inline">r=4</span></h5>
+<div class="math block">
+8192(4)=32,768.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-53"><span class="math inline">r=8</span></h5>
+<div class="math block">
+8192(8)=65,536.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-54"><span class="math inline">r=16</span></h5>
+<div class="math block">
+8192(16)=131,072.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-55"><span class="math inline">r=32</span></h5>
+<div class="math block">
+8192(32)=262,144.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+N\propto r.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-56">3.1.24 The Big-O Picture</h3>
+<p>Full fine-tuning:</p>
+<div class="math block">
+\boxed{
+O(d\,d_{\text{out}})
+}
+</div>
+<p>LoRA:</p>
+<div class="math block">
+\boxed{
+O(r(d+d_{\text{out}}))
+}
+</div>
+<p>For a square matrix:</p>
+<div class="math block">
+d_{\text{out}}=d,
+</div>
+<p>so:</p>
+<div class="math block">
+\text{Full}=O(d^2)
+</div>
+<p>while:</p>
+<div class="math block">
+\text{LoRA}=O(rd).
+</div>
+<p>When:</p>
+<div class="math block">
+r\ll d,
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+rd\ll d^2.
+}
+</div>
+<p>That's the mathematical reason LoRA is efficient.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-57">3.1.25 Ratio Formula</h3>
+<p>For a general matrix:</p>
+<div class="math block">
+\text{reduction factor}
+=
+\frac{d\,d_{\text{out}}}
+{r(d+d_{\text{out}})}.
+</div>
+<p>For a square matrix:</p>
+<div class="math block">
+\frac{d^2}{2rd}
+=
+\boxed{
+\frac{d}{2r}.
+}
+</div>
+<p>So for:</p>
+<div class="math block">
+d=4096,\quad r=8,
+</div>
+<p>we get:</p>
+<div class="math block">
+\frac{4096}{16}=256.
+</div>
+<p>Exactly the source result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-58">3.1.26 One More Important Distinction</h3>
+<p>LoRA does <strong>not</strong> replace the pretrained model's knowledge.</p>
+<p>It keeps:</p>
+<div class="math block">
+\boxed{W_0}
+</div>
+<p>and learns an additional update:</p>
+<div class="math block">
+\boxed{\Delta W}.
+</div>
+<p>So the adapted matrix is:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\Delta W.
+}
+</div>
+<p>And LoRA approximates:</p>
+<div class="math block">
+\boxed{
+\Delta W\approx BA.
+}
+</div>
+<p>This is the central idea we will build on in the next step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-59">3.1.27 Why the Update Is Called &quot;Low Rank&quot;</h3>
+<p>Because:</p>
+<div class="math block">
+\Delta W=BA
+</div>
+<p>has rank bounded by:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le r.
+}
+</div>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r}
+</div>
+<p>can provide at most <span class="math inline">r</span> independent directions through its <span class="math inline">r</span>-dimensional middle space.</p>
+<p>This is a mathematical consequence of matrix multiplication; the PEFT source's key conceptual point is that LoRA constrains the update to a low-dimensional subspace. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-60">3.1.28 Example of the Dimension Bottleneck</h3>
+<p>Suppose:</p>
+<div class="math block">
+B\in\mathbb{R}^{4096\times8}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{8\times4096}.
+</div>
+<p>Then:</p>
+<div class="math block">
+BA
+</div>
+<p>has shape:</p>
+<div class="math block">
+(4096\times8)(8\times4096)
+</div>
+<p>which gives:</p>
+<div class="math block">
+\boxed{
+4096\times4096.
+}
+</div>
+<p>So the final update has exactly the same shape as the original weight matrix.</p>
+<p>But internally it passes through only:</p>
+<div class="math block">
+\boxed{8}
+</div>
+<p>dimensions.</p>
+<p>That is what &quot;low rank&quot; means here.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-61">3.1.29 This Is the Key Mathematical Trick</h3>
+<p>We want a large matrix:</p>
+<div class="math block">
+4096\times4096.
+</div>
+<p>Instead of directly learning:</p>
+<div class="math block">
+16,777,216
+</div>
+<p>independent values, we learn:</p>
+<div class="math block">
+4096\times8
+</div>
+<p>plus:</p>
+<div class="math block">
+8\times4096.
+</div>
+<p>That is:</p>
+<div class="math block">
+32,768+32,768
+=
+65,536.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+16,777,216\rightarrow65,536.
+}
+</div>
+<p>And yet:</p>
+<div class="math block">
+BA
+</div>
+<p>still produces a:</p>
+<div class="math block">
+4096\times4096
+</div>
+<p>update.</p>
+<p>That is why LoRA can have such a large parameter reduction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-62">3.1.30 What We Have Established</h3>
+<p>We started with:</p>
+<div class="math block">
+\boxed{\text{Full fine-tuning}}
+</div>
+<p>where:</p>
+<div class="math block">
+W'=W_0+\Delta W.
+</div>
+<p>Problem:</p>
+<div class="math block">
+\boxed{
+\Delta W\text{ is huge}.
+}
+</div>
+<p>PEFT says:</p>
+<div class="math block">
+\boxed{
+\text{freeze most of }W_0
+}
+</div>
+<p>and learn a much smaller task-specific adaptation.</p>
+<p>LoRA goes one step further:</p>
+<div class="math block">
+\boxed{
+\Delta W\approx BA
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+r\ll d.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+d\,d_{\text{out}}
+\quad\longrightarrow\quad
+r(d+d_{\text{out}})
+}
+</div>
+<p>trainable parameters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-63">3.1.31 Exam Numerical Bank — Step 3.1</h3>
+<h5 id="v3-heading-chunk-les-step-3-1-i26-64">Level 1</h5>
+<p>A model has 2 billion parameters. Full fine-tuning trains how many?</p>
+<div class="math block">
+\boxed{2\text{ billion}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-1-i26-65">Level 2</h5>
+<p>A <span class="math inline">2048\times2048</span> matrix is fully fine-tuned.</p>
+<div class="math block">
+2048^2
+=
+\boxed{4,194,304}
+</div>
+<p>trainable parameters.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-1-i26-66">Level 3</h5>
+<p>For the same matrix with:</p>
+<div class="math block">
+r=4,
+</div>
+<p>LoRA trains:</p>
+<div class="math block">
+4(2048+2048)
+=
+\boxed{16,384}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-1-i26-67">Level 4</h5>
+<p>Reduction factor:</p>
+<div class="math block">
+\frac{4,194,304}{16,384}
+=
+\boxed{256}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-1-i26-68">Level 5</h5>
+<p>Explain why increasing <span class="math inline">r</span> from 4 to 16 increases LoRA trainable parameters by a factor of 4.</p>
+<p>Because:</p>
+<div class="math block">
+N_{\text{LoRA}}=r(d+d_{\text{out}})
+</div>
+<p>and therefore:</p>
+<div class="math block">
+N\propto r.
+</div>
+<p>So:</p>
+<div class="math block">
+\frac{16}{4}
+=
+\boxed{4}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-69">3.1.32 Exam Trap</h3>
+<p>Do not confuse:</p>
+<div class="math block">
+\boxed{r}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{d}.
+</div>
+<p>Here:</p>
+<ul>
+<li><span class="math inline">d</span> = original input/hidden dimension,</li>
+<li><span class="math inline">d_{\text{out}}</span> = output dimension,</li>
+<li><span class="math inline">r</span> = LoRA's low-rank bottleneck dimension.</li>
+</ul>
+<p>For LoRA:</p>
+<div class="math block">
+\boxed{
+r\ll d,d_{\text{out}}.
+}
+</div>
+<p>The PEFT slides explicitly specify this relationship. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-70">3.1.33 Step 3.1 Master Picture</h3>
+<pre><code class="language-text">                 PRETRAINED LLM
+                       │
+                       │
+                  W0, frozen
+                       │
+              ┌────────┴────────┐
+              │                 │
+       Full Fine-Tuning       PEFT
+              │                 │
+      update every W       freeze W0
+              │                 │
+       huge ΔW             small adaptation
+                                │
+                       ┌────────┼─────────┐
+                       │        │         │
+                    Adapter   BitFit   LoRA / ...
+</code></pre>
+<p>And LoRA's mathematical transition is:</p>
+<pre><code class="language-text">FULL FINE-TUNING
+
+W' = W0 + ΔW
+         │
+         └── huge trainable matrix
+
+
+LoRA
+
+W' = W0 + BA
+           │
+           ├── B: d × r
+           └── A: r × dout
+
+              r &lt;&lt; d
+</code></pre>
+<p>This is the foundation of everything that follows.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-1-i26-71">What We Have Finished</h3>
+<div class="math block">
+\boxed{\textbf{Step 3.1 — PEFT motivation and full fine-tuning baseline}}
+</div>
+<p>You should now understand:</p>
+<div class="math block">
+\boxed{\text{why full fine-tuning is expensive}}
+</div>
+<div class="math block">
+\boxed{\text{what &quot;frozen&quot; and &quot;trainable&quot; mean}}
+</div>
+<div class="math block">
+\boxed{\text{the four PEFT families}}
+</div>
+<div class="math block">
+\boxed{\text{what matrix rank means}}
+</div>
+<div class="math block">
+\boxed{\text{why low-rank updates can reduce parameters}}
+</div>
+<div class="math block">
+\boxed{
+\text{Full: }d\,d_{\text{out}}
+\quad\text{vs}\quad
+\text{LoRA: }r(d+d_{\text{out}})
+}
+</div>
+<p>and the core transformation:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\Delta W
+\quad\longrightarrow\quad
+W'=W_0+BA.
+}
+</div>
+<p>The supplied PEFT slides and Raschka appendix support this progression directly. <em>(Source: peft-slides)</em></p>
+<hr />
+</section>

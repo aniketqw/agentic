@@ -1,0 +1,1960 @@
+<section class="chunk" id="chunk-les-step-3-2-i27" data-id="les-step-3-2-i27"><details class="audit-card" id="audit-full-chunk-les-step-3-2-i27" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-3-2-i27-1">Motivation</h4><p>Derive an efficient adaptation branch and its merge from matrix distributivity rather than memorizing BA.</p><h4 id="v3-heading-chunk-les-step-3-2-i27-2">Prerequisites</h4><ul><li>Matrix multiplication</li><li>Rank and column spans</li><li>Linear-layer row convention</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-3">Notation and units</h4><ul><li>Slide B: d×r; A: r×out; s=alpha/r</li><li>Book A: d×r; B: r×out; actual scale is alpha in its implementation</li><li>H=XW0+s(XB)A in slide notation</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-4">Assumptions</h4><ul><li>No dropout during merge equivalence</li><li>Same orientation and scale in both paths</li><li>Weights represented in the same arithmetic precision</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-5">Step-by-step derivation</h4><ol><li>Set W′=W0+sBA. Shape BA=d×out permits addition.</li><li>Expand X(W0+sBA)=XW0+s(XB)A; compute thin branches without materializing a free dense update.</li><li>rank(BA)≤min(rank(B), rank(A))≤r; W0+sBA may retain full rank.</li><li>Count dr+r·out; savings require r&lt;d·out/(d+out), not merely r&lt;d.</li><li>An invertible r×r C gives (BC)(C⁻¹A)=BA, so factor parameters are not unique independent degrees of freedom.</li><li>Zero either factor preserves initial output; randomize the other to avoid both gradients being stuck at zero. Names must follow their declared shapes.</li></ol><h4 id="v3-heading-chunk-les-step-3-2-i27-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-2-i27-7">Rectangular bottleneck</h5><p>Given: B:512×4, A:4×1024</p><ol><li>Product shape512×1024.</li><li>Factor entries=2048+4096=6144; maximum rank 4.</li></ol><p>Answer: 6144</p><p>Verification: peft_distillation / P32-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-2-i27-8">Merge and actual forward output</h5><p>Given: W0=I2, input[1,2], input factor[1,2]ᵀ, output factor[.2,.1], scale 2</p><ol><li>Input×input factor=5.</li><li>Adapter output=2×5×[.2,.1]=[2,1].</li><li>Base=[1,2]; total=[3,3]; merged matrix[[1.4,.2],[.8,1.4]].</li></ol><p>Answer: [3, 3]</p><p>Verification: peft_distillation / P32-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-3-2-i27-9">Corrections and source qualifications</h4><ul><li>heading: 3.2.29; text: The lecture page6 uses A=[1,2], not the inherited A=[1,1]. With inherited W0=[[2,0],[1,1],[1,2]], x=[1,1,1], A=[1,1], B=[1,1,0]ᵀ, s2, the derived output[8,7] is correct for those toy matrices but must not be called the slide’s exact example. The slide page6 has a different displayed W0 and output[7,12]; its separate and merged paths should be checked using that exact source matrix.</li><li>heading: 3.2.34; text: Slide convention B: d×r, A: r×out and book convention A: d×r, B: r×out reverse names. Book zero-initializes its output factorB; slides zero-initialize their input factorB. Both preserve zero initial update, but first nonzero factor gradient changes accordingly; do not mix the convention names.</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-10">Mastery answers and retained exercise context</h4><ol><li>Q1–Q10:512×1024;6144; rank ≤4; scale 2; XB: 16×4; XBA: 16×1024; reduction 256; zero update; initial W0; base W0 frozen.</li><li>3.2.40 Exam Numerical — Shape Chain
+Suppose:
+
+X:32\times 4096
+
+
+B:4096\times 8
+
+
+A:8\times 4096.
+
+Find the shapes.
+First:
+
+XB:
+(32\times 4096)(4096\times 8)
+=
+\boxed{32\times 8}.
+
+Then:
+
+(XB)A:
+(32\times 8)(8\times 4096)
+=
+\boxed{32\times 4096}.
+
+Original:
+
+XW_0:
+(32\times 4096)(4096\times 4096)
+=
+\boxed{32\times 4096}.
+
+So addition is valid.</li><li>3.2.41 Exam Numerical — Parameter Count From Shapes
+Suppose:
+
+d=2048,
+\quad
+d_{\text{out}}=4096,
+\quad
+r=16.
+
+Full update:
+
+2048\times 4096
+=
+\boxed{8,388,608}.
+
+LoRA:
+
+16(2048+4096)
+
+
+=16(6144)
+
+
+=\boxed{98,304}.
+
+Reduction factor:
+
+\frac{8,388,608}{98,304}
+\approx
+\boxed{85.33}.</li><li>3.2.42 Exam Numerical — Maximum Rank
+Suppose:
+
+B\in\mathbb{R}^{768\times 16}
+
+and:
+
+A\in\mathbb{R}^{16\times 3072}.
+
+Then:
+
+BA\in\mathbb{R}^{768\times 3072}
+
+and:
+
+\boxed{
+\operatorname{rank}(BA)\le16.
+}
+
+The answer is not 768 and not 3072.
+It is at most the bottleneck dimension:
+
+\boxed{16}.</li><li>3.2.43 Exam Numerical — Scaling
+Suppose:
+
+r=16,\qquad \alpha=32.
+
+Calculate:
+
+\frac{\alpha}{r}.
+
+
+\frac{32}{16}
+=
+\boxed{2}.
+
+Therefore:
+
+W&#x27;=W_0+2BA.
+
+If:
+
+\alpha=8,\quad r=16,
+
+then:
+
+\boxed{
+\frac{\alpha}{r}=0.5.
+}
+
+So:
+
+W&#x27;=W_0+0.5BA.</li><li>3.2.48 Numerical Challenge Set
+Try these mentally; the answers are included so you can verify.
+Q1
+
+B:512\times 4,\qquad A:4\times 1024.
+
+What is the shape of BA?
+
+\boxed{512\times 1024}
+
+
+Q2
+For the same matrices, how many LoRA parameters?
+
+4(512+1024)
+=
+\boxed{6,144}.
+
+
+Q3
+Maximum rank?
+
+\boxed{4}.
+
+
+Q4
+If:
+
+\alpha=8,\quad r=4,
+
+what is scaling?
+
+\boxed{2}.
+
+
+Q5
+If:
+
+X:16\times 512,
+
+what is XB?
+
+(16\times 512)(512\times 4)
+=
+\boxed{16\times 4}.
+
+
+Q6
+What is (XB)A?
+
+(16\times 4)(4\times 1024)
+=
+\boxed{16\times 1024}.
+
+
+Q7
+For a 4096\times 4096 matrix with r=8, what is the reduction factor?
+
+\boxed{256\times}.
+
+
+Q8
+If B=0 initially, what is the LoRA update?
+
+\boxed{BA=0}.
+
+
+Q9
+Therefore the initial adapted weight is:
+
+\boxed{W&#x27;=W_0}.
+
+
+Q10
+Does LoRA train W_0?
+
+\boxed{\text{No; the base weight is frozen.}}</li></ol><h4 id="v3-heading-chunk-les-step-3-2-i27-11">Edge cases and remaining gaps</h4><ul><li>Merge equality is algebraic; low-precision requantization can change outputs</li><li>Adapter dropout must be disabled at inference</li><li>Factor names and alpha meanings differ across source conventions</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-12">Connections and progression</h4><ul><li>Factorization feeds first-step gradient mechanics and layer targeting</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-13">Exact source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 5, 6, 7 · Scaled factorization, worked merged/separate computation and savings</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 746, 747, 748 · Book factor shapes and alpha-only code</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (69)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 3.2 — LoRA Factorization: Why \Delta W = BA Works</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.1 Start From Ordinary Fine-Tuning</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.2 LoRA Changes Only the Update</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.3 Understand the Shapes First</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.4 Dimension Check</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.5 Why Introduce the Middle Dimension r?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.6 The Bottleneck Intuition</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.7 A Tiny Numerical Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.8 Why Rank Cannot Exceed r</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.9 Why Does This Save Parameters?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.10 Derive the Parameter Formula Yourself</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.11 Numerical Parameter Count</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.12 Why the Reduction Becomes Huge When r\ll d</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.13 Now Look at the Forward Pass</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.14 Shape of the Forward Pass</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.15 Tiny Forward Numerical</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.16 Compare Direct Full Update</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.17 Why Can a Low-Rank Update Still Be Useful?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.18 A Crucial Point: BA Is Large, Even Though A and B Are Small</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.19 Think of BA as an Implicit Matrix</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.20 Why the Rank Is a Capacity Knob</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.21 Numerical — Rank vs Parameter Count</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.22 Numerical — Maximum Rank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.23 Numerical — Can a Rank-2 Update Be Full Rank?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.24 Rank Is Not the Number of Parameters</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.25 Now Introduce the Scaling Factor \alpha</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.26 What Does \alpha/r Do?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.27 Why Divide by r?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.28 Numerical Example With Scaling</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.29 Source Numeric Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.30 Check the Forward Computation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.31 Important Notation Warning Across Your Sources</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.32 Separate Computation vs Merged Computation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Separate form</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Merged form</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.33 Why Is This Useful?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.34 Why Is Initialization Important?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.35 Why Not Initialize Both Randomly?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.36 Numerical Initialization Check</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.37 Training Then Changes the Factors</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.38 Why Freeze W_0?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.39 One Complete Shape Chain</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.40 Exam Numerical — Shape Chain</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.41 Exam Numerical — Parameter Count From Shapes</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.42 Exam Numerical — Maximum Rank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.43 Exam Numerical — Scaling</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.44 Exam Concept — What Does Each Symbol Control?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.45 The Most Important Equation of This Step</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.46 Master Mental Model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.47 What You Should Now Be Able to Derive</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Shape of the update</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Parameter count</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Rank bound</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Forward pass</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Initialization</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Merge</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.48 Numerical Challenge Set</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q4</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q5</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q6</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q7</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q8</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q9</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q10</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.49 One Very Important Caveat</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.2.50 Final Summary of Step 3.2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><details class="audit-card" id="audit-P01" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> P01 — LoRA orientation and the complete slide numerical</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Learn a small factored update while freezing the large base matrix.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-3-2-i27-15">Notation and assumptions</h4><p>Row inputs X:n×din, W:din×dout, B:din×r,A:r×dout; scale alpha/r. The original paper uses a column-vector naming convention, so compare dimensions rather than letters.</p><h4 id="v3-heading-chunk-les-step-3-2-i27-16">Derivation and mechanism</h4><ol><li>Multiply B and A to obtain a rank-at-most-r update.</li><li>Compute base XW and adapter (XB)A separately.</li><li>Multiply adapter by alpha/r and add.</li></ol><div class="math block">Y=XW+(\alpha/r)(XB)A</div><h4 id="v3-heading-chunk-les-step-3-2-i27-17">Worked example</h4><p>Slide6: W=[[2,1],[0,1],[1,2]],B=[[1],[1],[0]],A=[[1,2]],alpha2,r1,X=[1,1,1]. Base=[3,4], unscaled adapter=[2,4], scaled adapter=[4,8]; total=[7,12].</p><h4 id="v3-heading-chunk-les-step-3-2-i27-18">Limitations</h4><ul><li>The rank is at most r, not necessarily exactly r.</li><li>Orientations and A/B zero initialization labels must be translated together.</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-19">Connections to later concepts</h4><ul><li>F08 matrix gradients explain how each trainable low-rank factor receives a gradient while the base remains frozen.</li></ul><h4 id="v3-heading-chunk-les-step-3-2-i27-20">Source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 5, 6 · PEFT lecture</li><li><a href="https://arxiv.org/html/2106.09685v2" rel="noopener noreferrer">§4.1; transpose convention</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-2-i27-21">Executed code and evidence</h4><p>Functions: lora. Passed checks: LoRA-slide-output, LoRA-Numpy</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-2-i27"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-2-i27" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-3-1-i26">← Previous lesson</a> · <a href="#chunk-les-step-3-3-i28">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-1-i26">Step 3.1 — Why PEFT Exists: Full Fine-Tuning as the Baseline</a></p><p><strong>This lesson:</strong> Step 3.2 — LoRA Factorization: Why \Delta W = BA Works</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-10">peft-slides</a>; <a href="#source-18">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-2-i27"></a></p>
+<h2>Step 3.2 — LoRA Factorization: Why <span class="math inline">\Delta W = BA</span> Works</h2>
+<p><em>Plan node: I3 · chat order #27</em></p>
+<p>We now go <strong>inside the LoRA equation</strong> rather than treating it as a formula to memorize.</p>
+<p>The central idea from the PEFT lecture is:</p>
+<div class="math block">
+\boxed{\Delta W \approx BA}
+</div>
+<p>where the large update matrix is represented through two much thinner matrices. The rank <span class="math inline">r</span> is the inner dimension and controls how many trainable parameters LoRA introduces. <em>(Source: peft-slides; MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-22">3.2.1 Start From Ordinary Fine-Tuning</h3>
+<p>Suppose a pretrained linear layer has:</p>
+<div class="math block">
+W_0\in\mathbb{R}^{d\times d_{\text{out}}}.
+</div>
+<p>For an input:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d},
+</div>
+<p>the original layer computes:</p>
+<div class="math block">
+\boxed{
+H=XW_0
+}
+</div>
+<p>where:</p>
+<div class="math block">
+H\in\mathbb{R}^{n\times d_{\text{out}}}.
+</div>
+<p>During ordinary fine-tuning, we want to change <span class="math inline">W_0</span>.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\Delta W
+}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+H=XW'
+=
+X(W_0+\Delta W).
+</div>
+<p>Expanding:</p>
+<div class="math block">
+\boxed{
+H=XW_0+X\Delta W.
+}
+</div>
+<p>The problem is that:</p>
+<div class="math block">
+\Delta W
+</div>
+<p>has the same huge shape as <span class="math inline">W_0</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-23">3.2.2 LoRA Changes Only the Update</h3>
+<p>Instead of directly learning:</p>
+<div class="math block">
+\Delta W
+</div>
+<p>as a full matrix, LoRA constrains it to a low-rank product:</p>
+<div class="math block">
+\boxed{
+\Delta W=BA.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>in the notation used by your PEFT slides/master cheatsheet. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs; peft-slides)</em></p>
+<p>The corresponding layer output is:</p>
+<div class="math block">
+\boxed{
+H=X\left(W_0+\frac{\alpha}{r}BA\right).
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-24">3.2.3 Understand the Shapes First</h3>
+<p>This is the most important part.</p>
+<p>Let:</p>
+<div class="math block">
+W_0\in\mathbb{R}^{d\times d_{\text{out}}}.
+</div>
+<p>LoRA introduces:</p>
+<div class="math block">
+\boxed{
+B\in\mathbb{R}^{d\times r}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+A\in\mathbb{R}^{r\times d_{\text{out}}}.
+}
+</div>
+<p>The PEFT slide gives exactly these shapes and requires:</p>
+<div class="math block">
+r\ll\min(d,d_{\text{out}}).
+</div>
+<p><em>(Source: peft-slides)</em></p>
+<p>Now multiply:</p>
+<div class="math block">
+B A
+</div>
+<p>with shapes:</p>
+<div class="math block">
+(d\times r)(r\times d_{\text{out}}).
+</div>
+<p>The inner dimensions cancel:</p>
+<div class="math block">
+r=r.
+</div>
+<p>So the result is:</p>
+<div class="math block">
+\boxed{
+BA\in\mathbb{R}^{d\times d_{\text{out}}}.
+}
+</div>
+<p>Exactly the same shape as:</p>
+<div class="math block">
+W_0.
+</div>
+<p>That is why we can add them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-25">3.2.4 Dimension Check</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=4,
+\qquad
+d_{\text{out}}=6,
+\qquad
+r=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+B:4\times2
+</div>
+<p>and:</p>
+<div class="math block">
+A:2\times6.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+BA:
+(4\times2)(2\times6)
+=
+4\times6.
+</div>
+<p>And:</p>
+<div class="math block">
+W_0:4\times6.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W_0+BA
+}
+</div>
+<p>is valid.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-26">3.2.5 Why Introduce the Middle Dimension <span class="math inline">r</span>?</h3>
+<p>Imagine directly learning:</p>
+<div class="math block">
+\Delta W\in\mathbb{R}^{4096\times4096}.
+</div>
+<p>That gives:</p>
+<div class="math block">
+16,777,216
+</div>
+<p>free parameters.</p>
+<p>LoRA instead does:</p>
+<div class="math block">
+4096\times r
+</div>
+<p>followed by:</p>
+<div class="math block">
+r\times4096.
+</div>
+<p>For:</p>
+<div class="math block">
+r=8,
+</div>
+<p>we get:</p>
+<div class="math block">
+4096\times8
+</div>
+<p>and:</p>
+<div class="math block">
+8\times4096.
+</div>
+<p>This means the update must pass through an 8-dimensional bottleneck.</p>
+<p>So the update cannot represent an arbitrary <span class="math inline">4096\times4096</span> matrix.</p>
+<p>That restriction is exactly the point.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-27">3.2.6 The Bottleneck Intuition</h3>
+<p>Think of:</p>
+<div class="math block">
+\boxed{
+d
+\rightarrow
+r
+\rightarrow
+d_{\text{out}}
+}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{
+d
+\rightarrow
+d_{\text{out}}
+}
+</div>
+<p>directly.</p>
+<p>For example:</p>
+<div class="math block">
+4096\rightarrow8\rightarrow4096.
+</div>
+<p>The adaptation first compresses into <span class="math inline">r=8</span> directions and then expands back.</p>
+<p>That is why LoRA is called <strong>low-rank adaptation</strong>.</p>
+<p>The source describes the rank as the inner dimension that controls the number of trainable parameters and the adaptation capacity. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-28">3.2.7 A Tiny Numerical Example</h3>
+<p>Let's use something we can calculate by hand.</p>
+<p>Take:</p>
+<div class="math block">
+B=
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+3&amp;4&amp;5
+\end{bmatrix}.
+</div>
+<p>Shapes:</p>
+<div class="math block">
+B:2\times1
+</div>
+<div class="math block">
+A:1\times3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+BA
+</div>
+<p>has shape:</p>
+<div class="math block">
+2\times3.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+BA=
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix}
+\begin{bmatrix}
+3&amp;4&amp;5
+\end{bmatrix}.
+</div>
+<p>Multiply each element of <span class="math inline">B</span> by the whole row <span class="math inline">A</span>:</p>
+<div class="math block">
+\boxed{
+BA=
+\begin{bmatrix}
+3&amp;4&amp;5\\
+6&amp;8&amp;10
+\end{bmatrix}
+}
+</div>
+<p>Notice something:</p>
+<div class="math block">
+R_2=2R_1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)=1.
+}
+</div>
+<p>And that is exactly what we expected because:</p>
+<div class="math block">
+r=1.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-29">3.2.8 Why Rank Cannot Exceed <span class="math inline">r</span></h3>
+<p>This is the mathematical heart of LoRA.</p>
+<p>We have:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{r\times d_{\text{out}}}.
+</div>
+<p>Their product passes information through an <span class="math inline">r</span>-dimensional intermediate space.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le r.
+}
+</div>
+<p>This relationship appears explicitly in your master mathematical cheatsheet. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs)</em></p>
+<p>So if:</p>
+<div class="math block">
+r=4,
+</div>
+<p>the update can have rank at most:</p>
+<div class="math block">
+\boxed{4}.
+</div>
+<p>It cannot become rank 5, 100, or 4096.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-30">3.2.9 Why Does This Save Parameters?</h3>
+<p>The full matrix contains:</p>
+<div class="math block">
+d\,d_{\text{out}}
+</div>
+<p>parameters.</p>
+<p>The factors contain:</p>
+<div class="math block">
+dr
+</div>
+<p>for <span class="math inline">B</span>, and:</p>
+<div class="math block">
+rd_{\text{out}}
+</div>
+<p>for <span class="math inline">A</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA}}
+=
+dr+rd_{\text{out}}
+=
+r(d+d_{\text{out}})
+}
+</div>
+<p>as given in the master cheatsheet. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-31">3.2.10 Derive the Parameter Formula Yourself</h3>
+<p>Suppose:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r}.
+</div>
+<p>Number of entries:</p>
+<div class="math block">
+d\times r.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+A\in\mathbb{R}^{r\times d_{\text{out}}}.
+</div>
+<p>Number of entries:</p>
+<div class="math block">
+r\times d_{\text{out}}.
+</div>
+<p>Add:</p>
+<div class="math block">
+dr+rd_{\text{out}}.
+</div>
+<p>Factor <span class="math inline">r</span>:</p>
+<div class="math block">
+\boxed{
+r(d+d_{\text{out}}).
+}
+</div>
+<p>That is why you do not need to memorize where it comes from.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-32">3.2.11 Numerical Parameter Count</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=1024,
+\qquad
+d_{\text{out}}=1024,
+\qquad
+r=8.
+</div>
+<p>Full update:</p>
+<div class="math block">
+1024\times1024
+=
+\boxed{1,048,576}.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+8(1024+1024)
+</div>
+<div class="math block">
+=8(2048)
+</div>
+<div class="math block">
+=\boxed{16,384}.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+\frac{1,048,576}{16,384}
+=
+\boxed{64}.
+</div>
+<p>So LoRA uses:</p>
+<div class="math block">
+\boxed{64\times}
+</div>
+<p>fewer trainable parameters for this matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-33">3.2.12 Why the Reduction Becomes Huge When <span class="math inline">r\ll d</span></h3>
+<p>For a square matrix:</p>
+<div class="math block">
+d_{\text{out}}=d.
+</div>
+<p>Then:</p>
+<div class="math block">
+N_{\text{full}}=d^2
+</div>
+<p>and:</p>
+<div class="math block">
+N_{\text{LoRA}}=2dr.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\text{reduction factor}
+=
+\frac{d^2}{2dr}
+=
+\boxed{\frac{d}{2r}}.
+</div>
+<p>So if:</p>
+<div class="math block">
+d=4096,\quad r=8,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{4096}{16}
+=
+\boxed{256}.
+</div>
+<p>This is the exact example from your PEFT lecture. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-34">3.2.13 Now Look at the Forward Pass</h3>
+<p>This is where the matrix factorization becomes even more intuitive.</p>
+<p>We have:</p>
+<div class="math block">
+H
+=
+X\left(W_0+\frac{\alpha}{r}BA\right).
+</div>
+<p>By the distributive law:</p>
+<div class="math block">
+\boxed{
+H=XW_0+\frac{\alpha}{r}XBA.
+}
+</div>
+<p>We can associate the multiplications as:</p>
+<div class="math block">
+\boxed{
+H=XW_0+\frac{\alpha}{r}(XB)A.
+}
+</div>
+<p>This is computationally useful because:</p>
+<div class="math block">
+X
+</div>
+<p>first passes through the small matrix <span class="math inline">B</span>, then through <span class="math inline">A</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-35">3.2.14 Shape of the Forward Pass</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}.
+</div>
+<p>Then:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r}.
+</div>
+<p>So:</p>
+<div class="math block">
+XB
+</div>
+<p>has shape:</p>
+<div class="math block">
+\boxed{
+n\times r.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+A\in\mathbb{R}^{r\times d_{\text{out}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+(XB)A
+</div>
+<p>has shape:</p>
+<div class="math block">
+\boxed{
+n\times d_{\text{out}}.
+}
+</div>
+<p>Exactly what we need to add to:</p>
+<div class="math block">
+XW_0.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-36">3.2.15 Tiny Forward Numerical</h3>
+<p>Let's take:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;2
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+X:1\times2.
+</div>
+<p>Take:</p>
+<div class="math block">
+B=
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+B:2\times1.
+</div>
+<p>And:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+3&amp;4
+\end{bmatrix}
+</div>
+<p>so:</p>
+<div class="math block">
+A:1\times2.
+</div>
+<p>First:</p>
+<div class="math block">
+XB
+=
+[1\;\;2]
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix}
+=
+1+4
+=
+[5].
+</div>
+<p>Then:</p>
+<div class="math block">
+(XB)A
+=
+[5]
+\begin{bmatrix}
+3&amp;4
+\end{bmatrix}
+</div>
+<div class="math block">
+=
+\boxed{
+[15,\;20].
+}
+</div>
+<p>So a low-rank transformation has converted a 2-dimensional input into a 2-dimensional output through:</p>
+<div class="math block">
+\boxed{2\rightarrow1\rightarrow2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-37">3.2.16 Compare Direct Full Update</h3>
+<p>A full update could have been:</p>
+<div class="math block">
+\Delta W=
+\begin{bmatrix}
+a&amp;b\\
+c&amp;d
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+X\Delta W
+</div>
+<p>could produce any arbitrary 2-dimensional output.</p>
+<p>With rank-1 LoRA:</p>
+<div class="math block">
+\Delta W=BA,
+</div>
+<p>the update is restricted to a rank-1 structure.</p>
+<p>So LoRA trades:</p>
+<div class="math block">
+\boxed{\text{full flexibility}}
+</div>
+<p>for:</p>
+<div class="math block">
+\boxed{\text{parameter efficiency}}.
+</div>
+<p>That is the fundamental tradeoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-38">3.2.17 Why Can a Low-Rank Update Still Be Useful?</h3>
+<p>This is the intuition emphasized in the Raschka appendix:</p>
+<p>LoRA assumes task-specific changes can often be captured effectively in a lower-dimensional subspace, allowing the model to focus on influential directions rather than learning an unrestricted update for every weight.</p>
+<p>So the base model already contains a large amount of useful structure.</p>
+<p>The task-specific adaptation does not necessarily need to redesign everything.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{large pretrained knowledge}
++
+\text{small task-specific correction}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{rewrite the entire model}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-39">3.2.18 A Crucial Point: <span class="math inline">BA</span> Is Large, Even Though <span class="math inline">A</span> and <span class="math inline">B</span> Are Small</h3>
+<p>This often confuses students.</p>
+<p>Suppose:</p>
+<div class="math block">
+B=4096\times8
+</div>
+<p>and:</p>
+<div class="math block">
+A=8\times4096.
+</div>
+<p>Both are relatively small.</p>
+<p>But their product:</p>
+<div class="math block">
+BA
+</div>
+<p>is:</p>
+<div class="math block">
+4096\times4096.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+BA\text{ has the full weight shape}.
+}
+</div>
+<p>The savings come because we <strong>store and train <span class="math inline">A</span> and <span class="math inline">B</span></strong> rather than storing a free full-rank <span class="math inline">\Delta W</span>.</p>
+<p>We do not need to maintain <span class="math inline">BA</span> as a separate trainable parameter matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-40">3.2.19 Think of <span class="math inline">BA</span> as an Implicit Matrix</h3>
+<p>Instead of learning:</p>
+<div class="math block">
+\Delta W=
+\begin{bmatrix}
+\text{millions of independent values}
+\end{bmatrix},
+</div>
+<p>we learn:</p>
+<div class="math block">
+B,\;A.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\Delta W=BA
+}
+</div>
+<p>is generated from those factors.</p>
+<p>That is why this is called a <strong>reparameterization</strong> approach in the PEFT taxonomy. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-41">3.2.20 Why the Rank Is a Capacity Knob</h3>
+<p>Consider:</p>
+<div class="math block">
+r=1.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{rank}(\Delta W)\le1.
+</div>
+<p>Very restrictive.</p>
+<p>Now:</p>
+<div class="math block">
+r=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{rank}(\Delta W)\le8.
+</div>
+<p>More expressive.</p>
+<p>Now:</p>
+<div class="math block">
+r=64.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{rank}(\Delta W)\le64.
+</div>
+<p>More expressive again, but more trainable parameters.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+r\uparrow
+\Rightarrow
+\text{capacity}\uparrow
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+r\uparrow
+\Rightarrow
+\text{trainable parameters}\uparrow.
+}
+</div>
+<p>The source explicitly describes <span class="math inline">r</span> as the balance between adaptability and efficiency. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-42">3.2.21 Numerical — Rank vs Parameter Count</h3>
+<p>Take:</p>
+<div class="math block">
+d=d_{\text{out}}=4096.
+</div>
+<p>Then:</p>
+<div class="math block">
+N_{\text{LoRA}}=8192r.
+</div>
+<table>
+<thead>
+<tr>
+<th style="text-align:right"><span class="math inline">r</span></th>
+<th style="text-align:right">Trainable parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8,192</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">16,384</td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td style="text-align:right">32,768</td>
+</tr>
+<tr>
+<td style="text-align:right">8</td>
+<td style="text-align:right">65,536</td>
+</tr>
+<tr>
+<td style="text-align:right">16</td>
+<td style="text-align:right">131,072</td>
+</tr>
+<tr>
+<td style="text-align:right">32</td>
+<td style="text-align:right">262,144</td>
+</tr>
+<tr>
+<td style="text-align:right">64</td>
+<td style="text-align:right">524,288</td>
+</tr>
+</tbody>
+</table>
+<p>So doubling rank doubles parameter count.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-43">3.2.22 Numerical — Maximum Rank</h3>
+<p>Suppose:</p>
+<div class="math block">
+B\in\mathbb{R}^{100\times4}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{4\times200}.
+</div>
+<p>Then:</p>
+<div class="math block">
+BA\in\mathbb{R}^{100\times200}.
+</div>
+<p>What is the maximum possible rank?</p>
+<p>Because:</p>
+<div class="math block">
+\boxed{r=4},
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le4.
+}
+</div>
+<p>Even though the resulting matrix contains:</p>
+<div class="math block">
+100\times200=20,000
+</div>
+<p>entries, its rank can be at most 4.</p>
+<p>This is the essence of low-rank structure.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-44">3.2.23 Numerical — Can a Rank-2 Update Be Full Rank?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\Delta W=BA
+</div>
+<p>with:</p>
+<div class="math block">
+B\in\mathbb{R}^{100\times2}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{2\times100}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{rank}(\Delta W)\le2.
+</div>
+<p>But a <span class="math inline">100\times100</span> full-rank matrix has rank:</p>
+<div class="math block">
+100.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{No. A rank-2 LoRA update cannot be full rank}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-45">3.2.24 Rank Is Not the Number of Parameters</h3>
+<p>This is an important exam trap.</p>
+<p>Suppose:</p>
+<div class="math block">
+BA\in\mathbb{R}^{4096\times4096}
+</div>
+<p>with:</p>
+<div class="math block">
+r=8.
+</div>
+<p>Then the matrix contains:</p>
+<div class="math block">
+16,777,216
+</div>
+<p>entries.</p>
+<p>But:</p>
+<div class="math block">
+\operatorname{rank}(BA)\le8.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{matrix size}\neq\text{matrix rank}.
+}
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{rank}\neq\text{number of trainable parameters}.
+}
+</div>
+<p>They are different concepts.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-46">3.2.25 Now Introduce the Scaling Factor <span class="math inline">\alpha</span></h3>
+<p>Your PEFT slides use:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>rather than simply:</p>
+<div class="math block">
+W_0+BA.
+</div>
+<p>Why?</p>
+<p>Because we want a way to control the <strong>strength of the LoRA contribution</strong>.</p>
+<p>The source describes <span class="math inline">\alpha</span> as a fixed scaling factor controlling how strongly the adaptation affects the original layer output. <em>(Source: peft-slides; Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-47">3.2.26 What Does <span class="math inline">\alpha/r</span> Do?</h3>
+<p>Define:</p>
+<div class="math block">
+\boxed{
+s=\frac{\alpha}{r}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+W'=W_0+sBA.
+</div>
+<p>So:</p>
+<div class="math block">
+s
+</div>
+<p>simply controls the magnitude of the low-rank update.</p>
+<p>For example:</p>
+<div class="math block">
+r=8,\quad\alpha=16
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+\frac{\alpha}{r}=2.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W'=W_0+2BA.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-48">3.2.27 Why Divide by <span class="math inline">r</span>?</h3>
+<p>The source formulation uses the normalized scaling:</p>
+<div class="math block">
+\frac{\alpha}{r}.
+</div>
+<p>Conceptually, this separates:</p>
+<ul>
+<li>the chosen rank <span class="math inline">r</span>,</li>
+<li>the desired adaptation scale <span class="math inline">\alpha</span>.</li>
+</ul>
+<p>This lets the rank control capacity while <span class="math inline">\alpha</span> separately controls update strength.</p>
+<p>We should therefore distinguish:</p>
+<div class="math block">
+\boxed{
+r=\text{capacity/number of low-rank directions}
+}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{
+\alpha=\text{scale of the LoRA contribution}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-49">3.2.28 Numerical Example With Scaling</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=
+\begin{bmatrix}
+1\\2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+3&amp;4
+\end{bmatrix}.
+</div>
+<p>We already found:</p>
+<div class="math block">
+BA=
+\begin{bmatrix}
+3&amp;4\\
+6&amp;8
+\end{bmatrix}.
+</div>
+<p>Take:</p>
+<div class="math block">
+r=1,\quad\alpha=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\alpha}{r}=2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\alpha}{r}BA
+=
+2
+\begin{bmatrix}
+3&amp;4\\
+6&amp;8
+\end{bmatrix}
+</div>
+<div class="math block">
+=
+\boxed{
+\begin{bmatrix}
+6&amp;8\\
+12&amp;16
+\end{bmatrix}.
+}
+</div>
+<p>So the scaling factor simply amplifies the low-rank update.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-2-i27-0" data-full-review="added"><p>Correction: The lecture page6 uses A=[1,2], not the inherited A=[1,1]. With inherited W0=[[2,0],[1,1],[1,2]], x=[1,1,1], A=[1,1], B=[1,1,0]ᵀ, s2, the derived output[8,7] is correct for those toy matrices but must not be called the slide’s exact example. The slide page6 has a different displayed W0 and output[7,12]; its separate and merged paths should be checked using that exact source matrix.</p><p><a href="#audit-full-chunk-les-step-3-2-i27">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-2-i27-50">3.2.29 Source Numeric Example</h3>
+<p>The PEFT slide gives a complete numerical example with:</p>
+<div class="math block">
+d=3,\quad d_{\text{out}}=2,\quad r=1,\quad\alpha=2.
+</div>
+<p>It uses:</p>
+<div class="math block">
+W_0=
+\begin{bmatrix}
+2&amp;0\\
+1&amp;1\\
+1&amp;2
+\end{bmatrix},
+</div>
+<div class="math block">
+B=
+\begin{bmatrix}
+1\\
+1\\
+0
+\end{bmatrix},
+</div>
+<p>and:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+1&amp;1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+BA=
+\begin{bmatrix}
+1&amp;1\\
+1&amp;1\\
+0&amp;0
+\end{bmatrix}.
+</div>
+<p>The merged weight is:</p>
+<div class="math block">
+W'
+=
+W_0+\frac{\alpha}{r}BA.
+</div>
+<p>Since:</p>
+<div class="math block">
+\frac{\alpha}{r}=2,
+</div>
+<p>we get:</p>
+<div class="math block">
+W'
+=
+\begin{bmatrix}
+2&amp;0\\
+1&amp;1\\
+1&amp;2
+\end{bmatrix}
++
+2
+\begin{bmatrix}
+1&amp;1\\
+1&amp;1\\
+0&amp;0
+\end{bmatrix}
+</div>
+<div class="math block">
+=
+\boxed{
+\begin{bmatrix}
+4&amp;2\\
+3&amp;3\\
+1&amp;2
+\end{bmatrix}.
+}
+</div>
+<p>This is the concrete LoRA factorization example in your PEFT slides. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-51">3.2.30 Check the Forward Computation</h3>
+<p>The slide uses:</p>
+<div class="math block">
+x=[1,1,1].
+</div>
+<p>First through the original weights:</p>
+<div class="math block">
+xW_0
+=
+[1,1,1]
+\begin{bmatrix}
+2&amp;0\\
+1&amp;1\\
+1&amp;2
+\end{bmatrix}
+</div>
+<div class="math block">
+=
+[4,3].
+</div>
+<p>Now:</p>
+<div class="math block">
+xB
+=
+[1,1,1]
+\begin{bmatrix}
+1\\1\\0
+\end{bmatrix}
+=
+2.
+</div>
+<p>Then:</p>
+<div class="math block">
+(xB)A
+=
+[2]
+\begin{bmatrix}
+1&amp;1
+\end{bmatrix}
+=
+[2,2].
+</div>
+<p>Scale:</p>
+<div class="math block">
+\frac{\alpha}{r}(xB)A
+=
+2[2,2]
+=
+[4,4].
+</div>
+<p>Add:</p>
+<div class="math block">
+[4,3]+[4,4]
+=
+\boxed{[8,7]}.
+</div>
+<p>And this is where notation matters: the source slide's displayed intermediate/output values use its own convention; the algebraic point it demonstrates is that the <strong>separate LoRA computation and the merged computation are identical when the same factorization and scaling are used</strong>. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-52">3.2.31 Important Notation Warning Across Your Sources</h3>
+<p>You have two conventions in the supplied material.</p>
+<p>The PEFT slides and master cheatsheet use:</p>
+<div class="math block">
+\boxed{
+B\in\mathbb{R}^{d\times r},
+\quad
+A\in\mathbb{R}^{r\times d_{\text{out}}},
+\quad
+\Delta W=BA.
+}
+</div>
+<p>Raschka's code names the matrices in the opposite order in its implementation: its <code>A</code> is the input-to-rank matrix and its <code>B</code> is the rank-to-output matrix. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>So in Raschka code:</p>
+<pre><code class="language-python">x @ A @ B
+</code></pre>
+<p>while in the slide notation:</p>
+<div class="math block">
+xBA.
+</div>
+<p>These are <strong>notation differences, not conceptual differences</strong>.</p>
+<p>For your exam, follow the notation used by the question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-53">3.2.32 Separate Computation vs Merged Computation</h3>
+<p>LoRA can be viewed in two mathematically equivalent ways.</p>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-54">Separate form</h5>
+<div class="math block">
+\boxed{
+H=XW_0+\frac{\alpha}{r}(XB)A
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-55">Merged form</h5>
+<p>First construct:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+H=XW'.
+}
+</div>
+<p>By distributivity:</p>
+<div class="math block">
+X\left(W_0+\frac{\alpha}{r}BA\right)
+=
+XW_0+\frac{\alpha}{r}XBA.
+</div>
+<p>Therefore they produce the same result.</p>
+<p>The PEFT slide explicitly demonstrates this equivalence numerically. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-56">3.2.33 Why Is This Useful?</h3>
+<p>It means after training, we can merge:</p>
+<div class="math block">
+\frac{\alpha}{r}BA
+</div>
+<p>into:</p>
+<div class="math block">
+W_0.
+</div>
+<p>Then inference can simply use:</p>
+<div class="math block">
+\boxed{
+W'
+}
+</div>
+<p>instead of maintaining a separate LoRA branch.</p>
+<p>Your PEFT lecture describes this as allowing the LoRA update to be merged into the pretrained weights, producing zero additional inference latency from maintaining a separate LoRA computation path. <em>(Source: peft-slides)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-3-2-i27-1" data-full-review="added"><p>Correction: Slide convention B: d×r, A: r×out and book convention A: d×r, B: r×out reverse names. Book zero-initializes its output factorB; slides zero-initialize their input factorB. Both preserve zero initial update, but first nonzero factor gradient changes accordingly; do not mix the convention names.</p><p><a href="#audit-full-chunk-les-step-3-2-i27">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-3-2-i27-57">3.2.34 Why Is Initialization Important?</h3>
+<p>Your source says:</p>
+<div class="math block">
+B
+</div>
+<p>is initialized to zero, while the other factor is initialized with small/random values. Therefore initially:</p>
+<div class="math block">
+BA=0.
+</div>
+<p>Hence:</p>
+<div class="math block">
+W'
+=
+W_0+\frac{\alpha}{r}(0)
+=
+W_0.
+</div>
+<p>So at the beginning of LoRA training:</p>
+<div class="math block">
+\boxed{
+\text{adapted model behaves exactly like the pretrained model}.
+}
+</div>
+<p>This is a very important design choice.</p>
+<p>Raschka explicitly explains that zero-initializing <span class="math inline">B</span> makes the initial LoRA contribution zero. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-58">3.2.35 Why Not Initialize Both Randomly?</h3>
+<p>Suppose both <span class="math inline">A</span> and <span class="math inline">B</span> were random.</p>
+<p>Then:</p>
+<div class="math block">
+BA\neq0
+</div>
+<p>in general.</p>
+<p>So the model would begin training from:</p>
+<div class="math block">
+W_0+\frac{\alpha}{r}BA
+</div>
+<p>rather than:</p>
+<div class="math block">
+W_0.
+</div>
+<p>The source's design instead gives:</p>
+<div class="math block">
+\boxed{
+\Delta W=0
+}
+</div>
+<p>at initialization.</p>
+<p>This preserves the pretrained model's behavior at the start.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-59">3.2.36 Numerical Initialization Check</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+0.5&amp;-0.2\\
+0.1&amp;0.4
+\end{bmatrix}
+</div>
+<p>but:</p>
+<div class="math block">
+B=
+\begin{bmatrix}
+0&amp;0\\
+0&amp;0\\
+0&amp;0
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+BA=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W'=W_0.
+</div>
+<p>No matter what <span class="math inline">A</span> is initially, zero <span class="math inline">B</span> guarantees:</p>
+<div class="math block">
+\boxed{\Delta W=0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-60">3.2.37 Training Then Changes the Factors</h3>
+<p>During training, gradients update <span class="math inline">A</span> and <span class="math inline">B</span>.</p>
+<p>Eventually:</p>
+<div class="math block">
+A\neq A_0
+</div>
+<p>and:</p>
+<div class="math block">
+B\neq0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+BA\neq0.
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+W'\neq W_0.
+}
+</div>
+<p>The task-specific knowledge is encoded in the learned low-rank update.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-61">3.2.38 Why Freeze <span class="math inline">W_0</span>?</h3>
+<p>This is essential.</p>
+<p>If:</p>
+<div class="math block">
+W_0
+</div>
+<p>were also trainable, then we would lose much of the parameter-efficiency advantage.</p>
+<p>LoRA therefore uses:</p>
+<div class="math block">
+\boxed{
+W_0:\text{frozen}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+A,B:\text{trainable}.
+}
+</div>
+<p>Your PEFT slides explicitly frame LoRA as leaving pretrained weights frozen while only the low-rank matrices are trained. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-62">3.2.39 One Complete Shape Chain</h3>
+<p>Memorize this shape chain:</p>
+<div class="math block">
+\boxed{
+X\;(n\times d)
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+XB\;(n\times r)
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+(XB)A\;(n\times d_{\text{out}})
+</div>
+<p>while:</p>
+<div class="math block">
+XW_0\;(n\times d_{\text{out}})
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+H=XW_0+\frac{\alpha}{r}(XB)A.
+}
+</div>
+<p>Everything fits.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-63">3.2.40 Exam Numerical — Shape Chain</h3>
+<p>Suppose:</p>
+<div class="math block">
+X:32\times4096
+</div>
+<div class="math block">
+B:4096\times8
+</div>
+<div class="math block">
+A:8\times4096.
+</div>
+<p>Find the shapes.</p>
+<p>First:</p>
+<div class="math block">
+XB:
+(32\times4096)(4096\times8)
+=
+\boxed{32\times8}.
+</div>
+<p>Then:</p>
+<div class="math block">
+(XB)A:
+(32\times8)(8\times4096)
+=
+\boxed{32\times4096}.
+</div>
+<p>Original:</p>
+<div class="math block">
+XW_0:
+(32\times4096)(4096\times4096)
+=
+\boxed{32\times4096}.
+</div>
+<p>So addition is valid.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-64">3.2.41 Exam Numerical — Parameter Count From Shapes</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=2048,
+\quad
+d_{\text{out}}=4096,
+\quad
+r=16.
+</div>
+<p>Full update:</p>
+<div class="math block">
+2048\times4096
+=
+\boxed{8,388,608}.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+16(2048+4096)
+</div>
+<div class="math block">
+=16(6144)
+</div>
+<div class="math block">
+=\boxed{98,304}.
+</div>
+<p>Reduction factor:</p>
+<div class="math block">
+\frac{8,388,608}{98,304}
+\approx
+\boxed{85.33}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-65">3.2.42 Exam Numerical — Maximum Rank</h3>
+<p>Suppose:</p>
+<div class="math block">
+B\in\mathbb{R}^{768\times16}
+</div>
+<p>and:</p>
+<div class="math block">
+A\in\mathbb{R}^{16\times3072}.
+</div>
+<p>Then:</p>
+<div class="math block">
+BA\in\mathbb{R}^{768\times3072}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le16.
+}
+</div>
+<p>The answer is not 768 and not 3072.</p>
+<p>It is at most the bottleneck dimension:</p>
+<div class="math block">
+\boxed{16}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-66">3.2.43 Exam Numerical — Scaling</h3>
+<p>Suppose:</p>
+<div class="math block">
+r=16,\qquad \alpha=32.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+\frac{\alpha}{r}.
+</div>
+<div class="math block">
+\frac{32}{16}
+=
+\boxed{2}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W'=W_0+2BA.
+</div>
+<p>If:</p>
+<div class="math block">
+\alpha=8,\quad r=16,
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac{\alpha}{r}=0.5.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+W'=W_0+0.5BA.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-67">3.2.44 Exam Concept — What Does Each Symbol Control?</h3>
+<div class="math block">
+\boxed{W_0}
+</div>
+<p>Pretrained base knowledge.</p>
+<div class="math block">
+\boxed{A,B}
+</div>
+<p>Trainable adaptation factors.</p>
+<div class="math block">
+\boxed{r}
+</div>
+<p>Low-rank bottleneck / adaptation capacity / parameter count.</p>
+<div class="math block">
+\boxed{\alpha}
+</div>
+<p>Strength of the LoRA contribution.</p>
+<div class="math block">
+\boxed{\alpha/r}
+</div>
+<p>Actual scaling applied to the low-rank update in this formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-68">3.2.45 The Most Important Equation of This Step</h3>
+<p>Everything comes back to:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+B\in\mathbb{R}^{d\times r},
+\qquad
+A\in\mathbb{R}^{r\times d_{\text{out}}},
+\qquad
+r\ll d,d_{\text{out}}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le r.
+}
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+N_{\text{trainable}}
+=
+r(d+d_{\text{out}}).
+}
+</div>
+<p>These are the three formulas you should be able to reconstruct from the matrix shapes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-69">3.2.46 Master Mental Model</h3>
+<p>Think of LoRA as:</p>
+<pre><code class="language-text">            PRETRAINED WEIGHT
+                  W0
+                  │
+                  │ frozen
+                  │
+                  ├─────────────────┐
+                  │                 │
+                  │                 │
+                 XW0              LoRA
+                                  │
+                              X → B → A
+                                  │
+                               n × r
+                                  │
+                               n × dout
+                                  │
+                              α / r scale
+                                  │
+                  └─────── add ───┘
+                           │
+                           ▼
+                           H
+</code></pre>
+<p>Or mathematically:</p>
+<div class="math block">
+\boxed{
+\text{Base path}=XW_0
+}
+</div>
+<div class="math block">
+\boxed{
+\text{LoRA path}=\frac{\alpha}{r}(XB)A
+}
+</div>
+<div class="math block">
+\boxed{
+H=\text{Base path}+\text{LoRA path}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-70">3.2.47 What You Should Now Be Able to Derive</h3>
+<p>Without memorizing, you should now be able to derive:</p>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-71">Shape of the update</h5>
+<div class="math block">
+(d\times r)(r\times d_{\text{out}})
+\Rightarrow
+d\times d_{\text{out}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-72">Parameter count</h5>
+<div class="math block">
+dr+rd_{\text{out}}
+=
+r(d+d_{\text{out}}).
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-73">Rank bound</h5>
+<div class="math block">
+\operatorname{rank}(BA)\le r.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-74">Forward pass</h5>
+<div class="math block">
+XW_0+\frac{\alpha}{r}(XB)A.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-75">Initialization</h5>
+<div class="math block">
+B=0
+\Rightarrow
+BA=0
+\Rightarrow
+W'=W_0.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-76">Merge</h5>
+<div class="math block">
+W'=W_0+\frac{\alpha}{r}BA.
+</div>
+<p>These are the core mechanics supported by the PEFT lecture and Raschka's LoRA appendix. <em>(Source: peft-slides; MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs; Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-77">3.2.48 Numerical Challenge Set</h3>
+<p>Try these mentally; the answers are included so you can verify.</p>
+<h5 id="v3-heading-chunk-les-step-3-2-i27-78">Q1</h5>
+<div class="math block">
+B:512\times4,\qquad A:4\times1024.
+</div>
+<p>What is the shape of <span class="math inline">BA</span>?</p>
+<div class="math block">
+\boxed{512\times1024}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-79">Q2</h5>
+<p>For the same matrices, how many LoRA parameters?</p>
+<div class="math block">
+4(512+1024)
+=
+\boxed{6,144}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-80">Q3</h5>
+<p>Maximum rank?</p>
+<div class="math block">
+\boxed{4}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-81">Q4</h5>
+<p>If:</p>
+<div class="math block">
+\alpha=8,\quad r=4,
+</div>
+<p>what is scaling?</p>
+<div class="math block">
+\boxed{2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-82">Q5</h5>
+<p>If:</p>
+<div class="math block">
+X:16\times512,
+</div>
+<p>what is <span class="math inline">XB</span>?</p>
+<div class="math block">
+(16\times512)(512\times4)
+=
+\boxed{16\times4}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-83">Q6</h5>
+<p>What is <span class="math inline">(XB)A</span>?</p>
+<div class="math block">
+(16\times4)(4\times1024)
+=
+\boxed{16\times1024}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-84">Q7</h5>
+<p>For a <span class="math inline">4096\times4096</span> matrix with <span class="math inline">r=8</span>, what is the reduction factor?</p>
+<div class="math block">
+\boxed{256\times}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-85">Q8</h5>
+<p>If <span class="math inline">B=0</span> initially, what is the LoRA update?</p>
+<div class="math block">
+\boxed{BA=0}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-86">Q9</h5>
+<p>Therefore the initial adapted weight is:</p>
+<div class="math block">
+\boxed{W'=W_0}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-2-i27-87">Q10</h5>
+<p>Does LoRA train <span class="math inline">W_0</span>?</p>
+<div class="math block">
+\boxed{\text{No; the base weight is frozen.}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-88">3.2.49 One Very Important Caveat</h3>
+<p>Low rank does <strong>not</strong> mean the final adapted model's complete weight matrix <span class="math inline">W'</span> has low rank.</p>
+<p>We have:</p>
+<div class="math block">
+W'=W_0+\frac{\alpha}{r}BA.
+</div>
+<p>The <strong>update</strong>:</p>
+<div class="math block">
+BA
+</div>
+<p>is low-rank.</p>
+<p>But <span class="math inline">W_0</span> itself can be full rank.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{LoRA makes the update low-rank, not necessarily the final weight matrix.}
+}
+</div>
+<p>This distinction is essential.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-2-i27-89">3.2.50 Final Summary of Step 3.2</h3>
+<p>We started with:</p>
+<div class="math block">
+W'=W_0+\Delta W.
+</div>
+<p>Full fine-tuning learns a giant:</p>
+<div class="math block">
+\Delta W.
+</div>
+<p>LoRA says:</p>
+<div class="math block">
+\boxed{
+\Delta W\approx BA
+}
+</div>
+<p>where:</p>
+<div class="math block">
+B:d\times r,
+\qquad
+A:r\times d_{\text{out}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+BA:d\times d_{\text{out}}.
+</div>
+<p>The update satisfies:</p>
+<div class="math block">
+\boxed{
+\operatorname{rank}(BA)\le r.
+}
+</div>
+<p>Trainable parameter count:</p>
+<div class="math block">
+\boxed{
+r(d+d_{\text{out}})
+}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{
+d\,d_{\text{out}}.
+}
+</div>
+<p>The scaled update is:</p>
+<div class="math block">
+\boxed{
+\frac{\alpha}{r}BA.
+}
+</div>
+<p>The forward pass is:</p>
+<div class="math block">
+\boxed{
+H=XW_0+\frac{\alpha}{r}(XB)A.
+}
+</div>
+<p>And initialization uses zero <span class="math inline">B</span>, giving:</p>
+<div class="math block">
+\boxed{
+BA=0
+\Rightarrow
+W'=W_0
+}
+</div>
+<p>at the beginning of training. <em>(Source: peft-slides; Build a Large Language Model (From Scratch))</em></p>
+<hr />
+</section>

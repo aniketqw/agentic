@@ -1,0 +1,139 @@
+"""Executable counterparts to the inherited Step 0 numerical examples.
+
+Python standard library only. These functions compute the written examples;
+they do not emulate PyTorch's autograd engine or certify a training backend.
+"""
+import math
+
+
+def matmul(a, b):
+    """Multiply nonempty rectangular matrices, rejecting incompatible shapes."""
+    if not a or not b or not a[0] or not b[0]:
+        raise ValueError('nonempty matrices required')
+    if any(len(r) != len(a[0]) for r in a) or any(len(r) != len(b[0]) for r in b):
+        raise ValueError('rectangular matrices required')
+    if len(a[0]) != len(b):
+        raise ValueError('inner dimensions must match')
+    return [[sum(x*y for x,y in zip(row,col)) for col in zip(*b)] for row in a]
+
+
+def softmax(scores):
+    """Normalize finite scores and permitted -infinity masks; reject all-masked rows."""
+    if not scores or any(math.isnan(x) or x == math.inf for x in scores):
+        raise ValueError('finite scores or negative-infinity masks required')
+    m=max(scores)
+    if m == -math.inf:
+        raise ValueError('at least one permitted key required')
+    e=[math.exp(x-m) for x in scores]
+    return [x/sum(e) for x in e]
+
+
+def log_softmax(scores):
+    """Compute log probabilities directly, without taking log of underflowed softmax."""
+    if not scores or not all(math.isfinite(x) for x in scores):
+        raise ValueError('finite logits required')
+    m=max(scores); log_z=math.log(sum(math.exp(x-m) for x in scores))
+    return [(x-m)-log_z for x in scores]
+
+
+def distribution(p):
+    if not p or not all(math.isfinite(x) and x>=0 for x in p) or not math.isclose(sum(p),1,abs_tol=1e-12):
+        raise ValueError('normalized finite nonnegative distribution required')
+
+
+def cross_entropy(p,q):
+    """Expected negative log probability, with zero-mass and support conventions."""
+    distribution(p);distribution(q)
+    if len(p)!=len(q):raise ValueError('same support size required')
+    if any(a>0 and b==0 for a,b in zip(p,q)):return math.inf
+    return -sum(a*math.log(b) for a,b in zip(p,q) if a>0)
+
+
+def entropy(p):
+    return cross_entropy(p,p)
+
+
+def kl(p,q):
+    """Forward discrete KL; an absent Q event with positive P mass gives infinity."""
+    distribution(p);distribution(q)
+    if len(p)!=len(q):raise ValueError('same support size required')
+    if any(a>0 and b==0 for a,b in zip(p,q)):return math.inf
+    return sum(a*math.log(a/b) for a,b in zip(p,q) if a>0)
+
+
+def moments(values,p):
+    """Return E[X], E[X^2] and population variance under the declared probabilities."""
+    distribution(p)
+    if len(values)!=len(p):raise ValueError('one probability per value required')
+    mean=sum(x*w for x,w in zip(values,p))
+    return mean,sum(x*x*w for x,w in zip(values,p)),sum(w*(x-mean)**2 for x,w in zip(values,p))
+
+
+def scalar_update(w,x,target,learning_rate):
+    """Squared-error scalar forward, exact analytic derivative, update and new loss."""
+    y=w*x;loss=(y-target)**2;gradient=2*(y-target)*x
+    updated=w-learning_rate*gradient
+    return {'y':y,'loss':loss,'gradient':gradient,'updated':updated,'new_loss':(updated*x-target)**2}
+
+
+def attention_training_trace(x,wq,wk,wv,target):
+    """One causal head with full analytic backward pass and a half-sum MSE loss.
+
+    No bias, dropout, positional transform or learned normalizer. Wq/Wk have
+    matching key widths; Wv can have a different width. Masks are fixed.
+    Returns all forward intermediates and the three shared-weight/input gradients.
+    """
+    transpose=lambda a:[list(row) for row in zip(*a)]
+    q=matmul(x,wq);k=matmul(x,wk);v=matmul(x,wv)
+    scale=math.sqrt(len(q[0]));scores=matmul(q,transpose(k))
+    masked=[[z/scale if j<=i else -math.inf for j,z in enumerate(row)] for i,row in enumerate(scores)]
+    a=[softmax(row) for row in masked];o=matmul(a,v)
+    if len(target)!=len(o) or any(len(t)!=len(row) for t,row in zip(target,o)):
+        raise ValueError('target must match output shape')
+    go=[[z-t for z,t in zip(row,tr)] for row,tr in zip(o,target)]
+    loss=.5*sum(z*z for row in go for z in row)
+    ga=matmul(go,transpose(v));gv=matmul(transpose(a),go)
+    # Row softmax Jacobian-vector contraction; future-key entries stay zero.
+    gs=[]
+    for ar,gr in zip(a,ga):
+        average=sum(p*g for p,g in zip(ar,gr))
+        gs.append([p*(g-average) for p,g in zip(ar,gr)])
+    gq=[[z/scale for z in row] for row in matmul(gs,k)]
+    gk=[[z/scale for z in row] for row in matmul(transpose(gs),q)]
+    gxq=matmul(gq,transpose(wq));gxk=matmul(gk,transpose(wk));gxv=matmul(gv,transpose(wv))
+    gx=[[u+v+w for u,v,w in zip(ar,br,cr)] for ar,br,cr in zip(gxq,gxk,gxv)]
+    return {'Q':q,'K':k,'V':v,'attention':a,'output':o,'loss':loss,
+            'gradient_Wq':matmul(transpose(x),gq),'gradient_Wk':matmul(transpose(x),gk),
+            'gradient_Wv':matmul(transpose(x),gv),'gradient_X_all_branches':gx}
+
+
+def fixtures():
+    p=[.7,.2,.1];q=[.6,.3,.1]
+    return {
+      '0.1 matrix product':matmul([[1,2],[3,4]],[[5,6],[7,8]]),
+      '0.1 dot product':sum(x*y for x,y in zip([2,3,1],[4,-1,2])),
+      '0.1 complete raw attention scores':matmul([[1,2],[3,4],[5,6]],[[1,3,5],[2,4,6]]),
+      '0.2 softmax 1 2 3':softmax([1,2,3]),
+      '0.2.15 corrected masked distribution':softmax([1.2,2,.4,-math.inf]),
+      '0.2.16 all three causal rows':[softmax([2,-math.inf,-math.inf]),softmax([3,2,-math.inf]),softmax([1,4,2])],
+      '0.2.27 exact unrounded target loss':-log_softmax([2,1,0])[1],
+      '0.3 entropy cross entropy forward reverse KL':[entropy(p),cross_entropy(p,q),kl(p,q),kl(q,p)],
+      '0.3 one hot loss':cross_entropy([0,0,1,0,0],[.05,.1,.6,.05,.2]),
+      '0.4 squared loss step':scalar_update(2,3,10,.1),
+      '0.4 excessive step counterexample':scalar_update(2,3,10,.2),
+      '0.5 small moments':moments([1,2,3],[.2,.5,.3]),
+      '0.5 mastery check moments':moments([10,20,40],[.2,.5,.3]),
+      '0.5 attention weighted values':matmul([[.2,.5,.3]],[[1,0],[0,2],[3,1]]),
+      '0.5 reward expectation':sum(x*w for x,w in zip([10,4,-2],[.2,.5,.3])),
+      '0.5 conditional temperature':sum(x*w for x,w in zip([15,20,25],[.2,.5,.3])),
+      '0.5 discounted return':sum(.9**i*10 for i in range(3)),
+      '0.6 matrix gradient':matmul([[1,3],[2,4]],[[-1,1],[-1,1]]),
+      '0.6 parameter update':[[.98,2.05],[2.99,3.97]],
+      '0.6 applied causal attention forward and backward':attention_training_trace(
+          [[1,2],[3,4],[5,6]],[[.1,.2],[.3,.4]],[[-.2,.1],[.1,.3]],[[.4,-.1],[.2,.3]],[[1,0],[0,1],[1,1]]),
+    }
+
+
+if __name__=='__main__':
+    import json
+    print(json.dumps(fixtures(),indent=2,allow_nan=False))

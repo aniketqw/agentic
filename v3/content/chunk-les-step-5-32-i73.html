@@ -1,0 +1,1158 @@
+<section class="chunk" id="chunk-les-step-5-32-i73" data-id="les-step-5-32-i73"><details class="audit-card" id="audit-full-chunk-les-step-5-32-i73" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-32-i73-1">Motivation</h4><p>Reconstruct every dataset split and distinguish passage counts, QA pairs, translations and directional evaluations.</p><h4 id="v3-heading-chunk-les-step-5-32-i73-2">Prerequisites</h4><ul><li>Train/dev/test separation and task-specific fine-tuning</li><li>Tokenizer, vocabulary, multilingual pretraining</li><li>Accuracy, precision/recall and F1; distinguish points from relative percent</li><li>Dataset joins, source IDs and split provenance</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-3">Notation and units</h4><ul><li>L is a language; task and language jointly define an evaluation set</li><li>Scores are on a declared 0..100 scale; score differences are points</li><li>Corpus tokens depend on the counting tokenizer and release; a token is not necessarily a word</li><li>n_source is distinct source content; n_instantiated counts its language versions</li><li>Coverage set differs by task;12XQuAD,28XorQA,29CrossSum/FLORES</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-4">Assumptions</h4><ul><li>All historical counts are attributed to the supplied release/paper, not presented as live 2026 leaderboard facts</li><li>Translated parallel examples share content and are not statistically independent across languages</li><li>Reported scores require fixed checkpoint, preprocessing, split, prompt and metric implementation</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-5">Step-by-step derivation</h4><ol><li>CrossSum-IN: sample100train,100dev,500test for each of29 languages. Reuse data where source coverage exists and translate summaries for remaining languages; distinguish this from assuming every article istranslated.</li><li>FLORES-IN:997dev+1012devtest=2009sentences perlanguage across29; the inherited nonpublic992test is not used. Its devtest is called benchmark test in some wrappers; record both names.</li><li>XQuAD-IN:240passages/1190QApairs originaltest, plus20passages/100QApairs each fortrain anddev. Totals280passages/1390QApairs times12languages give3360passages and16680QApairs.</li><li>The deck coverage slide saying11XQuAD languages conflicts with its construction slide and official paper/repository, which use12. Use12for arithmetic and list the actual language set when evaluating.</li><li>XorQA:302Bengali+237Telugu originaldev examples providetest539; sample100train and500dev fromsource training. Translate questions through English pivot; translate answers to28languages, excluding Nepali.</li><li>XorQA-IN-EN=(target question, English passage, English answer); XorQA-IN-XX=(target question, English passage, targetanswer). These two evaluation variants share underlying examples and must notdouble-count unique annotations.</li></ol><h4 id="v3-heading-chunk-les-step-5-32-i73-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-32-i73-7">FLORES total</h5><p>Given: 997dev,1012devtest,29languages</p><ol><li>997+1012=2009.</li><li>2009×29=58,261.</li><li>58,261 is language-instantiated sentence count; bidirectional scoring reuses pairs.</li></ol><p>Answer: 58,261; not116,522unique annotations</p><p>Verification: indic_mla_moe / indic.flores_count · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-32-i73-8">XQuAD size andcoverage</h5><p>Given: 280passages,1390QApairs,12languages</p><ol><li>280×12=3360passages.</li><li>1390×12=16680QApairs.</li><li>12/29×100≈41.38% of benchmark languages.</li></ol><p>Answer: 3,360passages;16,680QApairs;41.38%coverage</p><p>Verification: indic_mla_moe / indic.xquad_qa_count · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-32-i73-9">XorQA source test</h5><p>Given: 302Bengali+237Telugu source examples</p><ol><li>302+237=539source examples.</li><li>539×28=15092test language versions pervariant; EN/XXshare inputs.</li></ol><p>Answer: 539sourceitems and15,092language instances pervariant</p><p>Verification: indic_mla_moe / indic.xor_existing · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-32-i73-10">Corrections and source qualifications</h4><ul><li>heading: 5.32.39; text: Use12XQuAD-IN languages: official repository Dataset Sizes and A C L2024paperphysicalp4 confirm12. The supplieddeckp16 says11; it conflicts withdeckp11 construction.</li><li>heading: 5.32.41; text: RecomputeXQuAD coverage as12/29=41.3793%, not11/29=37.9310%. Keep28/29=96.5517%for XorQA.</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-11">Mastery answers and retained exercise context</h4><ol><li>Why passagecount≠QAcount? A passage can support several questions.</li><li>Which FLORESsplit serves as test? Publicsource devtest; the nonpublic source test is not used.</li><li>What changes between XorQA variants? Answer language only; question remains Indic and evidence English.</li><li>DoesXQuAD cover11or12? Use12from construction, official paper and repository; flag inherited11as conflict.</li><li>Inherited exercise 5.32.44 Exact numerical bank: CrossSum-IN 700\times29 = \boxed{20,300}. FLORES-IN (997+1012)\times29 =2009\times29 = \boxed{58,261}. XQuAD-IN (240+20+20)\times12 = 280\times12 = \boxed{3,360\text{ passages}}. QA pairs: (1190+100+100)\times12 = 1390\times12 = \boxed{16,680}. Original Indic XOR-TyDi 302+237 = \boxed{539} examples. All of these are directly derived from the deck&#x27;s reported figures. (Source: indicgenbench-slides)</li></ol><h4 id="v3-heading-chunk-les-step-5-32-i73-12">Edge cases and remaining gaps</h4><ul><li>Human supervision does not imply exhaustive manual checking or error-free translations</li><li>An aggregate can hide task, dialect, resource tier and script gaps; report denominators and per-language results</li><li>Source benchmark results were inspected, not reproduced by running pretrained models</li><li>Rounded k-sized totals in papers/repositories are not exact release-file counts; exact counts require parsing versioned manifests.</li><li>Potential source-ID overlap across source train/dev must be checked before using released train examples forfine-tuning.</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-13">Connections and progression</h4><ul><li>Connects to controlled prompt comparisons, answer-language directionality and benchmark contamination.</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-14">Exact source support</h4><ul><li>indicgenbench-slides(1).pdf · physical PDF pages 7, 9, 11, 13, 14, 16 · Dataset construction, source splits and conflicting coverage</li><li>Official IndicGenBench repository · Dataset Sizes gives12XQuAD languages; FLORESdev/devtest naming · https://github.com/google-research-datasets/indic-gen-bench</li><li>Singh et al. ACL2024paper · physical PDF pages 4 · XQuAD construction uses12; XorQA source counts andvariants · https://aclanthology.org/2024.acl-long.595.pdf</li></ul><h4 id="v3-heading-chunk-les-step-5-32-i73-15">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (68)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.32 — IndicGenBench: Task-by-Task Dataset Construction</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.1 Task 1 — CrossSum-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.2 Step 1 — Start from English article-summary pairs</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.3 Step 2 — What about languages already covered by CrossSum?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.4 Step 3 — What about the remaining 20 languages?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.5 Total size</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.6 Exam numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.7 What does a CrossSum-IN example look like?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.8 Why does the deck emphasize “never via an intermediate English summary”?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.9 CrossSum-IN metric</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.10 Task 2 — FLORES-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.11 What does “multi-way parallel” mean?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.12 FLORES-IN source coverage</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.13 FLORES splits</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.14 Total FLORES-IN size</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.15 Exam calculation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.16 Important special case: no training split</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.17 What does a FLORES-IN example look like?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.18 Why is FLORES-IN especially useful experimentally?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.19 Task 3 — XQuAD-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.20 Step 1 — Reuse existing XQuAD data</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.21 Step 2 — Create train/dev data</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.22 Total XQuAD-IN source material</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.23 Step 3 — Human translation into Indic languages</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.24 Important distinction: passage count vs QA count</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.25 What makes XQuAD-IN “multilingual”?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.26 XQuAD-IN versus XorQA-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>XQuAD-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XorQA-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.27 Task 4/5 — XorQA-IN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.28 Initial Indic coverage</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.29 The problem with pairwise translation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.30 Stage 1 — Normalize through English</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.31 Stage 2 — Fan out from English</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.32 The pivot architecture</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.33 Why is this called normalization?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.34 Now the clever part: one dataset becomes two tasks</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.35 XorQA-IN-EN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.36 XorQA-IN-XX</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.37 Why is XorQA-IN-XX particularly interesting?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.38 Compare all three QA designs</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>XQuAD-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XorQA-IN-EN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XorQA-IN-XX</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.39 Coverage across languages</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>Use12XQuAD-IN languages: official repository Dataset Sizes and A C L2024paperphysicalp4 confirm12. The supplieddeckp16 says11; it conflicts withdeckp11 construction.</td></tr><tr><td>CrossSum-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>FLORES-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XQuAD-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XorQA-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.40 Why does XQuAD-IN have fewer languages?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.41 Numerical coverage comparison</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>RecomputeXQuAD coverage as12/29=41.3793%, not11/29=37.9310%. Keep28/29=96.5517%for XorQA.</td></tr><tr><td>5.32.42 Why are the benchmark tasks not equally broad?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.43 Complete dataset-construction table</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.44 Exact numerical bank</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>CrossSum-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>FLORES-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XQuAD-IN</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Original Indic XOR-TyDi</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.45 The deepest construction idea</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>CrossSum</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>FLORES</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XQuAD</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>XorQA</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.46 One final conceptual comparison</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>System A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>System B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.32.47 Exam-ready master structure</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.32.48 Final mental model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-32-i73"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-32-i73" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-31-i72">← Previous lesson</a> · <a href="#chunk-les-step-5-33-i74">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-31-i72">Step 5.31 — IndicGenBench: Why a Second Indic Benchmark Is Needed</a></p><p><strong>This lesson:</strong> Step 5.32 — IndicGenBench: Task-by-Task Dataset Construction</p><p><strong>Source references:</strong> <a href="#source-4">indicgenbench-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-32-i73"></a></p>
+<h2>Step 5.32 — IndicGenBench: Task-by-Task Dataset Construction</h2>
+<p><em>Plan node: I11 · chat order #73</em></p>
+<p>Now we go through <strong>how each IndicGenBench task is actually constructed</strong>.</p>
+<p>The four construction ideas we just established are now going to become concrete:</p>
+<div class="math block">
+\boxed{
+\text{reuse}
++
+\text{translate}
++
+\text{preserve parallel structure}
++
+\text{human quality control}
+}
+</div>
+<p>We will go in the exact task order of the supplied deck:</p>
+<div class="math block">
+\boxed{
+\text{CrossSum-IN}
+\rightarrow
+\text{FLORES-IN}
+\rightarrow
+\text{XQuAD-IN}
+\rightarrow
+\text{XorQA-IN}
+}
+</div>
+<p>with XorQA then splitting into two evaluation tasks. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-16">5.32.1 Task 1 — CrossSum-IN</h3>
+<p>Start with:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>This is the <strong>cross-lingual summarization</strong> task.</p>
+<p>Its source is:</p>
+<div class="math block">
+\boxed{\text{CrossSum}}
+</div>
+<p>which itself derives from:</p>
+<div class="math block">
+\boxed{\text{XL-Sum}}
+</div>
+<p>and contains BBC news articles paired with summaries in another language. <em>(Source: indicgenbench-slides)</em></p>
+<p>The model's task is ultimately:</p>
+<div class="math block">
+\boxed{
+\text{article}
+\rightarrow
+\text{compressed summary in target language}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-17">5.32.2 Step 1 — Start from English article-summary pairs</h3>
+<p>The benchmark first samples:</p>
+<div class="math block">
+\boxed{700}
+</div>
+<p>English article-summary pairs.</p>
+<p>The split is:</p>
+<div class="math block">
+100\text{ train}
+</div>
+<div class="math block">
+100\text{ dev}
+</div>
+<div class="math block">
+500\text{ test}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+100+100+500
+=
+\boxed{700}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-18">5.32.3 Step 2 — What about languages already covered by CrossSum?</h3>
+<p>CrossSum already has:</p>
+<div class="math block">
+\boxed{9}
+</div>
+<p>of the target languages.</p>
+<p>For those 9 languages, the benchmark does <strong>not</strong> simply translate another 700 English pairs.</p>
+<p>Instead, it resamples:</p>
+<div class="math block">
+\boxed{100/100/500}
+</div>
+<p>from the existing CrossSum data.</p>
+<p>The reason is straightforward:</p>
+<div class="math block">
+\boxed{
+\text{keep every language at the same dataset size}
+}
+</div>
+<p>so one language does not receive many more evaluation examples merely because an existing resource happened to be larger. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-19">5.32.4 Step 3 — What about the remaining 20 languages?</h3>
+<p>There are:</p>
+<div class="math block">
+29-9
+=
+\boxed{20}
+</div>
+<p>remaining target languages.</p>
+<p>For these, professional human translators translate the English summaries into the target language. <em>(Source: indicgenbench-slides)</em></p>
+<p>So the construction is:</p>
+<div class="math block">
+\boxed{
+9\text{ languages}
+\rightarrow
+\text{reuse existing CrossSum examples}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+20\text{ languages}
+\rightarrow
+\text{new human translation}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-20">5.32.5 Total size</h3>
+<p>Every language receives:</p>
+<div class="math block">
+700
+</div>
+<p>examples.</p>
+<p>There are:</p>
+<div class="math block">
+29
+</div>
+<p>languages.</p>
+<p>Therefore:</p>
+<div class="math block">
+700\times29
+=
+\boxed{20,300}
+</div>
+<p>total examples.</p>
+<p>This is explicitly confirmed in the supplied slide. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-21">5.32.6 Exam numerical</h3>
+<p>Training:</p>
+<div class="math block">
+100\times29
+=
+\boxed{2,900}.
+</div>
+<p>Development:</p>
+<div class="math block">
+100\times29
+=
+\boxed{2,900}.
+</div>
+<p>Test:</p>
+<div class="math block">
+500\times29
+=
+\boxed{14,500}.
+</div>
+<p>Total:</p>
+<div class="math block">
+2900+2900+14500
+=
+\boxed{20,300}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-22">5.32.7 What does a CrossSum-IN example look like?</h3>
+<p>Conceptually:</p>
+<pre><code class="language-text">Input:
+Long news article
+
+Output:
+Short summary in Hindi
+</code></pre>
+<p>The target is not another full article.</p>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{compressed preservation of the important information}
+}
+</div>
+<p>The deck's example highlights alignment between article information such as “Nasa,” “problem,” “launch,” “spacecraft,” and “scheduled” and corresponding content in a Hindi summary. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-23">5.32.8 Why does the deck emphasize “never via an intermediate English summary”?</h3>
+<p>Because a poor multilingual system might conceptually do:</p>
+<div class="math block">
+\text{article}
+\rightarrow
+\text{English summary}
+\rightarrow
+\text{target language}.
+</div>
+<p>But the benchmark is testing whether the model can directly produce:</p>
+<div class="math block">
+\boxed{
+\text{article}
+\rightarrow
+\text{target-language summary}
+}
+</div>
+<p>This matters because an intermediate-language step can hide weaknesses in direct target-language generation.</p>
+<p>The supplied example specifically emphasizes direct target-language generation rather than an English intermediary. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-24">5.32.9 CrossSum-IN metric</h3>
+<p>CrossSum-IN uses:</p>
+<div class="math block">
+\boxed{\text{chrF}}
+</div>
+<p>because it is a free-form generation task and the benchmark wants a character-level metric less dependent on tokenization. <em>(Source: indicgenbench-slides)</em></p>
+<p>We will later derive why chrF is particularly useful for low-resource languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-25">5.32.10 Task 2 — FLORES-IN</h3>
+<p>Now:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}
+</div>
+<p>is the machine-translation task.</p>
+<p>Its source is:</p>
+<div class="math block">
+\boxed{\text{FLORES-200}}
+</div>
+<p>from the NLLB work. <em>(Source: indicgenbench-slides)</em></p>
+<p>The important feature here is that FLORES-200 already contains:</p>
+<div class="math block">
+\boxed{
+\text{human-annotated multi-way parallel translation data}
+}
+</div>
+<p>for many languages.</p>
+<p>Therefore IndicGenBench follows:</p>
+<div class="math block">
+\boxed{
+\text{reuse where possible}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{translate where necessary}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-26">5.32.11 What does “multi-way parallel” mean?</h3>
+<p>Suppose one English sentence is:</p>
+<div class="math block">
+x.
+</div>
+<p>It has translations:</p>
+<div class="math block">
+y_{\text{Hindi}},
+y_{\text{Tamil}},
+y_{\text{Punjabi}},
+y_{\text{Bengali}},
+\ldots
+</div>
+<p>all corresponding to the same <span class="math inline">x</span>.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+\{y_1,y_2,\ldots,y_K\}
+}
+</div>
+<p>where each <span class="math inline">y_i</span> belongs to a different language.</p>
+<p>This gives direct comparability across languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-27">5.32.12 FLORES-IN source coverage</h3>
+<p>The source slide says FLORES-200 already covers:</p>
+<div class="math block">
+\boxed{22\text{ of the 29 target languages}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+29-22
+=
+\boxed{7}
+</div>
+<p>languages still need new human translations. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-28">5.32.13 FLORES splits</h3>
+<p>The source dataset has:</p>
+<div class="math block">
+\boxed{997\text{ dev}}
+</div>
+<div class="math block">
+\boxed{1012\text{ devtest}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{992\text{ non-public test}}.
+</div>
+<p>The benchmark uses:</p>
+<div class="math block">
+997+1012
+=
+\boxed{2009}
+</div>
+<p>sentences per language.</p>
+<p>It does not use the non-public test set in this construction. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-29">5.32.14 Total FLORES-IN size</h3>
+<p>There are:</p>
+<div class="math block">
+2009
+</div>
+<p>sentences per language and:</p>
+<div class="math block">
+29
+</div>
+<p>languages.</p>
+<p>Therefore:</p>
+<div class="math block">
+2009\times29
+</div>
+<div class="math block">
+=
+\boxed{58,261}.
+</div>
+<p>The deck reports this as approximately:</p>
+<div class="math block">
+\boxed{58.2K}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-30">5.32.15 Exam calculation</h3>
+<p>Check:</p>
+<div class="math block">
+2009\times30
+=
+60,270.
+</div>
+<p>Subtract one language:</p>
+<div class="math block">
+60,270-2,009
+=
+\boxed{58,261}.
+</div>
+<p>Useful mental-math approach.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-31">5.32.16 Important special case: no training split</h3>
+<p>The supplied deck explicitly says:</p>
+<div class="math block">
+\boxed{
+\text{FLORES-IN is the only task with no training split}.
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is important to memorize because the other generation tasks have training/dev/test structures in the benchmark.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-32">5.32.17 What does a FLORES-IN example look like?</h3>
+<p>It is extremely simple:</p>
+<div class="math block">
+\boxed{
+\text{source sentence}
+\rightarrow
+\text{target-language sentence}
+}
+</div>
+<p>There is:</p>
+<div class="math block">
+\text{no question}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{no context passage}.
+</div>
+<p>It is sentence-level translation. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-33">5.32.18 Why is FLORES-IN especially useful experimentally?</h3>
+<p>Suppose English sentence <span class="math inline">x</span> is translated independently into:</p>
+<div class="math block">
+29
+</div>
+<p>target languages.</p>
+<p>Because all outputs correspond to the same source sentence:</p>
+<div class="math block">
+\boxed{
+\text{content is controlled}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{language changes}.
+}
+</div>
+<p>This makes FLORES-IN particularly useful for comparing generation quality across languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-34">5.32.19 Task 3 — XQuAD-IN</h3>
+<p>Now we move to:</p>
+<div class="math block">
+\boxed{\text{XQuAD-IN}}.
+</div>
+<p>This tests multilingual reading comprehension.</p>
+<p>Its source is:</p>
+<div class="math block">
+\boxed{\text{XQuAD}}
+</div>
+<p>which itself derives from:</p>
+<div class="math block">
+\boxed{\text{SQuAD}}.
+</div>
+<p>The original structure is:</p>
+<div class="math block">
+\boxed{
+\text{passage}
++
+\text{question}
+\rightarrow
+\text{short answer span}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-35">5.32.20 Step 1 — Reuse existing XQuAD data</h3>
+<p>The benchmark starts from:</p>
+<div class="math block">
+\boxed{240\text{ passages}}
+</div>
+<p>containing:</p>
+<div class="math block">
+\boxed{1190\text{ QA pairs}}.
+</div>
+<p>These are already human-translated into:</p>
+<div class="math block">
+\boxed{10\text{ higher-resource languages}}
+</div>
+<p>and Hindi is the only Indic language among them.</p>
+<p>These are reused as the test component. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-36">5.32.21 Step 2 — Create train/dev data</h3>
+<p>The benchmark additionally selects:</p>
+<div class="math block">
+\boxed{20\text{ passages}/100\text{ QA pairs}}
+</div>
+<p>from SQuAD's training set, and:</p>
+<div class="math block">
+\boxed{20\text{ passages}/100\text{ QA pairs}}
+</div>
+<p>from SQuAD's development set.</p>
+<p>Thus:</p>
+<div class="math block">
+20+20
+=
+\boxed{40\text{ new passages}}
+</div>
+<p>and:</p>
+<div class="math block">
+100+100
+=
+\boxed{200\text{ new QA pairs}}
+</div>
+<p>for the train/dev construction. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-37">5.32.22 Total XQuAD-IN source material</h3>
+<p>So overall:</p>
+<div class="math block">
+240+20+20
+=
+\boxed{280\text{ passages}}
+</div>
+<p>and:</p>
+<div class="math block">
+1190+100+100
+=
+\boxed{1390\text{ QA pairs}}.
+</div>
+<p>This is exactly what the slide reports. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-38">5.32.23 Step 3 — Human translation into Indic languages</h3>
+<p>All:</p>
+<div class="math block">
+280
+</div>
+<p>passages and:</p>
+<div class="math block">
+1390
+</div>
+<p>QA pairs are professionally translated into:</p>
+<div class="math block">
+\boxed{12\text{ Indic languages}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+280\times12
+=
+\boxed{3360}
+</div>
+<p>passage-language instances.</p>
+<p>And:</p>
+<div class="math block">
+1390\times12
+=
+\boxed{16,680}
+</div>
+<p>QA-language instances.</p>
+<p>The deck reports these as approximately:</p>
+<div class="math block">
+\boxed{3.3K\text{ passages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{16.6K\text{ QA pairs}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-39">5.32.24 Important distinction: passage count vs QA count</h3>
+<p>Do not confuse:</p>
+<div class="math block">
+\boxed{3360}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{16,680}.
+</div>
+<p>The first counts:</p>
+<div class="math block">
+\text{passage × language}
+</div>
+<p>while the second counts:</p>
+<div class="math block">
+\text{QA pair × language}.
+</div>
+<p>There can be multiple questions per passage.</p>
+<p>This is a classic exam-data-counting trap.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-40">5.32.25 What makes XQuAD-IN “multilingual”?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{passage}=\text{Punjabi}
+</div>
+<div class="math block">
+\text{question}=\text{Punjabi}
+</div>
+<div class="math block">
+\text{answer}=\text{Punjabi}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{everything matches in one language}
+}
+</div>
+<p>for that example.</p>
+<p>The deck emphasizes that this is what “multilingual” means here: the model handles one language at a time, repeated across 12 languages. <em>(Source: indicgenbench-slides)</em></p>
+<p>This is important because the next XorQA task is deliberately different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-41">5.32.26 XQuAD-IN versus XorQA-IN</h3>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-42">XQuAD-IN</h5>
+<div class="math block">
+\boxed{
+\text{Question: target language}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Passage: target language}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Answer: target language}
+}
+</div>
+<p>Everything is within one language.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-43">XorQA-IN</h5>
+<div class="math block">
+\boxed{
+\text{Question: target language}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Passage: English}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Answer: English OR target language}
+}
+</div>
+<p>That distinction is crucial.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-44">5.32.27 Task 4/5 — XorQA-IN</h3>
+<p>Now we reach the most conceptually interesting construction.</p>
+<div class="math block">
+\boxed{\text{XorQA-IN}}
+</div>
+<p>comes from:</p>
+<div class="math block">
+\boxed{\text{XOR-TyDi}}.
+</div>
+<p>The original source contains:</p>
+<div class="math block">
+\boxed{\text{non-English question}}
+</div>
+<p>paired with:</p>
+<div class="math block">
+\boxed{\text{English evidence passage}}
+</div>
+<p>and an answer.</p>
+<p>Its purpose already involves cross-lingual retrieval. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-45">5.32.28 Initial Indic coverage</h3>
+<p>The original XOR-TyDi source covers two Indic languages:</p>
+<div class="math block">
+\boxed{\text{Bengali}}
+</div>
+<p>with:</p>
+<div class="math block">
+302
+</div>
+<p>examples,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Telugu}}
+</div>
+<p>with:</p>
+<div class="math block">
+237
+</div>
+<p>examples.</p>
+<p>So total original Indic examples:</p>
+<div class="math block">
+302+237
+=
+\boxed{539}.
+</div>
+<p>This is a useful source-derived numerical calculation. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-46">5.32.29 The problem with pairwise translation</h3>
+<p>Suppose there are:</p>
+<div class="math block">
+29
+</div>
+<p>target languages.</p>
+<p>If you independently translated every language pair, you'd face roughly:</p>
+<div class="math block">
+29\times28
+=
+812
+</div>
+<p>directed language pairs.</p>
+<p>Or:</p>
+<div class="math block">
+\frac{29\times28}{2}
+=
+406
+</div>
+<p>undirected pairs.</p>
+<p>That becomes a huge translation-routing problem.</p>
+<p>The source therefore uses a clever pivot.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-47">5.32.30 Stage 1 — Normalize through English</h3>
+<p>First:</p>
+<div class="math block">
+\boxed{
+\text{Bengali/Telugu question}
+\rightarrow
+\text{English}
+}
+</div>
+<p>Professional translators translate the original question into English.</p>
+<p>Now every source question has a common English representation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-48">5.32.31 Stage 2 — Fan out from English</h3>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{English question}
+\rightarrow
+\text{all target languages}
+}
+</div>
+<p>and independently:</p>
+<div class="math block">
+\boxed{
+\text{English answer}
+\rightarrow
+\text{all target languages}
+}.
+</div>
+<p>This is far more scalable than pairwise translation among every language. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-49">5.32.32 The pivot architecture</h3>
+<p>Think of English as a hub:</p>
+<pre><code class="language-text">                 English
+              /   / |   \
+             /   /  |    \
+         Hindi Tamil Telugu Bengali ...
+</code></pre>
+<p>instead of:</p>
+<pre><code class="language-text">Hindi ↔ Tamil ↔ Telugu ↔ Bengali ↔ ...
+</code></pre>
+<p>The hub-and-spoke architecture dramatically simplifies the translation workflow.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-50">5.32.33 Why is this called normalization?</h3>
+<p>Because all original questions are first mapped into the same intermediate representation:</p>
+<div class="math block">
+\boxed{\text{English}}
+</div>
+<p>before being expanded outward.</p>
+<p>So:</p>
+<div class="math block">
+q_{\text{Bengali}}
+\rightarrow
+q_{\text{English}}
+\rightarrow
+q_{\text{Hindi}},q_{\text{Tamil}},\ldots
+</div>
+<p>and:</p>
+<div class="math block">
+q_{\text{Telugu}}
+\rightarrow
+q_{\text{English}}
+\rightarrow
+q_{\text{Hindi}},q_{\text{Tamil}},\ldots
+</div>
+<p>This creates a consistent multilingual source for the later benchmark variants.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-51">5.32.34 Now the clever part: one dataset becomes two tasks</h3>
+<p>The same stage-2 translations provide:</p>
+<div class="math block">
+\boxed{\text{question in every target language}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{answer in every target language}}.
+</div>
+<p>These are recombined into two different evaluation tasks.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-52">5.32.35 XorQA-IN-EN</h3>
+<p>In:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN-EN}}
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+\text{Question = target language}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Passage = English}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Answer = English}
+}
+</div>
+<p>So the model must understand a target-language question and find/produce the relevant answer using English evidence. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-53">5.32.36 XorQA-IN-XX</h3>
+<p>In:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN-XX}}
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+\text{Question = target language}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Passage = English}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{Answer = target language}
+}.
+</div>
+<p>So now the model must perform both:</p>
+<div class="math block">
+\boxed{
+\text{cross-lingual comprehension}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{target-language generation}
+}.
+</div>
+<p>This makes XorQA-IN-XX harder in a different way than XorQA-IN-EN.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-54">5.32.37 Why is XorQA-IN-XX particularly interesting?</h3>
+<p>Consider:</p>
+<div class="math block">
+\text{Telugu question}
+\rightarrow
+\text{English evidence}
+\rightarrow
+\text{Telugu answer}.
+</div>
+<p>The model must:</p>
+<ol>
+<li>interpret Telugu;</li>
+<li>retrieve relevant information from English;</li>
+<li>map the information back into Telugu;</li>
+<li>generate the answer correctly.</li>
+</ol>
+<p>So it combines:</p>
+<div class="math block">
+\boxed{
+\text{cross-lingual understanding}
++
+\text{cross-lingual retrieval}
++
+\text{target-language generation}
+}.
+</div>
+<p>The deck explicitly contrasts this with XorQA-IN-EN, where the answer is generated in English. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-55">5.32.38 Compare all three QA designs</h3>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-56">XQuAD-IN</h5>
+<div class="math block">
+\boxed{
+L_q=L_c=L_a
+}
+</div>
+<p>where all three are the same target language.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-57">XorQA-IN-EN</h5>
+<div class="math block">
+\boxed{
+L_q\neq L_c,\quad L_a=L_c=\text{English}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-58">XorQA-IN-XX</h5>
+<div class="math block">
+\boxed{
+L_q=L_a\neq L_c
+}
+</div>
+<p>where <span class="math inline">L_c</span> is English.</p>
+<p>This is a very useful symbolic way to memorize the difference.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-32-i73-0" data-full-review="added"><p>Correction: Use12XQuAD-IN languages: official repository Dataset Sizes and A C L2024paperphysicalp4 confirm12. The supplieddeckp16 says11; it conflicts withdeckp11 construction.</p><p><a href="#audit-full-chunk-les-step-5-32-i73">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-32-i73-59">5.32.39 Coverage across languages</h3>
+<p>The deck says:</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-60">CrossSum-IN</h5>
+<div class="math block">
+\boxed{29\text{ languages}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-61">FLORES-IN</h5>
+<div class="math block">
+\boxed{29\text{ languages}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-62">XQuAD-IN</h5>
+<div class="math block">
+\boxed{11\text{ languages}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-63">XorQA-IN</h5>
+<div class="math block">
+\boxed{28\text{ languages}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{Nepali excluded}}
+</div>
+<p>from the latter due to not being translated. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-64">5.32.40 Why does XQuAD-IN have fewer languages?</h3>
+<p>The slide says its coverage is constrained by:</p>
+<ol>
+<li>which languages already had XQuAD translations;</li>
+<li>the three medium-resource languages selected for extension.</li>
+</ol>
+<p>Therefore it reaches only:</p>
+<div class="math block">
+\boxed{11}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is another example of why benchmark coverage depends partly on the availability of usable source resources.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-32-i73-1" data-full-review="added"><p>Correction: RecomputeXQuAD coverage as12/29=41.3793%, not11/29=37.9310%. Keep28/29=96.5517%for XorQA.</p><p><a href="#audit-full-chunk-les-step-5-32-i73">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-5-32-i73-65">5.32.41 Numerical coverage comparison</h3>
+<p>CrossSum/FLORES:</p>
+<div class="math block">
+29/29
+=
+\boxed{100\%}
+</div>
+<p>of the target language set in this benchmark.</p>
+<p>XQuAD:</p>
+<div class="math block">
+11/29
+\approx
+\boxed{37.9\%}.
+</div>
+<p>XorQA:</p>
+<div class="math block">
+28/29
+\approx
+\boxed{96.6\%}.
+</div>
+<p>These percentages are our calculations from the deck's reported language counts. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-66">5.32.42 Why are the benchmark tasks not equally broad?</h3>
+<p>Because the source datasets are different.</p>
+<p>CrossSum has a route to 29 languages.</p>
+<p>FLORES already has broad multilingual coverage.</p>
+<p>XQuAD has more constrained existing translation coverage.</p>
+<p>XOR-TyDi starts from only certain source-language questions and then expands them.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{benchmark coverage is constrained by source-resource structure}
+}
+</div>
+<p>not just by the researchers' desired language count.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-67">5.32.43 Complete dataset-construction table</h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Source</th>
+<th>What is generated</th>
+<th style="text-align:right">Languages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CrossSum-IN</td>
+<td>CrossSum / XL-Sum</td>
+<td>Target-language summaries</td>
+<td style="text-align:right">29</td>
+</tr>
+<tr>
+<td>FLORES-IN</td>
+<td>FLORES-200</td>
+<td>Target-language translations</td>
+<td style="text-align:right">29</td>
+</tr>
+<tr>
+<td>XQuAD-IN</td>
+<td>XQuAD / SQuAD</td>
+<td>Target-language QA</td>
+<td style="text-align:right">11</td>
+</tr>
+<tr>
+<td>XorQA-IN-EN</td>
+<td>XOR-TyDi</td>
+<td>Target-language question + English answer</td>
+<td style="text-align:right">28</td>
+</tr>
+<tr>
+<td>XorQA-IN-XX</td>
+<td>XOR-TyDi</td>
+<td>Target-language question + target-language answer</td>
+<td style="text-align:right">28</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-68">5.32.44 Exact numerical bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-69">CrossSum-IN</h5>
+<div class="math block">
+700\times29
+=
+\boxed{20,300}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-70">FLORES-IN</h5>
+<div class="math block">
+(997+1012)\times29
+</div>
+<div class="math block">
+=2009\times29
+=
+\boxed{58,261}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-71">XQuAD-IN</h5>
+<div class="math block">
+(240+20+20)\times12
+=
+280\times12
+=
+\boxed{3,360\text{ passages}}.
+</div>
+<p>QA pairs:</p>
+<div class="math block">
+(1190+100+100)\times12
+=
+1390\times12
+=
+\boxed{16,680}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-72">Original Indic XOR-TyDi</h5>
+<div class="math block">
+302+237
+=
+\boxed{539}
+</div>
+<p>examples.</p>
+<p>All of these are directly derived from the deck's reported figures. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-73">5.32.45 The deepest construction idea</h3>
+<p>The most interesting thing about IndicGenBench is that the researchers are not merely increasing:</p>
+<div class="math block">
+\boxed{\text{number of languages}}
+</div>
+<p>They are trying to control the <strong>experimental variables</strong>.</p>
+<p>For example:</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-74">CrossSum</h5>
+<p>Same underlying article/task structure, different output languages.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-75">FLORES</h5>
+<p>Same source sentence, many target languages.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-76">XQuAD</h5>
+<p>Same passage/question structure, translated consistently into target language.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-77">XorQA</h5>
+<p>Same evidence language, different question/output-language configurations.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{language}
+}
+</div>
+<p>can be varied while holding much of the underlying task constant.</p>
+<p>That is exactly what makes these datasets scientifically useful for cross-lingual comparison. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-78">5.32.46 One final conceptual comparison</h3>
+<p>Imagine these two systems.</p>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-79">System A</h5>
+<div class="math block">
+\text{English question}
+\rightarrow
+\text{English answer}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-32-i73-80">System B</h5>
+<div class="math block">
+\text{Telugu question}
+\rightarrow
+\text{English evidence}
+\rightarrow
+\text{Telugu answer}.
+</div>
+<p>System B requires much more than ordinary generation.</p>
+<p>It requires:</p>
+<div class="math block">
+\boxed{
+\text{language understanding}
++
+\text{cross-lingual information retrieval}
++
+\text{target-language generation}
+}.
+</div>
+<p>This is why XorQA-IN-XX is an especially valuable task conceptually.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-81">5.32.47 Exam-ready master structure</h3>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\text{CrossSum-IN}
+=
+\text{summarization}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{FLORES-IN}
+=
+\text{translation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{XQuAD-IN}
+=
+\text{same-language QA}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{XorQA-IN-EN}
+=
+\text{target-question + English-evidence + English-answer}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{XorQA-IN-XX}
+=
+\text{target-question + English-evidence + target-answer}
+}
+</div>
+<p>and the key language counts are:</p>
+<div class="math block">
+\boxed{
+29,\ 29,\ 11,\ 28,\ 28
+}
+</div>
+<p>respectively. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-32-i73-82">5.32.48 Final mental model</h3>
+<p>The construction can be summarized as:</p>
+<div class="math block">
+\boxed{
+\text{Existing benchmark}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{reuse existing multilingual data where possible}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{professionally translate missing Indic languages}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{preserve parallel correspondence}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{evaluate generation across resource levels}
+}
+</div>
+<p>This is the core engineering philosophy of IndicGenBench.</p>
+<p>And the most important distinction between the tasks is:</p>
+<div class="math block">
+\boxed{
+\text{XQuAD-IN keeps question, context, and answer in the same language}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{XorQA-IN deliberately separates the question language from the evidence language}
+}
+</div>
+<p>and then tests both English and target-language answer generation. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+</section>

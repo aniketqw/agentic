@@ -1,0 +1,1109 @@
+<section class="chunk" id="chunk-les-step-4-1-i33" data-id="les-step-4-1-i33"><details class="audit-card" id="audit-full-chunk-les-step-4-1-i33" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-4-1-i33-1">Motivation</h4><p>Decide which teacher signal is available and why distribution targets carry more structure than selected labels.</p><h4 id="v3-heading-chunk-les-step-4-1-i33-2">Prerequisites</h4><ul><li>Softmax/log-softmax</li><li>Cross-entropy and directed KL</li><li>Chain rule and masked token reduction</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-3">Notation and units</h4><ul><li>Teacher logits v; student logits z; temperature tau&gt;0</li><li>p_tau=softmax(v/tau), q_tau=softmax(z/tau)</li><li>alpha: hard-label weight; L=alpha CE(z, y)+(1-alpha)tau² KL(p_tau||q_tau)</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-4">Assumptions</h4><ul><li>Teacher detached/frozen</li><li>Aligned output classes/token vocabulary for direct KL</li><li>Natural logarithms, so losses are nats</li><li>One T² multiplication; loss reduction consistent across examples/tokens</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-5">Step-by-step derivation</h4><ol><li>Freeze the teacher and select supervision: generated tokens for hard distillation or aligned distributions for soft distillation.</li><li>Hard CE is negative target-token log probability; soft KL sums p_i(log p_i-log q_i).</li><li>Forward KL equals teacher-target cross entropy minus teacher entropy, which is constant for student optimization.</li><li>Directions differ: KL(p||q) penalizes dropping teacher-supported modes; reverse KL changes the expectation and objective.</li><li>Teacher tokens may come from sampling, not only argmax; sequence supervision can encode richer behavior even though each token target is hard.</li></ol><h4 id="v3-heading-chunk-les-step-4-1-i33-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-1-i33-7">Forward KL</h5><p>Given: p[.7,.2,.1], q[.6,.3,.1]</p><ol><li>Sum.7ln(7/6)+.2ln(2/3)+.1ln1.</li><li>Result.0268124543 nats.</li></ol><p>Answer: 0.026812454257447937</p><p>Verification: peft_distillation / P41-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-4-1-i33-8">Three-token hard distillation</h5><p>Given: Target probabilities [.8,.5,.25]</p><ol><li>Product=.1.</li><li>Mean NLL=-ln(.1)/3=.7675283643.</li></ol><p>Answer: 0.7675283643313486</p><p>Verification: peft_distillation / P41-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-4-1-i33-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-10">Mastery answers and retained exercise context</h4><ol><li>Checkpoints A–F: first class dominates; hard targets do not encode relational teacher preferences; teacher probabilities do; teacher frozen; identical-distribution KL is 0; teacher-text CE is hard distillation.</li><li>Binary KL[.8,.2]||[.7,.3]=.02573209248nats; student updated, teacher detached.</li><li>27. Exam numerical — identify the method
+Question
+You have:
+
+Teacher logits
+Student logits
+KL divergence
+temperature T=4
+
+What kind of distillation is this?
+
+\boxed{\text{Soft distillation}}
+
+because it matches the probability distributions.
+
+Question
+Teacher generates:
+&quot;Multiply both sides by 2...&quot;
+
+Student is trained using ordinary next-token cross-entropy.
+What is this?
+
+\boxed{\text{Hard distillation}}</li><li>28. Exam numerical — KL divergence
+Given:
+
+P_T=[0.8,0.2]
+
+and:
+
+P_S=[0.7,0.3].
+
+Then:
+
+D_{KL}(P_T\|P_S)
+=
+0.8\log\frac{0.8}{0.7}
++
+0.2\log\frac{0.2}{0.3}.
+
+Approx:
+
+0.8(0.1335)+0.2(-0.4055)
+
+
+=0.1068-0.0811
+
+
+\boxed{\approx0.0257}.
+
+A student distribution closer to the teacher gives a smaller KL value.</li><li>29. Exam question — which model gets gradients?
+Classical KD:
+
+\boxed{
+\nabla_{\theta_T}L=0
+}
+
+because teacher is frozen.
+Student:
+
+\boxed{
+\nabla_{\theta_S}L\neq0
+}
+
+and the optimizer updates:
+
+\boxed{\theta_S}.</li><li>33. Cumulative numerical checkpoint
+You should now be able to solve all of these:
+A
+Teacher:
+
+[5,3,1,-1]
+
+At T=1, which class dominates?
+
+\boxed{\text{first class}}
+
+
+B
+Hard label:
+
+[1,0,0,0].
+
+Does it directly encode whether class 2 is more similar to class 1 than class 4?
+
+\boxed{\text{No}}
+
+
+C
+Teacher:
+
+[0.865,0.117,0.016,0.002].
+
+Does it encode that?
+
+\boxed{\text{Yes}}
+
+
+D
+Teacher parameters updated during classical KD?
+
+\boxed{\text{No}}
+
+
+E
+KL divergence between identical distributions:
+
+P_T=P_S.
+
+Then:
+
+\boxed{D_{KL}=0}.
+
+
+F
+Teacher generates reasoning text and student uses ordinary SFT.
+
+\boxed{\text{Hard distillation}}
+
+and, specifically in the chapter&#x27;s DeepSeek-R1 case:
+
+\boxed{\text{R1 distillation}}</li></ol><h4 id="v3-heading-chunk-les-step-4-1-i33-11">Edge cases and remaining gaps</h4><ul><li>Teacher errors and domain shift transfer to student</li><li>Teacher accuracy is a reference, not a mathematical upper bound on student accuracy</li><li>Finite-temperature gradient is (q-p)/tau; 1/tau² is a high-temperature approximation</li><li>Online teacher execution is optional if logits can be cached; caching storage may be large</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-12">Connections and progression</h4><ul><li>Classical KL matching contrasts with teacher-text SFT; masks and stable log-softmax come from transformer training</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 417, 418, 420, 421, 422, 423, 424, 425 · Teacher/student motivation and hard versus soft distillation</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 293, 294, 295, 296 · Text-based SFT and distinction from logits</li></ul><h4 id="v3-heading-chunk-les-step-4-1-i33-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (54)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 4.1 — Knowledge Distillation: Why, Teacher–Student Paradigm, Hard vs Soft Distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>1. First understand the deployment problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>2. What is knowledge distillation?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Teacher</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Student</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3. Teacher is frozen</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>4. Why not just train the student on the ordinary labels?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>5. Hard labels vs teacher probabilities</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>6. Why is that useful?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>7. Think of the teacher as giving a richer answer</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>8. Hard distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>9. Example of hard distillation for an LLM</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>10. Why hard distillation is attractive</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>11. Soft distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>12. Hard vs soft mathematically</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Hard distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Soft distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>13. Why KL divergence appears</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>14. Why direction matters</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>15. Tiny KL numerical example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>16. Why not simply use mean squared error on probabilities?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>17. Attempt #1: Ignore the teacher</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Attempt #1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>18. Attempt #2: use teacher probabilities at T=1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>19. Why are tiny probabilities a problem?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>20. A useful way to visualize the problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>21. The student-teacher training flow</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>22. Hard distillation vs soft distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>23. Why DeepSeek&#x27;s approach is different</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>24. This gives us two very different data flows</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Classical KD</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>DeepSeek hard distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>25. A subtle but important point: what is actually transferred?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>26. Numerical example — information content of a hard target</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>27. Exam numerical — identify the method</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>28. Exam numerical — KL divergence</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>29. Exam question — which model gets gradients?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>30. One crucial DeepSeek distinction</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>31. First-stage mental model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>32. Master formulas for Step 4.1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Hard distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Soft distillation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Teacher</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Student</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>33. Cumulative numerical checkpoint</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>A</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>B</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>C</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>D</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>E</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>F</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>34. Where we are going next</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-1-i33"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-1-i33" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-quantization">← Previous lesson</a> · <a href="#chunk-les-step-4-2-i34">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-3-i4">STEP 0.3 — ENTROPY → CROSS-ENTROPY → KL DIVERGENCE</a>, <a href="#chunk-les-step-2-2-i22">Step 2.2 — Temperature Scaling</a></p><p><strong>This lesson:</strong> Step 4.1 — Knowledge Distillation: Why, Teacher–Student Paradigm, Hard vs Soft Distillation</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-1-i33"></a></p>
+<h2>Step 4.1 — Knowledge Distillation: Why, Teacher–Student Paradigm, Hard vs Soft Distillation</h2>
+<p><em>Plan node: I5 · chat order #33</em></p>
+<p>We are now entering the <strong>Knowledge Distillation</strong> section.</p>
+<p>The big question is:</p>
+<blockquote>
+<p><strong>How can a small model learn behavior that a much larger model has already learned, without having to rediscover everything from scratch?</strong></p>
+</blockquote>
+<p>The supplied <em>Build a DeepSeek Model (From Scratch)</em> chapter frames distillation as the final compression step after the reasoning model has been trained: a large <strong>teacher</strong> transfers useful behavior to a smaller <strong>student</strong>. It distinguishes <strong>hard distillation</strong> from <strong>soft distillation</strong>, and later connects this to the DeepSeek-R1 distilled models. <em>(Source: Build a DeepSeek Model (From Scratch); Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-15">1. First understand the deployment problem</h3>
+<p>Suppose we have a huge reasoning model.</p>
+<p>In the chapter's DeepSeek example:</p>
+<div class="math block">
+\boxed{671\text{ billion parameters}}
+</div>
+<p>are in the full DeepSeek-R1 model.</p>
+<p>Although the MoE model activates only a fraction of those parameters for a token, the full weights still need to be stored and accessible. The chapter gives approximately:</p>
+<div class="math block">
+\boxed{1342\text{ GB}}
+</div>
+<p>to store the 671B parameters in FP16. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That creates a problem.</p>
+<p>A model can be:</p>
+<div class="math block">
+\boxed{\text{very capable}}
+</div>
+<p>but simultaneously:</p>
+<div class="math block">
+\boxed{\text{very expensive to deploy}}.
+</div>
+<p>We therefore want:</p>
+<div class="math block">
+\boxed{
+\text{large powerful teacher}
+\rightarrow
+\text{small capable student}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-16">2. What is knowledge distillation?</h3>
+<p>The chapter defines knowledge distillation as a model-compression technique in which a smaller <strong>student</strong> is trained to reproduce the behavior of a larger <strong>teacher</strong>, transferring its learned knowledge into a more compact model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we have:</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-17">Teacher</h5>
+<div class="math block">
+T
+</div>
+<p>Large, capable, already trained.</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-18">Student</h5>
+<div class="math block">
+S
+</div>
+<p>Smaller, cheaper, needs to learn.</p>
+<p>The goal is not:</p>
+<div class="math block">
+\boxed{S=T\text{ architecturally}}
+</div>
+<p>The student can have a completely different and much smaller architecture.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+S(x)\approx T(x)
+}
+</div>
+<p>in the behavior we care about.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-19">3. Teacher is frozen</h3>
+<p>This is fundamental.</p>
+<p>During distillation:</p>
+<div class="math block">
+\boxed{\theta_T=\text{fixed}}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{\theta_S=\text{trainable}}.
+</div>
+<p>So the teacher is not learning from the student.</p>
+<p>The direction is:</p>
+<div class="math block">
+\boxed{
+\text{teacher}\rightarrow\text{student}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\text{teacher}\leftrightarrow\text{student}.
+</div>
+<p>The chapter explicitly describes the teacher as frozen. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-20">4. Why not just train the student on the ordinary labels?</h3>
+<p>Suppose the correct class is:</p>
+<div class="math block">
+\text{cat}.
+</div>
+<p>A standard hard label is:</p>
+<div class="math block">
+\boxed{
+y=[1,0,0,0]
+}
+</div>
+<p>for:</p>
+<div class="math block">
+[\text{cat},\text{dog},\text{fox},\text{bird}].
+</div>
+<p>What does the student learn?</p>
+<p>Only:</p>
+<blockquote>
+<p>Cat is the correct answer.</p>
+</blockquote>
+<p>It does <strong>not</strong> directly receive information about:</p>
+<ul>
+<li>whether dog is somewhat plausible,</li>
+<li>whether fox is slightly plausible,</li>
+<li>whether bird is almost impossible.</li>
+</ul>
+<p>The teacher can provide that additional information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-21">5. Hard labels vs teacher probabilities</h3>
+<p>Imagine the teacher produces:</p>
+<div class="math block">
+\boxed{
+[0.86,\ 0.12,\ 0.015,\ 0.005]
+}
+</div>
+<p>for:</p>
+<div class="math block">
+[\text{cat},\text{dog},\text{fox},\text{bird}].
+</div>
+<p>Now the student receives much richer information.</p>
+<p>The teacher is effectively saying:</p>
+<div class="math block">
+\text{cat} \gg \text{dog} &gt; \text{fox} &gt; \text{bird}.
+</div>
+<p>The chapter calls the information contained in these relative probabilities <strong>dark knowledge</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-22">6. Why is that useful?</h3>
+<p>Suppose two wrong classes are:</p>
+<div class="math block">
+\text{dog}=0.12
+</div>
+<p>and:</p>
+<div class="math block">
+\text{bird}=0.005.
+</div>
+<p>These probabilities communicate:</p>
+<div class="math block">
+\boxed{
+\text{dog is much closer to cat than bird is}
+}
+</div>
+<p>according to what the teacher has learned.</p>
+<p>A hard label throws that information away:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>The teacher's output preserves the relational structure.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-23">7. Think of the teacher as giving a richer answer</h3>
+<p>Hard label:</p>
+<blockquote>
+<p>“The answer is cat.”</p>
+</blockquote>
+<p>Soft teacher output:</p>
+<blockquote>
+<p>“The answer is cat. Dog is somewhat plausible. Fox is much less plausible. Bird is almost impossible.”</p>
+</blockquote>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{hard label}=\text{answer}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{soft target}=\text{answer + relative alternatives}
+}
+</div>
+<p>This is the central intuition behind classical distillation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-24">8. Hard distillation</h3>
+<p>The first approach is <strong>hard distillation</strong>.</p>
+<p>The teacher generates an output sequence:</p>
+<div class="math block">
+Y_T=(y_1,y_2,\ldots,y_m).
+</div>
+<p>The student is trained to reproduce those tokens.</p>
+<p>Mathematically, this is simply standard language-model cross-entropy:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\sum_t
+\log
+P_S(y_t\mid y_{&lt;t},x)
+}
+</div>
+<p>or averaged over tokens:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\frac1m
+\sum_t
+\log
+P_S(y_t\mid y_{&lt;t},x)
+}
+</div>
+<p>The student therefore sees:</p>
+<div class="math block">
+\boxed{\text{teacher-generated text}}
+</div>
+<p>as its supervision.</p>
+<p>The chapter explicitly describes hard distillation as training on teacher-generated tokens and notes that this is essentially supervised fine-tuning on synthetic data. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-25">9. Example of hard distillation for an LLM</h3>
+<p>Prompt:</p>
+<blockquote>
+<p>Solve <span class="math inline">2x+4=10</span>.</p>
+</blockquote>
+<p>Teacher generates:</p>
+<pre><code class="language-text">2x + 4 = 10
+2x = 6
+x = 3
+</code></pre>
+<p>Tokenized:</p>
+<div class="math block">
+[t_1,t_2,t_3,\ldots,t_m].
+</div>
+<p>Student training is just:</p>
+<div class="math block">
+t_1\rightarrow t_2
+</div>
+<div class="math block">
+t_1,t_2\rightarrow t_3
+</div>
+<p>etc.</p>
+<p>So the teacher's reasoning trace becomes a supervised training sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-26">10. Why hard distillation is attractive</h3>
+<p>You do <strong>not</strong> need access to:</p>
+<div class="math block">
+\boxed{\text{teacher logits}}
+</div>
+<p>You only need:</p>
+<div class="math block">
+\boxed{\text{teacher-generated text}}.
+</div>
+<p>Therefore the teacher can be used to create a dataset offline:</p>
+<pre><code class="language-text">Teacher
+   |
+   | generate
+   ▼
+Synthetic dataset
+   |
+   ▼
+Student SFT
+</code></pre>
+<p>The teacher can then be removed from the student-training process.</p>
+<p>This becomes extremely important in the DeepSeek-R1 approach later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-27">11. Soft distillation</h3>
+<p>Now consider the more classical approach.</p>
+<p>Instead of using only the teacher's selected token:</p>
+<div class="math block">
+\boxed{y_t}
+</div>
+<p>we use the teacher's complete probability distribution over the vocabulary.</p>
+<p>Suppose the vocabulary has:</p>
+<div class="math block">
+|V|=50,000.
+</div>
+<p>At one position the teacher gives:</p>
+<div class="math block">
+P_T(w_1),P_T(w_2),\ldots,P_T(w_{50,000}).
+</div>
+<p>The student is trained to approximate this entire distribution.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+P_S(\cdot\mid x)
+\approx
+P_T(\cdot\mid x)
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-28">12. Hard vs soft mathematically</h3>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-29">Hard distillation</h5>
+<p>Student learns:</p>
+<div class="math block">
+\boxed{
+P_S(y_{\text{teacher}})
+}
+</div>
+<p>for the teacher-selected token.</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-30">Soft distillation</h5>
+<p>Student learns:</p>
+<div class="math block">
+\boxed{
+P_S(w)\approx P_T(w)
+\quad\forall w\in V
+}
+</div>
+<p>The second contains much more information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-31">13. Why KL divergence appears</h3>
+<p>We need a mathematical way to compare:</p>
+<div class="math block">
+P_T
+</div>
+<p>and:</p>
+<div class="math block">
+P_S.
+</div>
+<p>The chapter uses:</p>
+<div class="math block">
+\boxed{\text{KL divergence}}
+</div>
+<p>for this purpose. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The teacher distribution is the reference:</p>
+<div class="math block">
+P_T
+</div>
+<p>and the student's goal is to make:</p>
+<div class="math block">
+P_S
+</div>
+<p>look like it.</p>
+<p>The KL divergence is:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P_T\|P_S)
+=
+\sum_i
+P_T(i)
+\log
+\frac{P_T(i)}{P_S(i)}
+}
+</div>
+<p>and we minimize it with respect to the student's parameters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-32">14. Why direction matters</h3>
+<p>You may see:</p>
+<div class="math block">
+D_{KL}(P_T\|P_S)
+</div>
+<p>rather than:</p>
+<div class="math block">
+D_{KL}(P_S\|P_T).
+</div>
+<p>In the supplied chapter, the soft-target loss is explicitly described as:</p>
+<div class="math block">
+\boxed{
+KL(\text{teacher}\parallel\text{student})
+}
+</div>
+<p>and implemented using teacher probabilities and student log-probabilities. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That corresponds to the standard PyTorch-style computation:</p>
+<pre><code class="language-python">soft_teacher = F.softmax(teacher_logits / T, dim=-1)
+soft_student = F.log_softmax(student_logits / T, dim=-1)
+
+kl_loss = F.kl_div(
+    soft_student,
+    soft_teacher,
+    reduction=&quot;batchmean&quot;
+)
+</code></pre>
+<p>The important exam interpretation is:</p>
+<div class="math block">
+\boxed{\text{teacher provides the target distribution}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{student is adjusted to match it}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-33">15. Tiny KL numerical example</h3>
+<p>Suppose:</p>
+<div class="math block">
+P_T=[0.7,0.2,0.1]
+</div>
+<p>and:</p>
+<div class="math block">
+P_S=[0.6,0.3,0.1].
+</div>
+<p>Then:</p>
+<div class="math block">
+D_{KL}(P_T\|P_S)
+=
+0.7\log\frac{0.7}{0.6}
++
+0.2\log\frac{0.2}{0.3}
++
+0.1\log\frac{0.1}{0.1}.
+</div>
+<p>The final term is:</p>
+<div class="math block">
+0.1\log1=0.
+</div>
+<p>So:</p>
+<div class="math block">
+D_{KL}
+\approx
+0.7(0.1542)+0.2(-0.4055)
+</div>
+<div class="math block">
+\approx0.108-0.081
+</div>
+<div class="math block">
+\boxed{\approx0.027}.
+</div>
+<p>The smaller the mismatch between teacher and student distributions, the smaller the KL divergence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-34">16. Why not simply use mean squared error on probabilities?</h3>
+<p>You could mathematically compare:</p>
+<div class="math block">
+\sum_i(P_T(i)-P_S(i))^2.
+</div>
+<p>But classical distillation uses KL divergence because we're comparing <strong>probability distributions</strong>, and KL gives a natural information-theoretic mismatch measure.</p>
+<p>The supplied chapter specifically grounds soft distillation in KL divergence. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-35">17. Attempt #1: Ignore the teacher</h3>
+<p>The chapter builds its distillation loss progressively.</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-36">Attempt #1</h5>
+<p>Train the student exactly as a normal model:</p>
+<div class="math block">
+\boxed{
+L=L_{\text{hard}}
+}
+</div>
+<p>with ground-truth labels.</p>
+<p>This establishes the baseline.</p>
+<p>The student learns, but must independently discover relationships that the teacher already knows. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-37">18. Attempt #2: use teacher probabilities at <span class="math inline">T=1</span></h3>
+<p>A natural idea is:</p>
+<div class="math block">
+L=D_{KL}(P_T\|P_S)
+</div>
+<p>using ordinary softmax.</p>
+<p>But there's a problem.</p>
+<p>The teacher distribution may already be extremely peaked.</p>
+<p>For the example from the chapter:</p>
+<div class="math block">
+z=[5,3,1,-1].
+</div>
+<p>At:</p>
+<div class="math block">
+T=1
+</div>
+<p>the teacher probabilities are approximately:</p>
+<div class="math block">
+\boxed{
+[0.865,\ 0.117,\ 0.016,\ 0.002]
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Compare this with the hard target:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>They're not identical, but they are quite similar in shape.</p>
+<p>The probabilities:</p>
+<div class="math block">
+0.016,\quad0.002
+</div>
+<p>are tiny.</p>
+<p>So much of the dark knowledge is still hidden.</p>
+<p>The chapter calls this <strong>Attempt #2</strong> and explains that the improvement over hard-label training is small. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-38">19. Why are tiny probabilities a problem?</h3>
+<p>Suppose the teacher says:</p>
+<div class="math block">
+P_T(\text{fox})=0.016.
+</div>
+<p>That tells us fox is somewhat possible.</p>
+<p>But the gradient signal associated with such a tiny value is much weaker than the dominant class signal.</p>
+<p>Likewise:</p>
+<div class="math block">
+P_T(\text{bird})=0.002
+</div>
+<p>contains very little visible signal.</p>
+<p>Thus the relative relationship:</p>
+<div class="math block">
+\text{dog}&gt;\text{fox}&gt;\text{bird}
+</div>
+<p>is technically present, but numerically compressed.</p>
+<p>We need to <strong>soften</strong> the distribution.</p>
+<p>That brings us to temperature.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-39">20. A useful way to visualize the problem</h3>
+<p>At <span class="math inline">T=1</span>:</p>
+<pre><code class="language-text">cat  ████████████████████████████████████████ 86.5%
+dog  █████                                11.7%
+fox  █                                      1.6%
+bird                                          0.2%
+</code></pre>
+<p>The teacher mostly says:</p>
+<div class="math block">
+\boxed{\text{CAT}}
+</div>
+<p>The relationships among the wrong classes are difficult for the student to exploit.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-40">21. The student-teacher training flow</h3>
+<p>For classical soft distillation:</p>
+<pre><code class="language-text">                     same input x
+                    /             \
+                   /               \
+                  ▼                 ▼
+           FROZEN TEACHER       STUDENT
+                  |                 |
+                  ▼                 ▼
+            teacher logits     student logits
+                  |                 |
+               /T |              /T |
+                ▼                  ▼
+          teacher soft        student soft
+          distribution        distribution
+                  \                /
+                   \              /
+                    ▼            ▼
+                       KL loss
+                           +
+                      hard CE loss
+                           |
+                           ▼
+                       total loss
+                           |
+                           ▼
+                    update STUDENT
+</code></pre>
+<p>Teacher:</p>
+<div class="math block">
+\boxed{\text{no update}}
+</div>
+<p>Student:</p>
+<div class="math block">
+\boxed{\text{update}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-41">22. Hard distillation vs soft distillation</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Hard distillation</th>
+<th>Soft distillation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Teacher output used</td>
+<td>generated tokens</td>
+<td>probability distribution</td>
+</tr>
+<tr>
+<td>Teacher logits required?</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Training objective</td>
+<td>standard CE</td>
+<td>KL divergence, often with hard CE</td>
+</tr>
+<tr>
+<td>Information transferred</td>
+<td>selected answer/token sequence</td>
+<td>full distribution</td>
+</tr>
+<tr>
+<td>Can reveal class/token relationships?</td>
+<td>limited</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>DeepSeek-R1 distilled models</td>
+<td><strong>Yes</strong></td>
+<td>Not the approach used</td>
+</tr>
+</tbody>
+</table>
+<p>The last distinction is particularly important: the chapter explicitly says DeepSeek-R1's smaller distilled models use <strong>SFT on teacher-generated reasoning text</strong>, not classical soft-logit matching. <em>(Source: Build a DeepSeek Model (From Scratch); Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-42">23. Why DeepSeek's approach is different</h3>
+<p>Classical soft distillation:</p>
+<div class="math block">
+\boxed{
+\text{teacher logits}
+\rightarrow
+KL
+\rightarrow
+\text{student}
+}
+</div>
+<p>DeepSeek-R1's distillation:</p>
+<div class="math block">
+\boxed{
+\text{teacher reasoning traces}
+\rightarrow
+\text{curated dataset}
+\rightarrow
+\text{student SFT}
+}
+</div>
+<p>Therefore DeepSeek does <strong>not</strong> require simultaneous teacher/student forward passes during student training.</p>
+<p>The chapter explicitly contrasts these two paradigms. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-43">24. This gives us two very different data flows</h3>
+<h4 id="v3-heading-chunk-les-step-4-1-i33-44">Classical KD</h4>
+<p>For every training example:</p>
+<div class="math block">
+x
+\rightarrow
+T(x)
+</div>
+<p>and simultaneously:</p>
+<div class="math block">
+x
+\rightarrow
+S(x).
+</div>
+<p>Then compare them.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{teacher and student are active during training}}
+</div>
+<p>The chapter highlights that this can be expensive because both models must be available. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-1-i33-45">DeepSeek hard distillation</h4>
+<p>First:</p>
+<div class="math block">
+x
+\rightarrow
+T(x)
+</div>
+<p>to create data.</p>
+<p>Then:</p>
+<div class="math block">
+D_{\text{teacher}}
+</div>
+<p>is saved.</p>
+<p>Afterward:</p>
+<div class="math block">
+D_{\text{teacher}}
+\rightarrow
+S.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{teacher generation and student training are decoupled}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-46">25. A subtle but important point: what is actually transferred?</h3>
+<p>The teacher does not physically transfer:</p>
+<div class="math block">
+W_T
+</div>
+<p>into:</p>
+<div class="math block">
+W_S.
+</div>
+<p>There is no direct weight-copy operation.</p>
+<p>Instead, the teacher provides <strong>supervision</strong>.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{knowledge transfer}
+\neq
+\text{parameter transfer}
+}
+</div>
+<p>This becomes especially important for DeepSeek-R1.</p>
+<p>The smaller model already has its own parameters.</p>
+<p>Teacher outputs influence how those parameters are trained.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-47">26. Numerical example — information content of a hard target</h3>
+<p>Suppose four classes:</p>
+<div class="math block">
+[cat,dog,fox,bird].
+</div>
+<p>Hard label:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>There is only one selected class.</p>
+<p>Now teacher:</p>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>The student can learn not only:</p>
+<div class="math block">
+cat=\text{correct}
+</div>
+<p>but also:</p>
+<div class="math block">
+dog&gt;fox&gt;bird.
+</div>
+<p>Thus the teacher provides a richer structural signal per example.</p>
+<p>This is the “dark knowledge” argument developed in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-48">27. Exam numerical — identify the method</h3>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-49">Question</h5>
+<p>You have:</p>
+<ul>
+<li>Teacher logits</li>
+<li>Student logits</li>
+<li>KL divergence</li>
+<li>temperature <span class="math inline">T=4</span></li>
+</ul>
+<p>What kind of distillation is this?</p>
+<div class="math block">
+\boxed{\text{Soft distillation}}
+</div>
+<p>because it matches the probability distributions.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-50">Question</h5>
+<p>Teacher generates:</p>
+<pre><code class="language-text">&quot;Multiply both sides by 2...&quot;
+</code></pre>
+<p>Student is trained using ordinary next-token cross-entropy.</p>
+<p>What is this?</p>
+<div class="math block">
+\boxed{\text{Hard distillation}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-51">28. Exam numerical — KL divergence</h3>
+<p>Given:</p>
+<div class="math block">
+P_T=[0.8,0.2]
+</div>
+<p>and:</p>
+<div class="math block">
+P_S=[0.7,0.3].
+</div>
+<p>Then:</p>
+<div class="math block">
+D_{KL}(P_T\|P_S)
+=
+0.8\log\frac{0.8}{0.7}
++
+0.2\log\frac{0.2}{0.3}.
+</div>
+<p>Approx:</p>
+<div class="math block">
+0.8(0.1335)+0.2(-0.4055)
+</div>
+<div class="math block">
+=0.1068-0.0811
+</div>
+<div class="math block">
+\boxed{\approx0.0257}.
+</div>
+<p>A student distribution closer to the teacher gives a smaller KL value.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-52">29. Exam question — which model gets gradients?</h3>
+<p>Classical KD:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_T}L=0
+}
+</div>
+<p>because teacher is frozen.</p>
+<p>Student:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_S}L\neq0
+}
+</div>
+<p>and the optimizer updates:</p>
+<div class="math block">
+\boxed{\theta_S}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-53">30. One crucial DeepSeek distinction</h3>
+<p>Don't say:</p>
+<blockquote>
+<p>“DeepSeek-R1-Distill is classical knowledge distillation using KL divergence.”</p>
+</blockquote>
+<p>According to the supplied chapter, that is <strong>not</strong> how the distilled R1 models were trained.</p>
+<p>The chapter explicitly states:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 Distill}
+=
+\text{teacher-generated reasoning traces}
++
+\text{SFT}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{no temperature scaling}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{no KL-divergence logit matching}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This distinction is extremely likely to matter in an exam because the chapter intentionally presents the two paradigms side-by-side.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-54">31. First-stage mental model</h3>
+<p>At this point, don't yet worry about the complete loss formula.</p>
+<p>Just lock in:</p>
+<div class="math block">
+\boxed{
+\begin{array}{c}
+\text{Teacher = large + frozen}\\
+\downarrow\\
+\text{produce richer supervision}\\
+\downarrow\\
+\text{Student = small + trainable}\\
+\downarrow\\
+\text{learn teacher behavior}
+\end{array}
+}
+</div>
+<p>Then distinguish:</p>
+<div class="math block">
+\boxed{
+\text{Hard KD = teacher-generated tokens}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{Soft KD = teacher probability distribution}
+}
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 Distill = hard/text-based SFT approach}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-55">32. Master formulas for Step 4.1</h3>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-56">Hard distillation</h5>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\sum_t
+\log P_S(y_t^T|y_{&lt;t}^T,x)
+}
+</div>
+<p>where <span class="math inline">y_t^T</span> is the teacher-generated token.</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-57">Soft distillation</h5>
+<div class="math block">
+\boxed{
+D_{KL}(P_T\|P_S)
+=
+\sum_iP_T(i)
+\log\frac{P_T(i)}{P_S(i)}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-58">Teacher</h5>
+<div class="math block">
+\boxed{
+\theta_T=\text{frozen}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-59">Student</h5>
+<div class="math block">
+\boxed{
+\theta_S=\text{trainable}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-60">33. Cumulative numerical checkpoint</h3>
+<p>You should now be able to solve all of these:</p>
+<h5 id="v3-heading-chunk-les-step-4-1-i33-61">A</h5>
+<p>Teacher:</p>
+<div class="math block">
+[5,3,1,-1]
+</div>
+<p>At <span class="math inline">T=1</span>, which class dominates?</p>
+<div class="math block">
+\boxed{\text{first class}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-62">B</h5>
+<p>Hard label:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>Does it directly encode whether class 2 is more similar to class 1 than class 4?</p>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-63">C</h5>
+<p>Teacher:</p>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>Does it encode that?</p>
+<div class="math block">
+\boxed{\text{Yes}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-64">D</h5>
+<p>Teacher parameters updated during classical KD?</p>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-65">E</h5>
+<p>KL divergence between identical distributions:</p>
+<div class="math block">
+P_T=P_S.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{D_{KL}=0}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-1-i33-66">F</h5>
+<p>Teacher generates reasoning text and student uses ordinary SFT.</p>
+<div class="math block">
+\boxed{\text{Hard distillation}}
+</div>
+<p>and, specifically in the chapter's DeepSeek-R1 case:</p>
+<div class="math block">
+\boxed{\text{R1 distillation}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-1-i33-67">34. Where we are going next</h3>
+<p>We have deliberately stopped <strong>before temperature</strong>, because temperature is the mathematical mechanism that solves the main weakness of Attempt #2.</p>
+<p>The progression is:</p>
+<div class="math block">
+\boxed{
+\text{Hard labels}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Teacher softmax at }T=1
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{still too peaked}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Temperature }T&gt;1
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{dark knowledge becomes visible}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{KL divergence}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+T^2\text{ gradient correction}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+\beta T^2L_{\text{soft}}
+}
+</div>
+<p>The supplied chapter gives the key example where <span class="math inline">T=3</span> transforms the teacher distribution into approximately:</p>
+<div class="math block">
+\boxed{
+[0.523,\ 0.268,\ 0.138,\ 0.071]
+}
+</div>
+<p>making the inter-class relationships much more visible. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

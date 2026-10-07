@@ -1,0 +1,970 @@
+<section class="chunk" id="chunk-app-c" data-id="app-c"><p><a id="app-c"></a></p>
+<h1>Appendix C — Step 1 Mathematical Cheatsheet (the in-chat formula map)</h1>
+<p><em>The formula map for Part 1 (Transformers), as written in the chat before the Step 1 lessons began. It lists, section by section, every formula the Part 1 lessons derive.</em></p>
+<p>This is <strong>not yet the deep teaching</strong>.</p>
+<p>This is the <strong>formula map of the entire Step 1</strong>, so that before we start explaining Slide 1.1, you can see where the mathematics is going.</p>
+<p>The Transformer slide deck itself defines the decoder-only Transformer as attention between positions, MLP processing within positions, additive residual updates, and a causal mask.</p>
+<p>Raschka’s book gives us the much richer first-principles implementation path through tokenization, attention, causal masking, MHA, Transformer blocks, and GPT.</p>
+<hr />
+<h2>1. TOKEN SEQUENCE</h2>
+<p>Start with text:</p>
+<div class="math block">
+\text{text}
+\rightarrow
+\text{tokens}
+\rightarrow
+(x_1,x_2,\ldots,x_n).
+</div>
+<p>Each token is represented by an ID:</p>
+<div class="math block">
+x_t\in\{0,1,\ldots,|V|-1\}.
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">V</span> = vocabulary</li>
+<li><span class="math inline">|V|</span> = vocabulary size</li>
+<li><span class="math inline">n</span> = sequence length.</li>
+</ul>
+<hr />
+<h2>2. TOKEN EMBEDDING</h2>
+<p>Embedding matrix:</p>
+<div class="math block">
+W_E\in\mathbb R^{|V|\times d}.
+</div>
+<p>Token <span class="math inline">x_t</span> selects one row:</p>
+<div class="math block">
+e_t=W_E[x_t].
+</div>
+<p>Stacking all token embeddings:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+e_1^\top\\
+e_2^\top\\
+\vdots\\
+e_n^\top
+\end{bmatrix}
+\in
+\mathbb R^{n\times d}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Token ID}
+\rightarrow
+\text{row lookup}
+\rightarrow
+d\text{-dimensional vector}
+}
+</div>
+<p>This is exactly the embedding construction used in the Transformer slides.</p>
+<hr />
+<h2>3. POSITIONAL INFORMATION</h2>
+<p>Because self-attention alone does not inherently encode ordering, positional information is added.</p>
+<p>Simplified formulation:</p>
+<div class="math block">
+P\in\mathbb R^{n\times d}
+</div>
+<div class="math block">
+X\leftarrow X+P.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+X_{t}
+=
+e_t+p_t.
+</div>
+<p>The slide also identifies RoPE as the modern alternative to this simple additive formulation. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h2>4. RESIDUAL STREAM</h2>
+<p>For one token:</p>
+<div class="math block">
+x\in\mathbb R^d.
+</div>
+<p>Attention update:</p>
+<div class="math block">
+x'
+=
+x+\operatorname{Attention}(\operatorname{Norm}(x)).
+</div>
+<p>MLP update:</p>
+<div class="math block">
+x''
+=
+x'+\operatorname{MLP}(\operatorname{Norm}(x')).
+</div>
+<p>For all tokens:</p>
+<div class="math block">
+X\in\mathbb R^{n\times d}.
+</div>
+<p>The conceptual structure is:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{Attention}
+\rightarrow
++
+X
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{MLP}
+\rightarrow
++
+}
+</div>
+<p>The slides describe this residual stream as the shared representation into which each sub-layer writes its contribution.</p>
+<hr />
+<h2>5. QUERY, KEY, VALUE</h2>
+<p>Learned matrices:</p>
+<div class="math block">
+W_Q\in\mathbb R^{d\times d_k}
+</div>
+<div class="math block">
+W_K\in\mathbb R^{d\times d_k}
+</div>
+<div class="math block">
+W_V\in\mathbb R^{d\times d_v}.
+</div>
+<p>Projection:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Q,K\in\mathbb R^{n\times d_k}
+</div>
+<div class="math block">
+V\in\mathbb R^{n\times d_v}.
+</div>
+<p>This is directly represented in the slides, and Raschka's implementation walks through the same computation explicitly. <em>(Source: transformers-slides; Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>6. QUERY-KEY SIMILARITY</h2>
+<p>For token <span class="math inline">i</span> attending to token <span class="math inline">j</span>:</p>
+<div class="math block">
+s_{ij}
+=
+q_i^\top k_j.
+</div>
+<p>Matrix form:</p>
+<div class="math block">
+S=QK^\top.
+</div>
+<p>Dimensions:</p>
+<div class="math block">
+(n\times d_k)(d_k\times n)
+=
+n\times n.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+S\in\mathbb R^{n\times n}
+}
+</div>
+<p>and</p>
+<div class="math block">
+S_{ij}=q_i^\top k_j.
+</div>
+<hr />
+<h2>7. WHY SCALE BY <span class="math inline">\sqrt{d_k}</span>?</h2>
+<p>The scaled score is:</p>
+<div class="math block">
+S=
+\frac{QK^\top}{\sqrt{d_k}}.
+</div>
+<p>The basic statistical intuition is:</p>
+<div class="math block">
+q^\top k
+=
+\sum_{r=1}^{d_k}q_rk_r.
+</div>
+<p>Under approximately independent, zero-mean, unit-variance components:</p>
+<div class="math block">
+\operatorname{Var}(q^\top k)
+\approx d_k.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\operatorname{Std}(q^\top k)
+\approx\sqrt{d_k}.
+</div>
+<p>So:</p>
+<div class="math block">
+\frac{q^\top k}{\sqrt{d_k}}
+</div>
+<p>keeps the score scale much more stable as <span class="math inline">d_k</span> increases.</p>
+<p>The book explicitly explains the purpose as preventing large dot products from pushing softmax toward saturation and producing very small gradients. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>8. CAUSAL MASK</h2>
+<p>Mask:</p>
+<div class="math block">
+M_{ij}
+=
+\begin{cases}
+0,&amp;j\le i\\
+-\infty,&amp;j&gt;i.
+\end{cases}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S'
+=
+\frac{QK^\top}{\sqrt{d_k}}+M.
+</div>
+<p>The future positions become:</p>
+<div class="math block">
+e^{-\infty}=0.
+</div>
+<p>Hence their attention probability becomes zero.</p>
+<p>This is the mathematical mechanism by which the decoder prevents looking into the future. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h2>9. SOFTMAX ATTENTION WEIGHTS</h2>
+<p>For each row:</p>
+<div class="math block">
+A_{ij}
+=
+\frac{e^{S'_{ij}}}
+{\sum_{j'=1}^{n}e^{S'_{ij'}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+A_{ij}\ge0
+</div>
+<p>and</p>
+<div class="math block">
+\sum_jA_{ij}=1.
+</div>
+<p>Thus:</p>
+<div class="math block">
+A_i
+</div>
+<p>is a probability distribution over the tokens that token <span class="math inline">i</span> is allowed to attend to.</p>
+<hr />
+<h2>10. CONTEXT VECTOR</h2>
+<p>For token <span class="math inline">i</span>:</p>
+<div class="math block">
+o_i
+=
+\sum_{j=1}^{n}
+A_{ij}v_j.
+</div>
+<p>Matrix form:</p>
+<div class="math block">
+O=AV.
+</div>
+<p>Dimensions:</p>
+<div class="math block">
+(n\times n)(n\times d_v)
+=
+n\times d_v.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+O\in\mathbb R^{n\times d_v}
+}
+</div>
+<p>Raschka's book explicitly implements the context vector as the attention-weighted combination of value vectors. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>11. COMPLETE SINGLE-HEAD ATTENTION</h2>
+<p>Put everything together:</p>
+<div class="math block">
+\boxed{
+\operatorname{Attention}(Q,K,V)
+=
+\operatorname{softmax}
+\left(
+\frac{QK^\top}{\sqrt{d_k}}+M
+\right)V
+}
+</div>
+<p>This is the central equation of Step 1.</p>
+<hr />
+<h2>12. MULTI-HEAD ATTENTION</h2>
+<p>For head <span class="math inline">h</span>:</p>
+<div class="math block">
+Q_h=XW_Q^{(h)}
+</div>
+<div class="math block">
+K_h=XW_K^{(h)}
+</div>
+<div class="math block">
+V_h=XW_V^{(h)}.
+</div>
+<p>Then:</p>
+<div class="math block">
+H_h
+=
+\operatorname{Attention}(Q_h,K_h,V_h).
+</div>
+<p>Concatenate:</p>
+<div class="math block">
+H
+=
+\operatorname{Concat}
+(H_1,H_2,\ldots,H_H).
+</div>
+<p>Output projection:</p>
+<div class="math block">
+O=HW_O.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+=
+\operatorname{Concat}
+(\operatorname{head}_1,\ldots,\operatorname{head}_H)
+W_O
+}
+</div>
+<p>The Transformer slides and Raschka implementation agree on this structure. <em>(Source: transformers-slides; Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>13. HEAD DIMENSION</h2>
+<p>If model width is <span class="math inline">d</span> and there are <span class="math inline">H</span> heads:</p>
+<div class="math block">
+d_k=d_v=\frac dH.
+</div>
+<p>Thus:</p>
+<div class="math block">
+H\cdot d_k=d.
+</div>
+<p>Example:</p>
+<div class="math block">
+d=768,\qquad H=12
+</div>
+<p>gives:</p>
+<div class="math block">
+d_k=64.
+</div>
+<hr />
+<h2>14. LAYER NORMALIZATION</h2>
+<p>For one token vector:</p>
+<div class="math block">
+x=(x_1,\ldots,x_d).
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu
+=
+\frac1d\sum_{i=1}^{d}x_i.
+</div>
+<p>Variance:</p>
+<div class="math block">
+\sigma^2
+=
+\frac1d
+\sum_{i=1}^{d}(x_i-\mu)^2.
+</div>
+<p>Normalize:</p>
+<div class="math block">
+\hat x_i
+=
+\frac{x_i-\mu}
+{\sqrt{\sigma^2+\epsilon}}.
+</div>
+<p>Learned affine transformation:</p>
+<div class="math block">
+\boxed{
+\operatorname{LN}(x)
+=
+\gamma\odot\hat x+\beta
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\gamma,\beta\in\mathbb R^d.
+</div>
+<p>Raschka's implementation computes the mean and variance over the final embedding dimension and learns scale and shift parameters. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>15. RMSNorm</h2>
+<p>The Transformer slide also mentions RMSNorm.</p>
+<div class="math block">
+\operatorname{RMS}(x)
+=
+\sqrt{\frac1d\sum_i x_i^2+\epsilon}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\operatorname{RMSNorm}(x)
+=
+\gamma\odot
+\frac{x}{\operatorname{RMS}(x)}
+}
+</div>
+<p>Difference:</p>
+<div class="math block">
+\text{LayerNorm}
+=
+\text{center + scale}
+</div>
+<p>while</p>
+<div class="math block">
+\text{RMSNorm}
+=
+\text{scale without mean-centering}.
+</div>
+<hr />
+<h2>16. FEED-FORWARD NETWORK</h2>
+<p>The slide gives:</p>
+<div class="math block">
+\boxed{
+\operatorname{FFN}(x)
+=
+W_2\phi(W_1x+b_1)+b_2
+}
+</div>
+<p>with:</p>
+<div class="math block">
+x\in\mathbb R^d
+</div>
+<div class="math block">
+W_1\in\mathbb R^{d_{ff}\times d}
+</div>
+<div class="math block">
+W_2\in\mathbb R^{d\times d_{ff}}.
+</div>
+<p>Typically:</p>
+<div class="math block">
+d_{ff}=4d.
+</div>
+<p>The crucial distinction:</p>
+<div class="math block">
+\boxed{
+Attention =\text{mix information across positions}
+}
+</div>
+<div class="math block">
+\boxed{
+FFN =\text{nonlinear processing within each position}
+}
+</div>
+<p>which the Transformer deck emphasizes. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h2>17. GELU</h2>
+<p>Exact GELU:</p>
+<div class="math block">
+\boxed{
+\operatorname{GELU}(x)
+=
+x\Phi(x)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\Phi(x)
+=
+\frac1{\sqrt{2\pi}}
+\int_{-\infty}^{x}
+e^{-t^2/2}\,dt.
+</div>
+<p>Common approximation used by GPT-style models:</p>
+<div class="math block">
+\boxed{
+\operatorname{GELU}(x)
+\approx
+\frac12x
+\left[
+1+
+\tanh
+\left(
+\sqrt{\frac2\pi}
+(x+0.044715x^3)
+\right)
+\right]
+}
+</div>
+<p>Raschka's book explicitly gives both the probabilistic definition and the GPT-2-style approximation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>18. PRE-LAYER-NORM TRANSFORMER BLOCK</h2>
+<p>Attention sub-block:</p>
+<div class="math block">
+h
+=
+x+
+\operatorname{MHA}(\operatorname{LN}(x)).
+</div>
+<p>FFN sub-block:</p>
+<div class="math block">
+y
+=
+h+
+\operatorname{FFN}(\operatorname{LN}(h)).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+y
+=
+h+
+\operatorname{FFN}(\operatorname{LN}(h))
+}
+</div>
+<p>with:</p>
+<div class="math block">
+h=
+x+
+\operatorname{MHA}(\operatorname{LN}(x)).
+</div>
+<p>Raschka's implementation explicitly uses this Pre-LN ordering. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>19. STACK <span class="math inline">L</span> BLOCKS</h2>
+<div class="math block">
+X^{(0)}
+=
+\text{embedding + position}.
+</div>
+<p>For layer <span class="math inline">l</span>:</p>
+<div class="math block">
+X^{(l)}
+=
+\operatorname{Block}_l(X^{(l-1)}).
+</div>
+<p>Then:</p>
+<div class="math block">
+X^{(L)}
+=
+\operatorname{Block}_L
+\circ\cdots\circ
+\operatorname{Block}_1
+(X^{(0)}).
+</div>
+<p>The slide summarizes this simply as:</p>
+<div class="math block">
+\boxed{\text{same Transformer block repeated }L\text{ times}}
+</div>
+<p><em>(Source: transformers-slides)</em></p>
+<hr />
+<h2>20. FINAL NORMALIZATION</h2>
+<div class="math block">
+H=
+\operatorname{LN}(X^{(L)}).
+</div>
+<p>Dimensions remain:</p>
+<div class="math block">
+H\in\mathbb R^{n\times d}.
+</div>
+<hr />
+<h2>21. UNEMBEDDING</h2>
+<p>Vocabulary projection:</p>
+<div class="math block">
+W_U\in\mathbb R^{d\times|V|}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+Z=HW_U
+}
+</div>
+<p>with:</p>
+<div class="math block">
+Z\in\mathbb R^{n\times|V|}.
+</div>
+<p>Each row:</p>
+<div class="math block">
+z_t\in\mathbb R^{|V|}
+</div>
+<p>contains one raw score/logit for every vocabulary token.</p>
+<p>The Transformer slides describe this as the mirror operation to the embedding lookup. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h2>22. LOGITS → PROBABILITIES</h2>
+<p>For token <span class="math inline">i</span>:</p>
+<div class="math block">
+p_i
+=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+p_t
+=
+\operatorname{softmax}(z_t)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+p_t(i)
+=
+P(x_{t+1}=i\mid x_{\le t}).
+</div>
+<p>This is where <strong>Step 1 hands off to Step 2: Decoding</strong>.</p>
+<hr />
+<h2>23. AUTOREGRESSIVE LANGUAGE MODEL PROBABILITY</h2>
+<p>For a sequence:</p>
+<div class="math block">
+P_\theta(x_1,\ldots,x_n)
+=
+\prod_{t=1}^{n}
+P_\theta(x_t|x_{&lt;t}).
+</div>
+<p>This chain rule will later become extremely important in:</p>
+<ul>
+<li>decoding</li>
+<li>knowledge distillation</li>
+<li>RL</li>
+<li>GRPO.</li>
+</ul>
+<hr />
+<h2>24. NEXT-TOKEN LOSS</h2>
+<p>For target <span class="math inline">x_t</span>:</p>
+<div class="math block">
+L_t
+=
+-\log
+P_\theta(x_t|x_{&lt;t}).
+</div>
+<p>Average:</p>
+<div class="math block">
+\boxed{
+L
+=
+-\frac1n
+\sum_{t=1}^{n}
+\log
+P_\theta(x_t|x_{&lt;t})
+}
+</div>
+<p>This is the language-model negative log-likelihood / cross-entropy objective.</p>
+<p>The Transformer slides formulate training exactly in terms of next-token probabilities and average negative log probability.</p>
+<hr />
+<h2>25. ONE-HOT CROSS-ENTROPY FORM</h2>
+<p>If the target distribution is one-hot <span class="math inline">y</span>:</p>
+<div class="math block">
+L_t
+=
+-\sum_{v\in V}
+y_{t,v}
+\log p_{t,v}.
+</div>
+<p>Since:</p>
+<div class="math block">
+y_{t,v^*}=1
+</div>
+<p>only for the correct token:</p>
+<div class="math block">
+L_t
+=
+-\log p_{t,v^*}.
+</div>
+<p>This becomes the exact bridge to <strong>MiniLLM's soft-target distillation</strong> later.</p>
+<hr />
+<h2>26. PARAMETER COUNT — CORE TRANSFORMER</h2>
+<p>For one attention projection:</p>
+<div class="math block">
+W_Q:d\times d
+</div>
+<p>contains:</p>
+<div class="math block">
+d^2
+</div>
+<p>parameters.</p>
+<p>Four attention matrices:</p>
+<div class="math block">
+W_Q,W_K,W_V,W_O
+</div>
+<p>give approximately:</p>
+<div class="math block">
+4d^2.
+</div>
+<p>FFN:</p>
+<div class="math block">
+W_1:d_{ff}\times d
+</div>
+<div class="math block">
+W_2:d\times d_{ff}
+</div>
+<p>giving:</p>
+<div class="math block">
+2dd_{ff}.
+</div>
+<p>If:</p>
+<div class="math block">
+d_{ff}=4d,
+</div>
+<p>then:</p>
+<div class="math block">
+2dd_{ff}=8d^2.
+</div>
+<p>Therefore the FFN has roughly twice the parameter count of the four attention projections:</p>
+<div class="math block">
+\boxed{
+8d^2:4d^2=2:1
+}
+</div>
+<p>which is also visible in Raschka's implementation/analysis. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>27. ATTENTION COMPUTATIONAL COMPLEXITY</h2>
+<p>The central matrix:</p>
+<div class="math block">
+QK^\top
+</div>
+<p>costs approximately:</p>
+<div class="math block">
+O(n^2d_k).
+</div>
+<p>Then:</p>
+<div class="math block">
+AV
+</div>
+<p>costs approximately:</p>
+<div class="math block">
+O(n^2d_v).
+</div>
+<p>So the dominant attention complexity behaves approximately as:</p>
+<div class="math block">
+\boxed{O(n^2d)}
+</div>
+<p>with respect to sequence length.</p>
+<p>This becomes extremely important when we reach:</p>
+<div class="math block">
+\text{KV cache}
+\rightarrow
+\text{MQA}
+\rightarrow
+\text{GQA}
+\rightarrow
+\text{MLA}.
+</div>
+<p>That is exactly why the DeepSeek book makes KV cache its first technical chapter after introducing the standard Transformer foundation.</p>
+<hr />
+<h2>28. THE ENTIRE STEP 1 IN ONE EQUATION</h2>
+<p>Everything eventually collapses into:</p>
+<div class="math block">
+\boxed{
+P_\theta(x_{t+1}|x_{\le t})
+=
+\operatorname{softmax}
+\left[
+W_U
+\,\operatorname{Block}^{(L)}
+\left(
+\cdots
+\operatorname{Block}^{(1)}
+(X+P)
+\right)_t
+\right]
+}
+</div>
+<p>where every block contains:</p>
+<div class="math block">
+\boxed{
+\operatorname{Block}(x)
+=
+h+
+\operatorname{FFN}(\operatorname{Norm}(h))
+}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{
+h=
+x+
+\operatorname{MHA}(\operatorname{Norm}(x))
+}
+</div>
+<p>and each head contains:</p>
+<div class="math block">
+\boxed{
+\operatorname{Attention}
+=
+\operatorname{softmax}
+\left(
+\frac{QK^\top}{\sqrt{d_k}}
++M
+\right)V
+}
+</div>
+<p>with:</p>
+<div class="math block">
+Q=XW_Q,\qquad
+K=XW_K,\qquad
+V=XW_V.
+</div>
+<hr />
+<h2>29. MASTER TENSOR-SHAPE CHEATSHEET</h2>
+<p>For a single sequence:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th style="text-align:right">Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Token IDs</td>
+<td style="text-align:right"><span class="math inline">n</span></td>
+</tr>
+<tr>
+<td>Embeddings</td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td>Position embeddings</td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td><span class="math inline">X</span></td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td><span class="math inline">W_Q</span></td>
+<td style="text-align:right"><span class="math inline">d\times d_k</span></td>
+</tr>
+<tr>
+<td><span class="math inline">W_K</span></td>
+<td style="text-align:right"><span class="math inline">d\times d_k</span></td>
+</tr>
+<tr>
+<td><span class="math inline">W_V</span></td>
+<td style="text-align:right"><span class="math inline">d\times d_v</span></td>
+</tr>
+<tr>
+<td><span class="math inline">Q</span></td>
+<td style="text-align:right"><span class="math inline">n\times d_k</span></td>
+</tr>
+<tr>
+<td><span class="math inline">K</span></td>
+<td style="text-align:right"><span class="math inline">n\times d_k</span></td>
+</tr>
+<tr>
+<td><span class="math inline">V</span></td>
+<td style="text-align:right"><span class="math inline">n\times d_v</span></td>
+</tr>
+<tr>
+<td><span class="math inline">QK^\top</span></td>
+<td style="text-align:right"><span class="math inline">n\times n</span></td>
+</tr>
+<tr>
+<td>Causal mask</td>
+<td style="text-align:right"><span class="math inline">n\times n</span></td>
+</tr>
+<tr>
+<td>Attention matrix <span class="math inline">A</span></td>
+<td style="text-align:right"><span class="math inline">n\times n</span></td>
+</tr>
+<tr>
+<td>Output <span class="math inline">O</span></td>
+<td style="text-align:right"><span class="math inline">n\times d_v</span></td>
+</tr>
+<tr>
+<td>MHA output</td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td>FFN intermediate</td>
+<td style="text-align:right"><span class="math inline">n\times d_{ff}</span></td>
+</tr>
+<tr>
+<td>FFN output</td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td>Final hidden state</td>
+<td style="text-align:right"><span class="math inline">n\times d</span></td>
+</tr>
+<tr>
+<td>Logits</td>
+<td style="text-align:right"><span class="math inline">n\times\vert V\vert</span></td>
+</tr>
+<tr>
+<td>Probabilities</td>
+<td style="text-align:right"><span class="math inline">n\times\vert V\vert</span></td>
+</tr>
+</tbody>
+</table>
+<p>For a batch:</p>
+<div class="math block">
+X\in\mathbb R^{B\times n\times d}.
+</div>
+<p>Raschka's implementation explicitly works with this three-dimensional batch representation, including the transformations into multi-head shapes. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h2>30. THE STEP 1 DEPENDENCY GRAPH</h2>
+<p>Do not memorize these equations independently.</p>
+<p>The actual chain is:</p>
+<pre><code class="language-text">Text
+ ↓
+Tokens
+ ↓
+Token IDs
+ ↓
+Embedding
+ ↓
+Position
+ ↓
+Residual stream X
+ ↓
+Q = XWQ
+K = XWK
+V = XWV
+ ↓
+QKᵀ
+ ↓
+Scale / √dk
+ ↓
+Causal mask
+ ↓
+Softmax
+ ↓
+Attention weights
+ ↓
+AV
+ ↓
+Multi-head attention
+ ↓
+Residual addition
+ ↓
+LayerNorm
+ ↓
+FFN + GELU
+ ↓
+Residual addition
+ ↓
+Repeat L times
+ ↓
+Final normalization
+ ↓
+Unembedding
+ ↓
+Logits
+ ↓
+Softmax
+ ↓
+Next-token distribution
+ ↓
+Cross-entropy during training
+ ↓
+Decoding during generation
+</code></pre>
+<p>That last split is important:</p>
+<div class="math block">
+\boxed{
+\text{TRAINING}
+\rightarrow
+\text{cross-entropy}
+}
+</div>
+<p>while</p>
+<div class="math block">
+\boxed{
+\text{GENERATION}
+\rightarrow
+\text{decoding strategy}
+}
+</div>
+<p>The unembedding slide explicitly makes this distinction: during training all positions are evaluated against targets, while during generation the final position's distribution is used to select/sample the next token. <em>(Source: transformers-slides)</em></p>
+<hr />
+</section>

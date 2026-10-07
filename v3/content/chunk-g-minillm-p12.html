@@ -1,0 +1,37 @@
+<section class="chunk" id="chunk-g-minillm-p12" data-id="g-minillm-p12"><div class="v3-note" data-v3="added"><a href="#v3-minillm-concepts">Read the teaching bridge for this source page</a> · syllabus 05.11. Original source image and extract follow.</div><p><a id="g-minillm-p12"></a></p>
+<h3 id="v3-heading-chunk-g-minillm-p12-1">Slide 12 — Why not sample from the teacher and keep the soft target?</h3>
+<p><img loading="lazy" decoding="async" width="1180" height="464" src="assets/1320f1a3b1e494e91323.png" alt="minillm-slides slide 12: Why not sample from the teacher and keep the soft target?" /></p>
+<details><summary>Slide text (extracted)</summary>
+<pre><code class="language-text">Why not sample from the teacher and keep the soft target?
+Nothing rules this out mathematically — sample y from the teacher, then match the teacher's full distribution at every step of that same y . That is exactly the unapproximated forward-KLD objective from three slides ago. Each practical method drops it for its own documented reason:
+S E Q K D : T H E E X A C T TA R G E T I S A N I N T R A C TA B L E S U M
+
+The true sequence-level target sums over every possible response, weighted by how likely the teacher is to produce it: − ∑y∈Y p(y∣x) log qθ (y∣x) —
+​
+
+​
+
+exponentially many terms. Kim &amp; Rush's original SeqKD approximates p(y∣x) by a single point, the teacher's most likely response y
+^ (found via beam search).
+​
+
+Collapsing the teacher's distribution down to one response is exactly what removes the soft target — the loss becomes plain − log qθ (y
+^∣x), with nothing soft
+​
+
+​
+
+left to keep.
+W O R D - L E V E L K D : R E A L D ATA I S A L R E A D Y T H E R E
+
+Scoring the teacher's per-token distribution on an already-written sequence takes one parallel forward pass. Generating a new response from the teacher
+instead takes T sequential decoding steps per example, repeated across the whole training set — so word-level KD keeps using the real dataset it already has.
+S E L F - S T U D Y: O N - P O L I C Y D I S T I L L AT I O N
+
+Later work (Agarwal et al., 2024) shows this combination — a generated sequence plus the teacher's per-token soft distribution along it — is a real option, but
+works better when the sequence comes from the student, not the teacher: that is what the student needs to get right at inference time, the same reason
+MiniLLM samples y from qθ on the next slide.
+​
+</code></pre>
+</details>
+</section>

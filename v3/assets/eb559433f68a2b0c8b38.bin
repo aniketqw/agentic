@@ -1,0 +1,102 @@
+"""Independent Decimal, finite-difference, and enumeration checks.
+Run from any directory; evidence counts assertions, not input elements.
+"""
+import json,math,hashlib
+from pathlib import Path
+from decimal import Decimal as D,getcontext
+import companion as c
+getcontext().prec=50
+ROOT=Path(__file__).resolve().parent
+checks=[]
+def check(i,actual,expected,tol=1e-10):
+ def close(a,b):
+  if isinstance(a,(list,tuple)):return len(a)==len(b) and all(close(x,y) for x,y in zip(a,b))
+  return math.isclose(float(a),float(b),rel_tol=tol,abs_tol=tol)
+ ok=close(actual,expected);checks.append(dict(check_id=i,actual=actual,expected=expected,passed=ok))
+def arithmetic(i,a,e):check(i,a,float(D(e)))
+rewards=[1.,1.,0.,0.]; a=float(D('.5')/(D(1)/3).sqrt().__add__(D('.0001')))
+check('reward_rate',6/10,D('.6'))
+ps=[.5,.4,.8,.25,.6,.9,.7,.5];prod=D(1)
+for p in ps:prod*=D(str(p))
+check('eight_product',[math.exp(c.sequence_logprob(ps)),c.sequence_logprob(ps)],[float(prod),float(prod.ln())])
+check('sequence_log',c.sequence_logprob([.5,.4,.2]),float(D('.04').ln()))
+check('bandit_update',c.miniature_policy_update([0.,0.],[1.,0.])['after'][0],float(1/(1+D('-.05').exp())))
+check('ddof',[c.advantages(rewards)[0],c.advantages(rewards,0)[0]],[a,float(D('.5')/D('.5001'))])
+check('shape_work',[2*4,2*4*128],[8,1024])
+check('group_advantages',c.advantages(rewards),[a,a,-a,-a])
+pg=-a*float((D('-7.9243')+D('-20.1546')-D('-16.6130')-D('-23.3677'))/4)
+check('pg_loss',c.main()['policy_gradient_loss'],pg)
+check('clip_negative',c.clip_term(.5,-2,.2),-1.6)
+cb=-a*float((D(11)+D('.2').exp()-D(-2).exp()-D(1))/4)
+check('clip_batch',c.main()['clipped_loss'],cb)
+p=[.6,.4];q=[.5,.5]
+k=sum(D(str(x))*(D(str(x))/D(str(y))).ln() for x,y in zip(p,q));rev=sum(D(str(y))*(D(str(y))/D(str(x))).ln() for x,y in zip(p,q))
+check('kl_directions',[c.kl(p,q),c.kl(q,p)],[float(k),float(rev)])
+check('k3_expectation',sum(pi*c.k3(math.log(pi),math.log(qi)) for pi,qi in zip(p,q)),float(k))
+check('masked_grpo',c.token_grpo([[1.5,.9],[.5,1.1]],[1,0],[[1,1],[1,0]]),float(-D('.125')*D('.5')/(D('.5').sqrt()+D('.0001'))))
+check('equal_group',c.advantages([1,1,1,1]),[0]*4)
+check('entropy_bound',c.entropy([1/7]*7),float(D(7).ln()))
+check('format_shaping',[0+.25*1,0*(1+.25*1)],[.25,0])
+check('corpus_ratio',120.2/13.6,float(D('120.2')/D('13.6')))
+check('math_gain',[51.7-46.8,(51.7-46.8)/46.8*100],[4.9,float(D('4.9')/D('46.8')*100)])
+check('token_sequence',[math.prod([1.1,1.3,.7]),sum(c.clip_term(x,1) for x in [1.1,1.3,.7])/3],[1.001,1])
+check('long_ratio',math.exp(c.sequence_logprob([1/1.01]*100)*-1),float(D('1.01')**100))
+check('pass_iid',c.pass_at_k(.2,5),float(1-D('.8')**5))
+check('vote_example',c.votes([83,38,38,41,17],83),[1,0])
+check('r1_zero_gain',[77.9-15.6,(77.9-15.6)/15.6*100],[62.3,float(D('62.3')/D('15.6')*100)])
+check('r1_mixture',[600/800*100,200/800*100,400/1700*100],[75,25,float(D(400)/17)])
+check('parameter_ratio',671/1.5,float(D(671)/D('1.5')))
+check('sample_tokens',804745*5355,804745*5000+804745*300+804745*50+804745*5)
+m=c.response_mask(500,80)
+check('answer_mask',[len(m),m.index(1),sum(m)],[499,79,420])
+check('ce_probability',-c.sequence_logprob([.9,.8,.5])/3,float(-D('.36').ln()/3))
+check('update_work',800000//64*3,37500)
+check('score_retention',72.6/79.8*100,float(D('72.6')/D('79.8')*100))
+check('rounded_mixture',[sum([395000,211000,10000,10000,178000]),804745-sum([395000,211000,10000,10000,178000])],[804000,745])
+check('acceptance',[22/100,1-22/100,100/22],[.22,.78,float(D(100)/22)])
+check('training_tokens',800000*5355*3,12852000000)
+z=[math.log(.7),math.log(.2),math.log(.1)];h=1e-5
+grad=[]
+for j in range(3):
+ zp=z.copy();zm=z.copy();zp[j]+=h;zm[j]-=h;grad.append((c.ce_from_logits(zp,0)-c.ce_from_logits(zm,0))/(2*h))
+check('ce_gradient',grad,[-.3,.2,.1],1e-8)
+check('validation_metrics',[168/500*100,.5436-.5343],[33.6,.0093])
+check('metric_mismatch',[44.2-45,.4043-.3948],[-.8,.0095])
+check('adaptive_budget',[80*500+20*4000,100*4000,1-(80*500+20*4000)/(100*4000)],[120000,400000,.7])
+check('quadratic_pairs',4000**2/2000**2,4)
+check('tool_mask',[c.main()['tool_trajectory_tokens'],c.main()['policy_loss_tokens']],[660,610])
+check('signed_reward',.75*1+.25*-1,.5)
+check('ppo_positive',c.clip_term(.16/.08,1-.25),.9)
+check('gae_trace',c.gae([0,1],[.2,.4,0]),[.77,.6])
+check('cold_filter',[4700-4200,5000-4700,4200/5000],[500,300,.84])
+check('cold_mask',sum([1]*850+[0]*150),850)
+check('engine_counts',[1200+300+20,1200+20,300/1520*100],[1520,1220,float(D(300)/1520*100)])
+check('cache_extension',[2100-100,2100-2000],[2000,100])
+check('length_change',(10000-6000)/10000,.4)
+check('purpose_shift',2000*.791-2000*.514,554)
+check('ablation_gain',[67-40,(67-40)/40*100,67-26.7],[27,67.5,40.3])
+check('step_efficiency',[1-.37,1/.37],[.63,float(1/D('.37'))])
+# Edge cases and an independent exact combinatorial enumeration.
+check('kl_zero_support',c.kl([0,1],[.5,.5]),float(D(2).ln()))
+check('kl_infinite_support',math.isinf(c.kl([1,0],[0,1])),1)
+try:c.advantages([1]);singleton=0
+except ValueError:singleton=1
+check('sample_singleton_rejected',singleton,1)
+check('k3_nonnegative',[int(c.k3(0,x)>=0) for x in [-100,-2,0,2,100]],[1]*5)
+from itertools import combinations
+sample=list(combinations(range(5),2));passed=sum(any(j<2 for j in comb) for comb in sample)/len(sample)
+check('empirical_pass_combinations',c.empirical_pass_at_k(5,2,2),passed)
+check('stable_softmax',c.softmax([1000,1000]),[.5,.5])
+# Policy gradient is independently finite-differenced through expected reward.
+z=[.2,-.3];h=1e-5;g=[]
+for j in range(2):
+ xp=z.copy();xm=z.copy();xp[j]+=h;xm[j]-=h
+ g.append((c.softmax(xp)[0]-c.softmax(xm)[0])/(2*h))
+check('bandit_gradient_finite_difference',c.miniature_policy_update(z,[1,0])['gradient'],g,1e-8)
+ids={n['check_id'] for r in json.loads((ROOT/'reviews.json').read_text()) for n in r['numericals']}
+assert ids<={x['check_id'] for x in checks},ids-{x['check_id'] for x in checks}
+result=dict(scope='CPU educational mathematics; no original PyTorch training or benchmark rerun',passed=sum(x['passed'] for x in checks),failed=sum(not x['passed'] for x in checks),checks=checks,companion_sha256=hashlib.sha256((ROOT/'companion.py').read_bytes()).hexdigest())
+(ROOT/'evidence.json').write_text(json.dumps(result,indent=2,default=float)+'\n')
+(ROOT/'outputs.json').write_text(json.dumps(c.main(),indent=2)+'\n')
+print(json.dumps({k:v for k,v in result.items() if k!='checks'},indent=2))
+raise SystemExit(bool(result['failed']))

@@ -1,0 +1,1294 @@
+<section class="chunk" id="chunk-les-step-1-9-i16" data-id="les-step-1-9-i16"><details class="audit-card" id="audit-full-chunk-les-step-1-9-i16" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-1-9-i16-1">Motivation</h4><p>Run several learned compatibility/content spaces and return their concatenated results to the residual width.</p><h4 id="v3-heading-chunk-les-step-1-9-i16-2">Prerequisites</h4><ul><li>Single-head causal attention</li><li>Tensor reshape and transpose</li><li>Matrix projection</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-3">Notation and units</h4><ul><li>Q,K,V after split [B,h,T,d/h]</li><li>A [B,h,T,T]</li><li>Concat [B,T,h*d_v]; W_O [h*d_v,d]</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-4">Assumptions</h4><ul><li>Equal-width standard MHA assumes d divisible by h</li><li>Each head independently normalizes its key axis</li><li>Values can have a different width in the general formula</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-5">Step-by-step derivation</h4><ol><li>Project [B,T,d] once into packed Q/K/V, reshape to [B,T,h,d_k] then transpose token/head axes into [B,h,T,d_k]. Reshape alone does not swap axes.</li><li>Compute each head score Q_h K_h^T/sqrt(d_k), broadcast the same eligibility mask, normalize over its final T axis, and multiply by V_h.</li><li>Each head returns [B,T,d_v]; transpose back and concatenate along the last feature axis into [B,T,h*d_v].</li><li>Multiply by W_O[h*d_v,d] to mix head contributions and return [B,T,d], permitting residual addition.</li><li>For d=12,h=3, head width=4; for h=4,d_v=16, concatenation width=64.</li><li>For standard d_k=d_v=d/h, the four attention projection matrices total 4d² weights. Score storage has BhT² entries, so adding heads at fixed d does not linearly multiply all projection parameters.</li><li>Distinct projection parameters permit different coefficients, but heads may become redundant; a head number is not a fixed semantic category.</li></ol><h4 id="v3-heading-chunk-les-step-1-9-i16-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-1-9-i16-7">attention_shape_entries</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Project [B,T,d] once into packed Q/K/V, reshape to [B,T,h,d_k] then transpose token/head axes into [B,h,T,d_k]. Reshape alone does not swap axes.</li><li>Compute each head score Q_h K_h^T/sqrt(d_k), broadcast the same eligibility mask, normalize over its final T axis, and multiply by V_h.</li><li>Each head returns [B,T,d_v]; transpose back and concatenate along the last feature axis into [B,T,h*d_v].</li><li>Multiply by W_O[h*d_v,d] to mix head contributions and return [B,T,d], permitting residual addition.</li><li>For d=12,h=3, head width=4; for h=4,d_v=16, concatenation width=64.</li><li>For standard d_k=d_v=d/h, the four attention projection matrices total 4d² weights. Score storage has BhT² entries, so adding heads at fixed d does not linearly multiply all projection parameters.</li><li>Distinct projection parameters permit different coefficients, but heads may become redundant; a head number is not a fixed semantic category.</li></ol><p>Answer: 25165824</p><p>Verification: foundations_decoding / attention_shape_entries · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-1-9-i16-8">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-9">Mastery answers and retained exercise context</h4><ol><li>Q1: 4.</li><li>Q2: [B,3,n,4].</li><li>Q3: one score for each of n queries and n keys.</li><li>Q4: different learned Q/K projections.</li><li>Q5: join head feature coordinates, not token axes.</li><li>Q6: learned feature mixing and projection to d.</li><li>Q7: align with the residual addition.</li><li>Q8: A_h is mixing coefficients [B,n,n]; A_hV_h is contextual content [B,n,d_v].</li><li>Q9: no; it applies per head.</li><li>Q10: scores → scale and mask → row softmax → AV → concatenate → W_O.</li></ol><h4 id="v3-heading-chunk-les-step-1-9-i16-10">Edge cases and remaining gaps</h4><ul><li>Nondivisible d/h requires a different explicit width specification or rejection.</li><li>An incorrect reshape without transpose silently pairs wrong positions/features.</li><li>GQA/MQA share K/V differently and cannot inherit the 4d² formula unchanged.</li><li>Dense score storage is BhT² if materialized; fused attention may avoid storing that full tensor without changing the mathematical operator.</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-11">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-12">Exact source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214 · multi-head projections, head splitting and output concatenation</li><li>transformers-slides(1).pdf · physical PDF pages 13 · multi-head formula</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-13">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (57)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 1.9 — Complete Multi-Head Attention: Numerical Example From Start to Finish</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.9.1 Our Tiny Transformer</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.2 Split the Model Into Two Learned Subspaces</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.3 Head 1: Calculate Q_1,K_1,V_1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.4 Head 1: Compute the Raw Attention Scores</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.5 Apply the \sqrt{d_k} Scaling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.6 Apply the Causal Mask</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Query 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Query 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Query 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.9.7 Apply Softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Row 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Row 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.9.8 Head 1: Multiply by V_1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.9 Stop Here and Understand What Happened</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.10 Now Do Head 2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.11 Head 2: Raw Scores</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.12 Apply the Causal Mask Again</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.13 Head 2 Softmax</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.14 Head 2: Compute A_2V_2</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.15 We Now Have Two Head Outputs</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.16 Concatenate the Heads</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.17 Why Is Concatenation Along the Last Dimension?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.18 Now Comes W_O</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.19 Compute One Row So You Can See What W_O Does</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.20 Final MHA Output</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.21 Why Must the Output Return to d?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.22 Now Look at the Entire Numerical Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Head 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Head 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.9.23 Now Add the Batch Dimension</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.24 A Major Shape Insight</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.25 Why Does d_k Exist Separately From d?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.26 How This Relates to the Efficient Implementation</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>1.9.27 So Why Does the Reshape Not Lose Information?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.28 One More Deep Insight: What Is Actually Different Between Heads?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.29 Common Mistakes</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Mistake 1: &quot;Each head gets a different sequence.&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mistake 2: &quot;Each head has a different mask.&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mistake 3: &quot;The attention weights are the output.&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mistake 4: &quot;Concatenation combines the heads semantically.&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Mistake 5: &quot;More heads means more model dimension.&quot;</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1.9.30 The Full Formula, Now With Every Meaning</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>1.9.31 Connection to the Transformer Block</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1.9 Master Check</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q8</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q9</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Q10</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>What we have established so far</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-T04" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T04 — Scores to attention weights to output</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T03">← Previous audit card</a> · <a href="#audit-T05">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-9-i16-14">Why this matters</h4><p>Self-attention gives each token a content-dependent combination of value vectors.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a>, <a href="#audit-F07">Expectation and population variance</a>, <a href="#audit-T03">Three projections: Q, K, and V</a></p><h4 id="v3-heading-chunk-les-step-1-9-i16-15">Symbols, shapes and assumptions</h4><p>QKᵀ has shape T×T. Scale by √dk, apply the allowed-position mask, and normalize each query row over keys. The result is pre-dropout weights A; O=AV has shape T×dv.</p><h4 id="v3-heading-chunk-les-step-1-9-i16-16">Derivation or mechanism</h4><ol><li>Dot each query with every key.</li><li>Scale and mask before the stable row softmax.</li><li>Compute one weighted sum of values for each query.</li></ol><div class="math block" data-tex="A=\mathrm{softmax}_{rows}(QK^\top/\sqrt{d_k}+M),\qquad O=AV">A=\mathrm{softmax}_{rows}(QK^\top/\sqrt{d_k}+M),\qquad O=AV</div><h4 id="v3-heading-chunk-les-step-1-9-i16-17">Worked numerical</h4><p>Using the slide p. 11 projections and a causal mask, row 2 has weights [0.640457476,0.359542524,0]. Its output is [1.640457476,-0.640457476,1]. For example, the first output component is 0.640457476×2+0.359542524×1. The hub shows the complete score, weight, and output tables.</p><h4 id="v3-heading-chunk-les-step-1-9-i16-18">Edge cases and limits</h4><ul><li>These weights sum to one before dropout; T14 supplies the qualification.</li><li>This companion omits padding and rectangular cached attention.</li><li>An all-masked row is not a valid distribution.</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-19">Connections</h4><ul><li>T05 tests future-token isolation.</li><li>T11 computes separate heads and projects their concatenation.</li></ul><h4 id="v3-heading-chunk-les-step-1-9-i16-20">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 8, 11, 12 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 171, 172, 173, 174 · §3.4</li><li><a href="https://arxiv.org/html/1706.03762v7" rel="noopener noreferrer">§3.2.1</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-9-i16-21">Executable companion and checking evidence</h4><p>Functions: <code>attention</code>, <code>softmax</code>, <code>matmul</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T04-attention, T04-first-token. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-9-i16"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-9-i16" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-8-i15">← Previous lesson</a> · <a href="#chunk-les-step-1-10-i17">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-8-i15">Step 1.8 — Multi-Head Attention (MHA)</a></p><p><strong>This lesson:</strong> Step 1.9 — Complete Multi-Head Attention: Numerical Example From Start to Finish</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-13">Understanding_Attention_Handbook_01</a>; <a href="#source-14">transformers-slides</a>; <a href="#source-16">NLP_TRANSFORMER</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-9-i16"></a></p>
+<h2>Step 1.9 — Complete Multi-Head Attention: Numerical Example From Start to Finish</h2>
+<p><em>Plan node: I1 · chat order #16</em></p>
+<p>We now know the architecture conceptually.</p>
+<p>In Step 1.8 we established:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+=
+\operatorname{Concat}(head_1,\ldots,head_h)W_O
+}
+</div>
+<p>Now we will <strong>actually calculate it with numbers</strong>.</p>
+<p>The goal of this step is not to introduce a new idea. It is to make every matrix operation concrete.</p>
+<p>The source material describes MHA as multiple independently projected attention operations whose outputs are concatenated and passed through an output projection. <em>(Source: NLP_TRANSFORMER; Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-22">1.9.1 Our Tiny Transformer</h3>
+<p>We will use:</p>
+<div class="math block">
+B=1
+</div>
+<p>one sequence,</p>
+<div class="math block">
+n=3
+</div>
+<p>three tokens,</p>
+<div class="math block">
+d=4
+</div>
+<p>model dimension,</p>
+<p>and:</p>
+<div class="math block">
+h=2
+</div>
+<p>attention heads.</p>
+<p>Therefore each head gets:</p>
+<div class="math block">
+d_k=d_v=\frac{4}{2}=2.
+</div>
+<p>So our setup is:</p>
+<div class="math block">
+\boxed{
+n=3,\quad d=4,\quad h=2,\quad d_k=d_v=2
+}
+</div>
+<p>Our input representation matrix is:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;0&amp;1&amp;0\\
+0&amp;1&amp;1&amp;0\\
+1&amp;1&amp;0&amp;1
+\end{bmatrix}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb{R}^{3\times4}
+}
+</div>
+<p>Interpret this as:</p>
+<pre><code class="language-text">token 1 → [1, 0, 1, 0]
+token 2 → [0, 1, 1, 0]
+token 3 → [1, 1, 0, 1]
+</code></pre>
+<p>These are deliberately small illustrative vectors so we can do the calculations by hand.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-23">1.9.2 Split the Model Into Two Learned Subspaces</h3>
+<p>We will make the projection matrices particularly simple.</p>
+<p>For <strong>Head 1</strong>, use the first two dimensions:</p>
+<div class="math block">
+W_Q^{(1)}
+=
+W_K^{(1)}
+=
+W_V^{(1)}
+=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+0&amp;0\\
+0&amp;0
+\end{bmatrix}.
+</div>
+<p>For <strong>Head 2</strong>, use the last two dimensions:</p>
+<div class="math block">
+W_Q^{(2)}
+=
+W_K^{(2)}
+=
+W_V^{(2)}
+=
+\begin{bmatrix}
+0&amp;0\\
+0&amp;0\\
+1&amp;0\\
+0&amp;1
+\end{bmatrix}.
+</div>
+<p>Again, these matrices are <strong>not claimed to be actual trained Transformer weights</strong>. They are chosen only to make the example transparent.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-24">1.9.3 Head 1: Calculate <span class="math inline">Q_1,K_1,V_1</span></h3>
+<p>We start with:</p>
+<div class="math block">
+Q_1=XW_Q^{(1)}.
+</div>
+<p>So:</p>
+<div class="math block">
+Q_1=
+\begin{bmatrix}
+1&amp;0&amp;1&amp;0\\
+0&amp;1&amp;1&amp;0\\
+1&amp;1&amp;0&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+0&amp;0\\
+0&amp;0
+\end{bmatrix}.
+</div>
+<p>We get:</p>
+<div class="math block">
+\boxed{
+Q_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+}
+</div>
+<p>Because we chose the same matrix for <span class="math inline">K</span> and <span class="math inline">V</span>:</p>
+<div class="math block">
+\boxed{
+K_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}.
+}
+</div>
+<p>So all three have shape:</p>
+<div class="math block">
+\boxed{3\times2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-25">1.9.4 Head 1: Compute the Raw Attention Scores</h3>
+<p>We calculate:</p>
+<div class="math block">
+Q_1K_1^T.
+</div>
+<p>Since:</p>
+<div class="math block">
+K_1^T=
+\begin{bmatrix}
+1&amp;0&amp;1\\
+0&amp;1&amp;1
+\end{bmatrix},
+</div>
+<p>we get:</p>
+<div class="math block">
+Q_1K_1^T
+=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1&amp;0&amp;1\\
+0&amp;1&amp;1
+\end{bmatrix}
+</div>
+<p>which equals:</p>
+<div class="math block">
+\boxed{
+\begin{bmatrix}
+1&amp;0&amp;1\\
+0&amp;1&amp;1\\
+1&amp;1&amp;2
+\end{bmatrix}
+}
+</div>
+<p>Shape:</p>
+<div class="math block">
+\boxed{3\times3}.
+</div>
+<p>Every row corresponds to a query, every column to a key.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-26">1.9.5 Apply the <span class="math inline">\sqrt{d_k}</span> Scaling</h3>
+<p>We have:</p>
+<div class="math block">
+d_k=2
+</div>
+<p>so:</p>
+<div class="math block">
+\sqrt{d_k}=\sqrt2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S_1=
+\frac{Q_1K_1^T}{\sqrt2}.
+</div>
+<p>Numerically:</p>
+<div class="math block">
+\boxed{
+S_1\approx
+\begin{bmatrix}
+0.7071&amp;0&amp;0.7071\\
+0&amp;0.7071&amp;0.7071\\
+0.7071&amp;0.7071&amp;1.4142
+\end{bmatrix}
+}
+</div>
+<p>This is the same scaled score structure shown in the attention handbook's worked example. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-27">1.9.6 Apply the Causal Mask</h3>
+<p>Our causal mask is:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0&amp;-\infty&amp;-\infty\\
+0&amp;0&amp;-\infty\\
+0&amp;0&amp;0
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+S_1+M
+=
+\begin{bmatrix}
+0.7071&amp;-\infty&amp;-\infty\\
+0&amp;0.7071&amp;-\infty\\
+0.7071&amp;0.7071&amp;1.4142
+\end{bmatrix}.
+</div>
+<p>Notice:</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-28">Query 1</h5>
+<p>Can see only key 1.</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-29">Query 2</h5>
+<p>Can see keys 1 and 2.</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-30">Query 3</h5>
+<p>Can see keys 1, 2 and 3.</p>
+<p>Exactly as required by causal self-attention. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-31">1.9.7 Apply Softmax</h3>
+<p>We now calculate:</p>
+<div class="math block">
+A_1=
+\operatorname{softmax}(S_1+M).
+</div>
+<p>Row by row:</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-32">Row 1</h5>
+<div class="math block">
+[0.7071,-\infty,-\infty]
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{[1,0,0]}.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-33">Row 2</h5>
+<div class="math block">
+[0,0.7071,-\infty]
+</div>
+<p>becomes approximately:</p>
+<div class="math block">
+\boxed{[0.3302,0.6698,0]}.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-34">Row 3</h5>
+<div class="math block">
+[0.7071,0.7071,1.4142]
+</div>
+<p>becomes approximately:</p>
+<div class="math block">
+\boxed{[0.2483,0.2483,0.5035]}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+A_1\approx
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.3302&amp;0.6698&amp;0\\
+0.2483&amp;0.2483&amp;0.5035
+\end{bmatrix}
+}
+</div>
+<p>This is the <strong>attention-weight matrix</strong>.</p>
+<p>Remember:</p>
+<div class="math block">
+\boxed{
+A\neq O
+}
+</div>
+<p>The attention weights tell us <strong>how much</strong> each value contributes; <span class="math inline">AV</span> produces the actual output. The handbook emphasizes this distinction. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-35">1.9.8 Head 1: Multiply by <span class="math inline">V_1</span></h3>
+<p>Now:</p>
+<div class="math block">
+O_1=A_1V_1.
+</div>
+<p>We have:</p>
+<div class="math block">
+A_1=
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.3302&amp;0.6698&amp;0\\
+0.2483&amp;0.2483&amp;0.5035
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+V_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+O_1\approx
+\begin{bmatrix}
+1&amp;0\\
+0.3302&amp;0.6698\\
+0.7517&amp;0.7517
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+O_1\in\mathbb{R}^{3\times2}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-36">1.9.9 Stop Here and Understand What Happened</h3>
+<p>For Head 1:</p>
+<div class="math block">
+X
+</div>
+<p>became:</p>
+<div class="math block">
+Q_1,K_1,V_1
+</div>
+<p>then:</p>
+<div class="math block">
+Q_1K_1^T
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{Q_1K_1^T}{\sqrt2}
+</div>
+<p>then:</p>
+<div class="math block">
++\;M
+</div>
+<p>then:</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>then:</p>
+<div class="math block">
+A_1
+</div>
+<p>then:</p>
+<div class="math block">
+A_1V_1
+</div>
+<p>giving:</p>
+<div class="math block">
+O_1.
+</div>
+<p>That is one complete attention head.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-37">1.9.10 Now Do Head 2</h3>
+<p>Head 2 uses the last two input dimensions.</p>
+<p>So:</p>
+<div class="math block">
+Q_2=XW_Q^{(2)}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+Q_2=
+\begin{bmatrix}
+1&amp;0\\
+1&amp;0\\
+0&amp;1
+\end{bmatrix}.
+}
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{
+K_2=
+\begin{bmatrix}
+1&amp;0\\
+1&amp;0\\
+0&amp;1
+\end{bmatrix}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V_2=
+\begin{bmatrix}
+1&amp;0\\
+1&amp;0\\
+0&amp;1
+\end{bmatrix}.
+}
+</div>
+<p>Again:</p>
+<div class="math block">
+Q_2,K_2,V_2\in\mathbb{R}^{3\times2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-38">1.9.11 Head 2: Raw Scores</h3>
+<p>Calculate:</p>
+<div class="math block">
+Q_2K_2^T.
+</div>
+<p>We get:</p>
+<div class="math block">
+\boxed{
+\begin{bmatrix}
+1&amp;1&amp;0\\
+1&amp;1&amp;0\\
+0&amp;0&amp;1
+\end{bmatrix}
+}
+</div>
+<p>Then divide by:</p>
+<div class="math block">
+\sqrt2.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+S_2\approx
+\begin{bmatrix}
+0.7071&amp;0.7071&amp;0\\
+0.7071&amp;0.7071&amp;0\\
+0&amp;0&amp;0.7071
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-39">1.9.12 Apply the Causal Mask Again</h3>
+<p>Add:</p>
+<div class="math block">
+M=
+\begin{bmatrix}
+0&amp;-\infty&amp;-\infty\\
+0&amp;0&amp;-\infty\\
+0&amp;0&amp;0
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+S_2+M
+=
+\begin{bmatrix}
+0.7071&amp;-\infty&amp;-\infty\\
+0.7071&amp;0.7071&amp;-\infty\\
+0&amp;0&amp;0.7071
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-40">1.9.13 Head 2 Softmax</h3>
+<p>The resulting attention weights are:</p>
+<div class="math block">
+\boxed{
+A_2=
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.5&amp;0.5&amp;0\\
+0.2483&amp;0.2483&amp;0.5035
+\end{bmatrix}
+}
+</div>
+<p>Compare:</p>
+<div class="math block">
+A_1=
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.3302&amp;0.6698&amp;0\\
+0.2483&amp;0.2483&amp;0.5035
+\end{bmatrix}
+</div>
+<p>while:</p>
+<div class="math block">
+A_2=
+\begin{bmatrix}
+1&amp;0&amp;0\\
+0.5&amp;0.5&amp;0\\
+0.2483&amp;0.2483&amp;0.5035
+\end{bmatrix}.
+</div>
+<p>They are different.</p>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+W_Q^{(1)},W_K^{(1)},W_V^{(1)}
+</div>
+<p>are different from:</p>
+<div class="math block">
+W_Q^{(2)},W_K^{(2)},W_V^{(2)}.
+</div>
+<p>This is the exact mathematical mechanism behind different heads learning different patterns.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-41">1.9.14 Head 2: Compute <span class="math inline">A_2V_2</span></h3>
+<p>Now:</p>
+<div class="math block">
+O_2=A_2V_2.
+</div>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+O_2\approx
+\begin{bmatrix}
+1&amp;0\\
+1&amp;0\\
+0.4965&amp;0.5035
+\end{bmatrix}.
+}
+</div>
+<p>Again:</p>
+<div class="math block">
+\boxed{
+O_2\in\mathbb{R}^{3\times2}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-42">1.9.15 We Now Have Two Head Outputs</h3>
+<p>Head 1:</p>
+<div class="math block">
+O_1\approx
+\begin{bmatrix}
+1&amp;0\\
+0.3302&amp;0.6698\\
+0.7517&amp;0.7517
+\end{bmatrix}.
+</div>
+<p>Head 2:</p>
+<div class="math block">
+O_2\approx
+\begin{bmatrix}
+1&amp;0\\
+1&amp;0\\
+0.4965&amp;0.5035
+\end{bmatrix}.
+</div>
+<p>Now comes the next stage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-43">1.9.16 Concatenate the Heads</h3>
+<p>We concatenate along the feature dimension.</p>
+<p>So:</p>
+<div class="math block">
+O_1:
+3\times2
+</div>
+<p>and:</p>
+<div class="math block">
+O_2:
+3\times2.
+</div>
+<p>Concatenation gives:</p>
+<div class="math block">
+O_{\text{concat}}
+=
+\begin{bmatrix}
+1&amp;0&amp;1&amp;0\\
+0.3302&amp;0.6698&amp;1&amp;0\\
+0.7517&amp;0.7517&amp;0.4965&amp;0.5035
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+O_{\text{concat}}\in\mathbb{R}^{3\times4}
+}
+</div>
+<p>because:</p>
+<div class="math block">
+2+2=4.
+</div>
+<p>This is exactly the concatenate-then-output-project structure described in the sources. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-44">1.9.17 Why Is Concatenation Along the Last Dimension?</h3>
+<p>Each row represents one token.</p>
+<p>For token 2:</p>
+<p>Head 1 produces:</p>
+<div class="math block">
+[0.3302,0.6698]
+</div>
+<p>Head 2 produces:</p>
+<div class="math block">
+[1,0].
+</div>
+<p>So we preserve both:</p>
+<div class="math block">
+\boxed{
+[0.3302,\;0.6698,\;1,\;0].
+}
+</div>
+<p>The first two numbers came from Head 1.</p>
+<p>The second two numbers came from Head 2.</p>
+<p>Thus one token's representation now contains information from <strong>both attention subspaces</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-45">1.9.18 Now Comes <span class="math inline">W_O</span></h3>
+<p>So far we have:</p>
+<div class="math block">
+O_{\text{concat}}\in\mathbb{R}^{3\times4}.
+</div>
+<p>We now apply:</p>
+<div class="math block">
+W_O\in\mathbb{R}^{4\times4}.
+</div>
+<p>For illustration, choose:</p>
+<div class="math block">
+W_O=
+\begin{bmatrix}
+1&amp;0&amp;1&amp;0\\
+0&amp;1&amp;0&amp;1\\
+1&amp;0&amp;-1&amp;0\\
+0&amp;1&amp;0&amp;-1
+\end{bmatrix}.
+</div>
+<p>Again, this is a deliberately simple illustrative matrix.</p>
+<p>Then:</p>
+<div class="math block">
+O=
+O_{\text{concat}}W_O.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-46">1.9.19 Compute One Row So You Can See What <span class="math inline">W_O</span> Does</h3>
+<p>Take token 2:</p>
+<div class="math block">
+r_2=
+[0.3302,\;0.6698,\;1,\;0].
+</div>
+<p>Multiply by <span class="math inline">W_O</span>.</p>
+<p>The result is approximately:</p>
+<div class="math block">
+\boxed{
+[1.3302,\;0.6698,\;-0.6698,\;0.6698].
+}
+</div>
+<p>What happened?</p>
+<p>The output projection combined information from:</p>
+<ul>
+<li>Head 1's representation</li>
+<li>Head 2's representation</li>
+</ul>
+<p>into a new model-space representation.</p>
+<p>This is why <span class="math inline">W_O</span> is important.</p>
+<p>The heads don't merely sit next to each other forever.</p>
+<p>The model learns how to <strong>mix their information</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-47">1.9.20 Final MHA Output</h3>
+<p>The complete result is approximately:</p>
+<div class="math block">
+\boxed{
+O\approx
+\begin{bmatrix}
+2&amp;0&amp;0&amp;0\\
+1.3302&amp;0.6698&amp;-0.6698&amp;0.6698\\
+1.2483&amp;1.2552&amp;0.2552&amp;0.2483
+\end{bmatrix}.
+}
+</div>
+<p>Shape:</p>
+<div class="math block">
+\boxed{
+3\times4.
+}
+</div>
+<p>And notice something critical:</p>
+<div class="math block">
+X\in\mathbb{R}^{3\times4}
+</div>
+<p>and:</p>
+<div class="math block">
+O\in\mathbb{R}^{3\times4}.
+</div>
+<p>So MHA has returned us to the original <strong>model width</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-48">1.9.21 Why Must the Output Return to <span class="math inline">d</span>?</h3>
+<p>This is because the attention output is going back into the Transformer residual stream.</p>
+<p>We previously had:</p>
+<div class="math block">
+X\leftarrow X+\operatorname{Attn}(\operatorname{norm}(X)).
+</div>
+<p>For this addition to be valid:</p>
+<div class="math block">
+X
+</div>
+<p>and:</p>
+<div class="math block">
+\operatorname{MHA}(X)
+</div>
+<p>must have matching dimensions.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)\in\mathbb{R}^{n\times d}.
+}
+</div>
+<p>The mathematical cheatsheet you generated earlier explicitly records this shape:</p>
+<div class="math block">
+\operatorname{MHA}(X):n\times d.
+</div>
+<p><em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-49">1.9.22 Now Look at the Entire Numerical Pipeline</h3>
+<p>Everything we have learned is now connected:</p>
+<div class="math block">
+X
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-50">Head 1</h5>
+<div class="math block">
+XW_Q^{(1)},XW_K^{(1)},XW_V^{(1)}
+</div>
+<p>↓</p>
+<div class="math block">
+Q_1K_1^T
+</div>
+<p>↓</p>
+<div class="math block">
+\frac{Q_1K_1^T}{\sqrt{d_k}}
+</div>
+<p>↓</p>
+<div class="math block">
++\;M
+</div>
+<p>↓</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>↓</p>
+<div class="math block">
+A_1
+</div>
+<p>↓</p>
+<div class="math block">
+A_1V_1
+</div>
+<p>↓</p>
+<div class="math block">
+O_1
+</div>
+<hr />
+<p>Simultaneously:</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-51">Head 2</h5>
+<div class="math block">
+XW_Q^{(2)},XW_K^{(2)},XW_V^{(2)}
+</div>
+<p>↓</p>
+<div class="math block">
+Q_2K_2^T
+</div>
+<p>↓</p>
+<div class="math block">
+\frac{Q_2K_2^T}{\sqrt{d_k}}
+</div>
+<p>↓</p>
+<div class="math block">
++\;M
+</div>
+<p>↓</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>↓</p>
+<div class="math block">
+A_2
+</div>
+<p>↓</p>
+<div class="math block">
+A_2V_2
+</div>
+<p>↓</p>
+<div class="math block">
+O_2
+</div>
+<hr />
+<p>Then:</p>
+<div class="math block">
+\boxed{
+[O_1\;|\;O_2]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{W_O}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{\operatorname{MHA}(X)}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-52">1.9.23 Now Add the Batch Dimension</h3>
+<p>Our example used:</p>
+<div class="math block">
+B=1.
+</div>
+<p>In a real model, we could have:</p>
+<div class="math block">
+B=32
+</div>
+<p>for example.</p>
+<p>Then:</p>
+<div class="math block">
+X\in\mathbb{R}^{32\times3\times4}
+</div>
+<p>and after splitting heads:</p>
+<div class="math block">
+\boxed{
+Q,K,V\in
+\mathbb{R}^{32\times2\times3\times2}.
+}
+</div>
+<p>This means:</p>
+<pre><code class="language-text">32 examples
+× 2 heads
+× 3 token positions
+× 2 features per head
+</code></pre>
+<p>The attention scores become:</p>
+<div class="math block">
+\boxed{
+32\times2\times3\times3.
+}
+</div>
+<p>So each batch example and each head has its own:</p>
+<div class="math block">
+3\times3
+</div>
+<p>attention matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-53">1.9.24 A Major Shape Insight</h3>
+<p>Notice that:</p>
+<div class="math block">
+d=4
+</div>
+<p>but each head has:</p>
+<div class="math block">
+d_k=2.
+</div>
+<p>Therefore each head's score matrix is still:</p>
+<div class="math block">
+n\times n.
+</div>
+<p>Changing the head dimension changes <strong>how each head represents the token</strong>, but the number of query/key positions determines the attention matrix shape.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+Q_hK_h^T:
+n\times d_k
+\;\times\;
+d_k\times n
+=
+n\times n
+}
+</div>
+<p>This is why the attention matrix is about <strong>token-to-token interactions</strong>, not feature-to-feature interactions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-54">1.9.25 Why Does <span class="math inline">d_k</span> Exist Separately From <span class="math inline">d</span>?</h3>
+<p>This is worth understanding deeply.</p>
+<p>Suppose:</p>
+<div class="math block">
+d=4096.
+</div>
+<p>With:</p>
+<div class="math block">
+h=32,
+</div>
+<p>a common conceptual structure is:</p>
+<div class="math block">
+d_k\approx\frac{4096}{32}=128.
+</div>
+<p>Each head operates in a smaller representation space.</p>
+<p>Thus the model has:</p>
+<div class="math block">
+32
+</div>
+<p>different learned compatibility spaces of roughly:</p>
+<div class="math block">
+128
+</div>
+<p>dimensions each.</p>
+<p>Then their outputs are combined back into the model width.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{large model space}
+\rightarrow
+\text{many smaller attention subspaces}
+\rightarrow
+\text{combined model representation}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-55">1.9.26 How This Relates to the Efficient Implementation</h3>
+<p>The conceptual formulation says:</p>
+<div class="math block">
+Q_h=XW_Q^{(h)}.
+</div>
+<p>But instead of explicitly creating <span class="math inline">h</span> separate matrix multiplications, implementations can construct combined projections.</p>
+<p>For example:</p>
+<div class="math block">
+W_Q\in\mathbb{R}^{d\times(hd_k)}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q.
+</div>
+<p>The result is:</p>
+<div class="math block">
+Q\in\mathbb{R}^{n\times(hd_k)}.
+</div>
+<p>Then reshape:</p>
+<div class="math block">
+\boxed{
+n\times(hd_k)
+\rightarrow
+h\times n\times d_k.
+}
+</div>
+<p>Raschka's later MHA implementation specifically moves from separately stacked single-head modules to this kind of projection-and-reshape approach for efficiency. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-56">1.9.27 So Why Does the Reshape Not Lose Information?</h3>
+<p>Suppose:</p>
+<div class="math block">
+Q\in\mathbb{R}^{3\times8}.
+</div>
+<p>and:</p>
+<div class="math block">
+h=2,\quad d_k=4.
+</div>
+<p>Then:</p>
+<div class="math block">
+3\times8
+</div>
+<p>contains exactly:</p>
+<div class="math block">
+24
+</div>
+<p>numbers.</p>
+<p>Reshaping to:</p>
+<div class="math block">
+2\times3\times4
+</div>
+<p>also contains:</p>
+<div class="math block">
+2\times3\times4=24
+</div>
+<p>numbers.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{reshape changes organization, not the number of elements.}
+}
+</div>
+<p>That is why efficient MHA can project once and split.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-57">1.9.28 One More Deep Insight: What Is Actually Different Between Heads?</h3>
+<p>It is <strong>not</strong> mainly that they have different formulas.</p>
+<p>Every head computes:</p>
+<div class="math block">
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)V.
+</div>
+<p>The difference is:</p>
+<div class="math block">
+\boxed{
+Q_h=XW_Q^{(h)},
+\quad
+K_h=XW_K^{(h)},
+\quad
+V_h=XW_V^{(h)}.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{different parameters}
+\rightarrow
+\text{different projected representations}
+\rightarrow
+\text{different scores}
+\rightarrow
+\text{different attention weights}
+\rightarrow
+\text{different information aggregation}.
+}
+</div>
+<p>That causal chain is much more important than memorizing the acronym MHA.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-58">1.9.29 Common Mistakes</h3>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-59">Mistake 1: &quot;Each head gets a different sequence.&quot;</h5>
+<p>No.</p>
+<p>All heads operate on the same sequence <span class="math inline">X</span>.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-9-i16-60">Mistake 2: &quot;Each head has a different mask.&quot;</h5>
+<p>Not in ordinary causal MHA.</p>
+<p>The same causal connectivity rule applies to each head.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-9-i16-61">Mistake 3: &quot;The attention weights are the output.&quot;</h5>
+<p>No.</p>
+<div class="math block">
+\boxed{
+A=\text{weights}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+O=AV=\text{information moved/aggregated}
+}
+</div>
+<p>The handbook explicitly warns about this. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-9-i16-62">Mistake 4: &quot;Concatenation combines the heads semantically.&quot;</h5>
+<p>Not by itself.</p>
+<p>Concatenation only places the features side-by-side.</p>
+<p>The learned:</p>
+<div class="math block">
+W_O
+</div>
+<p>then projects and mixes them.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-9-i16-63">Mistake 5: &quot;More heads means more model dimension.&quot;</h5>
+<p>Not necessarily.</p>
+<p>Typically:</p>
+<div class="math block">
+d_k\approx d/h
+</div>
+<p>so the total projected width stays around <span class="math inline">d</span>.</p>
+<p>The sources specifically describe using narrower head dimensions when the model width is held fixed. <em>(Source: NLP_TRANSFORMER)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-64">1.9.30 The Full Formula, Now With Every Meaning</h3>
+<p>Here is the formula again:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+=
+\operatorname{Concat}
+\left(
+\operatorname{softmax}
+\left(
+\frac{Q_1K_1^T}{\sqrt{d_k}}+M
+\right)V_1,
+\ldots,
+\operatorname{softmax}
+\left(
+\frac{Q_hK_h^T}{\sqrt{d_k}}+M
+\right)V_h
+\right)W_O
+}
+</div>
+<p>with:</p>
+<div class="math block">
+Q_h=XW_Q^{(h)}
+</div>
+<div class="math block">
+K_h=XW_K^{(h)}
+</div>
+<div class="math block">
+V_h=XW_V^{(h)}.
+</div>
+<p>Now every component should have a mental meaning:</p>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">X</span></td>
+<td>token representations entering attention</td>
+</tr>
+<tr>
+<td><span class="math inline">W_Q^{(h)}</span></td>
+<td>head <span class="math inline">h</span>'s query projection</td>
+</tr>
+<tr>
+<td><span class="math inline">W_K^{(h)}</span></td>
+<td>head <span class="math inline">h</span>'s key projection</td>
+</tr>
+<tr>
+<td><span class="math inline">W_V^{(h)}</span></td>
+<td>head <span class="math inline">h</span>'s value projection</td>
+</tr>
+<tr>
+<td><span class="math inline">Q_h</span></td>
+<td>what each token uses to compute compatibility</td>
+</tr>
+<tr>
+<td><span class="math inline">K_h</span></td>
+<td>representation used to compute compatibility</td>
+</tr>
+<tr>
+<td><span class="math inline">V_h</span></td>
+<td>information that can actually be aggregated</td>
+</tr>
+<tr>
+<td><span class="math inline">Q_hK_h^T</span></td>
+<td>pairwise compatibility scores</td>
+</tr>
+<tr>
+<td><span class="math inline">\sqrt{d_k}</span></td>
+<td>scaling factor</td>
+</tr>
+<tr>
+<td><span class="math inline">M</span></td>
+<td>causal connectivity constraint</td>
+</tr>
+<tr>
+<td>softmax</td>
+<td>converts legal scores to normalized weights</td>
+</tr>
+<tr>
+<td><span class="math inline">A_h</span></td>
+<td>attention probabilities</td>
+</tr>
+<tr>
+<td><span class="math inline">A_hV_h</span></td>
+<td>head output</td>
+</tr>
+<tr>
+<td>Concat</td>
+<td>joins all head outputs</td>
+</tr>
+<tr>
+<td><span class="math inline">W_O</span></td>
+<td>mixes/projects the concatenated head information</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-65">1.9.31 Connection to the Transformer Block</h3>
+<p>We can finally insert our MHA into the block.</p>
+<p>Suppose:</p>
+<div class="math block">
+x=\operatorname{Norm}(X).
+</div>
+<p>Then:</p>
+<div class="math block">
+a=\operatorname{MHA}(x).
+</div>
+<p>Then residual addition:</p>
+<div class="math block">
+\boxed{
+y=x+a
+}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+y=x+\operatorname{MHA}(\operatorname{Norm}(x))
+}
+</div>
+<p>Then comes the next major component:</p>
+<div class="math block">
+\boxed{
+\operatorname{FFN}
+}
+</div>
+<p>which does something fundamentally different from attention.</p>
+<p>And this is the point where we reach the next important question:</p>
+<blockquote>
+<p><strong>Attention mixes information across token positions. What performs computation inside each token position?</strong></p>
+</blockquote>
+<p>The answer is the <strong>position-wise feed-forward network / MLP</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-9-i16-66">Step 1.9 Master Check</h3>
+<p>Before moving to the FFN, make sure these are clear:</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-67">Q1</h5>
+<p>Given:</p>
+<div class="math block">
+d=12,\quad h=3,
+</div>
+<p>what is the typical <span class="math inline">d_k</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-68">Q2</h5>
+<p>If:</p>
+<div class="math block">
+X\in\mathbb{R}^{B\times n\times d},
+</div>
+<p>what is the efficient reshaped query shape after splitting into <span class="math inline">h</span> heads?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-69">Q3</h5>
+<p>Why is:</p>
+<div class="math block">
+Q_hK_h^T
+</div>
+<p>an:</p>
+<div class="math block">
+n\times n
+</div>
+<p>matrix?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-70">Q4</h5>
+<p>What causes two heads to produce different attention distributions?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-71">Q5</h5>
+<p>What exactly happens during:</p>
+<div class="math block">
+O_{\text{concat}}
+=
+\operatorname{Concat}(O_1,O_2,\ldots,O_h)?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-72">Q6</h5>
+<p>Why do we need <span class="math inline">W_O</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-73">Q7</h5>
+<p>Why must MHA ultimately return to width <span class="math inline">d</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-74">Q8</h5>
+<p>What is the difference between:</p>
+<div class="math block">
+A_h
+</div>
+<p>and:</p>
+<div class="math block">
+A_hV_h?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-75">Q9</h5>
+<p>Does the causal mask disappear when using multiple heads?</p>
+<h5 id="v3-heading-chunk-les-step-1-9-i16-76">Q10</h5>
+<p>Complete this chain:</p>
+<div class="math block">
+X
+\rightarrow
+Q,K,V
+\rightarrow
+\boxed{?}
+\rightarrow
+\boxed{?}
+\rightarrow
+\boxed{?}
+\rightarrow
+\operatorname{Concat}
+\rightarrow
+W_O.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-9-i16-77">What we have established so far</h4>
+<p>We started with token representations:</p>
+<div class="math block">
+X
+</div>
+<p>and have now built the complete attention mechanism:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+Q,K,V
+\rightarrow
+QK^T
+\rightarrow
+\frac{QK^T}{\sqrt{d_k}}
+\rightarrow
+\text{causal mask}
+\rightarrow
+\text{softmax}
+\rightarrow
+AV
+\rightarrow
+\text{multi-head}
+\rightarrow
+W_O
+\rightarrow
+\text{residual stream}.
+}
+</div>
+<p>The remaining major component of the Transformer block is the <strong>FFN/MLP</strong>. That is where the architecture switches from <strong>mixing information between tokens</strong> to <strong>transforming each token representation independently</strong>. This division of labor—attention across positions, MLP within positions—is explicitly stated in your Transformer slides. <em>(Source: transformers-slides)</em></p>
+<hr />
+</section>

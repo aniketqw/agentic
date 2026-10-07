@@ -1,0 +1,1627 @@
+<section class="chunk" id="chunk-les-step-3-3-i28" data-id="les-step-3-3-i28"><details class="audit-card" id="audit-full-chunk-les-step-3-3-i28" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-3-3-i28-1">Motivation</h4><p>Translate one low-rank matrix update into selected projections of an entire transformer.</p><h4 id="v3-heading-chunk-les-step-3-3-i28-2">Prerequisites</h4><ul><li>Combined multihead QKV projection dimensions</li><li>Single-layer LoRA count</li><li>Weight sharing</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-3">Notation and units</h4><ul><li>L layers; m targeted matrices per layer</li><li>General count=sum over targets r_i(din_i+dout_i)</li><li>d hidden width; head width dh=d/H; token length n</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-4">Assumptions</h4><ul><li>Four-square-projection example assumes ordinary combined MHA</li><li>Equal rank and dimensions only for simplified Lmr(d+out) formula</li><li>Grouped-query/multiquery key and value projections can be narrower</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-5">Step-by-step derivation</h4><ol><li>Adapt Q=XWQ+s(XBQ)AQ, then retain ordinary score, causal mask, softmax and AV operations.</li><li>Repeat only for explicitly targeted WQ, WK, WV, WO; target selection is a configuration, not a theorem.</li><li>One square adapter has 2rd entries; multiply by target matrices and layers, not by heads again.</li><li>Batch and sequence dimensions affect arithmetic and activation memory; they do not create copies of shared trainable matrices.</li><li>Use actual rectangular K/V dimensions for GQA; sum counts per module rather than applying 4d² blindly.</li></ol><h4 id="v3-heading-chunk-les-step-3-3-i28-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-3-i28-7">Narrow head target</h5><p>Given: din16, dout4, r2</p><ol><li>Original64 entries.</li><li>Adapter2(16+4)=40; reduction 1.6, demonstrating small dimensions reduce savings.</li></ol><p>Answer: 40</p><p>Verification: peft_distillation / P33-basic · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-3-3-i28-8">Complete 32-layer target set</h5><p>Given: L32, m4, d4096, r8, base6.74B</p><ol><li>One target 65,536.</li><li>One layer262,144.</li><li>32 layers8,388,608; fraction 100×8,388,608/6.74B=0.12446%.</li></ol><p>Answer: 8388608</p><p>Verification: peft_distillation / P33-app · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-3-3-i28-9">Corrections and source qualifications</h4><ul></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-10">Mastery answers and retained exercise context</h4><ol><li>Q1–Q10:65536;262144;8388608;.12446%; doubles with rank; doubles with layers; halves with 4→2 targets; independent of token length; combined projection already includes heads; W0 frozen.</li><li>3.3.16 Exam Question
+
+A 32-layer Transformer has hidden size 4096. LoRA rank is 8. LoRA is applied to W_Q, W_K, W_V, W_O in every layer. How many trainable LoRA parameters are introduced?
+
+Step 1 — One projection
+
+8(4096+4096)
+=
+65,536.
+
+Step 2 — Four projections
+
+4(65,536)
+=
+262,144.
+
+Step 3 — 32 layers
+
+32(262,144)
+=
+\boxed{8,388,608}.</li><li>3.3.17 Exam Question — What If Rank Doubles?
+Suppose:
+
+r=16
+
+instead of:
+
+r=8.
+
+Because:
+
+N_{\text{LoRA}}\propto r,
+
+the number doubles:
+
+8,388,608\times 2
+=
+\boxed{16,777,216}.
+
+So:
+
+\boxed{
+r\uparrow2\times
+\Rightarrow
+N_{\text{trainable}}\uparrow2\times.
+}</li><li>3.3.18 Exam Question — What If Layers Double?
+Suppose:
+
+L=64
+
+instead of 32, with everything else unchanged.
+Since:
+
+N\propto L,
+
+we get:
+
+8,388,608\times 2
+=
+\boxed{16,777,216}.
+
+Therefore:
+
+\boxed{
+N_{\text{LoRA}}\propto Lr
+}
+
+when the target dimensions and number of target matrices per layer remain fixed.</li><li>3.3.32 Exam Numerical — Full Attention Adapter Count
+Given:
+
+L=24
+
+
+d=2048
+
+
+r=16
+
+and LoRA on:
+
+W_Q, W_K, W_V, W_O.
+
+One projection:
+
+16(2048+2048)
+=
+16(4096)
+=
+65,536.
+
+Four:
+
+4(65,536)
+=
+262,144.</li><li>3.3.33 Exam Numerical — Percentage
+Suppose the base model has:
+
+3.2B
+
+parameters.
+Suppose LoRA trains:
+
+6,291,456.
+
+Percentage:
+
+\frac{6,291,456}{3.2\times 10^9}\times 100
+
+
+\approx
+\boxed{0.1966\%}.
+
+So approximately:
+
+\boxed{0.20\%}
+
+of the parameters are trainable.</li><li>3.3.43 Cumulative Numerical Bank
+You should now be able to solve:
+Q1
+
+d=4096,\quad r=8.
+
+One square projection:
+
+\boxed{65,536}
+
+LoRA parameters.
+Q2
+Four projections:
+
+\boxed{262,144}
+
+per layer.
+Q3</li><li>This is exactly the progression you need for exam numericals.
+
+Step 3.3 Complete
+We have now connected the abstract LoRA factorization to the actual Transformer.
+The central chain is:
+
+\boxed{
+X
+\rightarrow
+W_Q, W_K, W_V
+\rightarrow
+Q, K, V
+\rightarrow
+Attention
+\rightarrow
+W_O
+}
+
+and LoRA changes the selected projection matrices:
+
+\boxed{
+W_i
+\rightarrow
+W_i+\frac{\alpha}{r}B_iA_i.
+}
+
+For the source&#x27;s 32-layer, 4096-hidden, rank-8 example:
+
+\boxed{
+32\times 4\times 8(4096+4096)
+=
+8,388,608
+}
+
+trainable parameters, approximately:
+
+\boxed{
+0.124\%
+}
+
+of the 6.74B-parameter model. (Source: peft-slides)</li></ol><h4 id="v3-heading-chunk-les-step-3-3-i28-11">Edge cases and remaining gaps</h4><ul><li>Combined projections already contain all heads</li><li>LoRA leaves causal mask semantics intact</li><li>Memory reduction is not equivalent to removing pretrained parameters</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-12">Connections and progression</h4><ul><li>Target shapes connect attention architecture to adapter budgeting and QLoRA</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-13">Exact source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 5, 7 · Four attention targets and exact model-wide count</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 748, 749, 751, 753 · Replacement of linear layers and freezing before insertion</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-14">Executable code and explained functions</h4><p>companion.py: lora_count counts factor entries; lora_forward computes frozen base plus explicit scaled adapter; lora_grad implements the chain rule without updating the base.; quantize and affine use explicit grids, clamping and reconstruction; calibrated searches MSE; compensate solves one quadratic constrained correction, not full GPTQ.; softmax/logsoftmax avoid overflow; kd reports CE/KL/one T² mixture and student-logit gradient; response_targets and response_ce shift once and train response only.; ternary uses declared ties-to-even and absmean clipping; no claim of optimized binary/ternary hardware execution.; Run python checker.py; checker compares independent Decimal sums, scalar calculations, finite differences and KKT stationarity. See evidence.json for every check and its method.</p><p><a href="#audit-full-code-peft_distillation">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (75)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 3.3 — Where LoRA Goes Inside a Transformer</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.1 First Recall the Transformer Attention Block</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.2 There Are Four Important Attention Matrices</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>W_Q</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>W_K</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>W_V</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>W_O</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.3 Now Apply LoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.4 What Does the Forward Pass Now Look Like?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.5 The Important Insight</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.6 Why Are These Good Places to Adapt?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.7 Let&#x27;s Do the Full Attention Computation</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.8 A Small Numerical Shape Example</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.9 Parameter Count for W_Q</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.10 Now Use a Realistic Hidden Size</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.11 Reduction for One Projection</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.12 But One Transformer Layer Has Four Projections</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.13 Now 32 Transformer Layers</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.14 Compare Against the Full Model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.15 This Is the Key Full-Model Numerical</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.16 Exam Question</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 1 — One projection</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 2 — Four projections</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 3 — 32 layers</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.17 Exam Question — What If Rank Doubles?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.18 Exam Question — What If Layers Double?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.19 General Full-Model Formula</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.20 Important: Number of Heads Does Not Appear Here</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.21 Let&#x27;s See Why</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.22 Connection to Our Earlier MHA Lesson</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.23 What About W_O?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.24 Full One-Layer Picture</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.25 Does LoRA Change the Causal Mask?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.26 Does LoRA Change the Softmax?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.27 Does LoRA Change the Transformer Architecture?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.28 LoRA Training Flow</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 4</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 5</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 6</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 7</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.29 Which Parameters Receive Gradients?</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.30 A Critical Training-Memory Point</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.31 Why This Leads Naturally to QLoRA</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>LoRA solves</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Quantization solves</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.32 Exam Numerical — Full Attention Adapter Count</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.33 Exam Numerical — Percentage</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.34 Exam Trap — Four Projections</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.35 Exam Trap — Do Not Multiply by Sequence Length</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.36 Exam Trap — Do Not Multiply by Batch Size</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.37 The Four Different Dimensions You Must Keep Separate</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.38 Full Numerical Shape Problem</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.39 Now Connect It to the Attention Heads</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.40 What the Source Actually Establishes</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.41 Master Formula for This Step</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.42 Master Mental Model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.43 Cumulative Numerical Bank</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q1</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q2</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q3</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q4</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q5</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q6</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q7</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q8</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q9</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Q10</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>3.3.44 The Three Layers of Understanding</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 1 — Matrix</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 2 — Transformer module</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Level 3 — Whole model</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr><tr><td>Step 3.3 Complete</td><td>Educational mechanism reviewed; derivation, source locators, checked examples and boundaries supplied in this lesson review.</td><td></td></tr></tbody></table></details></details><details class="audit-card" id="audit-P03" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> P03 — LoRA trainable counts and whole-model scope</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Distinguish one adapted projection from total model storage and trainable parameters.</p><p><strong>Prerequisites:</strong> <a href="#audit-P01">LoRA orientation and the complete slide numerical</a>, <a href="#audit-T19">Parameter accounting and tied weights</a></p><h4 id="v3-heading-chunk-les-step-3-3-i28-15">Notation and assumptions</h4><p>Adapter weights=r(din+dout); frozen base still stored. Sum counts over selected unique modules. Square same-width matrices give d/(2r) reduction against those matrices only.</p><h4 id="v3-heading-chunk-les-step-3-3-i28-16">Derivation and mechanism</h4><ol><li>Count both thin matrices.</li><li>Sum over actual target modules and shapes.</li><li>Compare that sum to the stated denominator: adapted bases or entire model.</li></ol><div class="math block">P_{adapter}=\sum_{m\in targets}r_m(d_{in,m}+d_{out,m})</div><h4 id="v3-heading-chunk-les-step-3-3-i28-17">Worked example</h4><p>One4096² projection, r8:16,777,216 base weights versus65,536 adapter weights→256×. All four such projections in32layers→8,388,608 trainable weights. Against6.74B total that is≈.12446%, not a claim that the entire model shrinks256×.</p><h4 id="v3-heading-chunk-les-step-3-3-i28-18">Limitations</h4><ul><li>GQA, different FFN widths, unadapted embeddings and extra trainable biases alter the full-model ratio.</li><li>Trainable-count reduction is not an equal factor reduction in total training memory or runtime.</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-19">Connections to later concepts</h4><ul><li>Q08 and A08 separate trainable adapter count from frozen base storage and optimizer-state memory.</li></ul><h4 id="v3-heading-chunk-les-step-3-3-i28-20">Source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 7 · PEFT lecture</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-3-i28-21">Executed code and evidence</h4><p>Functions: parameter_count. Passed checks: LoRA-count</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-3-i28"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-3-i28" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-3-2-i27">← Previous lesson</a> · <a href="#chunk-les-step-3-4-i29">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-2-i27">Step 3.2 — LoRA Factorization: Why \Delta W = BA Works</a></p><p><strong>This lesson:</strong> Step 3.3 — Where LoRA Goes Inside a Transformer</p><p><strong>Source references:</strong> <a href="#source-10">peft-slides</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-3-i28"></a></p>
+<h2>Step 3.3 — Where LoRA Goes Inside a Transformer</h2>
+<p><em>Plan node: I3 · chat order #28</em></p>
+<p>We now know the mathematics of LoRA:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>But we have not yet answered the most important practical question:</p>
+<blockquote>
+<p><strong>Which <span class="math inline">W</span> in a Transformer do we actually replace with LoRA?</strong></p>
+</blockquote>
+<p>This step connects the abstract LoRA matrix to the Transformer we already studied.</p>
+<p>The PEFT lecture's concrete model-scale example applies LoRA to the four attention projections:</p>
+<div class="math block">
+\boxed{W_Q,\;W_K,\;W_V,\;W_O}
+</div>
+<p>in every layer. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-22">3.3.1 First Recall the Transformer Attention Block</h3>
+<p>From our earlier Transformer lessons:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}.
+</div>
+<p>We calculate:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V.
+</div>
+<p>Then:</p>
+<div class="math block">
+S=\frac{QK^T}{\sqrt{d_k}}
+</div>
+<p>followed by:</p>
+<div class="math block">
+A=\operatorname{softmax}(S+M)
+</div>
+<p>and:</p>
+<div class="math block">
+O=AV.
+</div>
+<p>Finally, multi-head attention applies the output projection:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)=\operatorname{Concat}(\text{heads})W_O.
+}
+</div>
+<p>These projection matrices are part of the standard Transformer mathematical structure. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-23">3.3.2 There Are Four Important Attention Matrices</h3>
+<p>So one Transformer attention module contains:</p>
+<div class="math block">
+\boxed{W_Q}
+</div>
+<div class="math block">
+\boxed{W_K}
+</div>
+<div class="math block">
+\boxed{W_V}
+</div>
+<div class="math block">
+\boxed{W_O}.
+</div>
+<p>They have different jobs.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-24"><span class="math inline">W_Q</span></h5>
+<p>Creates queries:</p>
+<div class="math block">
+Q=XW_Q.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-25"><span class="math inline">W_K</span></h5>
+<p>Creates keys:</p>
+<div class="math block">
+K=XW_K.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-26"><span class="math inline">W_V</span></h5>
+<p>Creates values:</p>
+<div class="math block">
+V=XW_V.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-27"><span class="math inline">W_O</span></h5>
+<p>Projects the concatenated head outputs back into the model dimension.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-28">3.3.3 Now Apply LoRA</h3>
+<p>Instead of directly changing:</p>
+<div class="math block">
+W_Q,
+</div>
+<p>we can write:</p>
+<div class="math block">
+\boxed{
+W_Q'
+=
+W_Q+
+\frac{\alpha}{r}B_QA_Q.
+}
+</div>
+<p>Similarly:</p>
+<div class="math block">
+\boxed{
+W_K'
+=
+W_K+
+\frac{\alpha}{r}B_KA_K
+}
+</div>
+<div class="math block">
+\boxed{
+W_V'
+=
+W_V+
+\frac{\alpha}{r}B_VA_V
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+W_O'
+=
+W_O+
+\frac{\alpha}{r}B_OA_O.
+}
+</div>
+<p>So the original attention becomes a <strong>frozen base path plus trainable low-rank corrections</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-29">3.3.4 What Does the Forward Pass Now Look Like?</h3>
+<p>Originally:</p>
+<div class="math block">
+Q=XW_Q.
+</div>
+<p>With LoRA:</p>
+<div class="math block">
+Q=XW_Q'.
+</div>
+<p>Substitute:</p>
+<div class="math block">
+Q
+=
+X\left(W_Q+\frac{\alpha}{r}B_QA_Q\right).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q+\frac{\alpha}{r}(XB_Q)A_Q.
+}
+</div>
+<p>Exactly the same idea we derived in Step 3.2.</p>
+<p>Likewise:</p>
+<div class="math block">
+\boxed{
+K=XW_K+\frac{\alpha}{r}(XB_K)A_K
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+V=XW_V+\frac{\alpha}{r}(XB_V)A_V.
+}
+</div>
+<p>Then attention proceeds normally.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-30">3.3.5 The Important Insight</h3>
+<p>LoRA does <strong>not</strong> replace attention.</p>
+<p>It does not change:</p>
+<div class="math block">
+QK^T
+</div>
+<p>or:</p>
+<div class="math block">
+\operatorname{softmax}
+</div>
+<p>or:</p>
+<div class="math block">
+AV.
+</div>
+<p>Instead, it changes how the model <strong>constructs the projections feeding attention</strong>.</p>
+<p>So:</p>
+<pre><code class="language-text">Original Transformer
+
+X
+│
+├── WQ ──&gt; Q
+├── WK ──&gt; K
+└── WV ──&gt; V
+          │
+          ▼
+      Attention
+          │
+          ▼
+         WO
+</code></pre>
+<p>becomes:</p>
+<pre><code class="language-text">LoRA Transformer
+
+             frozen WQ
+X ───────────────┐
+                 ├──&gt; Q
+        LoRA ────┘
+
+             frozen WK
+X ───────────────┐
+                 ├──&gt; K
+        LoRA ────┘
+
+             frozen WV
+X ───────────────┐
+                 ├──&gt; V
+        LoRA ────┘
+
+              Attention
+                  │
+                  ▼
+
+             frozen WO
+                  │
+             + LoRA
+                  │
+                  ▼
+                 output
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-31">3.3.6 Why Are These Good Places to Adapt?</h3>
+<p>The attention projections determine the representations used to decide:</p>
+<blockquote>
+<p>What information should interact with what other information?</p>
+</blockquote>
+<p>Recall:</p>
+<div class="math block">
+QK^T
+</div>
+<p>determines compatibility.</p>
+<p>So changing:</p>
+<div class="math block">
+W_Q,W_K
+</div>
+<p>can change the attention relationships.</p>
+<p>Changing:</p>
+<div class="math block">
+W_V
+</div>
+<p>changes the content being transported.</p>
+<p>Changing:</p>
+<div class="math block">
+W_O
+</div>
+<p>changes how the resulting head information is recombined.</p>
+<p>Thus, even though the LoRA matrices are small, they sit at important transformation points inside the network.</p>
+<p>The supplied PEFT material directly demonstrates the attention-projection application; broader claims about <em>why these are universally optimal target modules</em> are not established by the slide itself, so we should not treat that as a source-derived guarantee.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-32">3.3.7 Let's Do the Full Attention Computation</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}.
+</div>
+<p>With LoRA:</p>
+<div class="math block">
+W_Q'
+=
+W_Q+\frac{\alpha}{r}B_QA_Q.
+</div>
+<p>Then:</p>
+<div class="math block">
+Q=XW_Q'.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+K=XW_K'
+</div>
+<p>and:</p>
+<div class="math block">
+V=XW_V'.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+S=\frac{QK^T}{\sqrt{d_k}}
+}
+</div>
+<div class="math block">
+\boxed{
+A=\operatorname{softmax}(S+M)
+}
+</div>
+<div class="math block">
+\boxed{
+O=AV.
+}
+</div>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+Y=OW_O'
+}
+</div>
+<p>for the simplified single-matrix representation.</p>
+<p>The attention mathematics itself has not changed.</p>
+<p>Only the learned projections have received low-rank trainable updates.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-33">3.3.8 A Small Numerical Shape Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+n=8,
+\qquad
+d=16,
+\qquad
+d_k=4.
+</div>
+<p>For one attention projection:</p>
+<div class="math block">
+W_Q\in\mathbb{R}^{16\times4}.
+</div>
+<p>Take:</p>
+<div class="math block">
+r=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+B_Q\in\mathbb{R}^{16\times2}
+</div>
+<p>and:</p>
+<div class="math block">
+A_Q\in\mathbb{R}^{2\times4}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+B_QA_Q
+</div>
+<p>has shape:</p>
+<div class="math block">
+(16\times2)(2\times4)
+=
+\boxed{16\times4}.
+</div>
+<p>Exactly the shape of:</p>
+<div class="math block">
+W_Q.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-34">3.3.9 Parameter Count for <span class="math inline">W_Q</span></h3>
+<p>Original:</p>
+<div class="math block">
+16\times4=64
+</div>
+<p>parameters.</p>
+<p>LoRA:</p>
+<div class="math block">
+2(16+4)
+=
+40.
+</div>
+<p>So for this deliberately small example, the reduction is:</p>
+<div class="math block">
+\frac{64}{40}=1.6.
+</div>
+<p>Notice something important:</p>
+<blockquote>
+<p>LoRA is only strongly parameter-efficient when <span class="math inline">r</span> is <strong>much smaller</strong> than the layer dimensions.</p>
+</blockquote>
+<p>That is why the condition:</p>
+<div class="math block">
+\boxed{
+r\ll d,d_{\text{out}}
+}
+</div>
+<p>matters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-35">3.3.10 Now Use a Realistic Hidden Size</h3>
+<p>The PEFT lecture uses:</p>
+<div class="math block">
+d=4096
+</div>
+<p>and:</p>
+<div class="math block">
+r=8.
+</div>
+<p>For a square attention projection:</p>
+<div class="math block">
+W_Q\in\mathbb{R}^{4096\times4096}.
+</div>
+<p>Full parameter count:</p>
+<div class="math block">
+4096^2
+=
+\boxed{16,777,216}.
+</div>
+<p>LoRA parameter count:</p>
+<div class="math block">
+8(4096+4096)
+</div>
+<div class="math block">
+=
+8(8192)
+</div>
+<div class="math block">
+=
+\boxed{65,536}.
+</div>
+<p>This is the source's exact numerical example. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-36">3.3.11 Reduction for One Projection</h3>
+<div class="math block">
+\frac{16,777,216}{65,536}
+=
+\boxed{256}.
+</div>
+<p>So instead of training:</p>
+<div class="math block">
+16.78\text{ million}
+</div>
+<p>parameters for one projection, we train:</p>
+<div class="math block">
+65,536.
+</div>
+<p>The reduction is:</p>
+<div class="math block">
+\boxed{256\times}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-37">3.3.12 But One Transformer Layer Has Four Projections</h3>
+<p>The source applies LoRA to:</p>
+<div class="math block">
+\boxed{
+W_Q,W_K,W_V,W_O.
+}
+</div>
+<p>So there are:</p>
+<div class="math block">
+4
+</div>
+<p>such matrices.</p>
+<p>Each requires:</p>
+<div class="math block">
+65,536
+</div>
+<p>LoRA parameters.</p>
+<p>Therefore:</p>
+<div class="math block">
+4\times65,536
+</div>
+<div class="math block">
+=
+\boxed{262,144}
+</div>
+<p>trainable parameters per layer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-38">3.3.13 Now 32 Transformer Layers</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=32.
+</div>
+<p>Then:</p>
+<div class="math block">
+32\times262,144
+</div>
+<div class="math block">
+=
+\boxed{8,388,608}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+8,388,608
+}
+</div>
+<p>LoRA parameters are trainable across all four attention projections of all 32 layers.</p>
+<p>This exact full-model calculation appears in your PEFT lecture. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-39">3.3.14 Compare Against the Full Model</h3>
+<p>The source's model is described as:</p>
+<div class="math block">
+\boxed{6.74B}
+</div>
+<p>total parameters.</p>
+<p>LoRA trains:</p>
+<div class="math block">
+8,388,608.
+</div>
+<p>Calculate the fraction:</p>
+<div class="math block">
+\frac{8,388,608}{6.74\times10^9}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+0.001244.
+</div>
+<p>As a percentage:</p>
+<div class="math block">
+0.1244\%.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\approx0.124\%
+}
+</div>
+<p>of the model parameters are trained.</p>
+<p>The remaining approximately:</p>
+<div class="math block">
+\boxed{99.876\%}
+</div>
+<p>are frozen under this setup.</p>
+<p>This is the exact percentage highlighted by the PEFT lecture. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-40">3.3.15 This Is the Key Full-Model Numerical</h3>
+<p>Memorize the <strong>derivation</strong>, not just the answer.</p>
+<p>Given:</p>
+<div class="math block">
+d=4096,
+\quad r=8,
+\quad L=32.
+</div>
+<p>One projection:</p>
+<div class="math block">
+r(2d)
+=
+8(8192)
+=
+65,536.
+</div>
+<p>Four projections:</p>
+<div class="math block">
+4(65,536)
+=
+262,144.
+</div>
+<p>32 layers:</p>
+<div class="math block">
+32(262,144)
+=
+\boxed{8,388,608}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+8.39\text{ million trainable parameters}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-41">3.3.16 Exam Question</h3>
+<blockquote>
+<p>A 32-layer Transformer has hidden size <span class="math inline">4096</span>. LoRA rank is <span class="math inline">8</span>. LoRA is applied to <span class="math inline">W_Q,W_K,W_V,W_O</span> in every layer. How many trainable LoRA parameters are introduced?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-42">Step 1 — One projection</h5>
+<div class="math block">
+8(4096+4096)
+=
+65,536.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-43">Step 2 — Four projections</h5>
+<div class="math block">
+4(65,536)
+=
+262,144.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-44">Step 3 — 32 layers</h5>
+<div class="math block">
+32(262,144)
+=
+\boxed{8,388,608}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-45">3.3.17 Exam Question — What If Rank Doubles?</h3>
+<p>Suppose:</p>
+<div class="math block">
+r=16
+</div>
+<p>instead of:</p>
+<div class="math block">
+r=8.
+</div>
+<p>Because:</p>
+<div class="math block">
+N_{\text{LoRA}}\propto r,
+</div>
+<p>the number doubles:</p>
+<div class="math block">
+8,388,608\times2
+=
+\boxed{16,777,216}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r\uparrow2\times
+\Rightarrow
+N_{\text{trainable}}\uparrow2\times.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-46">3.3.18 Exam Question — What If Layers Double?</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=64
+</div>
+<p>instead of 32, with everything else unchanged.</p>
+<p>Since:</p>
+<div class="math block">
+N\propto L,
+</div>
+<p>we get:</p>
+<div class="math block">
+8,388,608\times2
+=
+\boxed{16,777,216}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA}}\propto Lr
+}
+</div>
+<p>when the target dimensions and number of target matrices per layer remain fixed.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-47">3.3.19 General Full-Model Formula</h3>
+<p>Suppose:</p>
+<ul>
+<li><span class="math inline">L</span> = number of layers,</li>
+<li><span class="math inline">m</span> = number of targeted matrices per layer,</li>
+<li>each matrix has dimensions <span class="math inline">d\times d_{\text{out}}</span>,</li>
+<li>LoRA rank <span class="math inline">r</span>.</li>
+</ul>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA,total}}
+=
+L\,m\,r(d+d_{\text{out}}).
+}
+</div>
+<p>For the source example:</p>
+<div class="math block">
+L=32
+</div>
+<div class="math block">
+m=4
+</div>
+<div class="math block">
+r=8
+</div>
+<div class="math block">
+d=d_{\text{out}}=4096.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+32\times4\times8(4096+4096)
+</div>
+<div class="math block">
+=
+\boxed{8,388,608}.
+</div>
+<p>This formula is one of the most useful exam formulas from this section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-48">3.3.20 Important: Number of Heads Does Not Appear Here</h3>
+<p>You might ask:</p>
+<blockquote>
+<p>&quot;The Transformer has multiple attention heads. Why didn't we multiply by the number of heads?&quot;</p>
+</blockquote>
+<p>Because in the standard combined projection representation:</p>
+<div class="math block">
+W_Q\in\mathbb{R}^{d\times d}
+</div>
+<p>already produces the projections for all heads.</p>
+<p>For example:</p>
+<div class="math block">
+d=4096.
+</div>
+<p>If:</p>
+<div class="math block">
+H=32,
+</div>
+<p>then each head might have:</p>
+<div class="math block">
+d_h=\frac{4096}{32}=128.
+</div>
+<p>But the combined <span class="math inline">W_Q</span> is still:</p>
+<div class="math block">
+4096\times4096.
+</div>
+<p>So you do <strong>not</strong> multiply its parameter count by 32 again.</p>
+<p>This is an important exam trap.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-49">3.3.21 Let's See Why</h3>
+<p>The combined projection produces:</p>
+<div class="math block">
+Q=XW_Q.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+X:n\times4096
+</div>
+<p>and:</p>
+<div class="math block">
+W_Q:4096\times4096.
+</div>
+<p>Then:</p>
+<div class="math block">
+Q:n\times4096.
+</div>
+<p>Afterward, reshape:</p>
+<div class="math block">
+n\times4096
+</div>
+<p>into:</p>
+<div class="math block">
+32\times n\times128.
+</div>
+<p>So the head separation happens <strong>after</strong> the projection.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_Q\text{ already contains all head projections}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-50">3.3.22 Connection to Our Earlier MHA Lesson</h3>
+<p>Previously we learned:</p>
+<div class="math block">
+d_h=\frac{d}{H}.
+</div>
+<p>For:</p>
+<div class="math block">
+d=4096,\quad H=32,
+</div>
+<p>we get:</p>
+<div class="math block">
+d_h=128.
+</div>
+<p>The Q tensor can be viewed as:</p>
+<div class="math block">
+Q\in\mathbb{R}^{n\times32\times128}
+</div>
+<p>or, depending on convention:</p>
+<div class="math block">
+32\times n\times128.
+</div>
+<p>But the LoRA target matrix before reshaping is:</p>
+<div class="math block">
+\boxed{
+W_Q:4096\times4096.
+}
+</div>
+<p>This connects the LoRA lesson directly back to the Transformer mathematics we already completed.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-51">3.3.23 What About <span class="math inline">W_O</span>?</h3>
+<p>After attention:</p>
+<div class="math block">
+\text{Concat(head}_1,\ldots,\text{head}_H)
+</div>
+<p>returns to model width:</p>
+<div class="math block">
+n\times d.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_O\in\mathbb{R}^{d\times d}
+</div>
+<p>projects it.</p>
+<p>So for:</p>
+<div class="math block">
+d=4096,
+</div>
+<p>we again have:</p>
+<div class="math block">
+4096\times4096.
+</div>
+<p>Therefore <span class="math inline">W_O</span> receives exactly the same LoRA parameter count in the source's simplified model:</p>
+<div class="math block">
+\boxed{65,536}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-52">3.3.24 Full One-Layer Picture</h3>
+<p>For one Transformer layer:</p>
+<pre><code class="language-text">                  X
+                  │
+        ┌─────────┼─────────┐
+        │         │         │
+       WQ        WK        WV
+        │         │         │
+      +LoRA     +LoRA     +LoRA
+        │         │         │
+        ▼         ▼         ▼
+        Q         K         V
+         \        │        /
+          \       │       /
+             Attention
+                 │
+                 ▼
+             Concat heads
+                 │
+               WO
+              +LoRA
+                 │
+                 ▼
+             Attention
+              output
+</code></pre>
+<p>So LoRA is attached to the linear projections, while the attention operation itself remains the same.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-53">3.3.25 Does LoRA Change the Causal Mask?</h3>
+<p>No.</p>
+<p>The causal mask is still:</p>
+<div class="math block">
+M_{ij}
+=
+\begin{cases}
+0,&amp;j\le i\\
+-\infty,&amp;j&gt;i.
+\end{cases}
+</div>
+<p>LoRA changes the learned projections:</p>
+<div class="math block">
+W_Q,W_K,W_V,W_O.
+</div>
+<p>It does <strong>not</strong> remove the autoregressive constraint.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{LoRA adaptation}\neq\text{change to causal masking}.
+}
+</div>
+<p>The attention mathematics remains:</p>
+<div class="math block">
+A=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right).
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-54">3.3.26 Does LoRA Change the Softmax?</h3>
+<p>Again:</p>
+<div class="math block">
+\boxed{\text{No.}}
+</div>
+<p>The ordinary attention calculation remains.</p>
+<p>LoRA changes:</p>
+<div class="math block">
+Q,\ K,\ V
+</div>
+<p>through their projections.</p>
+<p>Then the usual:</p>
+<div class="math block">
+QK^T
+</div>
+<p>and softmax operate on those adapted representations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-55">3.3.27 Does LoRA Change the Transformer Architecture?</h3>
+<p>At the conceptual level:</p>
+<div class="math block">
+\boxed{
+\text{No major architectural redesign is required.}
+}
+</div>
+<p>You have:</p>
+<div class="math block">
+\text{same Transformer}
++
+\text{small trainable low-rank branches}.
+</div>
+<p>This is why PEFT is attractive: the pretrained architecture remains largely intact.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-56">3.3.28 LoRA Training Flow</h3>
+<p>Now imagine training.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-57">Step 1</h5>
+<p>Load pretrained model:</p>
+<div class="math block">
+W_0.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-58">Step 2</h5>
+<p>Freeze:</p>
+<div class="math block">
+W_0.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-59">Step 3</h5>
+<p>Insert LoRA factors:</p>
+<div class="math block">
+A,B.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-60">Step 4</h5>
+<p>Initialize them according to the LoRA scheme.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-61">Step 5</h5>
+<p>Run forward pass:</p>
+<div class="math block">
+XW_0+\frac{\alpha}{r}(XB)A.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-62">Step 6</h5>
+<p>Calculate task loss:</p>
+<div class="math block">
+L.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-63">Step 7</h5>
+<p>Backpropagate.</p>
+<p>Gradients update:</p>
+<div class="math block">
+\boxed{A,B}
+</div>
+<p>but not:</p>
+<div class="math block">
+\boxed{W_0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-64">3.3.29 Which Parameters Receive Gradients?</h3>
+<p>For full fine-tuning:</p>
+<div class="math block">
+\nabla_{W_0}L\neq0
+</div>
+<p>and optimizer updates <span class="math inline">W_0</span>.</p>
+<p>For LoRA:</p>
+<div class="math block">
+\boxed{
+W_0\text{ frozen}
+}
+</div>
+<p>so it is not updated.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\nabla_A L,\nabla_B L
+}
+</div>
+<p>are used to train the adapters.</p>
+<p>This is where the huge reduction in trainable state comes from.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-65">3.3.30 A Critical Training-Memory Point</h3>
+<p>Suppose:</p>
+<div class="math block">
+N_{\text{base}}=6.74B
+</div>
+<p>but:</p>
+<div class="math block">
+N_{\text{LoRA}}=8.39M.
+</div>
+<p>The base model still has to <strong>exist in memory</strong> for the forward pass.</p>
+<p>So do not conclude:</p>
+<blockquote>
+<p>&quot;Only 8.39M parameters exist during training.&quot;</p>
+</blockquote>
+<p>No.</p>
+<p>Rather:</p>
+<div class="math block">
+\boxed{
+6.74B\text{ base parameters exist, but only }8.39M\text{ are trainable in this example}.
+}
+</div>
+<p>This distinction becomes especially important when we reach:</p>
+<div class="math block">
+\boxed{\text{quantization + QLoRA}}
+</div>
+<p>because quantization then attacks the memory footprint of the frozen base model itself.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-66">3.3.31 Why This Leads Naturally to QLoRA</h3>
+<p>We now have two different problems:</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-67">LoRA solves</h5>
+<div class="math block">
+\boxed{
+\text{too many trainable parameters}.
+}
+</div>
+<p>But the frozen model can still be enormous.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-68">Quantization solves</h5>
+<div class="math block">
+\boxed{
+\text{large memory footprint of model weights}.
+}
+</div>
+<p>Therefore the natural combination is:</p>
+<div class="math block">
+\boxed{
+\text{quantized frozen base}
++
+\text{trainable LoRA adapters}.
+}
+</div>
+<p>That will become <strong>QLoRA</strong> later.</p>
+<p>Do not jump there yet—we first need to complete the LoRA mechanics.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-69">3.3.32 Exam Numerical — Full Attention Adapter Count</h3>
+<p>Given:</p>
+<div class="math block">
+L=24
+</div>
+<div class="math block">
+d=2048
+</div>
+<div class="math block">
+r=16
+</div>
+<p>and LoRA on:</p>
+<div class="math block">
+W_Q,W_K,W_V,W_O.
+</div>
+<p>One projection:</p>
+<div class="math block">
+16(2048+2048)
+=
+16(4096)
+=
+65,536.
+</div>
+<p>Four:</p>
+<div class="math block">
+4(65,536)
+=
+262,144.
+</div>
+<p>24 layers:</p>
+<div class="math block">
+24(262,144)
+=
+\boxed{6,291,456}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-70">3.3.33 Exam Numerical — Percentage</h3>
+<p>Suppose the base model has:</p>
+<div class="math block">
+3.2B
+</div>
+<p>parameters.</p>
+<p>Suppose LoRA trains:</p>
+<div class="math block">
+6,291,456.
+</div>
+<p>Percentage:</p>
+<div class="math block">
+\frac{6,291,456}{3.2\times10^9}\times100
+</div>
+<div class="math block">
+\approx
+\boxed{0.1966\%}.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{0.20\%}
+</div>
+<p>of the parameters are trainable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-71">3.3.34 Exam Trap — Four Projections</h3>
+<p>If the question says:</p>
+<blockquote>
+<p>Apply LoRA to all four attention projections.</p>
+</blockquote>
+<p>You multiply by:</p>
+<div class="math block">
+\boxed{4}.
+</div>
+<p>If it says:</p>
+<blockquote>
+<p>Apply LoRA only to <span class="math inline">W_Q</span> and <span class="math inline">W_V</span>.</p>
+</blockquote>
+<p>You multiply by:</p>
+<div class="math block">
+\boxed{2}.
+</div>
+<p>If it says only:</p>
+<div class="math block">
+W_Q,
+</div>
+<p>multiply by:</p>
+<div class="math block">
+\boxed{1}.
+</div>
+<p>So always identify:</p>
+<div class="math block">
+\boxed{
+m=\text{number of target matrices per layer}.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+N=Lmr(d+d_{\text{out}}).
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-72">3.3.35 Exam Trap — Do Not Multiply by Sequence Length</h3>
+<p>The LoRA parameter count:</p>
+<div class="math block">
+Lmr(d+d_{\text{out}})
+</div>
+<p>does <strong>not</strong> depend on:</p>
+<div class="math block">
+n=\text{sequence length}.
+</div>
+<p>Why?</p>
+<p>Because the trainable matrices are model parameters.</p>
+<p>The sequence length changes the amount of computation/activation processing, but it does not create new copies of <span class="math inline">W_Q</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA parameters}}\neq f(n).
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-73">3.3.36 Exam Trap — Do Not Multiply by Batch Size</h3>
+<p>Similarly:</p>
+<div class="math block">
+B=\text{batch size}
+</div>
+<p>does not multiply the number of LoRA parameters.</p>
+<p>The same LoRA matrices are shared across every example in the batch.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA parameters}}
+\text{ is independent of batch size}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-74">3.3.37 The Four Different Dimensions You Must Keep Separate</h3>
+<p>This is particularly important for numerical questions.</p>
+<div class="math block">
+\boxed{d}
+</div>
+<p>= model/hidden dimension.</p>
+<div class="math block">
+\boxed{d_h}
+</div>
+<p>= per-head dimension.</p>
+<div class="math block">
+\boxed{r}
+</div>
+<p>= LoRA rank.</p>
+<div class="math block">
+\boxed{n}
+</div>
+<p>= sequence length.</p>
+<p>Do not substitute one for another.</p>
+<p>For example:</p>
+<div class="math block">
+d=4096,
+\quad
+H=32,
+\quad
+d_h=128,
+\quad
+r=8,
+\quad
+n=2048.
+</div>
+<p>All five numbers have completely different meanings.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-75">3.3.38 Full Numerical Shape Problem</h3>
+<p>Suppose:</p>
+<div class="math block">
+n=128
+</div>
+<div class="math block">
+d=4096
+</div>
+<div class="math block">
+H=32
+</div>
+<div class="math block">
+d_h=128
+</div>
+<div class="math block">
+r=8.
+</div>
+<p>For <span class="math inline">W_Q</span>:</p>
+<div class="math block">
+W_Q:4096\times4096.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+B_Q:4096\times8
+</div>
+<div class="math block">
+A_Q:8\times4096.
+</div>
+<p>Input:</p>
+<div class="math block">
+X:128\times4096.
+</div>
+<p>Then:</p>
+<div class="math block">
+XB_Q:
+(128\times4096)(4096\times8)
+</div>
+<div class="math block">
+=
+\boxed{128\times8}.
+</div>
+<p>Then:</p>
+<div class="math block">
+(XB_Q)A_Q:
+(128\times8)(8\times4096)
+</div>
+<div class="math block">
+=
+\boxed{128\times4096}.
+</div>
+<p>This is added to:</p>
+<div class="math block">
+XW_Q:
+(128\times4096)(4096\times4096)
+=
+\boxed{128\times4096}.
+</div>
+<p>Everything is dimensionally consistent.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-76">3.3.39 Now Connect It to the Attention Heads</h3>
+<p>The resulting:</p>
+<div class="math block">
+Q:128\times4096
+</div>
+<p>is reshaped into:</p>
+<div class="math block">
+\boxed{
+32\times128\times128
+}
+</div>
+<p>depending on tensor ordering.</p>
+<p>That's:</p>
+<div class="math block">
+H\times n\times d_h.
+</div>
+<p>So:</p>
+<div class="math block">
+32\times128\times128
+=
+524,288
+</div>
+<p>elements, which is exactly:</p>
+<div class="math block">
+128\times4096.
+</div>
+<p>Again, the LoRA operation happened <strong>before the head split</strong> in this standard combined-projection representation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-77">3.3.40 What the Source Actually Establishes</h3>
+<p>The strongest source-derived result for this step is the concrete PEFT example:</p>
+<div class="math block">
+\boxed{
+W_Q,W_K,W_V,W_O
+}
+</div>
+<p>with:</p>
+<div class="math block">
+d=4096,\quad r=8,
+</div>
+<p>across:</p>
+<div class="math block">
+32
+</div>
+<p>layers, giving:</p>
+<div class="math block">
+\boxed{
+8,388,608
+}
+</div>
+<p>trainable LoRA parameters out of:</p>
+<div class="math block">
+\boxed{
+6.74B
+}
+</div>
+<p>total parameters, or approximately:</p>
+<div class="math block">
+\boxed{
+0.124\%.
+}
+</div>
+<p><em>(Source: peft-slides)</em></p>
+<p>The source does <strong>not</strong> establish that every Transformer architecture should always target exactly these four matrices. So for architecture-specific target-module choices, we should treat them as configuration choices rather than a universal theorem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-78">3.3.41 Master Formula for This Step</h3>
+<p>For <span class="math inline">L</span> layers, <span class="math inline">m</span> target matrices per layer, matrix shape <span class="math inline">d\times d_{\text{out}}</span>, and rank <span class="math inline">r</span>:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA}}
+=
+Lmr(d+d_{\text{out}})
+}
+</div>
+<p>For square attention projections:</p>
+<div class="math block">
+d=d_{\text{out}},
+</div>
+<p>therefore:</p>
+<div class="math block">
+\boxed{
+N_{\text{LoRA}}
+=
+2Lmrd.
+}
+</div>
+<p>For the supplied example:</p>
+<div class="math block">
+2(32)(4)(8)(4096)
+</div>
+<div class="math block">
+=
+\boxed{8,388,608}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-79">3.3.42 Master Mental Model</h3>
+<p>At the <strong>model level</strong>:</p>
+<pre><code class="language-text">                 PRETRAINED TRANSFORMER
+                         │
+                  freeze W0 everywhere
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+         WQ             WK             WV
+          │              │              │
+       + LoRA         + LoRA         + LoRA
+          │              │              │
+          └──────────────┼──────────────┘
+                         │
+                     ATTENTION
+                         │
+                         ▼
+                        WO
+                         │
+                      + LoRA
+                         │
+                         ▼
+                 Transformer output
+</code></pre>
+<p>And mathematically:</p>
+<div class="math block">
+\boxed{
+W_i'
+=
+W_i+\frac{\alpha}{r}B_iA_i
+}
+</div>
+<p>for each selected projection <span class="math inline">i</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-80">3.3.43 Cumulative Numerical Bank</h3>
+<p>You should now be able to solve:</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-81">Q1</h5>
+<div class="math block">
+d=4096,\quad r=8.
+</div>
+<p>One square projection:</p>
+<div class="math block">
+\boxed{65,536}
+</div>
+<p>LoRA parameters.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-82">Q2</h5>
+<p>Four projections:</p>
+<div class="math block">
+\boxed{262,144}
+</div>
+<p>per layer.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-83">Q3</h5>
+<p>32 layers:</p>
+<div class="math block">
+\boxed{8,388,608}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-84">Q4</h5>
+<p>Percentage of 6.74B:</p>
+<div class="math block">
+\boxed{\approx0.124\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-85">Q5</h5>
+<p>If <span class="math inline">r</span> doubles:</p>
+<div class="math block">
+\boxed{\text{LoRA parameters double}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-86">Q6</h5>
+<p>If layers double:</p>
+<div class="math block">
+\boxed{\text{LoRA parameters double}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-87">Q7</h5>
+<p>If target matrices change from 4 to 2:</p>
+<div class="math block">
+\boxed{\text{LoRA parameters halve}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-88">Q8</h5>
+<p>Does sequence length change trainable parameter count?</p>
+<div class="math block">
+\boxed{\text{No}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-89">Q9</h5>
+<p>Does number of heads require another multiplication?</p>
+<div class="math block">
+\boxed{\text{No, not for the combined }d\times d\text{ projection representation}.}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-90">Q10</h5>
+<p>What remains frozen?</p>
+<div class="math block">
+\boxed{\text{the pretrained base weights }W_0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-91">3.3.44 The Three Layers of Understanding</h3>
+<p>At this point you should see LoRA at three levels.</p>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-92">Level 1 — Matrix</h5>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-93">Level 2 — Transformer module</h5>
+<div class="math block">
+\boxed{
+W_Q,W_K,W_V,W_O
+\rightarrow
+\text{LoRA adaptations}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-3-i28-94">Level 3 — Whole model</h5>
+<div class="math block">
+\boxed{
+N=Lmr(d+d_{\text{out}})
+}
+</div>
+<p>This is exactly the progression you need for exam numericals.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-3-i28-95">Step 3.3 Complete</h3>
+<p>We have now connected the abstract LoRA factorization to the actual Transformer.</p>
+<p>The central chain is:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+W_Q,W_K,W_V
+\rightarrow
+Q,K,V
+\rightarrow
+Attention
+\rightarrow
+W_O
+}
+</div>
+<p>and LoRA changes the selected projection matrices:</p>
+<div class="math block">
+\boxed{
+W_i
+\rightarrow
+W_i+\frac{\alpha}{r}B_iA_i.
+}
+</div>
+<p>For the source's 32-layer, 4096-hidden, rank-8 example:</p>
+<div class="math block">
+\boxed{
+32\times4\times8(4096+4096)
+=
+8,388,608
+}
+</div>
+<p>trainable parameters, approximately:</p>
+<div class="math block">
+\boxed{
+0.124\%
+}
+</div>
+<p>of the 6.74B-parameter model. <em>(Source: peft-slides)</em></p>
+<hr />
+</section>

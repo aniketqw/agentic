@@ -1,0 +1,50 @@
+<section class="chunk" id="chunk-g-quantization-p32" data-id="g-quantization-p32"><div class="v3-note" data-v3="added"><a href="#v3-quantization">Read the teaching bridge for this source page</a> · syllabus 04.31. Original source image and extract follow.</div><p><a id="g-quantization-p32"></a></p>
+<h3 id="v3-heading-chunk-g-quantization-p32-1">Slide 32 — Why not skip dequantizing — the next layer just requantizes anyway?</h3>
+<p><img loading="lazy" decoding="async" width="1180" height="362" src="assets/40a0167f394051e3f8f8.png" alt="quantization-slides slide 32: Why not skip dequantizing — the next layer just requantizes anyway?" /></p>
+<details><summary>Slide text (extracted)</summary>
+<pre><code class="language-text">Why not skip dequantizing — the next layer just requantizes anyway?
+Two independent reasons the real values have to reappear, even briefly. First: Yint32 isn't in any usable unit on its own — it's scaled by this layer's joint scale sx ⋅ sw ,
+​
+
+​
+
+​
+
+and whatever sits between two matmuls (GELU, softmax, LayerNorm, a residual add) needs real, comparable numbers to compute correctly, not raw accumulator
+values in an arbitrary per-layer scale.
+VA LU E
+
+Yint32 (raw accumulator, one entry)
+
+12614
+
+joint scale sx ⋅ sw (this layer only)
+
+4032.25
+
+Y = Yint32 /(sx sw ) — the real value
+
+3.128
+
+​
+
+​
+
+​
+
+​
+
+​
+
+​
+
+Second, even for two matmuls with nothing in between: the next layer's dynamic quantization still has to measure α = max ∣Y ∣ to build its own fresh scale.
+
+max ∣Yint32 ∣ = 12614 alone is useless for that — it still carries the old joint scale baked in. Getting max ∣Y ∣ = 3.128, the number the next scale actually gets
+​
+
+calibrated from, requires that same division. Some form of dequantization is what produces the next layer's calibration input — it can't be skipped just because a
+requantization follows it.
+</code></pre>
+</details>
+</section>

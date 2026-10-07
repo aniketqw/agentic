@@ -1,0 +1,436 @@
+<section class="chunk" id="chunk-les-r101-1-i113" data-id="les-r101-1-i113"><details class="audit-card" id="audit-full-chunk-les-r101-1-i113" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-r101-1-i113-1">Motivation</h4><p>Fit a desired effective batch with smaller live activation batches while preserving the intended mean objective.</p><h4 id="v3-heading-chunk-les-r101-1-i113-2">Prerequisites</h4><ul><li>Mini-batch SGD and weighted means</li><li>GPU state versus activation memory</li><li>MoE top-k routing</li><li>Critical paths and collective communication</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-3">Notation and units</h4><ul><li>B_micro: sequences/replica; R: DP replicas; A: accumulation count</li><li>P: pipeline stages; M: microbatches; F/B: forward/backward chunk duration</li><li>T: tokens; k: top-k; d: representation width; s: bytes/element</li><li>N_experts: expert count; rho: remote assignment fraction</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-4">Assumptions</h4><ul><li>All toy numerical inputs and normalization conventions are stated explicitly.</li><li>The teaching companion requires NumPy and runs on CPU; it claims no production backend execution.</li><li>Schedule formulas assume equal-duration stages and declared independent communication; traffic counts exclude unstated overhead.</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-5">Step-by-step derivation</h4><ol><li>For N total samples, the mean-objective gradient is sum n_j*g_j/N when g_j is the mean over microbatch j. Equal-size microbatches reduce this to sum g_j/A.</li><li>Zero gradients before the accumulation window; backpropagate weighted microbatch losses; clip the aggregate once; perform one optimizer and scheduler step; clear gradients for the next window.</li><li>Do not divide a final short window by fixed A without renormalizing for the actual sample/token count. Loss normalization must account for variable-length masked tokens when those define the objective.</li><li>Parameters remain unchanged within the window. Dropout, per-batch normalization, random augmentation and rounding prevent guaranteed bitwise equivalence with a single physical batch.</li></ol><h4 id="v3-heading-chunk-les-r101-1-i113-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-r101-1-i113-7">Effectivebatch</h5><p>Given: physical 16; accumulation 4</p><ol><li>Processfour16samplemicrobatches.</li><li>Performoneupdateafter64samples.</li><li>Divideeachmeanlossby4onlywhenequal-size and full-length window.</li></ol><p>Answer: effective64samples</p><p>Verification: mtp_fp8_parallelism / DP-effective-batch · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-r101-1-i113-8">Unequal finalmicrobatch</h5><p>Given: microbatchmeansg1=2, n1=2; g2=8, n2=1</p><ol><li>Samplesum2*2+1*8=12.</li><li>Dividetotalsamples3.</li><li>Unweightedmean(2+8)/2=5isthewrongobjective.</li></ol><p>Answer: correctgradient4versusnaive5</p><p>Verification: mtp_fp8_parallelism / DP-unequal · passing independent check</p></div><h4 id="v3-heading-chunk-les-r101-1-i113-9">Corrections and source qualifications</h4><ul><li>heading: Time for memory tradeoff; text: Accumulation lowers live activation memory for a chosen effective batch, but total sample arithmetic is similar to the same large batch. Extra launches and less efficient microbatch GEMMs can increase time; “four forwards instead of one” does not imply four times FLOPs.</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-10">Mastery answers and retained exercise context</h4><ol><li>question: 4. What changes?; answer: Normally: loss.backward() optimizer.step() optimizer.zero_grad() happens every batch. With gradient accumulation: Batch 1 → backward Batch 2 → backward Batch 3 → backward Batch 4 → backward ↓ optimizer.step() ↓ zero_grad() The critical change is: \boxed{ \text{do backward multiple times before step()} } and: \boxed{ \text{do not zero the gradients between accumulation steps}. } PyTorch naturally adds new gradients to the existing.grad values when zero_grad() has not been called. (Source: Build a DeepSeek Model (From Scratch)) 5. Why divide the loss? The source&#x27;s implementation uses: loss = loss / accumulation_steps For: accumulation\_steps=4, each loss is divided by 4. Why? Suppose the four physical batches produce gradients: g_1, g_2, g_3, g_4. We want the effective batch gradient to represent their average: \boxed{ g_{\text{effective}} = \frac{g_1+g_2+g_3+g_4}{4} } Dividing each loss by 4 causes its corresponding gradient to also be divided by 4: \frac{g_1}{4} + \frac{g_2}{4} + \frac{g_3}{4} + \frac{g_4}{4} = \frac{g_1+g_2+g_3+g_4}{4}. So the accumulated gradient corresponds to the desired effective batch average. This normalization is explicitly shown in the source&#x27;s gradient-accumulation code. (Source: Build a DeepSeek Model (From Scratch)) 6. Source code The source gives: accumulation_steps = 4 for i, batch in enumerate(dataloader): outputs = model(batch) loss = los; source of answer: Inherited adjacent explanation with target-alignment correction when relevant.</li></ol><h4 id="v3-heading-chunk-les-r101-1-i113-11">Edge cases and remaining gaps</h4><ul><li>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</li><li>Book-derived toy arithmetic does not independently establish the reported empirical training benefits or universal speedup.</li><li>Exact physical PDF locators refer to supplied MEAP PDF; primary corrections use named paper sections rather than invented PDF page numbers.</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-12">Connections and progression</h4><ul><li>Accumulation objective → DDP normalization → global update invariant</li><li>MoE expert placement → all-to-all traffic → overlap opportunity</li><li>Pipeline activation residency → microbatch limits → achievable schedule utilization</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-13">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 343, 344, 345, 346, 347 · Inherited lesson pedagogy and equations; physical 1-based PDF pages. Corrections distinguish abbreviated book listings from the authoritative report.</li><li>deepseek-ai/DualPipe official repository README · Bidirectional versus folded schedules; stage/device mapping; conditional bubble formula; custom overlap requirement. Read 2026-10-07. · https://github.com/deepseek-ai/DualPipe</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-14">Executable code and explained functions</h4><p>file: agents/mtp_fp8_parallelism/math_companion.py; checker: agents/mtp_fp8_parallelism/check_math.py; explanation: Module docstring explains each callable; check_math uses independent Fraction/Decimal, hand matrix fixtures and central differences. Execute python check_math.py in this folder.; verified outputs: 97 CPU deterministic checks passed, 0 failed; evidence.json contains actual/expected values and methods.</p><p><a href="#audit-full-code-mtp_fp8_parallelism">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (22)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>R101.1 — Gradient Accumulation: Solving the GPU Memory Problem</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>1. First, remember the normal training loop</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>2. Why do we want large batches?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>3. The central insight</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>4. What changes?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>5. Why divide the loss?</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>6. Source code</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>7. Iteration 1</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>8. Iteration 2</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>9. Iteration 3</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>10. Iteration 4</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>11. Visualizing the whole thing</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>12. Effective batch size</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>13. The trade-off</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>14. Gradient accumulation vs increasing the GPU batch</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Larger physical batch</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Gradient accumulation</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>15. Connection to our MiniDeepSeek</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>16. Why this comes before distributed training</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>Multi-GPU collectives, distributed launch and DualPipe profiling were not executed; analytical schedule and communication fixtures are verified.</td></tr><tr><td>Bottleneck 1: Memory</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>Bottleneck 2: Time</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr><tr><td>17. The next key idea: Data Parallelism</td><td>covered by preserved explanation plus this lesson’s grounded derivation/numerical/correction companion</td><td>No additional educational gap identified in this heading’s concept group; original empirical/backend claims are bounded by the lesson limitations.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-A05" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A05 — Gradient accumulation with unequal valid-token counts</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Fit a global batch in memory while preserving the intended token-mean objective.</p><p><strong>Prerequisites:</strong> <a href="#audit-F08">Matrix gradients from a scalar loss</a>, <a href="#audit-T01">Shifted next-token targets and masked loss</a></p><h4 id="v3-heading-chunk-les-r101-1-i113-15">Notation and assumptions</h4><p>Each microbatch supplies a gradient of its valid-token mean, plus its valid-token count. Accumulate sums and divide once by total valid tokens.</p><h4 id="v3-heading-chunk-les-r101-1-i113-16">Derivation and mechanism</h4><ol><li>Recover each microbatch token-sum gradient by multiplying its mean by its valid count.</li><li>Add sums.</li><li>Divide by the total count; update optimizer once for the global batch.</li></ol><div class="math block">g={\sum_m n_mg_m\over\sum_m n_m}</div><h4 id="v3-heading-chunk-les-r101-1-i113-17">Worked example</h4><p>Mean gradients[1,3] and[5,1] with valid counts1 and3 combine to[4,1.5]. Unweighted mean[3,2] is wrong for this token-mean objective.</p><h4 id="v3-heading-chunk-les-r101-1-i113-18">Limitations</h4><ul><li>Equal microbatch scaling is valid only under the corresponding denominator contract.</li><li>Clipping, scheduler steps, dropout and batch-dependent operations complicate full equivalence.</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-19">Connections to later concepts</h4><ul><li>A08 shards training state across ranks; neither operation automatically fixes unequal valid-token loss denominators.</li></ul><h4 id="v3-heading-chunk-les-r101-1-i113-20">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 343, 344, 345, 346 · Chapter6 training/distribution context; weighting independently derived</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-r101-1-i113-21">Executed code and evidence</h4><p>Functions: weighted_gradient. Passed checks: Gradient-token-weight</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-r101-1-i113"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r101-1-i113" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-47-i88">← Previous lesson</a> · <a href="#chunk-les-r101-2-i114">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-47-i88">Step 5.47 — The Full DeepSeek Distributed-Training Stack</a></p><p><strong>This lesson:</strong> R101.1 — Gradient Accumulation: Solving the GPU Memory Problem</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r101-1-i113"></a></p>
+<h3 id="v3-heading-chunk-les-r101-1-i113-22">R101.1 — Gradient Accumulation: Solving the GPU Memory Problem</h3>
+<p><em>Plan node: A5 · chat order #113</em></p>
+<p>The source has now completed the single-GPU <code>train.py</code> pipeline and begins the next scaling problem:</p>
+<blockquote>
+<p>What happens when the batch we would like to train with is too large to fit into one GPU?</p>
+</blockquote>
+<p>The source introduces <strong>Gradient Accumulation</strong> before Data Parallelism because it establishes the fundamental memory constraint and its software-based solution. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-r101-1-i113-23">1. First, remember the normal training loop</h5>
+<p>For one update, we normally do:</p>
+<pre><code class="language-text">Mini-batch
+   ↓
+Forward
+   ↓
+Loss
+   ↓
+Backward
+   ↓
+Gradients
+   ↓
+Optimizer.step()
+   ↓
+zero_grad()
+</code></pre>
+<p>The source explicitly breaks this into six operations: obtain a mini-batch, forward pass, calculate loss, backward pass, update weights, and clear gradients. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The important constraint is:</p>
+<div class="math block">
+\boxed{\text{the whole physical mini-batch must fit in GPU VRAM}}
+</div>
+<p>That becomes a problem for large models or large batches.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-24">2. Why do we want large batches?</h4>
+<p>Suppose we have 64 training examples.</p>
+<p>A standard batch computes:</p>
+<div class="math block">
+g_{\text{batch}}
+=
+\frac{1}{64}
+\left(
+g_1+g_2+\cdots+g_{64}
+\right)
+</div>
+<p>where:</p>
+<div class="math block">
+g_i=\nabla_\theta L(x_i).
+</div>
+<p>The gradient is therefore an average over many examples.</p>
+<p>The source explains that using more examples can give a more stable gradient and reduce the noise in individual updates. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>But there is a problem:</p>
+<pre><code class="language-text">64 examples
+     ↓
+Forward
+     ↓
+Backward
+</code></pre>
+<p>may require more VRAM than the GPU has.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-25">3. The central insight</h4>
+<p>This is the key idea of gradient accumulation:</p>
+<blockquote>
+<p>We don't necessarily need to have all 64 examples in GPU memory at the same time.</p>
+</blockquote>
+<p>Instead, split them into smaller chunks.</p>
+<p>For example:</p>
+<div class="math block">
+64=4\times16.
+</div>
+<p>So:</p>
+<pre><code class="language-text">Effective batch = 64
+
+     ┌────────┐
+     │ 16     │
+     ├────────┤
+     │ 16     │
+     ├────────┤
+     │ 16     │
+     ├────────┤
+     │ 16     │
+     └────────┘
+</code></pre>
+<p>Each physical batch has only 16 examples.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-26">4. What changes?</h4>
+<p>Normally:</p>
+<pre><code class="language-python">loss.backward()
+optimizer.step()
+optimizer.zero_grad()
+</code></pre>
+<p>happens every batch.</p>
+<p>With gradient accumulation:</p>
+<pre><code class="language-text">Batch 1 → backward
+Batch 2 → backward
+Batch 3 → backward
+Batch 4 → backward
+                       ↓
+                 optimizer.step()
+                       ↓
+                 zero_grad()
+</code></pre>
+<p>The critical change is:</p>
+<div class="math block">
+\boxed{
+\text{do backward multiple times before step()}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{do not zero the gradients between accumulation steps}.
+}
+</div>
+<p>PyTorch naturally adds new gradients to the existing <code>.grad</code> values when <code>zero_grad()</code> has not been called. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-27">5. Why divide the loss?</h4>
+<p>The source's implementation uses:</p>
+<pre><code class="language-python">loss = loss / accumulation_steps
+</code></pre>
+<p>For:</p>
+<div class="math block">
+accumulation\_steps=4,
+</div>
+<p>each loss is divided by 4.</p>
+<p>Why?</p>
+<p>Suppose the four physical batches produce gradients:</p>
+<div class="math block">
+g_1,g_2,g_3,g_4.
+</div>
+<p>We want the effective batch gradient to represent their average:</p>
+<div class="math block">
+\boxed{
+g_{\text{effective}}
+=
+\frac{g_1+g_2+g_3+g_4}{4}
+}
+</div>
+<p>Dividing each loss by 4 causes its corresponding gradient to also be divided by 4:</p>
+<div class="math block">
+\frac{g_1}{4}
++
+\frac{g_2}{4}
++
+\frac{g_3}{4}
++
+\frac{g_4}{4}
+=
+\frac{g_1+g_2+g_3+g_4}{4}.
+</div>
+<p>So the accumulated gradient corresponds to the desired effective batch average.</p>
+<p>This normalization is explicitly shown in the source's gradient-accumulation code. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-28">6. Source code</h4>
+<p>The source gives:</p>
+<pre><code class="language-python">accumulation_steps = 4
+
+for i, batch in enumerate(dataloader):
+
+    outputs = model(batch)
+
+    loss = loss_function(
+        outputs,
+        batch.labels
+    )
+
+    loss = loss / accumulation_steps
+
+    loss.backward()
+
+    if (i + 1) % accumulation_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now let's trace it.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-29">7. Iteration 1</h4>
+<p>First physical batch:</p>
+<div class="math block">
+16\text{ samples}
+</div>
+<p>We calculate:</p>
+<div class="math block">
+\frac{g_1}{4}.
+</div>
+<p>After:</p>
+<pre><code class="language-python">loss.backward()
+</code></pre>
+<p>the model's <code>.grad</code> contains approximately:</p>
+<div class="math block">
+\boxed{\frac{g_1}{4}}.
+</div>
+<p>We <strong>do not</strong> call:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p>and we <strong>do not</strong> call:</p>
+<pre><code class="language-python">optimizer.zero_grad()
+</code></pre>
+<p>yet. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-30">8. Iteration 2</h4>
+<p>Second batch gives:</p>
+<div class="math block">
+\frac{g_2}{4}.
+</div>
+<p>PyTorch adds this to the existing gradient:</p>
+<div class="math block">
+\frac{g_1}{4}+\frac{g_2}{4}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\frac{g_1+g_2}{4}
+}
+</div>
+<p>is now stored.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-31">9. Iteration 3</h4>
+<p>Another backward pass adds:</p>
+<div class="math block">
+\frac{g_3}{4}.
+</div>
+<p>Stored gradient becomes:</p>
+<div class="math block">
+\frac{g_1+g_2+g_3}{4}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-32">10. Iteration 4</h4>
+<p>Fourth batch adds:</p>
+<div class="math block">
+\frac{g_4}{4}.
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+\frac{g_1+g_2+g_3+g_4}{4}
+}
+</div>
+<p>is stored.</p>
+<p>The condition:</p>
+<pre><code class="language-python">(i + 1) % accumulation_steps == 0
+</code></pre>
+<p>becomes true because:</p>
+<div class="math block">
+(3+1)\%4=0.
+</div>
+<p>So now:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p>runs.</p>
+<p>The source describes this as producing an update equivalent to using the effective batch of 64 while only having 16 examples resident at a time. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-33">11. Visualizing the whole thing</h4>
+<pre><code class="language-text">Physical Batch 1
+16 samples
+    │
+    ▼
+Forward
+    │
+    ▼
+Loss / 4
+    │
+    ▼
+Backward
+    │
+    ▼
+gradients
+    │
+    ├───────────────┐
+                    │
+Physical Batch 2   │
+16 samples         │
+    │              │
+    ▼              │
+Forward            │
+    │              │
+Loss / 4           │
+    │              │
+Backward           │
+    │              │
+    └── accumulate ┤
+                    │
+Physical Batch 3   │
+       ...          │
+                    │
+Physical Batch 4   │
+       ...          │
+                    ▼
+             accumulated gradient
+                    │
+                    ▼
+              optimizer.step()
+                    │
+                    ▼
+              zero_grad()
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-34">12. Effective batch size</h4>
+<p>This gives us an important formula:</p>
+<div class="math block">
+\boxed{
+\text{Effective Batch Size}
+=
+\text{Physical Batch Size}
+\times
+\text{Accumulation Steps}
+}
+</div>
+<p>For the source example:</p>
+<div class="math block">
+16\times4
+=
+\boxed{64}.
+</div>
+<p>So the GPU only needs memory for:</p>
+<div class="math block">
+16
+</div>
+<p>examples at once, while optimization behaves as though the update used:</p>
+<div class="math block">
+64.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-35">13. The trade-off</h4>
+<p>Gradient accumulation solves a <strong>memory problem</strong>.</p>
+<p>But it does not magically create computation.</p>
+<p>The source makes this trade-off explicit. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Without accumulation:</p>
+<pre><code class="language-text">64 examples
+→ 1 forward
+→ 1 backward
+→ 1 update
+</code></pre>
+<p>With accumulation:</p>
+<pre><code class="language-text">16 examples × 4
+→ 4 forwards
+→ 4 backwards
+→ 1 update
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{less memory}
+\quad\Longleftrightarrow\quad
+\text{more computation time}
+}
+</div>
+<p>The source summarizes this as a trade of <strong>time for memory</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-36">14. Gradient accumulation vs increasing the GPU batch</h4>
+<p>These two are conceptually different:</p>
+<h6 id="v3-heading-chunk-les-r101-1-i113-37">Larger physical batch</h6>
+<pre><code class="language-text">GPU VRAM
+   ↓
+64 examples simultaneously
+</code></pre>
+<p>Requires enough memory.</p>
+<h6 id="v3-heading-chunk-les-r101-1-i113-38">Gradient accumulation</h6>
+<pre><code class="language-text">GPU VRAM
+   ↓
+16 examples
+   ↓
+16 examples
+   ↓
+16 examples
+   ↓
+16 examples
+</code></pre>
+<p>Requires much less memory.</p>
+<p>But the total computation for an effective batch of 64 still has to happen.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-39">15. Connection to our MiniDeepSeek</h4>
+<p>Our current <code>train.py</code> has:</p>
+<div class="math block">
+batch\_size=24.
+</div>
+<p>The source's baseline training script processes those 24 sequences directly.</p>
+<p>Gradient accumulation would let us conceptually change the training behavior to something like:</p>
+<div class="math block">
+24\times4=96
+</div>
+<p>effective batch size, while retaining a physical batch of 24.</p>
+<p>That is a <strong>derived application of the source's gradient-accumulation principle</strong>; the source itself gives the concrete 16→64 example rather than this MiniDeepSeek-specific modification. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-40">16. Why this comes before distributed training</h4>
+<p>Now the architecture problem becomes clearer.</p>
+<p>We have two different bottlenecks:</p>
+<h6 id="v3-heading-chunk-les-r101-1-i113-41">Bottleneck 1: Memory</h6>
+<p>A batch or model doesn't fit.</p>
+<p>Gradient accumulation helps with batch-memory pressure:</p>
+<div class="math block">
+\boxed{\text{Gradient Accumulation}}
+</div>
+<h6 id="v3-heading-chunk-les-r101-1-i113-42">Bottleneck 2: Time</h6>
+<p>Even if it fits, training is painfully slow.</p>
+<p>Then we need:</p>
+<div class="math block">
+\boxed{\text{Parallel Computing}}
+</div>
+<p>The source explicitly uses this transition to introduce Data Parallelism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-1-i113-43">17. The next key idea: Data Parallelism</h4>
+<p>Now imagine one GPU can process 16 samples.</p>
+<p>What if we have four GPUs?</p>
+<p>Instead of:</p>
+<pre><code class="language-text">GPU 0:
+16 samples
+</code></pre>
+<p>we can have:</p>
+<pre><code class="language-text">GPU 0 → 16
+GPU 1 → 16
+GPU 2 → 16
+GPU 3 → 16
+</code></pre>
+<p>all simultaneously.</p>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{Data Parallelism}}
+</div>
+<p>and this is the next stage of the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So remember the progression:</p>
+<div class="math block">
+\boxed{
+\text{Single GPU}
+\rightarrow
+\text{Gradient Accumulation}
+\rightarrow
+\text{Data Parallelism}
+\rightarrow
+\text{Model Parallelism}
+\rightarrow
+\text{DualPipe}
+}
+</div>
+<p>That sequence is the important mental model for the rest of this section.</p>
+<hr />
+</section>

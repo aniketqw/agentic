@@ -1,0 +1,1103 @@
+<section class="chunk" id="chunk-les-step-5-21-i62" data-id="les-step-5-21-i62"><details class="audit-card" id="audit-full-chunk-les-step-5-21-i62" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-21-i62-1">Motivation</h4><p>PPO over tool trajectories: make the inherited explanations operational by declaring the objective, provenance and reduction before calculating.</p><h4 id="v3-heading-chunk-les-step-5-21-i62-2">Prerequisites</h4><ul><li>return</li><li>value function</li><li>GAE</li><li>ratio clipping</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-3">Notation and units</h4><ul><li>q=prompt; o_i=response i; G=same-prompt group size; t=policy-token position.</li><li>pi=current; old=rollout-producing snapshot; ref=declared KL anchor; R=reward; A=fixed advantage.</li><li>Natural logs/nats unless explicitly stated; epsilon_clip and epsilon_std are different constants.</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-4">Assumptions</h4><ul><li>Toy numericals use finite probability support and explicit valid-token masks.</li><li>Sample standard deviation ddof=1 and stabilization1e-4 reproduce the book example; population convention is separately compared.</li><li>Worked arithmetic is independently checked; model-training outcomes remain reported source results.</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-5">Step-by-step derivation</h4><ol><li>At policy action t, state includes previous tool observations. Store old selected-action likelihood and estimate advantage with the value function.</li><li>The elementary R-V example assumes undiscounted terminal return; general GAE uses delta_t=r_t+gamma V(s_next)-V(s_t) and reverse recursion A_t=delta_t+gamma lambda A_next.</li><li>Interpreter tokens are excluded from actor loss and ratio averaging. They are observations conditioning later actions; a value-time indexing scheme must remain consistent.</li><li>Clip each policy-token ratio, choose the smaller signed surrogate and maximize it, or minimize its negative.</li><li>A learned critic also needs its own return/value fitting loss; actor loss alone does not train a meaningful value estimator.</li><li>ReTool v1 experimental KL coefficient is0.0. A reference penalty is not a mandatory active part of every PPO run.</li></ol><h4 id="v3-heading-chunk-les-step-5-21-i62-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-21-i62-7">PPO clipping</h5><p>Given: oldp=.08,newp=.16,V=.25,R=1,epsilon=.2</p><ol><li>Ratio2;advantage.75.</li><li>Raw1.5,clipped.9;take min.</li></ol><p>Answer: Objective.9;loss-.9</p><p>Verification: rl_retool / ppo_positive · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-21-i62-8">GAE through two decisions</h5><p>Given: rewards=[0,1],values=[.2,.4,0],gamma1,lambda.95</p><ol><li>Lastdelta=.6;lastadvantage=.6.</li><li>Firstdelta=.2;firstadvantage=.2+.95*.6.</li></ol><p>Answer: Advantages[.77,.6]</p><p>Verification: rl_retool / gae_trace · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-21-i62-9">Corrections and source qualifications</h4><ul><li>heading: 5.21 PPO objective scope; text: The pedagogical advantageR-Vassumes undiscounted terminal return; real PPO commonly uses GAE. ReTool v1 states KL coefficient0.0, so do not automatically add a nonzero reference penalty to its reported setup.</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-10">Mastery answers and retained exercise context</h4><ol><li>Positive r 2,A.75 clipsobjective.9; negative r.5,A-1 clipsobjective-.8. Lossnegatestheobjective.</li><li>R-Visundiscountedterminalillustration; GAEneedsvaluesanddiscountparameters; feedbackpositionsareexcludedfromactorloss.</li></ol><h4 id="v3-heading-chunk-les-step-5-21-i62-11">Edge cases and remaining gaps</h4><ul><li>Research scores depend on paper version, model checkpoint, dataset, sampling and answer extraction.</li><li>Concept-group source mapping supports the added teaching; it does not certify every inherited sentence or original executable backend.</li><li>No full model training or hardware-speed benchmark was run; inspect companion.py and evidence.json for actual mathematical execution.</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-12">Connections and progression</h4><ul><li>Previous lesson builds Strategic external computation.</li><li>Next lesson develops Cold-start protocol supervision.</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-13">Exact source support</h4><ul><li>retool-slides(1).pdf · physical PDF pages 6, 7, 8, 9 · PPO token ratios and interpreter exclusion</li></ul><h4 id="v3-heading-chunk-les-step-5-21-i62-14">Executable code and explained functions</h4><p>filename: companion.py; purpose: Executable CPU mathematics for likelihoods, group normalization, clipped objectives, KL, masks, GAE, hard CE and an exact bandit update; run: python companion.py; checker: python check_companion.py</p><p><a href="#audit-full-code-rl_retool">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (54)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.21 — ReTool PPO Objective, Step by Step</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.1 Start from ordinary language-model RL</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.2 What does the state look like in ReTool?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.3 The policy generates the next token</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.4 Then the environment may intervene</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.5 Now ask: how do we update the policy?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.6 Why PPO uses the old policy</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.7 Intuition behind the ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.8 But probability ratio alone isn&#x27;t enough</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.9 What does advantage mean?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.10 Where does PPO get advantage from?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.11 Return vs value</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.12 Negative example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.13 Why not simply use reward?</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.14 PPO objective before clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.15 Example with positive advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.16 Example with negative advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.17 Why clipping is necessary</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.18 PPO clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.19 Full clipped PPO objective</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.20 Case A: positive advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.21 Case B: negative advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.22 The geometric intuition</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.23 Now bring ReTool back into the equation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.24 Important subtlety: interpreter output isn&#x27;t the policy action</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.25 Full miniature trajectory</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.26 Full mathematical pipeline</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 1 — sample trajectory</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 2 — execute tool calls</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 3 — obtain final reward</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 4 — value prediction</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 5 — advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 6 — policy ratio</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 7 — clipping</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 8 — PPO objective</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 9 — gradient update</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.27 Why ReTool does NOT use GRPO here</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>PPO</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>GRPO</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.28 Why this distinction matters computationally</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.29 Full numerical PPO example</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.30 Now push beyond the boundary</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.31 One very important interpretation</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.32 Why this is valuable for ReTool</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.33 The complete ReTool learning loop</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.34 Numerical bank — Level 5 exam question</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 1</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 2</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 3</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 4</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>Step 5</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.35 One more exam question: negative advantage</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>5.21.36 The five things you must remember</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr><tr><td>The conceptual bridge</td><td>educationally expanded; source-located at concept-group level</td><td></td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-21-i62"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-21-i62" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-20-i61">← Previous lesson</a> · <a href="#chunk-les-step-5-22-i63">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-20-i61">Step 5.20 — ReTool: Reinforcement Learning for Strategic Tool Use</a></p><p><strong>This lesson:</strong> Step 5.21 — ReTool PPO Objective, Step by Step</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-5">retool-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-21-i62"></a></p>
+<h2>Step 5.21 — ReTool PPO Objective, Step by Step</h2>
+<p><em>Plan node: I9 · chat order #62</em></p>
+<p>Now we go one level deeper.</p>
+<p>In Step 5.20, we established:</p>
+<div class="math block">
+\boxed{\text{ReTool = PPO + real code execution + correctness reward}}
+</div>
+<p>The key novelty was the <strong>hybrid rollout</strong>. Now we need to understand exactly how PPO operates on that rollout.</p>
+<p>The ReTool slides explicitly state that the training objective is <strong>plain PPO</strong>, not GRPO, and that the advantage comes from a learned value function. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-15">5.21.1 Start from ordinary language-model RL</h3>
+<p>An LLM can be viewed as a policy:</p>
+<div class="math block">
+\boxed{\pi_\theta}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\theta</span> = model parameters</li>
+<li><span class="math inline">s_t</span> = state/context at step <span class="math inline">t</span></li>
+<li><span class="math inline">o_t</span> = token/action generated at step <span class="math inline">t</span></li>
+</ul>
+<p>The model gives:</p>
+<div class="math block">
+\pi_\theta(o_t\mid s_t)
+</div>
+<p>which means:</p>
+<blockquote>
+<p>probability that the current policy assigns to token <span class="math inline">o_t</span>, given the current context <span class="math inline">s_t</span>.</p>
+</blockquote>
+<p>For a language model, the state is essentially the current context.</p>
+<p>So:</p>
+<div class="math block">
+s_t=
+(q,o_1,o_2,\ldots,o_{t-1})
+</div>
+<p>where <span class="math inline">q</span> is the original question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-16">5.21.2 What does the state look like in ReTool?</h3>
+<p>This is where ReTool differs.</p>
+<p>The context can contain:</p>
+<div class="math block">
+\boxed{
+\text{question}
++
+\text{reasoning}
++
+\text{code}
++
+\text{interpreter output}
+}
+</div>
+<p>For example:</p>
+<pre><code class="language-text">Question:
+Solve the problem.
+
+Reasoning:
+I should search candidate values.
+
+Code:
+&lt;code&gt;
+...
+&lt;/code&gt;
+
+Interpreter:
+&lt;interpreter&gt;
+699
+&lt;/interpreter&gt;
+
+Reasoning:
+The candidate appears to be 699...
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+s_t=(q,o_{&lt;t};CI)
+}
+</div>
+<p>where <code>CI</code> represents the code-interpreter context described in the deck. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-17">5.21.3 The policy generates the next token</h3>
+<p>At step <span class="math inline">t</span>:</p>
+<div class="math block">
+o_t\sim\pi_\theta(\cdot\mid s_t)
+</div>
+<p>For example:</p>
+<div class="math block">
+P(\texttt{calculate}\mid s_t)=0.10
+</div>
+<div class="math block">
+P(\texttt{&lt;code&gt;}\mid s_t)=0.25
+</div>
+<div class="math block">
+P(\texttt{answer}\mid s_t)=0.05.
+</div>
+<p>The model samples one action/token.</p>
+<p>The important point is:</p>
+<div class="math block">
+\boxed{
+\text{tool invocation itself is generated through the policy}
+}
+</div>
+<p>The model decides to emit code.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-18">5.21.4 Then the environment may intervene</h3>
+<p>Suppose the model emits:</p>
+<pre><code class="language-text">&lt;code&gt;
+x = 17 * 41
+print(x)
+&lt;/code&gt;
+</code></pre>
+<p>The sandbox executes it.</p>
+<p>The result:</p>
+<pre><code class="language-text">697
+</code></pre>
+<p>gets inserted into the context.</p>
+<p>So the next state becomes:</p>
+<div class="math block">
+\boxed{
+s_{t+1}
+=
+\text{previous state}
++
+\text{interpreter feedback}
+}
+</div>
+<p>This is why ReTool's trajectory is different from ordinary text-only RL. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-19">5.21.5 Now ask: how do we update the policy?</h3>
+<p>Suppose a rollout eventually gets:</p>
+<div class="math block">
+R=+1.
+</div>
+<p>We want the model to become more likely to repeat useful behavior that led to that successful trajectory.</p>
+<p>But we do <strong>not</strong> want:</p>
+<div class="math block">
+\text{one successful rollout}
+\Rightarrow
+\text{massive policy change}.
+</div>
+<p>This is exactly the problem PPO addresses.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-20">5.21.6 Why PPO uses the old policy</h3>
+<p>During rollout collection, we have:</p>
+<div class="math block">
+\pi_{\text{old}}.
+</div>
+<p>After collecting the rollout, we construct a new policy:</p>
+<div class="math block">
+\pi_\theta.
+</div>
+<p>For a sampled token <span class="math inline">o_t</span>, compare:</p>
+<div class="math block">
+\pi_\theta(o_t\mid s_t)
+</div>
+<p>against:</p>
+<div class="math block">
+\pi_{\text{old}}(o_t\mid s_t).
+</div>
+<p>Define the ratio:</p>
+<div class="math block">
+\boxed{
+r_t(\theta)
+=
+\frac{
+\pi_\theta(o_t\mid s_t)
+}{
+\pi_{\text{old}}(o_t\mid s_t)
+}
+}
+</div>
+<p>This is the central quantity in PPO. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-21">5.21.7 Intuition behind the ratio</h3>
+<p>Suppose old policy:</p>
+<div class="math block">
+P_{\text{old}}(o_t)=0.10
+</div>
+<p>and new policy:</p>
+<div class="math block">
+P_{\text{new}}(o_t)=0.12.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t
+=
+\frac{0.12}{0.10}
+=
+\boxed{1.2}.
+</div>
+<p>So the new policy increased the probability by:</p>
+<div class="math block">
+20\%.
+</div>
+<p>If:</p>
+<div class="math block">
+r_t=1,
+</div>
+<p>nothing changed.</p>
+<p>If:</p>
+<div class="math block">
+r_t&lt;1,
+</div>
+<p>the new policy decreased the probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-22">5.21.8 But probability ratio alone isn't enough</h3>
+<p>We also need to know:</p>
+<blockquote>
+<p>Was this action good or bad?</p>
+</blockquote>
+<p>That information is represented by the <strong>advantage</strong>:</p>
+<div class="math block">
+\boxed{\hat A_t}
+</div>
+<p>This is the crucial quantity in PPO.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-23">5.21.9 What does advantage mean?</h3>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+A(s_t,o_t)
+=
+\text{how good this action was}
+-
+\text{how good we expected the state to be}
+}
+</div>
+<p>For a positive advantage:</p>
+<div class="math block">
+\hat A_t&gt;0
+</div>
+<p>the action was better than expected.</p>
+<p>For a negative advantage:</p>
+<div class="math block">
+\hat A_t&lt;0
+</div>
+<p>the action was worse than expected.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{positive advantage}
+\Rightarrow
+\text{increase probability}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{negative advantage}
+\Rightarrow
+\text{decrease probability}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-24">5.21.10 Where does PPO get advantage from?</h3>
+<p>This is the exact difference from GRPO.</p>
+<p>PPO uses a learned value function:</p>
+<div class="math block">
+\boxed{
+V_\phi(s_t)
+}
+</div>
+<p>where <span class="math inline">\phi</span> are the parameters of the value model/value head.</p>
+<p>The supplied reasoning source explicitly explains:</p>
+<blockquote>
+<p>PPO's value function estimates expected future outcome quality, while GRPO removes this learned value model and gets its relative signal from a sampled group. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-25">5.21.11 Return vs value</h3>
+<p>Suppose the eventual rollout produces reward:</p>
+<div class="math block">
+R=+1.
+</div>
+<p>The value model might predict:</p>
+<div class="math block">
+V_\phi(s_t)=0.4.
+</div>
+<p>Then a simple advantage estimate is:</p>
+<div class="math block">
+\hat A_t
+=
+R-V_\phi(s_t).
+</div>
+<p>So:</p>
+<div class="math block">
+\hat A_t
+=
+1-0.4
+=
+\boxed{0.6}.
+</div>
+<p>Interpretation:</p>
+<blockquote>
+<p>The outcome was considerably better than the value model expected.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-26">5.21.12 Negative example</h3>
+<p>Suppose:</p>
+<div class="math block">
+R=-1
+</div>
+<p>and:</p>
+<div class="math block">
+V_\phi(s_t)=-0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\hat A_t
+=
+-1-(-0.2)
+=
+\boxed{-0.8}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{strongly negative advantage}
+}
+</div>
+<p>and PPO pushes the probability of the sampled action downward.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-27">5.21.13 Why not simply use reward?</h3>
+<p>This question is extremely important.</p>
+<p>Suppose every token in a 1,000-token trajectory gets the same reward:</p>
+<div class="math block">
+R=+1.
+</div>
+<p>That doesn't tell us what the model expected from each state.</p>
+<p>The value function provides a baseline:</p>
+<div class="math block">
+V_\phi(s_t).
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+A_t
+=
+\text{actual outcome}
+-
+\text{expected outcome}
+}
+</div>
+<p>gives a more informative learning signal.</p>
+<p>This is the role of the value model in PPO. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-28">5.21.14 PPO objective before clipping</h3>
+<p>Ignoring clipping for a moment:</p>
+<div class="math block">
+\boxed{
+J(\theta)
+=
+\mathbb E
+\left[
+r_t(\theta)\hat A_t
+\right]
+}
+</div>
+<p>where:</p>
+<div class="math block">
+r_t(\theta)
+=
+\frac{\pi_\theta(o_t|s_t)}
+{\pi_{\text{old}}(o_t|s_t)}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{policy change}
+\times
+\text{quality of action}
+}
+</div>
+<p>determines the learning signal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-29">5.21.15 Example with positive advantage</h3>
+<p>Suppose:</p>
+<div class="math block">
+r_t=1.15
+</div>
+<p>and:</p>
+<div class="math block">
+\hat A_t=0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t\hat A_t
+=
+1.15\times0.8
+=
+\boxed{0.92}.
+</div>
+<p>The action was good, and the new policy increased its probability.</p>
+<p>That is desirable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-30">5.21.16 Example with negative advantage</h3>
+<p>Suppose:</p>
+<div class="math block">
+r_t=0.85
+</div>
+<p>and:</p>
+<div class="math block">
+\hat A_t=-0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_tA_t
+=
+0.85(-0.8)
+=
+\boxed{-0.68}.
+</div>
+<p>The action was bad and the new policy reduced its probability.</p>
+<p>That is also desirable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-31">5.21.17 Why clipping is necessary</h3>
+<p>Imagine the model suddenly changes:</p>
+<div class="math block">
+0.10\rightarrow0.50.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t=
+\frac{0.50}{0.10}
+=
+5.
+</div>
+<p>A fivefold increase is enormous.</p>
+<p>A single rollout could therefore cause an unstable update.</p>
+<p>PPO prevents excessive policy movement through clipping.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-32">5.21.18 PPO clipping</h3>
+<p>Define:</p>
+<div class="math block">
+\boxed{
+\operatorname{clip}(r_t,1-\epsilon,1+\epsilon)
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+1-\epsilon=0.8
+</div>
+<p>and:</p>
+<div class="math block">
+1+\epsilon=1.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r_t
+</div>
+<p>is restricted to:</p>
+<div class="math block">
+\boxed{[0.8,1.2]}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-33">5.21.19 Full clipped PPO objective</h3>
+<p>The ReTool slide gives the standard PPO form:</p>
+<div class="math block">
+\boxed{
+J_{\text{PPO}}(\theta)
+=
+\mathbb E_t
+\left[
+\min
+\left(
+r_t(\theta)\hat A_t,\,
+\operatorname{clip}
+(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t
+\right)
+\right]
+}
+</div>
+<p>This is the core ReTool training objective. <em>(Source: retool-slides)</em></p>
+<p>Now we will understand exactly why the <code>min</code> is there.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-34">5.21.20 Case A: positive advantage</h3>
+<p>Suppose:</p>
+<div class="math block">
+A_t=+2
+</div>
+<p>and:</p>
+<div class="math block">
+r_t=1.5.
+</div>
+<p>Raw objective:</p>
+<div class="math block">
+r_tA_t
+=
+1.5\times2
+=
+3.
+</div>
+<p>Clipped ratio:</p>
+<div class="math block">
+\operatorname{clip}(1.5,0.8,1.2)
+=
+1.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+1.2\times2
+=
+2.4.
+</div>
+<p>Take minimum:</p>
+<div class="math block">
+\boxed{
+\min(3,2.4)=2.4
+}
+</div>
+<p>So PPO refuses to give the full benefit of the 50% probability increase.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-35">5.21.21 Case B: negative advantage</h3>
+<p>Now:</p>
+<div class="math block">
+A_t=-2
+</div>
+<p>and:</p>
+<div class="math block">
+r_t=0.5.
+</div>
+<p>Raw:</p>
+<div class="math block">
+0.5(-2)
+=
+-1.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+\operatorname{clip}(0.5,0.8,1.2)
+=
+0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+0.8(-2)
+=
+-1.6.
+</div>
+<p>Take minimum:</p>
+<div class="math block">
+\boxed{
+\min(-1,-1.6)=-1.6
+}
+</div>
+<p>This makes excessive policy movement toward a bad action unattractive.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-36">5.21.22 The geometric intuition</h3>
+<p>Think of PPO as saying:</p>
+<div class="math block">
+\boxed{
+\text{&quot;Improve the policy, but don't move too far in one update.&quot;}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\text{good action}
+\rightarrow
+\text{increase probability}
+</div>
+<p>but only moderately.</p>
+<p>And:</p>
+<div class="math block">
+\text{bad action}
+\rightarrow
+\text{decrease probability}
+</div>
+<p>but again with controlled updates.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-37">5.21.23 Now bring ReTool back into the equation</h3>
+<p>Here is where everything becomes interesting.</p>
+<p>The action might be a normal reasoning token:</p>
+<pre><code class="language-text">I should search...
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">&lt;code&gt;
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">for x in range(...)
+</code></pre>
+<p>The model may therefore receive credit for a sequence like:</p>
+<div class="math block">
+\boxed{
+\text{reason}
+\rightarrow
+\text{call tool}
+\rightarrow
+\text{observe}
+\rightarrow
+\text{correct}
+\rightarrow
+\text{answer}
+}
+</div>
+<p>The probability ratio is calculated for model-generated tokens within that hybrid trajectory. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-38">5.21.24 Important subtlety: interpreter output isn't the policy action</h3>
+<p>Suppose:</p>
+<pre><code class="language-text">&lt;code&gt;
+print(5*9)
+&lt;/code&gt;
+</code></pre>
+<p>produces:</p>
+<pre><code class="language-text">45
+</code></pre>
+<p>The model generated:</p>
+<div class="math block">
+\boxed{\texttt{print(5*9)}}
+</div>
+<p>but the environment generated:</p>
+<div class="math block">
+\boxed{\texttt{45}}
+</div>
+<p>Therefore the policy ratio is conceptually associated with model-generated decisions, not with the external environment's generated text.</p>
+<p>This connects directly to the earlier engineering rule:</p>
+<div class="math block">
+\boxed{
+\text{mask interpreter tokens}
+}
+</div>
+<p>from the ReTool deck. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-39">5.21.25 Full miniature trajectory</h3>
+<p>Consider:</p>
+<pre><code class="language-text">Question:
+Find the valid value of x.
+
+Model:
+I should search the candidate space.
+
+Model:
+&lt;code&gt;
+for x in range(1,1000):
+    ...
+&lt;/code&gt;
+
+Environment:
+&lt;interpreter&gt;
+699
+&lt;/interpreter&gt;
+
+Model:
+The interpreter found 699.
+
+Model:
+\boxed{699}
+</code></pre>
+<p>Policy-generated sequence:</p>
+<div class="math block">
+\boxed{
+\text{reasoning}
++
+\text{code}
++
+\text{final answer}
+}
+</div>
+<p>Environment-generated sequence:</p>
+<div class="math block">
+\boxed{
+\text{699}
+}
+</div>
+<p>Final reward:</p>
+<div class="math block">
+R=+1.
+</div>
+<p>Now PPO computes advantages over the relevant model-generated positions and updates the policy so useful behavior becomes more likely.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-40">5.21.26 Full mathematical pipeline</h3>
+<p>Here is the entire calculation:</p>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-41">Step 1 — sample trajectory</h5>
+<div class="math block">
+\tau\sim\pi_{\text{old}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-42">Step 2 — execute tool calls</h5>
+<div class="math block">
+\text{code}
+\rightarrow
+\text{sandbox}
+\rightarrow
+\text{feedback}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-43">Step 3 — obtain final reward</h5>
+<div class="math block">
+R(\tau)\in\{-1,+1\}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-44">Step 4 — value prediction</h5>
+<div class="math block">
+V_\phi(s_t)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-45">Step 5 — advantage</h5>
+<p>Conceptually:</p>
+<div class="math block">
+\hat A_t
+\approx
+\text{return}-V_\phi(s_t)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-46">Step 6 — policy ratio</h5>
+<div class="math block">
+r_t=
+\frac{\pi_\theta(o_t|s_t)}
+{\pi_{\text{old}}(o_t|s_t)}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-47">Step 7 — clipping</h5>
+<div class="math block">
+\tilde r_t
+=
+\operatorname{clip}
+(r_t,1-\epsilon,1+\epsilon)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-48">Step 8 — PPO objective</h5>
+<div class="math block">
+\boxed{
+\min(r_tA_t,\tilde r_tA_t)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-49">Step 9 — gradient update</h5>
+<div class="math block">
+\theta
+\leftarrow
+\theta+\eta\nabla_\theta J_{\text{PPO}}
+</div>
+<p>That is the complete policy-update pipeline at the conceptual level. <em>(Source: retool-slides; Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-50">5.21.27 Why ReTool does NOT use GRPO here</h3>
+<p>Now compare the advantage calculation.</p>
+<h4 id="v3-heading-chunk-les-step-5-21-i62-51">PPO</h4>
+<div class="math block">
+\boxed{
+\hat A_t
+\approx
+R_t-V_\phi(s_t)
+}
+</div>
+<p>Requires:</p>
+<div class="math block">
+\boxed{
+\text{learned value function}
+}
+</div>
+<h4 id="v3-heading-chunk-les-step-5-21-i62-52">GRPO</h4>
+<p>Uses a group of responses:</p>
+<div class="math block">
+r_1,r_2,\ldots,r_G
+</div>
+<p>and constructs group-relative advantages.</p>
+<p>For example:</p>
+<div class="math block">
+A_i=
+\frac{r_i-\mu_r}{\sigma_r}.
+</div>
+<p>No value model is required.</p>
+<p>The supplied sources make exactly this distinction: GRPO replaces the learned value-model path with group-relative normalization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-53">5.21.28 Why this distinction matters computationally</h3>
+<p>PPO:</p>
+<div class="math block">
+\boxed{
+\text{policy model}
++
+\text{value model}
+}
+</div>
+<p>GRPO:</p>
+<div class="math block">
+\boxed{
+\text{policy model}
++
+\text{multiple sampled responses}
+}
+</div>
+<p>The value model can be expensive for large LLM systems.</p>
+<p>GRPO was attractive in DeepSeekMath and DeepSeek-R1 partly because it eliminates that separate learned value model. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>ReTool nevertheless uses PPO according to the supplied deck.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-54">5.21.29 Full numerical PPO example</h3>
+<p>Now let's perform one complete calculation.</p>
+<p>Suppose at one model-generated token:</p>
+<div class="math block">
+\pi_{\text{old}}(o_t|s_t)=0.20
+</div>
+<p>and after the update candidate:</p>
+<div class="math block">
+\pi_{\theta}(o_t|s_t)=0.24.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t=
+\frac{0.24}{0.20}
+=
+\boxed{1.2}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+V_\phi(s_t)=0.3
+</div>
+<p>and final reward:</p>
+<div class="math block">
+R=1.
+</div>
+<p>Then simple advantage estimate:</p>
+<div class="math block">
+A_t=1-0.3
+=
+\boxed{0.7}.
+</div>
+<p>Set:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{clip}(1.2,0.8,1.2)=1.2.
+</div>
+<p>Raw:</p>
+<div class="math block">
+1.2(0.7)=0.84.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.7)=0.84.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+J_t=0.84
+}
+</div>
+<p>No clipping penalty occurs because the ratio is exactly at the upper boundary.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-55">5.21.30 Now push beyond the boundary</h3>
+<p>Suppose instead:</p>
+<div class="math block">
+\pi_\theta=0.30.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t=\frac{0.30}{0.20}=1.5.
+</div>
+<p>Advantage:</p>
+<div class="math block">
+A_t=0.7.
+</div>
+<p>Raw:</p>
+<div class="math block">
+1.5(0.7)=1.05.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.7)=0.84.
+</div>
+<p>PPO chooses:</p>
+<div class="math block">
+\boxed{
+\min(1.05,0.84)=0.84
+}
+</div>
+<p>So increasing the probability from <span class="math inline">0.20</span> all the way to <span class="math inline">0.30</span> does not receive unlimited optimization credit.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-56">5.21.31 One very important interpretation</h3>
+<p>PPO clipping does <strong>not</strong> literally force:</p>
+<div class="math block">
+r_t\in[0.8,1.2].
+</div>
+<p>The new policy can have a ratio outside the interval.</p>
+<p>Instead, the <strong>objective stops rewarding the excessive movement in the favorable direction</strong>.</p>
+<p>This is a subtle but highly important exam/interview point.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-57">5.21.32 Why this is valuable for ReTool</h3>
+<p>Imagine that one successful trajectory contained:</p>
+<pre><code class="language-text">call code
+→ get result
+→ use result
+→ answer correctly
+</code></pre>
+<p>Without clipping, PPO might aggressively increase the probability of all those actions.</p>
+<p>With clipping:</p>
+<div class="math block">
+\boxed{
+\text{successful strategy}
+\rightarrow
+\text{reinforced gradually}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{successful rollout}
+\rightarrow
+\text{huge policy jump}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-58">5.21.33 The complete ReTool learning loop</h3>
+<p>Now put all previous steps together:</p>
+<pre><code class="language-text">                Question
+                   │
+                   ▼
+             Old Policy πold
+                   │
+                   ▼
+       Generate reasoning/code
+                   │
+             ┌─────┴─────┐
+             │           │
+        normal text    &lt;code&gt;
+                         │
+                         ▼
+                    Sandbox
+                         │
+                         ▼
+                 Interpreter result
+                         │
+                         └──────► context
+                                      │
+                                      ▼
+                              Continue generation
+                                      │
+                                      ▼
+                                Final answer
+                                      │
+                                      ▼
+                              Correctness checker
+                                      │
+                                      ▼
+                                   R = ±1
+                                      │
+                                      ▼
+                              Value function Vφ
+                                      │
+                                      ▼
+                                Advantage Ât
+                                      │
+                                      ▼
+                           PPO ratio rt(θ)
+                                      │
+                                      ▼
+                                  Clipping
+                                      │
+                                      ▼
+                             Policy gradient
+                                      │
+                                      ▼
+                                New policy
+</code></pre>
+<p>This is the architecture you should have in your head before moving to implementation. The ReTool deck's central PPO and hybrid-trajectory description supports this structure. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-59">5.21.34 Numerical bank — Level 5 exam question</h3>
+<p>Consider:</p>
+<div class="math block">
+\pi_{\text{old}}=0.08
+</div>
+<div class="math block">
+\pi_\theta=0.16
+</div>
+<div class="math block">
+V_\phi(s_t)=0.25
+</div>
+<div class="math block">
+R=1
+</div>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Calculate the clipped PPO term.</p>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-60">Step 1</h5>
+<div class="math block">
+r_t=\frac{0.16}{0.08}=2.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-61">Step 2</h5>
+<div class="math block">
+A_t=1-0.25=0.75.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-62">Step 3</h5>
+<p>Clip:</p>
+<div class="math block">
+\operatorname{clip}(2,0.8,1.2)=1.2.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-63">Step 4</h5>
+<p>Raw:</p>
+<div class="math block">
+2(0.75)=1.5.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.75)=0.9.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-21-i62-64">Step 5</h5>
+<div class="math block">
+\boxed{
+\min(1.5,0.9)=0.9
+}
+</div>
+<p>So the PPO objective contribution is:</p>
+<div class="math block">
+\boxed{0.9}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-65">5.21.35 One more exam question: negative advantage</h3>
+<p>Suppose:</p>
+<div class="math block">
+\pi_{\text{old}}=0.20,
+</div>
+<div class="math block">
+\pi_\theta=0.10,
+</div>
+<div class="math block">
+A_t=-1.
+</div>
+<p>Then:</p>
+<div class="math block">
+r_t=0.5.
+</div>
+<p>For:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>we get:</p>
+<div class="math block">
+\operatorname{clip}(0.5,0.8,1.2)=0.8.
+</div>
+<p>Raw:</p>
+<div class="math block">
+0.5(-1)=-0.5.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+0.8(-1)=-0.8.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\min(-0.5,-0.8)=-0.8
+}
+</div>
+<p>This demonstrates how PPO treats large probability movement associated with a negative advantage.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-21-i62-66">5.21.36 The five things you must remember</h3>
+<div class="math block">
+\boxed{1.\quad r_t=
+\frac{\pi_\theta}{\pi_{\text{old}}}}
+</div>
+<p>Measures how much the new policy changed the probability of the sampled action.</p>
+<div class="math block">
+\boxed{2.\quad A_t}
+</div>
+<p>Measures whether the action/outcome was better or worse than expected.</p>
+<div class="math block">
+\boxed{3.\quad V_\phi(s_t)}
+</div>
+<p>Provides PPO's learned baseline for estimating advantage.</p>
+<div class="math block">
+\boxed{4.\quad \operatorname{clip}}
+</div>
+<p>Prevents one update from receiving excessive incentive for moving too far.</p>
+<div class="math block">
+\boxed{5.\quad \text{ReTool's special part}}
+</div>
+<p>The state/trajectory contains:</p>
+<div class="math block">
+\boxed{
+\text{reasoning + code + real interpreter feedback}
+}
+</div>
+<p>rather than text alone. <em>(Source: retool-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-21-i62-67">The conceptual bridge</h4>
+<p>You should now see the complete progression:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{DeepSeek-R1}
+\rightarrow
+\text{long reasoning}
+\rightarrow
+\text{ReTool}
+\rightarrow
+\text{tool-interacting reasoning}
+}
+</div>
+<p>And mathematically:</p>
+<div class="math block">
+\boxed{
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{probability ratio}
+\rightarrow
+\text{clipping}
+\rightarrow
+\text{policy update}
+}
+</div>
+<hr />
+</section>

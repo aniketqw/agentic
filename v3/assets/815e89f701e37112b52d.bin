@@ -1,0 +1,171 @@
+"""Executable NumPy teaching companion; no pretrained model or distributed benchmark.
+
+cache_bytes counts stored elements including batch and layers. qa_f1 uses
+multiset overlap. chrf teaches character n-grams with an explicit effective-order
+convention, not a claim of identical defaults to any benchmark implementation.
+route selects distinct experts deterministically (lower index wins ties), then
+normalizes either educational biased logits or V3's unbiased sigmoid affinities.
+absorption_trace proves equality within one low-rank attention head. This does
+not assert that low-rank MLA equals an independently trained dense attention.
+"""
+from collections import Counter
+import math
+import numpy as np
+
+
+def cache_bytes(batch, layers, tokens, width, bytes_per_element=2):
+    """width is 2*n_kv_heads*d_head for K/V, or d_latent+d_rope for MLA."""
+    values=(batch,layers,tokens,width,bytes_per_element)
+    if any(not isinstance(v,int) or v<0 for v in values):
+        raise ValueError('nonnegative integer dimensions required')
+    if bytes_per_element == 0: raise ValueError('element width must be positive')
+    return math.prod(values)
+
+
+def qa_f1(prediction_tokens, reference_tokens):
+    """Input tokens must already follow the chosen dataset's normalization."""
+    if not prediction_tokens or not reference_tokens:
+        return float(prediction_tokens == reference_tokens)
+    overlap=sum((Counter(prediction_tokens)&Counter(reference_tokens)).values())
+    return 2*overlap/(len(prediction_tokens)+len(reference_tokens))
+
+
+def chrf(hypothesis, reference, max_order=6, beta=2):
+    """Remove whitespace; average per-order precisions and recalls; 0..100.
+
+    Only orders present on both sides are used. For official reporting use the
+    benchmark implementation, freeze its version, and record its metric signature.
+    """
+    if max_order<1 or beta<=0: raise ValueError('positive order and beta required')
+    h=''.join(hypothesis.split()); r=''.join(reference.split())
+    if not h or not r: return 100.0 if h==r else 0.0
+    ps=[];rs=[]
+    for n in range(1,max_order+1):
+        if len(h)<n or len(r)<n: continue
+        hc=Counter(h[i:i+n] for i in range(len(h)-n+1))
+        rc=Counter(r[i:i+n] for i in range(len(r)-n+1))
+        overlap=sum((hc&rc).values())
+        ps.append(overlap/sum(hc.values()));rs.append(overlap/sum(rc.values()))
+    p=sum(ps)/len(ps);q=sum(rs)/len(rs)
+    return 0.0 if p+q==0 else 100*(1+beta**2)*p*q/(beta**2*p+q)
+
+
+def softmax(values):
+    z=np.asarray(values,dtype=float)
+    if not np.isfinite(z).all(): raise ValueError('finite logits required')
+    e=np.exp(z-np.max(z,axis=-1,keepdims=True))
+    return e/e.sum(axis=-1,keepdims=True)
+
+
+def route(logits,bias,k,mode='book'):
+    """Returns zero-based selected indices, selected gates, and integer loads."""
+    z=np.asarray(logits,dtype=float);b=np.asarray(bias,dtype=float)
+    if z.ndim!=2 or b.shape!=(z.shape[1],) or not 1<=k<=z.shape[1]:
+        raise ValueError('router dimensions or top-k are invalid')
+    if not np.isfinite(z).all() or not np.isfinite(b).all():raise ValueError('finite router values required')
+    if mode=='book': scores=z+b; affinity=z+b
+    elif mode=='v3':
+        affinity=np.exp(-np.logaddexp(0,-z));scores=affinity+b
+    else:raise ValueError('mode must be book or v3')
+    idx=np.argsort(-scores,axis=-1,kind='stable')[:,:k]
+    chosen=np.take_along_axis(affinity,idx,axis=1)
+    gates=softmax(chosen) if mode=='book' else chosen/chosen.sum(axis=1,keepdims=True)
+    return idx,gates,np.bincount(idx.ravel(),minlength=z.shape[1])
+
+
+def bias_update(bias,loads,rate=.01,mode='book'):
+    """Book: bounded tanh relative violation; V3: sign step on whole-batch load.
+
+    Call once after collecting the actual forward assignments across relevant
+    microbatches/ranks. Recomputing after optimizer updates can change routing.
+    An empty batch leaves bias unchanged.
+    """
+    b=np.asarray(bias,dtype=float);c=np.asarray(loads,dtype=float)
+    if b.shape!=c.shape or c.ndim!=1 or len(c)==0 or np.any(c<0):raise ValueError('invalid load vector')
+    avg=c.mean()
+    if avg==0:return b.copy()
+    delta=np.tanh((avg-c)/(avg+1e-6)) if mode=='book' else np.sign(avg-c)
+    return b+rate*delta
+
+
+def expert_parameters(d,hidden,matrices=2):
+    """Two matrices for GELU MLP; three for a bias-free gated/SwiGLU expert."""
+    if min(d,hidden)<1 or matrices not in (2,3):raise ValueError('invalid expert dimensions')
+    return matrices*d*hidden
+
+
+def moe_parameters(d,n,k,routed_hidden,shared_count=0,shared_hidden=None,matrices=2):
+    """Return expert total, active experts, router, total/active including router."""
+    if not 1<=k<=n or shared_count<0:raise ValueError('invalid routing counts')
+    shared_hidden=routed_hidden if shared_hidden is None else shared_hidden
+    pr=expert_parameters(d,routed_hidden,matrices)
+    ps=shared_count*expert_parameters(d,shared_hidden,matrices)
+    total=n*pr+ps;active=k*pr+ps;router=d*n
+    return dict(expert_total=total,expert_active=active,router=router,
+                total_with_router=total+router,active_with_router=active+router)
+
+
+def routing_trace():
+    """Reproduce the inherited eight-token trace without rounding intermediate gates."""
+    x=np.array([[1,0],[0,1],[1,1],[2,1],[1,2],[2,0],[0,2],[2,2]],float)
+    wr=np.array([[1,0,1.2,2],[0,1,1.5,-.5]],float)
+    b=np.array([0,.1,-.2,.2])
+    # Column-vector matrices from the lesson become right-multiplication transposes.
+    experts=np.array([[[1,0],[0,1]],[[2,0],[0,2]],[[1,1],[0,1]],[[1,0],[1,1]]],float)
+    logits=x@wr;idx,gates,loads=route(logits,b,2)
+    out=np.zeros_like(x)
+    for expert in range(4):
+        rows,slots=np.nonzero(idx==expert)
+        np.add.at(out,rows,(x[rows]@experts[expert].T)*gates[rows,slots,None])
+    return dict(x=x,logits=logits,indices=idx,gates=gates,loads=loads,
+                routed=out,shared=.5*x,final=1.5*x+out,
+                new_bias=bias_update(b,loads))
+
+
+def absorption_trace():
+    """One head, d=3, key/content width=2, latent width=2; causal attention."""
+    x=np.array([[1,2,0],[0,1,1]],float)
+    wq=np.array([[1,0],[0,1],[1,1]],float)
+    wd=np.array([[1,0],[0,1],[1,-1]],float)
+    uk=np.array([[1,2],[0,1]],float)
+    uv=np.array([[.5,-.25],[.75,1]],float)
+    wo=np.array([[1,.2],[-.3,.7]],float)
+    c=x@wd;q=x@wq;k=c@uk;v=c@uv
+    direct=q@k.T;absorbed=(x@(wq@uk.T))@c.T
+    a=np.zeros_like(direct)
+    for t in range(len(x)):a[t,:t+1]=softmax(direct[t,:t+1]/math.sqrt(2))
+    y=(a@v)@wo;ya=(a@c)@(uv@wo)
+    cached=[]
+    for t in range(len(x)):
+        scores=(x[t]@(wq@uk.T))@c[:t+1].T/math.sqrt(2)
+        cached.append((softmax(scores)@c[:t+1])@(uv@wo))
+    return dict(query=q,latent=c,key=k,scores=direct,absorbed_scores=absorbed,
+                attention=a,output=y,absorbed_output=ya,cached_output=np.array(cached))
+
+
+def rope_pair(row,position,theta=.5):
+    """A two-dimensional row-vector rotation, with one illustrative frequency."""
+    a=position*theta;rotation=np.array([[math.cos(a),math.sin(a)],[-math.sin(a),math.cos(a)]])
+    return np.asarray(row)@rotation
+
+
+def decoupled_rope_trace():
+    """Single content head plus a separate RoPE head; full vs cached equality."""
+    z=absorption_trace();c=z['latent'];q=z['query'];k=z['key']
+    qr=np.array([rope_pair(row,i) for i,row in enumerate(q)])
+    kr=np.array([rope_pair(row,i) for i,row in enumerate(c)])
+    full=(q@k.T+qr@kr.T)/2 # sqrt(content2+rope2)=2
+    cached=np.zeros_like(full)
+    uk=np.array([[1,2],[0,1]],float)
+    for i in range(2):
+        cached[i,:i+1]=((q[i]@uk.T)@c[:i+1].T+qr[i]@kr[:i+1].T)/2
+    return dict(full_scores=full,cached_scores=cached,rope_keys=kr)
+
+
+if __name__=='__main__':
+    r=routing_trace();a=absorption_trace()
+    print('Routing loads:',r['loads'].tolist())
+    print('Final eight-token output:',r['final'].round(10).tolist())
+    print('MLA content scores:',a['scores'].tolist())
+    print('MLA causal output:',a['output'].round(10).tolist())
+    print('MHA/MLA width ratio:',32768/576)

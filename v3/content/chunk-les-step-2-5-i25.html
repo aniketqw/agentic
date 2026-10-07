@@ -1,0 +1,1817 @@
+<section class="chunk" id="chunk-les-step-2-5-i25" data-id="les-step-2-5-i25"><details class="audit-card" id="audit-full-chunk-les-step-2-5-i25" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-2-5-i25-1">Motivation</h4><p>Make the full decoding order and sequence-scoring conventions explicit, including history-dependent changes.</p><h4 id="v3-heading-chunk-les-step-2-5-i25-2">Prerequisites</h4><ul><li>Greedy/beam distinction</li><li>Temperature</li><li>Top-k and nucleus</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-3">Notation and units</h4><ul><li>lp(Y)=((5+length)/6)^alpha</li><li>s(Y)=log P(Y)/lp(Y)</li><li>theta&gt;=1 repetition factor</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-4">Assumptions</h4><ul><li>EOS/length conventions specified</li><li>Toy positive-logit penalty is z/theta</li><li>Sign-aware practical variant divides positive scores, multiplies negative scores</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-5">Step-by-step derivation</h4><ol><li>Keep sequence search (beam) separate from next-token distribution transforms (temperature/filtering/sampling). Beam width counts retained sequences; k counts eligible next tokens.</li><li>History transform precedes ranking if its purpose is to change candidate eligibility. For [5,4,2,0],repeat index0,theta2 gives [2.5,4,2,0].</li><li>Exact top3 gives [2.5,4,2,-inf], T2 gives [1.25,2,1,-inf], softmax gives [.2566866356,.5434056117,.1999077528,0].</li><li>Plain division is not a universally decreasing repetition penalty: -2/2=-1 raises a negative logit. The sign-aware counterpart -2*2=-4 suppresses it; retain source-specific numerical rule but state its scope.</li><li>For [.8,.5,.9], P=.36 and lnP=-1.0216512475. For [.7,.95], P=.665 and lnP=-.4079682383, correcting inherited -.4072.</li><li>For two .6 tokens, lp=(7/6)^.6=1.0969026199 and score=-.9313964877; for four .75 tokens, lp=(9/6)^.6=1.2754245006 and score=-.9022316015. Length normalization reverses their raw ranking.</li><li>Positive T commutes with exact top-k membership, but top-p depends on the chosen probability distribution. Repetition scaling is not invariant to a common logit shift, so raw-logit convention matters.</li><li>A complete loop supplies BOS/prompt, model/cache, history penalty, temperature and filters in declared order, sampling or argmax, token append, and EOS/max-length stop.</li></ol><h4 id="v3-heading-chunk-les-step-2-5-i25-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-5-i25-7">combined_decode</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Keep sequence search (beam) separate from next-token distribution transforms (temperature/filtering/sampling). Beam width counts retained sequences; k counts eligible next tokens.</li><li>History transform precedes ranking if its purpose is to change candidate eligibility. For [5,4,2,0],repeat index0,theta2 gives [2.5,4,2,0].</li><li>Exact top3 gives [2.5,4,2,-inf], T2 gives [1.25,2,1,-inf], softmax gives [.2566866356,.5434056117,.1999077528,0].</li><li>Plain division is not a universally decreasing repetition penalty: -2/2=-1 raises a negative logit. The sign-aware counterpart -2*2=-4 suppresses it; retain source-specific numerical rule but state its scope.</li><li>For [.8,.5,.9], P=.36 and lnP=-1.0216512475. For [.7,.95], P=.665 and lnP=-.4079682383, correcting inherited -.4072.</li><li>For two .6 tokens, lp=(7/6)^.6=1.0969026199 and score=-.9313964877; for four .75 tokens, lp=(9/6)^.6=1.2754245006 and score=-.9022316015. Length normalization reverses their raw ranking.</li><li>Positive T commutes with exact top-k membership, but top-p depends on the chosen probability distribution. Repetition scaling is not invariant to a common logit shift, so raw-logit convention matters.</li><li>A complete loop supplies BOS/prompt, model/cache, history penalty, temperature and filters in declared order, sampling or argmax, token append, and EOS/max-length stop.</li></ol><p>Answer: 0.25668663553872995; 0.5434056116997429; 0.19990775276152717; 0.0</p><p>Verification: foundations_decoding / combined_decode · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-5-i25-8">sequence_B_log</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Keep sequence search (beam) separate from next-token distribution transforms (temperature/filtering/sampling). Beam width counts retained sequences; k counts eligible next tokens.</li><li>History transform precedes ranking if its purpose is to change candidate eligibility. For [5,4,2,0],repeat index0,theta2 gives [2.5,4,2,0].</li><li>Exact top3 gives [2.5,4,2,-inf], T2 gives [1.25,2,1,-inf], softmax gives [.2566866356,.5434056117,.1999077528,0].</li><li>Plain division is not a universally decreasing repetition penalty: -2/2=-1 raises a negative logit. The sign-aware counterpart -2*2=-4 suppresses it; retain source-specific numerical rule but state its scope.</li><li>For [.8,.5,.9], P=.36 and lnP=-1.0216512475. For [.7,.95], P=.665 and lnP=-.4079682383, correcting inherited -.4072.</li><li>For two .6 tokens, lp=(7/6)^.6=1.0969026199 and score=-.9313964877; for four .75 tokens, lp=(9/6)^.6=1.2754245006 and score=-.9022316015. Length normalization reverses their raw ranking.</li><li>Positive T commutes with exact top-k membership, but top-p depends on the chosen probability distribution. Repetition scaling is not invariant to a common logit shift, so raw-logit convention matters.</li><li>A complete loop supplies BOS/prompt, model/cache, history penalty, temperature and filters in declared order, sampling or argmax, token append, and EOS/max-length stop.</li></ol><p>Answer: -0.40796823832628304</p><p>Verification: foundations_decoding / sequence_B_log · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-5-i25-9">length_A</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Keep sequence search (beam) separate from next-token distribution transforms (temperature/filtering/sampling). Beam width counts retained sequences; k counts eligible next tokens.</li><li>History transform precedes ranking if its purpose is to change candidate eligibility. For [5,4,2,0],repeat index0,theta2 gives [2.5,4,2,0].</li><li>Exact top3 gives [2.5,4,2,-inf], T2 gives [1.25,2,1,-inf], softmax gives [.2566866356,.5434056117,.1999077528,0].</li><li>Plain division is not a universally decreasing repetition penalty: -2/2=-1 raises a negative logit. The sign-aware counterpart -2*2=-4 suppresses it; retain source-specific numerical rule but state its scope.</li><li>For [.8,.5,.9], P=.36 and lnP=-1.0216512475. For [.7,.95], P=.665 and lnP=-.4079682383, correcting inherited -.4072.</li><li>For two .6 tokens, lp=(7/6)^.6=1.0969026199 and score=-.9313964877; for four .75 tokens, lp=(9/6)^.6=1.2754245006 and score=-.9022316015. Length normalization reverses their raw ranking.</li><li>Positive T commutes with exact top-k membership, but top-p depends on the chosen probability distribution. Repetition scaling is not invariant to a common logit shift, so raw-logit convention matters.</li><li>A complete loop supplies BOS/prompt, model/cache, history penalty, temperature and filters in declared order, sampling or argmax, token append, and EOS/max-length stop.</li></ol><p>Answer: -0.9313964877021854</p><p>Verification: foundations_decoding / length_A · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-2-5-i25-10">length_B</h5><p>Given: Fully specified inputs encoded in check_math.py and the derivation above; fixed toy rather than pretrained weights.</p><ol><li>Keep sequence search (beam) separate from next-token distribution transforms (temperature/filtering/sampling). Beam width counts retained sequences; k counts eligible next tokens.</li><li>History transform precedes ranking if its purpose is to change candidate eligibility. For [5,4,2,0],repeat index0,theta2 gives [2.5,4,2,0].</li><li>Exact top3 gives [2.5,4,2,-inf], T2 gives [1.25,2,1,-inf], softmax gives [.2566866356,.5434056117,.1999077528,0].</li><li>Plain division is not a universally decreasing repetition penalty: -2/2=-1 raises a negative logit. The sign-aware counterpart -2*2=-4 suppresses it; retain source-specific numerical rule but state its scope.</li><li>For [.8,.5,.9], P=.36 and lnP=-1.0216512475. For [.7,.95], P=.665 and lnP=-.4079682383, correcting inherited -.4072.</li><li>For two .6 tokens, lp=(7/6)^.6=1.0969026199 and score=-.9313964877; for four .75 tokens, lp=(9/6)^.6=1.2754245006 and score=-.9022316015. Length normalization reverses their raw ranking.</li><li>Positive T commutes with exact top-k membership, but top-p depends on the chosen probability distribution. Repetition scaling is not invariant to a common logit shift, so raw-logit convention matters.</li><li>A complete loop supplies BOS/prompt, model/cache, history penalty, temperature and filters in declared order, sampling or argmax, token append, and EOS/max-length stop.</li></ol><p>Answer: -0.9022316015119008</p><p>Verification: foundations_decoding / length_B · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-2-5-i25-11">Corrections and source qualifications</h4><ul><li>heading: 2.5.24; text: Dividing a negative repeated logit by theta&gt;1 increases it. The supplied rule suppresses positive logits; sign-aware implementations multiply negative logits instead.</li><li>heading: 2.5.37; text: ln(.665)=-.4079682383; four-decimal rounding is -.4080, rather than -.4072.</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-12">Mastery answers and retained exercise context</h4><ol><li>Q1: e.g. [2,1,0],T2 → [.5064803911,.3071958857,.1863237232].</li><li>Q2: e.g. [5,4,1,0],k2 → [.7310585786,.2689414214,0,0].</li><li>Q3: e.g. [.4,.25,.15,.1,.06,.04],p.8 → [.5,.3125,.1875,0,0,0].</li><li>Q4: A=.36,lnA=-1.0216512475; B=.665,lnB=-.4079682383.</li><li>Q5: at alpha .6, two .6 tokens score -.9313964877, four .75 tokens -.9022316015; second wins.</li><li>Q6: usual width1 retains one best extension, subject to matching scoring/stop conventions.</li><li>Q7: division by positive T is order-preserving.</li><li>Q8: normalized mass changes with T.</li><li>Q9: [5,4,2,0], repeat1,theta2,k3,T2 produces [.2566866356,.5434056117,.1999077528,0].</li><li>Q10: deterministic debugging may use greedy; constrained likelihood search may use beam; open-ended diversity may use sampled temperature/top-k/top-p, with empirical task evaluation.</li></ol><h4 id="v3-heading-chunk-les-step-2-5-i25-13">Edge cases and remaining gaps</h4><ul><li>Length-normalized score is not the raw sequence probability or a calibrated distribution over sequences.</li><li>Beam search cannot guarantee globally best or highest-quality completion after pruning.</li><li>Pure greedy reproducibility also needs deterministic model/kernel/constraint/tie behavior.</li><li>Decoding heuristics must be evaluated on target tasks; source task associations are guidance, not optimality proofs.</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-14">Connections and progression</h4><ul><li>This lesson feeds the next indexed lesson; its representations and objective also connect to the complete two-block decoder, distillation and RL policy likelihoods.</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-15">Exact source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 8, 9, 10, 13, 14, 15, 19, 20, 21 · beam expansion, length score, transforms, repetition source and task framing</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 360, 364, 365, 366, 367, 368 · combined top-k and temperature</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-16">Executable code and explained functions</h4><p>function: softmax; purpose: Subtract maximum, exponentiate permitted finite logits, normalize; reject invalid temperature/all-masked input.; function: top_k; purpose: Select exactly k stable-ranked indices, setting others to negative infinity.; function: nucleus; purpose: Sort probabilities, include first cumulative threshold crossing, renormalize actual retained mass.; function: position; purpose: Calculate paired original sine/cosine frequency features.; function: rope; purpose: Apply interleaved orthogonal position rotations; layout must match model convention.; function: normalize; purpose: Use token-feature population variance or uncentered mean square with epsilon.; function: attention; purpose: Compute scaled dot products, causal masking, row probabilities and value mixture.; function: repetition; purpose: Apply history transform once per repeated index; optional negative-logit sign-aware rule.; function: sequence_score; purpose: Return product, log sum, length penalty and normalized score.</p><p><a href="#audit-full-code-foundations_decoding">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (117)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 2.5 — Putting the Decoding Strategies Together</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.1 First: What Does the LLM Actually Produce?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.2 The Critical Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Family A — Immediate next-token selection</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Family B — Sequence-level search</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.3 Greedy Decoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.4 Why Greedy Can Fail</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Bright sequence</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Sunny sequence</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.5 Sequence Probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.6 Why Log Probability Is Better Computationally</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.7 Beam Search</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.8 Why Beam Search Helps</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.9 Beam Search Worked Example</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Bright branch</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Sunny branch</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.10 The Special Case B=1</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.11 Why Raw Sequence Probability Has a Problem</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.12 Length Normalization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.13 Why Divide by Length Penalty?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.14 What Is Length Normalization Really Doing?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.15 Beam Search + Length Normalization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.16 The Big Difference Between Beam Search and Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Beam search</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.17 Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.18 Temperature Is Not Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.19 Top-k + Temperature</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.20 Let&#x27;s Follow the Actual Code Logic</td><td>mapped_to_reviewed_lesson_derivation</td><td>Original backend snippet not executed; CPU mathematical companion available.</td></tr><tr><td>2.5.21 Complete Next-Token Mathematical Pipeline</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.22 Where Does Top-p Fit?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.23 Repetition Penalty</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.24 Why Does This Reduce Repetition?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.25 Repetition Penalty vs Top-k</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Repetition penalty</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.26 A Full Combined Numerical</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1 — Repetition penalty</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2 — Top-3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3 — Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 4 — Softmax</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.27 What If We Had No Repetition Penalty?</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.28 Important Caveat About Repetition Penalty</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.29 Now the Entire Decoding Decision Tree</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Case 1 — Exact reproducibility</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Case 2 — Need a strong sequence among a few plausible outputs</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Case 3 — Many valid outputs</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.30 The Most Important Conceptual Split</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.31 Numerical Comparison — Greedy vs Beam</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.32 Numerical Comparison — Top-k vs Top-p</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Top-k, k=2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p, p=0.80</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.33 Numerical Comparison — Same Distribution, Different p</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>p=0.50</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>p=0.70</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>p=0.85</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>p=0.95</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.34 Numerical Comparison — Why Temperature Is Different</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.35 Numerical Comparison — Top-k Is Hard Control</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.36 Numerical Exam — Full Sequence Scoring</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>A</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>B</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.37 Numerical Exam — Log Probability</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.38 Numerical Exam — Length Normalization</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.39 What an Exam Question Might Actually Look Like</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Step 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Step 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.40 Another Mixed Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.41 Another Mixed Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.42 Another Mixed Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.43 Another Mixed Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.44 Another Mixed Exam Question</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.45 One Subtle but Very Important Distinction</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Model quality</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Decoder policy</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.46 Complete Pipeline for Deterministic Decoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Greedy</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.47 Complete Pipeline for Stochastic Decoding</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Temperature + Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.48 Complete Pipeline for Nucleus Sampling</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.49 Complete Pipeline for Beam Search</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.50 Your Decoding Master Table</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.51 The Five Numerical Patterns You Must Master</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Pattern 1 — Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Pattern 2 — Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Pattern 3 — Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Pattern 4 — Beam</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Pattern 5 — Length normalization</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.52 Exam Trap Summary</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Trap 1</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 2</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 3</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 4</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 5</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 6</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Trap 7</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.53 Final Mental Model</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>Greedy</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Sampling</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Temperature</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-k</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Top-p</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Beam</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Length normalization</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Repetition penalty</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2.5.54 Numerical Master Test</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr><tr><td>2.5.55 Decoding Section Status</td><td>mapped_to_reviewed_lesson_derivation</td><td>Sentence-level inherited attribution not certified; explicit mechanism sources listed.</td></tr></tbody></table></details></details><details class="audit-card" id="audit-D10" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> D10 — Sampling order and inverse-CDF bins</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>A complete decoding step must state processor order and how a random draw selects an ID.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a>, <a href="#audit-D03">Top-k support and renormalization</a>, <a href="#audit-D04">Nucleus boundary and actual retained mass</a>, <a href="#audit-D07">Sign-aware repetition penalty</a></p><h4 id="v3-heading-chunk-les-step-2-5-i25-17">Notation and assumptions</h4><p>One declared route: repetition→temperature→top-k→top-p→renormalize→sample. Recompute probabilities between probability-based filters. EOS and maximum length stop generation.</p><h4 id="v3-heading-chunk-les-step-2-5-i25-18">Derivation and mechanism</h4><ol><li>Modify logits using the declared processors.</li><li>Apply truncation in the declared order, because support-dependent filters need not commute.</li><li>Use a uniform u∈[0,1) in cumulative probability bins.</li><li>Append the selected token, then check stopping conditions.</li></ol><h4 id="v3-heading-chunk-les-step-2-5-i25-19">Worked example</h4><p>[.5,.3,.15,.05] bins are[0,.5),[.5,.8),[.8,.95),[.95,1). u=.5 chooses ID1; u=.8 chooses ID2; u=.999 chooses ID3. A fixed sequence of variates makes the teaching fixture reproducible.</p><h4 id="v3-heading-chunk-les-step-2-5-i25-20">Limitations</h4><ul><li>A fixed seed alone does not guarantee identical output across hardware/library versions.</li><li>Temperature changes probabilities even though finite-logit rankings stay the same for positive temperature.</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-21">Connections to later concepts</h4><ul><li>A07 uses a proposal distribution and rejection correction; arbitrary post-filtering can alter that target-distribution guarantee.</li></ul><h4 id="v3-heading-chunk-les-step-2-5-i25-22">Source support</h4><ul><li>decoding-sampling-slides(1).pdf · physical PDF pages 12, 13, 20, 21 · Decoding lecture</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-2-5-i25-23">Executed code and evidence</h4><p>Functions: softmax, sample, truncate, repetition. Passed checks: Sample-bins</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-2-5-i25"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-2-5-i25" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-2-4-i24">← Previous lesson</a> · <a href="#v3-decoding">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-2-4-i24">Step 2.4 — Top-p / Nucleus Sampling</a></p><p><strong>This lesson:</strong> Step 2.5 — Putting the Decoding Strategies Together</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-9">decoding-sampling-slides</a>; <a href="#source-15">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2</a>; <a href="#source-18">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-2-5-i25"></a></p>
+<h2>Step 2.5 — Putting the Decoding Strategies Together</h2>
+<p><em>Plan node: I2 · chat order #25</em></p>
+<p>We now have enough pieces to understand the <strong>entire decoding decision process</strong>.</p>
+<p>So far:</p>
+<div class="math block">
+\boxed{\text{Greedy}}
+</div>
+<div class="math block">
+\boxed{\text{Beam Search}}
+</div>
+<div class="math block">
+\boxed{\text{Sampling}}
+</div>
+<div class="math block">
+\boxed{\text{Temperature}}
+</div>
+<div class="math block">
+\boxed{\text{Top-k}}
+</div>
+<div class="math block">
+\boxed{\text{Top-p}}
+</div>
+<p>The important thing now is to understand <strong>what problem each solves, where it acts, and how the mathematics fits together</strong>.</p>
+<p>Your master cheatsheet summarizes the same progression: a language model produces a full vocabulary distribution, and decoding is the process that turns that distribution into the next token; beam search operates on candidate sequences, while temperature/top-k/top-p operate on the next-token distribution. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-24">2.5.1 First: What Does the LLM Actually Produce?</h3>
+<p>Suppose the current context is:</p>
+<blockquote>
+<p>The weather today is</p>
+</blockquote>
+<p>The Transformer does <strong>not</strong> directly output:</p>
+<blockquote>
+<p>sunny</p>
+</blockquote>
+<p>Instead, the final layer produces logits:</p>
+<div class="math block">
+\boxed{
+z\in\mathbb{R}^{|V|}
+}
+</div>
+<p>where every vocabulary token has one logit.</p>
+<p>For example:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Logit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bright</td>
+<td style="text-align:right">3.0</td>
+</tr>
+<tr>
+<td>sunny</td>
+<td style="text-align:right">2.5</td>
+</tr>
+<tr>
+<td>cold</td>
+<td style="text-align:right">1.5</td>
+</tr>
+<tr>
+<td>rainy</td>
+<td style="text-align:right">0.2</td>
+</tr>
+<tr>
+<td>pizza</td>
+<td style="text-align:right">-2.0</td>
+</tr>
+</tbody>
+</table>
+<p>Then:</p>
+<div class="math block">
+P=\operatorname{softmax}(z).
+</div>
+<p>The resulting distribution might be:</p>
+<div class="math block">
+P=[0.50,0.35,0.10,0.04,0.01].
+</div>
+<p><strong>This distribution is the raw decision space.</strong></p>
+<p>Everything we have studied is a different way of deciding what happens next.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-25">2.5.2 The Critical Question</h3>
+<p>At this point ask:</p>
+<blockquote>
+<p><strong>Do I want to choose one token immediately, or do I want to search through several possible future sequences?</strong></p>
+</blockquote>
+<p>That separates the decoding world into two major families.</p>
+<h4 id="v3-heading-chunk-les-step-2-5-i25-26">Family A — Immediate next-token selection</h4>
+<div class="math block">
+\boxed{
+\text{Greedy / Sampling / Temperature / Top-k / Top-p}
+}
+</div>
+<p>These operate primarily on the current next-token distribution.</p>
+<h4 id="v3-heading-chunk-les-step-2-5-i25-27">Family B — Sequence-level search</h4>
+<div class="math block">
+\boxed{
+\text{Beam Search}
+}
+</div>
+<p>Beam search keeps multiple partial sequences alive and explores future continuations.</p>
+<p>This distinction is extremely important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-28">2.5.3 Greedy Decoding</h3>
+<p>Greedy decoding chooses:</p>
+<div class="math block">
+\boxed{
+y_t=\arg\max_v P(y_t=v\mid y_{&lt;t},x)
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+P=
+[0.50,0.35,0.15].
+</div>
+<p>Greedy chooses the:</p>
+<div class="math block">
+\boxed{0.50}
+</div>
+<p>token.</p>
+<p>Then the token is appended.</p>
+<p>Then the model runs again.</p>
+<p>So:</p>
+<pre><code class="language-text">context
+   ↓
+model
+   ↓
+probabilities
+   ↓
+argmax
+   ↓
+next token
+   ↓
+append
+   ↓
+repeat
+</code></pre>
+<p>The source emphasizes that this is efficient and deterministic, but myopic: it optimizes the immediate decision rather than the overall sequence. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-29">2.5.4 Why Greedy Can Fail</h3>
+<p>Your slides give this exact idea with:</p>
+<div class="math block">
+P(\text{bright})=0.50
+</div>
+<p>and:</p>
+<div class="math block">
+P(\text{sunny})=0.35.
+</div>
+<p>Greedy says:</p>
+<div class="math block">
+\text{bright}.
+</div>
+<p>But suppose:</p>
+<div class="math block">
+P(\text{outside}\mid\text{bright})=0.50
+</div>
+<p>while:</p>
+<div class="math block">
+P(\text{outside}\mid\text{sunny})=0.95.
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-30">Bright sequence</h5>
+<div class="math block">
+P(\text{bright outside})
+=
+0.50\times0.50
+=
+0.25.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-31">Sunny sequence</h5>
+<div class="math block">
+P(\text{sunny outside})
+=
+0.35\times0.95
+=
+0.3325.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+0.3325&gt;0.25.
+}
+</div>
+<p>So the globally better sequence starts with the token that greedy rejected.</p>
+<p>The source explicitly uses this example to demonstrate greedy's myopia. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-32">2.5.5 Sequence Probability</h3>
+<p>For a generated sequence:</p>
+<div class="math block">
+Y=(y_1,y_2,\ldots,y_T),
+</div>
+<p>the probability is:</p>
+<div class="math block">
+\boxed{
+P(Y|X)
+=
+\prod_{t=1}^{T}
+P(y_t|y_{&lt;t},X)
+}
+</div>
+<p>This comes from the chain rule.</p>
+<p>Because multiplying many probabilities quickly creates very tiny values, we usually take logarithms:</p>
+<div class="math block">
+\boxed{
+\log P(Y|X)
+=
+\sum_{t=1}^{T}
+\log P(y_t|y_{&lt;t},X)
+}
+</div>
+<p>The master cheatsheet uses exactly this sequence scoring formulation. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-33">2.5.6 Why Log Probability Is Better Computationally</h3>
+<p>Suppose:</p>
+<div class="math block">
+P_1=0.8,\quad
+P_2=0.7,\quad
+P_3=0.9.
+</div>
+<p>Sequence probability:</p>
+<div class="math block">
+0.8\times0.7\times0.9
+=
+0.504.
+</div>
+<p>Log probability:</p>
+<div class="math block">
+\log(0.8)+\log(0.7)+\log(0.9).
+</div>
+<p>Approximately:</p>
+<div class="math block">
+-0.2231-0.3567-0.1054
+=
+-0.6852.
+</div>
+<p>The two rankings are equivalent because log is monotonic:</p>
+<div class="math block">
+P_A&gt;P_B
+\iff
+\log P_A&gt;\log P_B.
+</div>
+<p>So beam search can safely compare:</p>
+<div class="math block">
+\boxed{\log P}
+</div>
+<p>instead of tiny probability products.</p>
+<p>The decoding slides explicitly mention log-probabilities for avoiding numerical underflow. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-34">2.5.7 Beam Search</h3>
+<p>Greedy keeps:</p>
+<div class="math block">
+\boxed{1}
+</div>
+<p>partial sequence.</p>
+<p>Beam search keeps:</p>
+<div class="math block">
+\boxed{B}
+</div>
+<p>partial sequences.</p>
+<p>The integer:</p>
+<div class="math block">
+\boxed{B=\text{beam width}}
+</div>
+<p>controls how many hypotheses survive.</p>
+<p>Your source describes the beam process as:</p>
+<ol>
+<li>Start with an empty sequence.</li>
+<li>Expand every retained sequence.</li>
+<li>Score resulting candidates using sequence probability or log-probability.</li>
+<li>Keep only the best <span class="math inline">B</span>.</li>
+<li>Repeat until candidates finish. <em>(Source: decoding-sampling-slides)</em></li>
+</ol>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-35">2.5.8 Why Beam Search Helps</h3>
+<p>Suppose at step 1:</p>
+<div class="math block">
+P(\text{bright})=0.50
+</div>
+<div class="math block">
+P(\text{sunny})=0.35
+</div>
+<div class="math block">
+P(\text{cold})=0.15.
+</div>
+<p>Greedy keeps only:</p>
+<div class="math block">
+\boxed{\text{bright}}.
+</div>
+<p>Beam search with:</p>
+<div class="math block">
+B=2
+</div>
+<p>keeps:</p>
+<div class="math block">
+\boxed{
+\text{bright},\text{sunny}
+}
+</div>
+<p>and removes:</p>
+<div class="math block">
+\text{cold}.
+</div>
+<p>Now at the next step, both are expanded.</p>
+<p>This gives the second hypothesis a chance to prove itself.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-36">2.5.9 Beam Search Worked Example</h3>
+<p>Using the same distributions from your slide:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-37">Step 1</h5>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th style="text-align:right">Probability</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bright</td>
+<td style="text-align:right">0.50</td>
+<td>keep</td>
+</tr>
+<tr>
+<td>sunny</td>
+<td style="text-align:right">0.35</td>
+<td>keep</td>
+</tr>
+<tr>
+<td>cold</td>
+<td style="text-align:right">0.15</td>
+<td>prune</td>
+</tr>
+</tbody>
+</table>
+<p>because:</p>
+<div class="math block">
+B=2.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-2-5-i25-38">Step 2</h5>
+<p>Suppose:</p>
+<div class="math block">
+P(\text{outside}\mid\text{bright})=0.50
+</div>
+<div class="math block">
+P(\text{today}\mid\text{bright})=0.30
+</div>
+<div class="math block">
+P(\text{again}\mid\text{bright})=0.20.
+</div>
+<p>For sunny:</p>
+<div class="math block">
+P(\text{outside}\mid\text{sunny})=0.95
+</div>
+<div class="math block">
+P(\text{today}\mid\text{sunny})=0.03
+</div>
+<div class="math block">
+P(\text{again}\mid\text{sunny})=0.02.
+</div>
+<p>Now calculate every candidate.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-39">Bright branch</h5>
+<div class="math block">
+P(\text{bright outside})
+=
+0.50\times0.50
+=
+0.25
+</div>
+<div class="math block">
+P(\text{bright today})
+=
+0.50\times0.30
+=
+0.15
+</div>
+<div class="math block">
+P(\text{bright again})
+=
+0.50\times0.20
+=
+0.10
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-40">Sunny branch</h5>
+<div class="math block">
+P(\text{sunny outside})
+=
+0.35\times0.95
+=
+0.3325
+</div>
+<div class="math block">
+P(\text{sunny today})
+=
+0.35\times0.03
+=
+0.0105
+</div>
+<div class="math block">
+P(\text{sunny again})
+=
+0.35\times0.02
+=
+0.007.
+</div>
+<p>Top two:</p>
+<div class="math block">
+\boxed{
+0.3325,\;0.25
+}
+</div>
+<p>Therefore final beams:</p>
+<div class="math block">
+\boxed{
+\text{sunny outside}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{bright outside}.
+}
+</div>
+<p>The source gives this exact worked example. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-41">2.5.10 The Special Case <span class="math inline">B=1</span></h3>
+<p>If:</p>
+<div class="math block">
+B=1,
+</div>
+<p>only one sequence survives after every step.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+B=1\Rightarrow\text{greedy decoding}
+}
+</div>
+<p>This is one of the most useful exam facts.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-42">2.5.11 Why Raw Sequence Probability Has a Problem</h3>
+<p>Suppose candidate A has:</p>
+<div class="math block">
+2
+</div>
+<p>tokens, each with probability:</p>
+<div class="math block">
+0.60.
+</div>
+<p>Then:</p>
+<div class="math block">
+P(A)=0.60^2=0.36.
+</div>
+<p>Candidate B has:</p>
+<div class="math block">
+4
+</div>
+<p>tokens, each with probability:</p>
+<div class="math block">
+0.75.
+</div>
+<p>Then:</p>
+<div class="math block">
+P(B)=0.75^4
+\approx0.3164.
+</div>
+<p>Raw probability says:</p>
+<div class="math block">
+\boxed{A&gt;B}
+</div>
+<p>because:</p>
+<div class="math block">
+0.36&gt;0.3164.
+</div>
+<p>But B was more confident <strong>at every individual token</strong>.</p>
+<p>This exposes a length bias.</p>
+<p>The longer sequence is forced to multiply more numbers below 1.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-43">2.5.12 Length Normalization</h3>
+<p>Your decoding slide introduces the Google NMT length-normalization formulation from Wu et al.</p>
+<p>Define:</p>
+<div class="math block">
+\boxed{
+lp(Y)=
+\frac{(5+|Y|)^\alpha}
+{(5+1)^\alpha}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+s(Y)=
+\frac{\log P(Y)}
+{lp(Y)}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">|Y|</span> = sequence length,</li>
+<li><span class="math inline">\alpha</span> = strength of the length penalty.</li>
+</ul>
+<p>The slide notes that the reported useful range was around:</p>
+<div class="math block">
+\alpha\in[0.6,0.7].
+</div>
+<p><em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-44">2.5.13 Why Divide by Length Penalty?</h3>
+<p>Raw log probability becomes more negative as more tokens are added.</p>
+<p>For example:</p>
+<div class="math block">
+\log0.6\approx-0.5108.
+</div>
+<p>Two such tokens:</p>
+<div class="math block">
+2(-0.5108)=-1.0217.
+</div>
+<p>Four <span class="math inline">0.75</span>-probability tokens:</p>
+<div class="math block">
+4\log0.75
+=
+-1.1507.
+</div>
+<p>Raw scoring says:</p>
+<div class="math block">
+-1.0217&gt;-1.1507.
+</div>
+<p>So A wins.</p>
+<p>But length normalization changes the score.</p>
+<p>For:</p>
+<div class="math block">
+\alpha=0.6,
+</div>
+<p>the slide gives approximately:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-45">A</h5>
+<div class="math block">
+lp(A)\approx1.0969
+</div>
+<div class="math block">
+s(A)=\frac{-1.0217}{1.0969}
+\approx-0.9314.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-46">B</h5>
+<div class="math block">
+lp(B)\approx1.2754
+</div>
+<div class="math block">
+s(B)=\frac{-1.1507}{1.2754}
+\approx-0.9022.
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+-0.9022&gt;-0.9314
+}
+</div>
+<p>so B wins.</p>
+<p>That exact inversion is shown in the slide. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-47">2.5.14 What Is Length Normalization Really Doing?</h3>
+<p>Think of it as saying:</p>
+<blockquote>
+<p>&quot;Don't punish a sequence solely because it contains more tokens.&quot;</p>
+</blockquote>
+<p>It does <strong>not</strong> simply divide by:</p>
+<div class="math block">
+|Y|.
+</div>
+<p>Instead, the slide uses a smoother length penalty:</p>
+<div class="math block">
+\frac{(5+|Y|)^\alpha}{6^\alpha}.
+</div>
+<p>So it partially compensates for the systematic decrease in raw sequence probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-48">2.5.15 Beam Search + Length Normalization</h3>
+<p>Therefore, a better beam-search scoring pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{candidate sequence}
+\rightarrow
+\log P(Y)
+\rightarrow
+lp(Y)
+\rightarrow
+s(Y)=\frac{\log P(Y)}{lp(Y)}
+}
+</div>
+<p>Then rank beams using:</p>
+<div class="math block">
+\boxed{s(Y)}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-49">2.5.16 The Big Difference Between Beam Search and Top-k</h3>
+<p>This distinction is essential.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-50">Top-k</h5>
+<p>Looks at the <strong>current vocabulary distribution</strong>:</p>
+<div class="math block">
+P(y_t|\text{context})
+</div>
+<p>and says:</p>
+<blockquote>
+<p>Keep the top <span class="math inline">k</span> next-token candidates.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-51">Beam search</h5>
+<p>Looks at <strong>multiple partial sequences</strong>:</p>
+<div class="math block">
+(y_1,y_2,\ldots,y_t)
+</div>
+<p>and says:</p>
+<blockquote>
+<p>Keep the best <span class="math inline">B</span> sequence hypotheses.</p>
+</blockquote>
+<p>So:</p>
+<div class="math block">
+\boxed{
+k=\text{next-token candidate count}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+B=\text{sequence hypothesis count}
+}
+</div>
+<p>Do not confuse <span class="math inline">k</span> and <span class="math inline">B</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-52">2.5.17 Sampling</h3>
+<p>Now return to stochastic generation.</p>
+<p>Sampling means:</p>
+<div class="math block">
+\boxed{
+y_t\sim P(\cdot|y_{&lt;t},X)
+}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\arg\max.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.6,0.3,0.1].
+</div>
+<p>Over many independent draws:</p>
+<ul>
+<li>first token appears roughly 60% of the time,</li>
+<li>second roughly 30%,</li>
+<li>third roughly 10%.</li>
+</ul>
+<p>This introduces diversity.</p>
+<p>The source notes that sampling can break deterministic loops and produce multiple plausible continuations. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-53">2.5.18 Temperature Is Not Sampling</h3>
+<p>This distinction is critical.</p>
+<p>Temperature:</p>
+<div class="math block">
+\boxed{
+z_i\rightarrow z_i/T
+}
+</div>
+<p>changes the distribution.</p>
+<p>Sampling:</p>
+<div class="math block">
+\boxed{
+y_t\sim P
+}
+</div>
+<p>actually introduces randomness.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+T=0
+\rightarrow
+\text{greedy}
+}
+</div>
+<p>in the implementations described by your sources, while:</p>
+<div class="math block">
+T&gt;0
+</div>
+<p>normally means scale logits and then sample. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-54">2.5.19 Top-k + Temperature</h3>
+<p>Now combine:</p>
+<div class="math block">
+\boxed{
+\text{Top-k}+\text{Temperature}+\text{Sampling}.
+}
+</div>
+<p>This is the exact combination implemented in Raschka's generation function. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>The source implementation effectively does:</p>
+<pre><code class="language-text">model
+ ↓
+last-position logits
+ ↓
+top-k filter
+ ↓
+temperature scaling
+ ↓
+softmax
+ ↓
+multinomial sampling
+ ↓
+next token
+</code></pre>
+<p>Then append and repeat.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-55">2.5.20 Let's Follow the Actual Code Logic</h3>
+<p>The source generation function does:</p>
+<pre><code class="language-python">logits = model(idx_cond)
+logits = logits[:, -1, :]
+</code></pre>
+<p>The second line means:</p>
+<blockquote>
+<p>We only care about the model's distribution for the <strong>next token</strong>, which corresponds to the final sequence position.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">torch.topk(...)
+</code></pre>
+<p>performs top-k filtering.</p>
+<p>Then:</p>
+<pre><code class="language-python">logits = logits / temperature
+</code></pre>
+<p>performs temperature scaling.</p>
+<p>Then:</p>
+<pre><code class="language-python">probs = torch.softmax(...)
+</code></pre>
+<p>converts the filtered logits into probabilities.</p>
+<p>Then:</p>
+<pre><code class="language-python">torch.multinomial(...)
+</code></pre>
+<p>samples the next token. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-56">2.5.21 Complete Next-Token Mathematical Pipeline</h3>
+<p>We can write the source logic as:</p>
+<div class="math block">
+z_t=f_\theta(y_{&lt;t})
+</div>
+<p>then top-k masking:</p>
+<div class="math block">
+\tilde z_{t,i}
+=
+\begin{cases}
+z_{t,i},&amp;i\in S_k\\
+-\infty,&amp;i\notin S_k
+\end{cases}
+</div>
+<p>then temperature:</p>
+<div class="math block">
+\hat z_{t,i}
+=
+\frac{\tilde z_{t,i}}{T}
+</div>
+<p>then:</p>
+<div class="math block">
+P(y_t=i)
+=
+\frac{e^{\hat z_{t,i}}}
+{\sum_j e^{\hat z_{t,j}}}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+y_t\sim P.
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+y_{&lt;t+1}
+=
+(y_{&lt;t},y_t).
+</div>
+<p>And repeat.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-57">2.5.22 Where Does Top-p Fit?</h3>
+<p>Top-p performs a different type of filtering.</p>
+<p>Instead of:</p>
+<div class="math block">
+|S|=k,
+</div>
+<p>it constructs:</p>
+<div class="math block">
+S_p
+</div>
+<p>such that:</p>
+<div class="math block">
+\boxed{
+\sum_{i\in S_p}P_i\ge p
+}
+</div>
+<p>with <span class="math inline">S_p</span> minimal.</p>
+<p>So a combined stochastic decoder can use:</p>
+<div class="math block">
+\boxed{
+\text{temperature + top-k}
+}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+\text{temperature + top-p}
+}
+</div>
+<p>or, depending on the system:</p>
+<div class="math block">
+\boxed{
+\text{top-k + top-p + temperature}.
+}
+</div>
+<p>Your decoding slides recommend temperature plus top-k and/or top-p for tasks such as chat, stories, and brainstorming. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-58">2.5.23 Repetition Penalty</h3>
+<p>There is another control in your master cheatsheet:</p>
+<div class="math block">
+\boxed{\text{Repetition penalty}}
+</div>
+<p>The purpose is different from top-k/top-p.</p>
+<p>Top-k/top-p says:</p>
+<blockquote>
+<p>Remove low-ranked candidates.</p>
+</blockquote>
+<p>Repetition penalty says:</p>
+<blockquote>
+<p>Make already-generated tokens less attractive.</p>
+</blockquote>
+<p>Your master cheatsheet summarizes the slide formulation as:</p>
+<div class="math block">
+\boxed{
+z_i\leftarrow\frac{z_i}{\theta}
+\quad\text{for previously seen tokens, with }\theta&gt;1
+}
+</div>
+<p>before softmax. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-2-5-i25-0" data-full-review="added"><p>Correction: Dividing a negative repeated logit by theta&gt;1 increases it. The supplied rule suppresses positive logits; sign-aware implementations multiply negative logits instead.</p><p><a href="#audit-full-chunk-les-step-2-5-i25">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-2-5-i25-59">2.5.24 Why Does This Reduce Repetition?</h3>
+<p>Suppose two candidate tokens have:</p>
+<div class="math block">
+z_A=4
+</div>
+<p>and:</p>
+<div class="math block">
+z_B=2.
+</div>
+<p>Suppose A already appeared.</p>
+<p>Take:</p>
+<div class="math block">
+\theta=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+z_A'=\frac42=2.
+</div>
+<p>while:</p>
+<div class="math block">
+z_B'=2.
+</div>
+<p>Now they tie.</p>
+<p>Before penalty:</p>
+<div class="math block">
+4&gt;2.
+</div>
+<p>After penalty:</p>
+<div class="math block">
+2=2.
+</div>
+<p>So A's advantage has been reduced.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\theta&gt;1
+\Rightarrow
+\text{previously seen tokens receive reduced logits under this slide formulation}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-60">2.5.25 Repetition Penalty vs Top-k</h3>
+<p>These solve different problems.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-61">Repetition penalty</h5>
+<p>Changes the score of certain tokens based on <strong>history</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-62">Top-k</h5>
+<p>Changes which tokens remain eligible based on <strong>current rank</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-63">Top-p</h5>
+<p>Changes which tokens remain eligible based on <strong>current probability mass</strong>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{History-based control}
+\neq
+\text{distribution truncation}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-64">2.5.26 A Full Combined Numerical</h3>
+<p>Let's create an exam-style question.</p>
+<p>Suppose the current logits are:</p>
+<div class="math block">
+z=[5,4,2,0].
+</div>
+<p>Token 1 has already appeared.</p>
+<p>Use:</p>
+<div class="math block">
+\theta=2,
+</div>
+<div class="math block">
+T=2,
+</div>
+<div class="math block">
+k=3.
+</div>
+<p>We will follow the conceptual order:</p>
+<div class="math block">
+\text{repetition penalty}
+\rightarrow
+\text{top-k}
+\rightarrow
+\text{temperature}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{sample}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-65">Step 1 — Repetition penalty</h5>
+<p>Token 1:</p>
+<div class="math block">
+5/2=2.5.
+</div>
+<p>Other logits unchanged:</p>
+<div class="math block">
+4,\;2,\;0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+z'=[2.5,4,2,0].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-66">Step 2 — Top-3</h5>
+<p>The top three are:</p>
+<div class="math block">
+4,\;2.5,\;2.
+</div>
+<p>So:</p>
+<div class="math block">
+z''=[2.5,4,2,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-67">Step 3 — Temperature</h5>
+<p>Divide by:</p>
+<div class="math block">
+T=2.
+</div>
+<div class="math block">
+[1.25,2,1,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-68">Step 4 — Softmax</h5>
+<p>Subtract the max 2:</p>
+<div class="math block">
+[-0.75,0,-1].
+</div>
+<p>Exponentials:</p>
+<div class="math block">
+[e^{-0.75},1,e^{-1}]
+</div>
+<div class="math block">
+\approx[0.4724,1,0.3679].
+</div>
+<p>Total:</p>
+<div class="math block">
+1.8403.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1\approx0.2567
+</div>
+<div class="math block">
+P_2\approx0.5434
+</div>
+<div class="math block">
+P_3\approx0.1999
+</div>
+<div class="math block">
+P_4=0.
+</div>
+<p>Final distribution:</p>
+<div class="math block">
+\boxed{
+[0.2567,\;0.5434,\;0.1999,\;0].
+}
+</div>
+<p>This example shows three different mechanisms acting sequentially.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-69">2.5.27 What If We Had No Repetition Penalty?</h3>
+<p>Original:</p>
+<div class="math block">
+z=[5,4,2,0].
+</div>
+<p>Top 3:</p>
+<div class="math block">
+[5,4,2,-\infty].
+</div>
+<p>Temperature <span class="math inline">T=2</span>:</p>
+<div class="math block">
+[2.5,2,1,-\infty].
+</div>
+<p>Softmax:</p>
+<div class="math block">
+\approx[0.5465,0.3315,0.1220,0].
+</div>
+<p>With repetition penalty:</p>
+<div class="math block">
+[0.2567,0.5434,0.1999,0].
+</div>
+<p>The previously seen first token loses its dominance.</p>
+<p>That is exactly what the penalty is intended to do.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-70">2.5.28 Important Caveat About Repetition Penalty</h3>
+<p>The exact repetition-penalty implementation can vary across libraries and systems.</p>
+<p>For this course, use the formulation given in your supplied slides/cheatsheet:</p>
+<div class="math block">
+\boxed{
+z_i/\theta,\qquad \theta&gt;1
+}
+</div>
+<p>for previously seen tokens.</p>
+<p>Do not silently substitute another library's exact variant into a source-specific numerical question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-71">2.5.29 Now the Entire Decoding Decision Tree</h3>
+<p>Suppose the model produces:</p>
+<div class="math block">
+\boxed{z\in\mathbb{R}^{|V|}}.
+</div>
+<p>You need to decide what the task requires.</p>
+<h4 id="v3-heading-chunk-les-step-2-5-i25-72">Case 1 — Exact reproducibility</h4>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{Greedy}}
+</div>
+<p>as the deterministic baseline.</p>
+<p>Your slides explicitly associate greedy decoding with debugging/evaluation when exact reproducibility is desired. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-2-5-i25-73">Case 2 — Need a strong sequence among a few plausible outputs</h4>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{Beam Search}}
+</div>
+<p>often with:</p>
+<div class="math block">
+\boxed{\text{Length Normalization}}.
+</div>
+<p>The slides associate this with translation, summarization, and code-style tasks where there may be one or a few good outputs. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-2-5-i25-74">Case 3 — Many valid outputs</h4>
+<p>Use:</p>
+<div class="math block">
+\boxed{
+\text{Sampling}
+}
+</div>
+<p>possibly with:</p>
+<div class="math block">
+\boxed{\text{Temperature + Top-k/Top-p}}.
+</div>
+<p>This is the slide's recommendation for chat, stories, and brainstorming. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-75">2.5.30 The Most Important Conceptual Split</h3>
+<p>Memorize this diagram:</p>
+<pre><code class="language-text">                     LLM logits
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+       Next-token control       Sequence search
+             │                       │
+     ┌───────┼─────────┐             │
+     │       │         │             │
+ Greedy  Temperature  Top-k/p      Beam Search
+                         │             │
+                      Sampling   Length normalization
+</code></pre>
+<p>This is the clean mental model for the whole decoding chapter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-76">2.5.31 Numerical Comparison — Greedy vs Beam</h3>
+<p>Suppose:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-77">Step 1</h5>
+<div class="math block">
+P(A)=0.6,\qquad P(B)=0.4.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-78">Step 2</h5>
+<div class="math block">
+P(X|A)=0.5
+</div>
+<div class="math block">
+P(X|B)=0.95.
+</div>
+<p>Greedy chooses A.</p>
+<p>Then:</p>
+<div class="math block">
+P(AX)=0.6\times0.5=0.30.
+</div>
+<p>But:</p>
+<div class="math block">
+P(BX)=0.4\times0.95=0.38.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+B X
+}
+</div>
+<p>is better.</p>
+<p>Beam width:</p>
+<div class="math block">
+B=2
+</div>
+<p>can retain both A and B and discover this.</p>
+<p>Beam width:</p>
+<div class="math block">
+B=1
+</div>
+<p>cannot.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-79">2.5.32 Numerical Comparison — Top-k vs Top-p</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.50,0.20,0.15,0.10,0.05].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-80">Top-k, <span class="math inline">k=2</span></h5>
+<p>Retain:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>tokens.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-81">Top-p, <span class="math inline">p=0.80</span></h5>
+<p>Cumulative:</p>
+<div class="math block">
+0.50,\;0.70,\;0.85.
+</div>
+<p>Therefore retain:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>tokens.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+k=2\Rightarrow2\text{ candidates}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+p=0.80\Rightarrow3\text{ candidates}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-82">2.5.33 Numerical Comparison — Same Distribution, Different <span class="math inline">p</span></h3>
+<p>Suppose:</p>
+<div class="math block">
+P=[0.50,0.20,0.15,0.10,0.05].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-83"><span class="math inline">p=0.50</span></h5>
+<p>The first token already reaches the threshold.</p>
+<div class="math block">
+\boxed{1}
+</div>
+<p>candidate.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-84"><span class="math inline">p=0.70</span></h5>
+<p>First two:</p>
+<div class="math block">
+0.50+0.20=0.70.
+</div>
+<div class="math block">
+\boxed{2}
+</div>
+<p>candidates.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-85"><span class="math inline">p=0.85</span></h5>
+<p>First three:</p>
+<div class="math block">
+0.85.
+</div>
+<div class="math block">
+\boxed{3}
+</div>
+<p>candidates.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-86"><span class="math inline">p=0.95</span></h5>
+<p>First four:</p>
+<div class="math block">
+0.95.
+</div>
+<div class="math block">
+\boxed{4}
+</div>
+<p>candidates.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{increasing }p
+\rightarrow
+\text{typically increasing candidate set}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-87">2.5.34 Numerical Comparison — Why Temperature Is Different</h3>
+<p>Take logits:</p>
+<div class="math block">
+z=[4,3,2].
+</div>
+<p>At:</p>
+<div class="math block">
+T=1:
+</div>
+<div class="math block">
+P\approx[0.6652,0.2447,0.0900].
+</div>
+<p>At:</p>
+<div class="math block">
+T=2:
+</div>
+<div class="math block">
+P\approx[0.5065,0.3072,0.1863].
+</div>
+<p>All three candidates still exist.</p>
+<p>So temperature does not perform hard filtering.</p>
+<p>It only redistributes mass:</p>
+<div class="math block">
+\boxed{
+\text{temperature = soft control}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-88">2.5.35 Numerical Comparison — Top-k Is Hard Control</h3>
+<p>Same distribution:</p>
+<div class="math block">
+[0.6652,0.2447,0.0900].
+</div>
+<p>Take:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+[0.6652,0.2447,0]
+</div>
+<p>and renormalize:</p>
+<div class="math block">
+\frac{0.6652}{0.9099}\approx0.7311
+</div>
+<div class="math block">
+\frac{0.2447}{0.9099}\approx0.2689.
+</div>
+<p>So final:</p>
+<div class="math block">
+\boxed{
+[0.7311,0.2689,0].
+}
+</div>
+<p>A token has gone from:</p>
+<div class="math block">
+0.09
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<p>That's the defining hard cutoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-89">2.5.36 Numerical Exam — Full Sequence Scoring</h3>
+<p>Suppose two candidate sequences are:</p>
+<div class="math block">
+A=(a_1,a_2,a_3)
+</div>
+<p>with probabilities:</p>
+<div class="math block">
+0.8,\;0.5,\;0.9
+</div>
+<p>and:</p>
+<div class="math block">
+B=(b_1,b_2)
+</div>
+<p>with probabilities:</p>
+<div class="math block">
+0.7,\;0.95.
+</div>
+<p>Compute sequence probabilities.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-90">A</h5>
+<div class="math block">
+P(A)=0.8\times0.5\times0.9
+=
+0.36.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-91">B</h5>
+<div class="math block">
+P(B)=0.7\times0.95
+=
+0.665.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{B&gt;A}.
+</div>
+<p>This reminds us that beam search scores complete or partial sequences jointly rather than just comparing their latest tokens.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-2-5-i25-1" data-full-review="added"><p>Correction: ln(.665)=-.4079682383; four-decimal rounding is -.4080, rather than -.4072.</p><p><a href="#audit-full-chunk-les-step-2-5-i25">Complete grounded review</a></p></aside><h3 id="v3-heading-chunk-les-step-2-5-i25-92">2.5.37 Numerical Exam — Log Probability</h3>
+<p>For:</p>
+<div class="math block">
+P(A)=0.36
+</div>
+<p>we get:</p>
+<div class="math block">
+\log P(A)\approx-1.0217.
+</div>
+<p>For:</p>
+<div class="math block">
+P(B)=0.665
+</div>
+<p>we get:</p>
+<div class="math block">
+\log P(B)\approx-0.4072.
+</div>
+<p>Since:</p>
+<div class="math block">
+-0.4072&gt;-1.0217,
+</div>
+<p>B remains the better sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-93">2.5.38 Numerical Exam — Length Normalization</h3>
+<p>Suppose:</p>
+<div class="math block">
+|A|=2,\qquad |B|=4
+</div>
+<p>and:</p>
+<div class="math block">
+\log P(A)=-1.0217,
+</div>
+<div class="math block">
+\log P(B)=-1.1507.
+</div>
+<p>Take:</p>
+<div class="math block">
+\alpha=0.6.
+</div>
+<p>Use:</p>
+<div class="math block">
+lp(Y)=\frac{(5+|Y|)^{0.6}}{6^{0.6}}.
+</div>
+<p>Then approximately:</p>
+<div class="math block">
+lp(A)=1.0969
+</div>
+<div class="math block">
+lp(B)=1.2754.
+</div>
+<p>Scores:</p>
+<div class="math block">
+s(A)=\frac{-1.0217}{1.0969}\approx-0.9314
+</div>
+<div class="math block">
+s(B)=\frac{-1.1507}{1.2754}\approx-0.9022.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{B\text{ wins after normalization}.}
+</div>
+<p>This exact numerical pattern comes from the decoding slide. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-94">2.5.39 What an Exam Question Might Actually Look Like</h3>
+<p>A typical mixed question could say:</p>
+<blockquote>
+<p>A model outputs logits <span class="math inline">[5,4,2,0,-1]</span>. Apply temperature <span class="math inline">T=2</span>, retain top-3 candidates, and sample from the resulting distribution.</p>
+</blockquote>
+<p>The correct reasoning is:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-95">Step 1</h5>
+<p>Select top-3:</p>
+<div class="math block">
+5,4,2.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-96">Step 2</h5>
+<p>Mask:</p>
+<div class="math block">
+[5,4,2,-\infty,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-97">Step 3</h5>
+<p>Temperature:</p>
+<div class="math block">
+[2.5,2,1,-\infty,-\infty].
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-98">Step 4</h5>
+<p>Softmax:</p>
+<div class="math block">
+\boxed{
+[0.5465,0.3315,0.1220,0,0]
+}
+</div>
+<p>approximately.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-99">Step 5</h5>
+<p>Sampling occurs from exactly those three tokens.</p>
+<p>This is the kind of multi-stage numerical that you should now be able to solve mechanically.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-100">2.5.40 Another Mixed Exam Question</h3>
+<blockquote>
+<p>The model probabilities are <span class="math inline">[0.55,0.20,0.10,0.08,0.07]</span>. Apply top-p with <span class="math inline">p=0.80</span>, then renormalize.</p>
+</blockquote>
+<p>Cumulative:</p>
+<div class="math block">
+0.55
+</div>
+<div class="math block">
+0.75
+</div>
+<div class="math block">
+0.85.
+</div>
+<p>Therefore keep 3 tokens.</p>
+<p>Normalize by:</p>
+<div class="math block">
+0.85.
+</div>
+<p>Final:</p>
+<div class="math block">
+\boxed{
+[0.6471,\;0.2353,\;0.1176,\;0,\;0].
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-101">2.5.41 Another Mixed Exam Question</h3>
+<blockquote>
+<p>Why could top-p retain 3 tokens in one context and 30 in another, even with the same <span class="math inline">p=0.9</span>?</p>
+</blockquote>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+p
+}
+</div>
+<p>controls cumulative probability mass rather than candidate count.</p>
+<p>A sharply concentrated distribution reaches 0.9 quickly.</p>
+<p>A flat distribution requires many tokens to reach 0.9.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-102">2.5.42 Another Mixed Exam Question</h3>
+<blockquote>
+<p>Which strategy is better when exact reproducibility is required?</p>
+</blockquote>
+<p>From your slides:</p>
+<div class="math block">
+\boxed{\text{Greedy decoding}}
+</div>
+<p>because it is deterministic. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-103">2.5.43 Another Mixed Exam Question</h3>
+<blockquote>
+<p>Which strategy is more appropriate when many different outputs can be valid?</p>
+</blockquote>
+<p>The source guidance is:</p>
+<div class="math block">
+\boxed{
+\text{sampling with temperature + top-k/top-p}
+}
+</div>
+<p>for tasks such as chat, storytelling, and brainstorming. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-104">2.5.44 Another Mixed Exam Question</h3>
+<blockquote>
+<p>Why is beam search often paired with length normalization?</p>
+</blockquote>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{raw sequence probability decreases as more token probabilities are multiplied}.
+}
+</div>
+<p>Without normalization, longer candidates can be unfairly penalized merely because they contain more factors below 1.</p>
+<p>The source explicitly motivates the length penalty this way. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-105">2.5.45 One Subtle but Very Important Distinction</h3>
+<p>You should now distinguish:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-106">Model quality</h5>
+<p>The model produces:</p>
+<div class="math block">
+P(y_t|y_{&lt;t},x).
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-107">Decoder policy</h5>
+<p>The decoder decides:</p>
+<div class="math block">
+\boxed{\text{what to do with that distribution}.}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Decoder }\neq\text{ model}.
+}
+</div>
+<p>The same model can generate very different outputs depending on:</p>
+<div class="math block">
+T,\;k,\;p,\;B,
+</div>
+<p>and other decoding controls.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-108">2.5.46 Complete Pipeline for Deterministic Decoding</h3>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-109">Greedy</h5>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+\arg\max
+\rightarrow
+y_t
+}
+</div>
+<p>No stochastic sampling.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-110">2.5.47 Complete Pipeline for Stochastic Decoding</h3>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-111">Temperature + Top-k</h5>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+TopK
+\rightarrow
+z/T
+\rightarrow
+Softmax
+\rightarrow
+Multinomial
+\rightarrow
+y_t
+}
+</div>
+<p>Raschka's generation code directly implements this form. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-112">2.5.48 Complete Pipeline for Nucleus Sampling</h3>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+Temperature
+\rightarrow
+Softmax
+\rightarrow
+Sort
+\rightarrow
+Cumulative\ Sum
+\rightarrow
+TopP
+\rightarrow
+Renormalize
+\rightarrow
+Sample
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-113">2.5.49 Complete Pipeline for Beam Search</h3>
+<div class="math block">
+\boxed{
+z_1
+\rightarrow
+\text{candidate sequences}
+\rightarrow
+\text{score}
+\rightarrow
+\text{prune}
+\rightarrow
+z_2
+\rightarrow
+\text{expand again}
+\rightarrow\cdots
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+s(Y)=\log P(Y)/lp(Y)
+}
+</div>
+<p>when length normalization is used.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-114">2.5.50 Your Decoding Master Table</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Works on</th>
+<th>Deterministic?</th>
+<th>Main control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Greedy</td>
+<td>Current distribution</td>
+<td>Yes</td>
+<td>Highest probability</td>
+</tr>
+<tr>
+<td>Sampling</td>
+<td>Current distribution</td>
+<td>No</td>
+<td>Random draw</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>Distribution</td>
+<td>Depends on sampling</td>
+<td>Sharpness</td>
+</tr>
+<tr>
+<td>Top-k</td>
+<td>Current distribution</td>
+<td>Depends on sampling</td>
+<td>Fixed candidate count</td>
+</tr>
+<tr>
+<td>Top-p</td>
+<td>Current distribution</td>
+<td>Depends on sampling</td>
+<td>Probability mass</td>
+</tr>
+<tr>
+<td>Beam search</td>
+<td>Partial sequences</td>
+<td>Usually yes</td>
+<td>Beam width <span class="math inline">B</span></td>
+</tr>
+<tr>
+<td>Length normalization</td>
+<td>Sequence score</td>
+<td>—</td>
+<td>Correct length bias</td>
+</tr>
+<tr>
+<td>Repetition penalty</td>
+<td>History-conditioned logits</td>
+<td>Depends on decoder</td>
+<td>Reduce repetition</td>
+</tr>
+</tbody>
+</table>
+<p>The first six are directly covered by the supplied decoding material; repetition penalty is also summarized in the master cheatsheet. <em>(Source: decoding-sampling-slides; MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-115">2.5.51 The Five Numerical Patterns You Must Master</h3>
+<p>At this point, your exam preparation should automatically recognize these five patterns.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-116">Pattern 1 — Temperature</h5>
+<div class="math block">
+z\rightarrow z/T\rightarrow softmax.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-117">Pattern 2 — Top-k</h5>
+<div class="math block">
+\text{rank}\rightarrow\text{keep }k\rightarrow-\infty\rightarrow softmax.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-118">Pattern 3 — Top-p</h5>
+<div class="math block">
+\text{sort probabilities}\rightarrow
+\text{cumulative}\rightarrow
+\ge p\rightarrow
+\text{renormalize}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-119">Pattern 4 — Beam</h5>
+<div class="math block">
+\text{expand}\rightarrow
+\text{multiply/log-sum}\rightarrow
+\text{keep top }B.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-120">Pattern 5 — Length normalization</h5>
+<div class="math block">
+\boxed{
+s(Y)=
+\frac{\log P(Y)}
+{(5+|Y|)^\alpha/6^\alpha}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-121">2.5.52 Exam Trap Summary</h3>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-122">Trap 1</h5>
+<p>Top-k is <strong>not</strong>:</p>
+<div class="math block">
+\text{top }k\%\text{ vocabulary}.
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{k\text{ tokens}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-123">Trap 2</h5>
+<p>Top-p is <strong>not</strong>:</p>
+<div class="math block">
+p\%\text{ vocabulary}.
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{\text{probability mass }p}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-124">Trap 3</h5>
+<p>Top-p cumulative sum does not have to equal exactly <span class="math inline">p</span>.</p>
+<p>It must first become:</p>
+<div class="math block">
+\boxed{\ge p}.
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-125">Trap 4</h5>
+<p>Temperature does not remove tokens.</p>
+<div class="math block">
+\boxed{
+T=\text{distribution reshape}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-126">Trap 5</h5>
+<p>Top-k does not choose the final token.</p>
+<p>It restricts the sampling set.</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-127">Trap 6</h5>
+<p>Beam width <span class="math inline">B</span> is not top-k <span class="math inline">k</span>.</p>
+<div class="math block">
+\boxed{
+B=\text{number of sequences}
+}
+</div>
+<div class="math block">
+\boxed{
+k=\text{number of next-token candidates}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-128">Trap 7</h5>
+<p>Raw sequence probability and length-normalized score are not the same.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-129">2.5.53 Final Mental Model</h3>
+<p>Think of the model as saying:</p>
+<blockquote>
+<p>&quot;Here are the possibilities.&quot;</p>
+</blockquote>
+<p>Then the decoder asks:</p>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-130">Greedy</h5>
+<blockquote>
+<p>Which one is best right now?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-131">Sampling</h5>
+<blockquote>
+<p>Let's draw one according to the probabilities.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-132">Temperature</h5>
+<blockquote>
+<p>How sharply should I favor the likely choices?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-133">Top-k</h5>
+<blockquote>
+<p>Only let the best <span class="math inline">k</span> choices participate.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-134">Top-p</h5>
+<blockquote>
+<p>Let enough high-probability choices participate to cover probability mass <span class="math inline">p</span>.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-135">Beam</h5>
+<blockquote>
+<p>Keep several possible futures alive and compare their sequence scores.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-136">Length normalization</h5>
+<blockquote>
+<p>Don't let sequence length unfairly dominate beam scoring.</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-2-5-i25-137">Repetition penalty</h5>
+<blockquote>
+<p>Reduce the attractiveness of tokens that have already appeared.</p>
+</blockquote>
+<p>That is the complete conceptual map.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-138">2.5.54 Numerical Master Test</h3>
+<p>Before leaving decoding, these are the kinds of questions you should be able to solve.</p>
+<p><strong>Q1.</strong> Given logits and <span class="math inline">T</span>, calculate softmax.</p>
+<p><strong>Q2.</strong> Given logits and <span class="math inline">k</span>, identify the retained candidates and calculate the filtered softmax.</p>
+<p><strong>Q3.</strong> Given probabilities and <span class="math inline">p</span>, construct the nucleus and renormalize.</p>
+<p><strong>Q4.</strong> Given two candidate sequences, calculate:</p>
+<div class="math block">
+P(Y)
+</div>
+<p>and:</p>
+<div class="math block">
+\log P(Y).
+</div>
+<p><strong>Q5.</strong> Compare two beam candidates using:</p>
+<div class="math block">
+lp(Y)
+</div>
+<p>and:</p>
+<div class="math block">
+s(Y).
+</div>
+<p><strong>Q6.</strong> Explain why:</p>
+<div class="math block">
+B=1
+</div>
+<p>reduces beam search to greedy.</p>
+<p><strong>Q7.</strong> Explain why positive temperature preserves ranking.</p>
+<p><strong>Q8.</strong> Explain why temperature can change top-p membership.</p>
+<p><strong>Q9.</strong> Combine:</p>
+<div class="math block">
+\text{repetition penalty + top-k + temperature + softmax}.
+</div>
+<p><strong>Q10.</strong> Given a task description, choose:</p>
+<div class="math block">
+\boxed{\text{greedy / beam / sampling / top-k / top-p}}
+</div>
+<p>and justify the choice.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-2-5-i25-139">2.5.55 Decoding Section Status</h3>
+<p>At this point we have covered:</p>
+<div class="math block">
+\boxed{\text{2.1 Decoding basics}}
+</div>
+<div class="math block">
+\boxed{\text{2.2 Temperature}}
+</div>
+<div class="math block">
+\boxed{\text{2.3 Top-k}}
+</div>
+<div class="math block">
+\boxed{\text{2.4 Top-p}}
+</div>
+<div class="math block">
+\boxed{\text{2.5 Combined decoding + beam scoring + length normalization + repetition control}}
+</div>
+<p>The supplied decoding slides explicitly present these methods together as a family of alternative decoding strategies and emphasize that there is <strong>no single best decoder for every task</strong>. <em>(Source: decoding-sampling-slides)</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-a3">A.3 — Multi-Token Prediction (MTP)</a> — <em>MTP at inference and speculative decoding</em>  ·  <a href="#app-g1">G.1 — Decoding &amp; Sampling slides not covered by the lessons</a> — <em>min-p, repetition penalty and other slides</em></p>
+</blockquote>
+<hr />
+</section>

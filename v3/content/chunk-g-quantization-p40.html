@@ -1,0 +1,27 @@
+<section class="chunk" id="chunk-g-quantization-p40" data-id="g-quantization-p40"><div class="v3-note" data-v3="added"><a href="#v3-quantization">Read the teaching bridge for this source page</a> · syllabus 04.39. Original source image and extract follow.</div><p><a id="g-quantization-p40"></a></p>
+<h3 id="v3-heading-chunk-g-quantization-p40-1">Slide 40 — GPTQ: does this actually help?</h3>
+<p><img loading="lazy" decoding="async" width="1180" height="333" src="assets/8201bb6fa6d5377b1610.png" alt="quantization-slides slide 40: GPTQ: does this actually help?" /></p>
+<details><summary>Slide text (extracted)</summary>
+<pre><code class="language-text">GPTQ: does this actually help?
+At realistic scale — a 64-weight row, calibration activations with realistic feature correlation, INT4 — sequential quantize-and-compensate vs. naive independent
+rounding, measured on the loss GPTQ actually optimizes, e⊤ He (the real output-reconstruction error, not raw weight error):
+METHOD
+
+E ⊤ HE ( O U T P U T E R RO R )
+
+naive independent rounding
+
+151.4
+
+GPTQ (sequential + compensation)
+
+71.8
+
+V E R I F I E D : 5 2 . 6 % LOW E R O U T P U T E R R O R — B U T N OT LOW E R W E I G H T E R R O R
+
+Plain unweighted weight MSE tells the opposite story here: naive = 0.00067 vs. GPTQ = 0.00137 — GPTQ's weights are individually less accurate on average.
+That's not a bug: GPTQ deliberately pushes weights further from their true values in directions H says the output barely notices, in exchange for staying
+accurate in directions the output is sensitive to. It optimizes what the layer actually computes, not how close the weights look on paper.
+</code></pre>
+</details>
+</section>

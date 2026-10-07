@@ -1,0 +1,213 @@
+"""Explained complete CPU fixtures for the ten supplementary teaching bridges.
+
+Pure Python and NumPy. Exact small-support sequence KL and gradients are
+enumerated; these are teaching applications, not MiniLLM benchmark training.
+"""
+import math
+import struct
+from collections import Counter
+import numpy as np
+
+
+def probabilities(p):
+    """Reject an invalid categorical distribution before filtering/scoring."""
+    p=np.asarray(p,dtype=float)
+    if p.ndim!=1 or not len(p) or not np.all(np.isfinite(p)) or np.any(p<0) or not np.isclose(p.sum(),1,atol=1e-10):
+        raise ValueError('nonempty nonnegative normalized finite probabilities required')
+    return p
+
+
+def filter_distribution(p, parameter, kind):
+    """Min-p relative cutoff or locally typical cumulative mass, then normalize."""
+    p=probabilities(p)
+    if not 0<parameter<=1:raise ValueError('parameter in (0,1] required')
+    if kind=='min_p':keep=np.flatnonzero(p>=parameter*p.max()).tolist()
+    elif kind=='typical':
+        entropy=-sum(x*math.log(x) for x in p if x)
+        order=sorted(range(len(p)),key=lambda i:(abs(-math.log(p[i])-entropy) if p[i] else math.inf,i))
+        keep=[];mass=0
+        for i in order:
+            if not p[i]:break
+            keep.append(i);mass+=p[i]
+            if mass>=parameter:break
+    else:raise ValueError('unknown filter')
+    out=np.zeros_like(p);out[keep]=p[keep]/p[keep].sum()
+    return keep,out
+
+
+def repetition_penalty(logits, seen, penalty):
+    """Suppress positive/negative logits consistently; process each seen ID once."""
+    if not math.isfinite(penalty) or penalty<=0:raise ValueError('positive finite penalty required')
+    z=np.array(logits,dtype=float,copy=True)
+    for i in set(seen):
+        if i<0 or i>=len(z):raise ValueError('seen token outside vocabulary')
+        z[i]=z[i]/penalty if z[i]>=0 else z[i]*penalty
+    return z
+
+
+def contrastive_candidate(probability, hidden, context, alpha=.5):
+    """Compute actual cosine similarities and candidate tradeoff, not supplied scores."""
+    p=probabilities(probability);h=np.asarray(hidden,float);c=np.asarray(context,float)
+    if not 0<=alpha<=1 or h.ndim!=2 or c.ndim!=2 or len(h)!=len(p) or h.shape[1]!=c.shape[1] or not len(c):raise ValueError('incompatible inputs')
+    hn=np.linalg.norm(h,axis=1);cn=np.linalg.norm(c,axis=1)
+    if np.any(hn==0) or np.any(cn==0):raise ValueError('cosine needs nonzero vectors')
+    similarity=(h @ c.T)/(hn[:,None]*cn[None,:])
+    scores=(1-alpha)*p-alpha*similarity.max(axis=1)
+    return int(np.argmax(scores)),scores,similarity
+
+
+def float16_decode(bits):
+    """Decode all binary16 patterns, including subnormals, signed zero and NaNs."""
+    if not isinstance(bits,int) or not 0<=bits<65536:raise ValueError('16-bit integer required')
+    sign=-1 if bits>>15 else 1;e=(bits>>10)&31;m=bits&1023
+    if e==0:return math.copysign(m*2**-24,sign)
+    if e==31:return math.copysign(math.inf,sign) if m==0 else math.nan
+    return sign*(1+m/1024)*2**(e-15)
+
+
+def quantized_dot(x_codes,w_codes,x_step,w_step,output_step=None):
+    """Keep dequantization steps in real-units/code; accumulate integers exactly."""
+    if min(x_step,w_step)<=0 or (output_step is not None and output_step<=0):raise ValueError('positive steps required')
+    x=np.asarray(x_codes);w=np.asarray(w_codes)
+    if x.ndim!=1 or w.shape!=x.shape or not np.issubdtype(x.dtype,np.integer) or not np.issubdtype(w.dtype,np.integer):raise ValueError('matching integer vectors required')
+    accumulator=sum(int(a)*int(b) for a,b in zip(x,w))
+    real=x_step*w_step*accumulator
+    return accumulator,real,(round(real/output_step) if output_step is not None else None)
+
+
+def compensate_fixed_coordinate(hessian,error_index,fixed_error):
+    """Solve the exact quadratic optimum in remaining coordinates (one GPTQ idea)."""
+    h=np.asarray(hessian,float);n=len(h)
+    if h.shape!=(n,n) or not np.allclose(h,h.T) or np.min(np.linalg.eigvalsh(h))<=0:raise ValueError('positive-definite symmetric H required')
+    rest=[i for i in range(n) if i!=error_index]
+    error=np.zeros(n);error[error_index]=fixed_error
+    error[rest]=np.linalg.solve(h[np.ix_(rest,rest)],-h[rest,error_index]*fixed_error)
+    return error,float(error @ h @ error)
+
+
+def two_token_distribution(theta):
+    """Three Bernoulli logits: root and the two first-token-conditioned branches."""
+    theta=np.asarray(theta,float)
+    if theta.shape!=(3,) or not np.all(np.isfinite(theta)):raise ValueError('three finite logits required')
+    sigmoid=lambda t:1/(1+math.exp(-float(t)))
+    r,left,right=map(sigmoid,theta)
+    return np.array([(1-r)*(1-left),(1-r)*left,r*(1-right),r*right])
+
+
+def sequence_reverse_kl(theta,teacher):
+    """Enumerate all two-token paths and full score-function gradients exactly."""
+    p=probabilities(teacher);q=two_token_distribution(theta)
+    if p.shape!=(4,) or np.any(p==0):raise ValueError('positive teacher on four paths required')
+    r,left,right=[1/(1+math.exp(-float(t))) for t in theta]
+    ratios=np.log(q/p);loss=float(q @ ratios);gradient=np.zeros(3)
+    for index,(first,second) in enumerate([(0,0),(0,1),(1,0),(1,1)]):
+        score=np.array([first-r,second-left if first==0 else 0,second-right if first==1 else 0])
+        gradient+=q[index]*(ratios[index]+1)*score
+    return loss,gradient,q
+
+
+def importance_expectation(target,proposal,values):
+    """Exact finite proposal weighting; require coverage wherever target is positive."""
+    q=probabilities(target);m=probabilities(proposal);v=np.asarray(values,float)
+    if q.shape!=m.shape or v.shape!=q.shape or np.any((q>0)&(m==0)):raise ValueError('shape/support mismatch')
+    w=np.divide(q,m,out=np.zeros_like(q),where=m>0)
+    return float(np.sum(m*w*v)),w
+
+
+def expected_k3(student,reference):
+    """k3 value equality holds under student sampling; gradients need separate care."""
+    q=probabilities(student);p=probabilities(reference)
+    if q.shape!=p.shape or np.any(q==0) or np.any(p==0):raise ValueError('positive common support required')
+    lr=np.log(p/q);k3=np.expm1(lr)-lr
+    return k3,float(q @ k3),float(q @ np.log(q/p))
+
+
+def ece(confidences,correct,boundaries=(0,.5,1)):
+    """Weighted calibration error; bins are [low,high), final bin includes 1."""
+    conf=np.asarray(confidences,float);corr=np.asarray(correct,bool)
+    if conf.shape!=corr.shape or conf.ndim!=1 or not len(conf) or np.any((conf<0)|(conf>1)):raise ValueError('valid paired predictions required')
+    if list(boundaries)!=sorted(boundaries) or boundaries[0]!=0 or boundaries[-1]!=1:raise ValueError('bins must partition [0,1]')
+    total=0;parts=[]
+    for i,(lo,hi) in enumerate(zip(boundaries[:-1],boundaries[1:])):
+        take=(conf>=lo)&(conf<=hi if i==len(boundaries)-2 else conf<hi);n=int(take.sum())
+        if n:
+            gap=abs(float(corr[take].mean())-float(conf[take].mean()));total+=n/len(conf)*gap
+            parts.append({'count':n,'accuracy':float(corr[take].mean()),'confidence':float(conf[take].mean()),'gap':gap})
+    return float(total),parts
+
+
+def distinct_n(responses,n=4):
+    """Corpus unique n-grams / corpus count, never crossing response boundaries."""
+    if n<1:raise ValueError('n must be positive')
+    grams=[tuple(words[i:i+n]) for words in responses for i in range(max(0,len(words)-n+1))]
+    return (len(set(grams))/len(grams) if grams else None),len(grams)
+
+
+def canonical_vote(answers):
+    """Canonicalize rational numbers; reject other syntax rather than eval strings."""
+    from fractions import Fraction
+    canonical=[]
+    for text in answers:
+        try:canonical.append(str(Fraction(str(text).strip())))
+        except (ValueError,ZeroDivisionError):continue
+    if not canonical:raise ValueError('no valid answers')
+    counts=Counter(canonical);winner=min(counts,key=lambda x:(-counts[x],x))
+    return winner,dict(counts)
+
+
+def verified_selection(candidates,verifier):
+    """Select first accepted candidate; return None when all fail a callable check."""
+    for candidate in candidates:
+        if verifier(candidate):return candidate
+    return None
+
+
+
+def group_advantages(rewards, epsilon=1e-8):
+    """Population-standard-deviation normalization; constant rewards give zero."""
+    r=np.asarray(rewards,float)
+    if r.ndim!=1 or not len(r) or not np.all(np.isfinite(r)) or epsilon<=0:raise ValueError('finite nonempty rewards and positive epsilon required')
+    return (r-r.mean())/(r.std(ddof=0)+epsilon)
+
+
+def future_only_averages(rewards):
+    """Explicit tutorial convention: future-only count, zero for empty future."""
+    r=np.asarray(rewards,float)
+    return np.array([r[t+1:].mean() if t+1<len(r) else 0 for t in range(len(r))])
+
+
+def mirostat_feedback(state, surprise_bits, target_bits, rate):
+    """Feedback only, with consistent bits; not a complete Mirostat truncator."""
+    if rate<0 or not all(math.isfinite(x) for x in (state,surprise_bits,target_bits,rate)):raise ValueError('finite inputs and nonnegative gain required')
+    return state-rate*(surprise_bits-target_bits)
+
+
+def kl_divergence(target,model):
+    """Exact categorical KL, positive target on model zero means infinity."""
+    p=probabilities(target);q=probabilities(model)
+    if p.shape!=q.shape:raise ValueError('matching support required')
+    if np.any((p>0)&(q==0)):return math.inf
+    return sum(float(a)*math.log(float(a/b)) for a,b in zip(p,q) if a)
+
+def demonstration():
+    """Print inspectable root-bridge fixtures, including actual sequence-KL updates."""
+    import json
+    theta=np.array([.2,-.4,.9]);teacher=np.array([.56,.14,.09,.21]);initial,g,q=sequence_reverse_kl(theta,teacher)
+    losses=[initial]
+    for _ in range(8):
+        theta=theta-.2*g;loss,g,q=sequence_reverse_kl(theta,teacher);losses.append(loss)
+    error,cost=compensate_fixed_coordinate([[1,.9],[.9,1]],0,.1)
+    out={'sequence_reverse_kl_initial':initial,'sequence_reverse_kl_losses':losses,'sequence_reverse_kl_final_distribution':q.tolist(),
+       'fp16_pi':float16_decode((16<<10)|int('1001001000',2)),'fp16_subnormal_step':2**-24,
+       'quantized_dot':quantized_dot([10,-2],[4,5],.02,.05,.01),'quadratic_compensation_error':error.tolist(),'quadratic_cost':cost,
+       'canonical_vote':canonical_vote(['1/2','.5','2/4','1/3']),
+       'source_stage_deltas':[71.7-46.6,77-53.6,87.6-62.1,92.3-75.6],
+       'minillm_ablation_v4_validation_drops':[27.4-17.4,27.4-22.3,27.4-27.0],
+       'indicqa_reported_discrepancy':18579-13283-5292,
+       'any_correct_if_independent':1-(1-.4)**4}
+    return out
+
+
+if __name__=='__main__':
+    import json
+    print(json.dumps(demonstration(),indent=2))

@@ -1,0 +1,1561 @@
+<section class="chunk" id="chunk-les-step-5-44-i85" data-id="les-step-5-44-i85"><details class="audit-card" id="audit-full-chunk-les-step-5-44-i85" data-full-review="added"><summary>Complete lesson review: derivation, checked numericals, answers and source boundaries</summary><p>Read this review alongside the preserved lesson below. Corrections qualify inherited claims. Sources support named mechanisms; teaching fixtures are independent reconstructions. Earlier progress reports remain historical snapshots.</p><h4 id="v3-heading-chunk-les-step-5-44-i85-1">Motivation</h4><p>Derive expert and router arithmetic from matrix shapes before claiming MoE savings.</p><h4 id="v3-heading-chunk-les-step-5-44-i85-2">Prerequisites</h4><ul><li>Two-layer FFN matrix shapes and parameter counts</li><li>Stable softmax, top-k, integer indices and gather/scatter accumulation</li><li>Expert parallelism, load/importance distinction and non-gradient feedback</li><li>MAC/FLOP accounting and baseline fair ness</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-3">Notation and units</h4><ul><li>T=B×S flattened tokens, D model width, N routed experts, k selected per token</li><li>Row score matrix[T, N]; selected indices and gates[T, k]; final stream[T, D]</li><li>Book bias is a persistent nontrainable buffer; gate weights come from softmax selected biased logits</li><li>V3: si=sigmoid(x·ei); select by si+bi; normalize original si within selected set</li><li>MAC=one multiply-accumulate; count≈2FLOPs per MAC by declared convention</li><li>p=matrix count per expert;2for ordinary MLP,3for gated SwiGLU</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-4">Assumptions</h4><ul><li>Bias-free educational two-matrix GELU experts use2DHparameters; gated/SwiGLUuses3DH</li><li>Per-tokenk/N is routed expert activation fraction, notcomplete-model storage or latency ratio</li><li>The Transformer owns the residual unless a standalone MoE explicitly returns x+transform; neveraddit twice</li><li>Tie behavior and normalization must be explicit; expert choices are learned, not manual domain labels</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-5">Step-by-step derivation</h4><ol><li>Dense FFN weight count and dominant MACs/token=pD Hdense. Counting multiply and add separately gives approximately2pD Hdense FLOPs; bias/nonlinearity costs are different terms.</li><li>MoE expert pool weights pD(NHr+NsHs); activeexpertweightspD(kHr+NsHs). Router adds DN weights and approximately DN MACs per token.</li><li>Ideal MoE dominant MACs=pD(kHr+NsHs)+DNbeforetop-k, normalization, dispatch and communication. Compare against the specific dense Hdense, not against executing all N experts unless that is your declared baseline.</li><li>Preserving the same active compute approximately requires kHr+NsHs≈Hdense for identical expert matrix count; shared experts consume active budget. With different p, p_moe(kHr+NsHs)≈p_dense Hdense.</li><li>Fine-graining with NH constant preserves the expert pool; keeping kH constant preserves active expert weights. Router DN increases with N and can violate exact total parameter preservation.</li><li>Stored/active expert weight-ratio falls below N/k with shared experts that are always active. Whole-model ratio includes all other dense components; neither ratio is guaranteed runtime-speedup.</li></ol><h4 id="v3-heading-chunk-les-step-5-44-i85-6">Worked numericals and independent verification</h4><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-44-i85-7">Dense versus MoE comparable budget</h5><p>Given: D2048, Hdense8192; N64, k8, Hr1024, Ns0, p2</p><ol><li>Dense2×2048×8192=33,554,432MACs.</li><li>Active expert MoE2×2048×8×1024=33,554,432MACs.</li><li>Router2048×64=131,072MACs.</li><li>Total MoE33,685,504MACs before dispatch.</li></ol><p>Answer: Equal expert MACs; MoE0.390625%higher with router included</p><p>Verification: indic_mla_moe / moe.dense_equal_compute · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-44-i85-8">Gated expert count</h5><p>Given: D3, H5; p3</p><ol><li>Gate projection3×5=15.</li><li>Upprojection3×5=15.</li><li>Down projection5×3=15.</li></ol><p>Answer: 45weights versus30for two matrix MLP</p><p>Verification: indic_mla_moe / moe.swiglu_allocated · passing independent check</p></div><div class="audit-card"><h5 id="v3-heading-chunk-les-step-5-44-i85-9">Shared path changes active fraction</h5><p>Given: D2048, N64, k8, H1024, Ns2</p><ol><li>Expertpool276,824,064.</li><li>Expertactive41,943,040.</li><li>41,943,040/276,824,064≈15.1515%, not12.5%.</li></ol><p>Answer: 15.15%of expert pool active; router also dense</p><p>Verification: indic_mla_moe / moe.shared_active_fraction · passing independent check</p></div><h4 id="v3-heading-chunk-les-step-5-44-i85-10">Corrections and source qualifications</h4><ul><li>heading: 5.44.1; text: 2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-11">Mastery answers and retained exercise context</h4><ol><li>When is MoE cheaper than a dense FFN? Whenselected/shared expert arithmetic plus overhead is lower than that dense baseline, not merely k&lt;N.</li><li>What changes forSwiGLU? Three projections give3DHbias-free weights and dominant MACs.</li><li>Why router cost DN? Every token produces scores for all N experts in the ordinary dense-router design.</li><li>Can constant NH prove exact constant total parameters? No; DN router cost and shared expert weights must also be counted.</li></ol><h4 id="v3-heading-chunk-les-step-5-44-i85-12">Edge cases and remaining gaps</h4><ul><li>All expert weights must remain available, possibly sharded/offloaded; unselected does not mean not stored</li><li>Dispatch, all-to-all communication, kernel batching and load imbalance can reduce ideal compute advantages</li><li>No real DeepSeek training, pretrained quality evaluation or distributed hardware benchmark was run</li><li>Multiply-add arithmetic counts are conventions, notwall-clock benchmarks.</li><li>Unequal expert widths require a sum over selected experts rather than k×one expert count.</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-13">Connections and progression</h4><ul><li>Connects to published activated weights, hardwaretiling, capacity balance and scalability limits.</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-14">Exact source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 186, 191, 224, 241, 242, 249, 420 · Educational two-layer FFN, fine-graining andweight-storage interpretation</li><li>DeepSeek-V3technicalreport§2.1.2 · Production DeepSeekMoE routing distinguished from educational expert arithmetic · https://arxiv.org/html/2412.19437v2#S2.SS1.SSS2</li></ul><h4 id="v3-heading-chunk-les-step-5-44-i85-15">Executable code and explained functions</h4><p>file: agents/indic_mla_moe/math_companion.py; checker: agents/indic_mla_moe/check_math.py; outputs: agents/indic_mla_moe/expected_outputs.json; evidence: agents/indic_mla_moe/evidence.json</p><p><a href="#audit-full-code-indic_mla_moe">Read and download the explained companion and checker</a></p><details><summary>Heading coverage and explicit gaps (65)</summary><table><thead><tr><th>Heading</th><th>Review scope</th><th>Remaining gap</th></tr></thead><tbody><tr><td>Step 5.44 — Dense FFN vs MoE: Complete Parameter, Compute, and Scaling Derivation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.1 Start from the dense FFN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.2 Dense FFN parameter count</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.3 Example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.4 Why the source often talks about “4× expansion”</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.5 Dense FFN compute for one token</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.6 Dense FFN numerical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.7 Now replace one FFN with MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.8 Dense vs MoE parameter count</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.9 Verify the source&#x27;s example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.10 Now the important part — activation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.11 Numerical example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.12 But compare it against a dense FFN carefully</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.13 The fundamental compute-preservation condition</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.14 Example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.15 Now combine parameter and compute conditions</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>Same total expert capacity</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Same active computation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.16 Parameter capacity vs active compute</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.17 Why this is different from simply making a 16× larger dense FFN</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.18 Now add the router cost</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.19 Complete idealized MoE compute</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</td></tr><tr><td>5.44.20 Compare against dense</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.21 Router cost often looks tiny relative to the experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.22 Why All-to-All can dominate even when router FLOPs are small</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.23 Now add shared experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.24 Parameter count with shared experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.25 Example with shared experts</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Routed parameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Shared parameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Router parameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.26 Active parameters for one token</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.27 This distinction is exam-critical</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.28 Parameter-count numerical: dense vs MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.29 Why fine-grained segmentation makes sense here</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.30 A very important condition</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.31 Why this matters for DeepSeek&#x27;s fine-grained idea</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.32 Dense vs conventional MoE vs DeepSeek-MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.33 Exam numerical — determine whether compute is actually saved</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Dense</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>MoE routed</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.34 Add router cost to that example</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.35 Why hardware can still prefer the MoE</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.36 But why isn&#x27;t the MoE infinitely scalable?</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.37 This brings us back to load balancing</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.38 Final quantitative model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Parameters</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Per-token arithmetic</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Ideal routed active fraction</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Ideal compute-preservation condition</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Fine-grained total-capacity preservation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Fine-grained active-capacity preservation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.39 Now return to the source&#x27;s DeepSeek-R1 numbers</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.40 Why this is the perfect example of conditional computation</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.41 Exam master problem</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>Given</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>1. Dense</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>2. Total MoE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>3. Active MoE</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>4. Capacity ratio</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5. Active compute ratio</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>Final interpretation</td><td>Included in the complete lesson input; supported at lesson concept-group level by preserved explanation and added review.</td><td>Independent sentence-level attribution and exhaustive application sufficiency are not certified.</td></tr><tr><td>5.44.42 The one formula you should never forget</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.43 And the second formula</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr><tr><td>5.44.44 Final mental model</td><td>reviewed; additive derivation, assumptions and companion verification supplied</td><td>No additional pedagogical gap identified in this grouped review. Original pretrained evaluations and hardware timings were not rerun.</td></tr></tbody></table></details></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-44-i85"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-44-i85" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-42-i83">← Previous lesson</a> · <a href="#chunk-les-step-5-45-i86">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-42-i83">Step 5.42 — DeepSeek-MoE: End-to-End Numerical Analysis, Active Parameters, Compute, and Why 671B ≠ 671B Active</a></p><p><strong>This lesson:</strong> Step 5.44 — Dense FFN vs MoE: Complete Parameter, Compute, and Scaling Derivation</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-6">Build a Large Language Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-44-i85"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-44-i85-16">Step 5.44 — Dense FFN vs MoE: Complete Parameter, Compute, and Scaling Derivation</h3>
+<p><em>Plan node: A2 · chat order #85</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We now take everything from Steps 5.38–5.43 and answer the quantitative question:</p>
+<div class="math block">
+\boxed{\text{Exactly what do we gain by replacing a dense FFN with MoE?}}
+</div>
+<p>The source motivates MoE by noting that the FFN is a major parameter and computational component of a Transformer, and that sparsely activating experts lets the model grow in capacity without a proportional increase in per-token computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The <strong>parameter and arithmetic-count formulas below are derived from the matrix shapes</strong>; the source itself explains the computational motivation but does not give one universal FLOP-accounting convention. I will therefore distinguish <strong>source-derived facts</strong> from these mathematical derivations.</p>
+<hr />
+<aside class="audit-card" id="audit-full-note-chunk-les-step-5-44-i85-0" data-full-review="added"><p>Correction: 2DH counts apply to the book’sbias-free ordinary two-layer expert. Production gated/SwiGLU experts have gate, up, down matrices and3DH weight count; never use2DH as universal DeepSeek formula.</p><p><a href="#audit-full-chunk-les-step-5-44-i85">Complete grounded review</a></p></aside><h4 id="v3-heading-chunk-les-step-5-44-i85-17">5.44.1 Start from the dense FFN</h4>
+<p>The source's expert is a two-layer expansion-contraction MLP with GELU:</p>
+<div class="math block">
+x
+\rightarrow
+W_1
+\rightarrow
+GELU
+\rightarrow
+W_2
+\rightarrow
+y.
+</div>
+<p>Let:</p>
+<div class="math block">
+x\in\mathbb R^D
+</div>
+<p>and:</p>
+<div class="math block">
+W_1\in\mathbb R^{D\times H},
+\qquad
+W_2\in\mathbb R^{H\times D}.
+</div>
+<p>Then:</p>
+<div class="math block">
+h=xW_1
+</div>
+<div class="math block">
+z=GELU(h)
+</div>
+<div class="math block">
+y=zW_2.
+</div>
+<p>The source explicitly describes this expansion-contraction structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-18">5.44.2 Dense FFN parameter count</h4>
+<p>Ignoring biases:</p>
+<div class="math block">
+|W_1|=DH
+</div>
+<p>and:</p>
+<div class="math block">
+|W_2|=HD.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+P_{\text{FFN}}=2DH
+}
+</div>
+<p>This is one of the most useful formulas in this entire topic.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-19">5.44.3 Example</h4>
+<p>Take:</p>
+<div class="math block">
+D=4096
+</div>
+<p>and:</p>
+<div class="math block">
+H=16384.
+</div>
+<p>Then:</p>
+<div class="math block">
+P_{\text{FFN}}
+=
+2(4096)(16384)
+</div>
+<div class="math block">
+=
+\boxed{134,217,728}
+</div>
+<p>parameters.</p>
+<p>So one dense FFN already contains:</p>
+<div class="math block">
+\boxed{134.2M}
+</div>
+<p>weights, ignoring biases.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-20">5.44.4 Why the source often talks about “4× expansion”</h4>
+<p>The source's standard-FFN discussion uses the familiar example:</p>
+<div class="math block">
+768\rightarrow3072\rightarrow768.
+</div>
+<p>That is:</p>
+<div class="math block">
+H=4D.
+</div>
+<p><em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>If:</p>
+<div class="math block">
+H=4D,
+</div>
+<p>then:</p>
+<div class="math block">
+P_{\text{FFN}}
+=
+2D(4D)
+=
+\boxed{8D^2}.
+</div>
+<p>So a 4× expansion gives roughly:</p>
+<div class="math block">
+\boxed{8D^2}
+</div>
+<p>weights.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-21">5.44.5 Dense FFN compute for one token</h4>
+<p>For:</p>
+<div class="math block">
+xW_1,
+</div>
+<p>we compute <span class="math inline">D\times H</span> multiply-accumulates.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{DH\text{ MACs}}
+</div>
+<p>for the first projection.</p>
+<p>The second projection costs another:</p>
+<div class="math block">
+\boxed{HD\text{ MACs}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+C_{\text{FFN}}\approx2DH
+}
+</div>
+<p>MACs per token, ignoring the small activation cost.</p>
+<p>If you count one multiply and one add as approximately two floating-point operations, then:</p>
+<div class="math block">
+\boxed{
+F_{\text{FFN}}\approx4DH
+}
+</div>
+<p>FLOPs per token.</p>
+<p>This is a derived arithmetic estimate, not a source-stated FLOP formula.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-22">5.44.6 Dense FFN numerical</h4>
+<p>Using:</p>
+<div class="math block">
+D=4096,\qquad H=16384,
+</div>
+<p>we have:</p>
+<div class="math block">
+2DH
+=
+134,217,728
+</div>
+<p>MACs.</p>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{134.2M\text{ MACs/token}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{268.4M\text{ FLOPs/token}}
+</div>
+<p>under the 2-FLOPs-per-MAC convention.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-23">5.44.7 Now replace one FFN with MoE</h4>
+<p>Instead of one FFN:</p>
+<div class="math block">
+FFN
+</div>
+<p>we create:</p>
+<div class="math block">
+N
+</div>
+<p>experts.</p>
+<p>Each expert has hidden size:</p>
+<div class="math block">
+H_e.
+</div>
+<p>Each expert therefore has:</p>
+<div class="math block">
+2DH_e
+</div>
+<p>parameters.</p>
+<p>Total expert parameters:</p>
+<div class="math block">
+\boxed{
+P_{\text{MoE-experts}}
+=
+2NDH_e
+}
+</div>
+<p>ignoring biases.</p>
+<p>The source describes exactly this conceptual replacement of one dense FFN with multiple smaller expert FFNs. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-24">5.44.8 Dense vs MoE parameter count</h4>
+<p>Dense:</p>
+<div class="math block">
+\boxed{
+2DH
+}
+</div>
+<p>MoE:</p>
+<div class="math block">
+\boxed{
+2NDH_e
+}
+</div>
+<p>Now ask:</p>
+<blockquote>
+<p>What happens when total capacity is supposed to remain comparable?</p>
+</blockquote>
+<p>Set:</p>
+<div class="math block">
+NH_e=H.
+</div>
+<p>Then:</p>
+<div class="math block">
+P_{\text{MoE-experts}}
+=
+2ND\left(\frac HN\right)
+</div>
+<div class="math block">
+=
+\boxed{2DH}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same total expert parameters}
+}
+</div>
+<p>This is exactly the mathematical principle behind the source's:</p>
+<div class="math block">
+16\times4096
+</div>
+<p>versus:</p>
+<div class="math block">
+64\times1024
+</div>
+<p>example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-25">5.44.9 Verify the source's example</h4>
+<p>Conventional:</p>
+<div class="math block">
+16\times4096
+=
+65,536.
+</div>
+<p>Fine-grained:</p>
+<div class="math block">
+64\times1024
+=
+65,536.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+16\times4096=64\times1024
+}.
+</div>
+<p>The source says the total capacity can therefore remain the same while the knowledge is divided into many smaller experts. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-26">5.44.10 Now the important part — activation</h4>
+<p>Suppose only:</p>
+<div class="math block">
+k
+</div>
+<p>experts are selected for each token.</p>
+<p>One expert costs approximately:</p>
+<div class="math block">
+2DH_e
+</div>
+<p>MACs.</p>
+<p>So selected expert computation is:</p>
+<div class="math block">
+\boxed{
+C_{\text{active-MoE}}
+\approx
+2kDH_e
+}
+</div>
+<p>MACs per token.</p>
+<p>Compare with executing all <span class="math inline">N</span> experts:</p>
+<div class="math block">
+2NDH_e.
+</div>
+<p>The fraction is:</p>
+<div class="math block">
+\boxed{
+\frac{2kDH_e}{2NDH_e}
+=
+\frac{k}{N}
+}.
+</div>
+<p>So under equal-size experts:</p>
+<div class="math block">
+\boxed{
+\text{active routed-expert compute fraction}
+=
+\frac{k}{N}
+}
+</div>
+<p>This is a mathematical consequence of sparse Top-K routing.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-27">5.44.11 Numerical example</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=64
+</div>
+<p>and:</p>
+<div class="math block">
+k=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac8{64}
+=
+\boxed{12.5\%}.
+</div>
+<p>So compared with executing <strong>all 64 expert networks</strong>, only 12.5% of the expert computations are selected for a token.</p>
+<p>This is the core computational benefit of sparse MoE.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-28">5.44.12 But compare it against a dense FFN carefully</h4>
+<p>Here is where people make mistakes.</p>
+<p>Suppose the dense FFN has hidden size:</p>
+<div class="math block">
+H=4096.
+</div>
+<p>Suppose fine-grained MoE uses:</p>
+<div class="math block">
+N=64,\quad H_e=1024.
+</div>
+<p>Then:</p>
+<div class="math block">
+NH_e
+=
+64(1024)
+=
+65,536.
+</div>
+<p>This is <strong>16×</strong> the dense hidden size:</p>
+<div class="math block">
+65,536/4096=16.
+</div>
+<p>So if you compare only:</p>
+<div class="math block">
+k=8
+</div>
+<p>active experts, active hidden capacity is:</p>
+<div class="math block">
+8\times1024
+=
+8192.
+</div>
+<p>That means the active expert capacity is:</p>
+<div class="math block">
+8192/4096
+=
+\boxed{2\times}
+</div>
+<p>the dense FFN's hidden capacity.</p>
+<p>Therefore this particular setup would have roughly <strong>2× the dense FFN arithmetic</strong>, not half.</p>
+<p>This is why you cannot simply say:</p>
+<blockquote>
+<p>“Only 8 of 64 experts are active, so MoE is automatically 8× cheaper than the dense model.”</p>
+</blockquote>
+<p>The correct comparison depends on:</p>
+<div class="math block">
+\boxed{kH_e}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{H}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-29">5.44.13 The fundamental compute-preservation condition</h4>
+<p>To make the active MoE computation comparable to one dense FFN:</p>
+<div class="math block">
+kH_e\approx H.
+</div>
+<p>Because:</p>
+<div class="math block">
+C_{\text{dense}}\approx2DH
+</div>
+<p>and:</p>
+<div class="math block">
+C_{\text{MoE}}\approx2DkH_e.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+kH_e=H
+}
+</div>
+<p>is the important condition.</p>
+<p>This is a very powerful exam formula.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-30">5.44.14 Example</h4>
+<p>Dense:</p>
+<div class="math block">
+H=4096.
+</div>
+<p>MoE:</p>
+<div class="math block">
+k=4.
+</div>
+<p>To keep comparable active computation:</p>
+<div class="math block">
+4H_e=4096.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{H_e=1024}.
+</div>
+<p>So:</p>
+<div class="math block">
+4
+</div>
+<p>active experts ×</p>
+<div class="math block">
+1024
+</div>
+<p>hidden width gives:</p>
+<div class="math block">
+4096.
+</div>
+<p>Hence the active FFN arithmetic is approximately comparable.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-31">5.44.15 Now combine parameter and compute conditions</h4>
+<p>Suppose we want:</p>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-32">Same total expert capacity</h6>
+<div class="math block">
+NH_e=H_{\text{total-capacity-equivalent}}
+</div>
+<p>and:</p>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-33">Same active computation</h6>
+<div class="math block">
+kH_e=H_{\text{dense}}.
+</div>
+<p>Divide the equations:</p>
+<div class="math block">
+\frac{N}{k}
+=
+\frac{H_{\text{total-capacity-equivalent}}}
+{H_{\text{dense}}}.
+</div>
+<p>If total expert capacity is <span class="math inline">16\times</span> the dense FFN's hidden width:</p>
+<div class="math block">
+H_{\text{total-capacity-equivalent}}
+=
+16H_{\text{dense}},
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\frac Nk=16
+}.
+</div>
+<p>For example:</p>
+<div class="math block">
+N=64,\quad k=4.
+</div>
+<p>This would provide roughly:</p>
+<div class="math block">
+16\times
+</div>
+<p>the routed expert capacity while keeping active capacity equivalent to one dense FFN.</p>
+<p>That is the central mathematical idea behind large-capacity sparse models.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-34">5.44.16 Parameter capacity vs active compute</h4>
+<p>Let's make it explicit.</p>
+<p>Suppose:</p>
+<div class="math block">
+H=4096
+</div>
+<p>dense.</p>
+<p>Fine-grained MoE:</p>
+<div class="math block">
+N=64,\quad H_e=1024,\quad k=4.
+</div>
+<p>Total expert hidden capacity:</p>
+<div class="math block">
+64\times1024
+=
+65,536.
+</div>
+<p>Dense hidden capacity:</p>
+<div class="math block">
+4096.
+</div>
+<p>So total capacity ratio:</p>
+<div class="math block">
+\frac{65,536}{4096}
+=
+\boxed{16\times}.
+</div>
+<p>Active capacity:</p>
+<div class="math block">
+4\times1024
+=
+4096.
+</div>
+<p>Active ratio:</p>
+<div class="math block">
+\frac{4096}{4096}
+=
+\boxed{1\times}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+16\times\text{ total expert capacity}
+\quad\text{at roughly}\quad
+1\times\text{ dense active capacity}
+}
+</div>
+<p>in this idealized calculation.</p>
+<p>That is an excellent way to understand sparse scaling.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-35">5.44.17 Why this is different from simply making a 16× larger dense FFN</h4>
+<p>A 16× larger dense FFN would activate all that capacity for every token.</p>
+<p>That would make:</p>
+<div class="math block">
+\text{compute}\approx16\times.
+</div>
+<p>The MoE version stores the larger capacity but activates only:</p>
+<div class="math block">
+k
+</div>
+<p>experts.</p>
+<p>So conditional computation lets us approach:</p>
+<div class="math block">
+\boxed{
+\text{large capacity without proportional per-token compute}
+}.
+</div>
+<p>This is exactly the scaling motivation emphasized by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-36">5.44.18 Now add the router cost</h4>
+<p>The router scores all experts.</p>
+<p>Let:</p>
+<div class="math block">
+X_f\in\mathbb R^{T\times D}
+</div>
+<p>and:</p>
+<div class="math block">
+W_R\in\mathbb R^{D\times N}
+</div>
+<p>in mathematical notation.</p>
+<p>Then:</p>
+<div class="math block">
+L=X_fW_R
+</div>
+<p>has:</p>
+<div class="math block">
+T\times N
+</div>
+<p>outputs.</p>
+<p>The router therefore performs approximately:</p>
+<div class="math block">
+\boxed{
+TDN
+}
+</div>
+<p>MACs.</p>
+<p>Again, this is our matrix-multiplication derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-37">5.44.19 Complete idealized MoE compute</h4>
+<p>Ignoring communication and nonlinear activation costs:</p>
+<div class="math block">
+\boxed{
+C_{\text{MoE}}
+\approx
+TDN
++
+2TkDH_e
+}
+</div>
+<p>MACs for a batch/sequence of <span class="math inline">T</span> tokens.</p>
+<p>Per token:</p>
+<div class="math block">
+\boxed{
+C_{\text{MoE/token}}
+\approx
+DN+2kDH_e
+}.
+</div>
+<p>This is a useful derived formula.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-38">5.44.20 Compare against dense</h4>
+<p>Dense:</p>
+<div class="math block">
+\boxed{
+C_{\text{dense/token}}
+\approx
+2DH
+}
+</div>
+<p>MoE:</p>
+<div class="math block">
+\boxed{
+C_{\text{MoE/token}}
+\approx
+DN+2kDH_e
+}.
+</div>
+<p>Therefore MoE is not guaranteed to be cheaper.</p>
+<p>You must compare:</p>
+<div class="math block">
+\boxed{
+DN+2kDH_e
+}
+</div>
+<p>against:</p>
+<div class="math block">
+\boxed{
+2DH
+}.
+</div>
+<p>In practice, real hardware efficiency additionally depends on dispatch, batching, communication, kernel efficiency, memory bandwidth, and other costs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-39">5.44.21 Router cost often looks tiny relative to the experts</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=4096
+</div>
+<p>and:</p>
+<div class="math block">
+N=64.
+</div>
+<p>Router cost:</p>
+<div class="math block">
+DN
+=
+4096\times64
+=
+\boxed{262,144}
+</div>
+<p>MACs/token.</p>
+<p>Now suppose:</p>
+<div class="math block">
+H_e=1024,\quad k=4.
+</div>
+<p>Expert cost:</p>
+<div class="math block">
+2(4)(4096)(1024)
+=
+\boxed{33,554,432}
+</div>
+<p>MACs/token.</p>
+<p>So in this illustrative setup:</p>
+<div class="math block">
+\frac{262,144}{33,554,432}
+\approx
+\boxed{0.78\%}.
+</div>
+<p>Thus the router arithmetic itself can be much smaller than the expert computation.</p>
+<p>However, distributed <strong>communication</strong> is a different matter and can become a major bottleneck. The source later discusses All-to-All communication and DualPipe for precisely this reason. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-40">5.44.22 Why All-to-All can dominate even when router FLOPs are small</h4>
+<p>Imagine 8 GPUs.</p>
+<p>Experts are distributed:</p>
+<pre><code class="language-text">GPU 0 → E1 ... E8
+GPU 1 → E9 ... E16
+GPU 2 → E17 ... E24
+...
+GPU 7 → E57 ... E64
+</code></pre>
+<p>A token currently on GPU 0 might select:</p>
+<div class="math block">
+E_{60}.
+</div>
+<p>Its representation must travel to GPU 7.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{small router arithmetic}
+}
+</div>
+<p>can still result in:</p>
+<div class="math block">
+\boxed{
+\text{large communication overhead}
+}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{FLOPs alone do not determine MoE performance}.
+}
+</div>
+<p>This is why the source's later systems discussion focuses on overlapping MoE communication with computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-41">5.44.23 Now add shared experts</h4>
+<p>DeepSeek-style architecture has:</p>
+<div class="math block">
+N_s
+</div>
+<p>shared experts.</p>
+<p>Each shared expert has hidden dimension:</p>
+<div class="math block">
+H_s.
+</div>
+<p>Every token passes through every shared expert.</p>
+<p>Therefore shared computation is approximately:</p>
+<div class="math block">
+\boxed{
+2N_sDH_s
+}
+</div>
+<p>MACs/token.</p>
+<p>The routed computation is:</p>
+<div class="math block">
+\boxed{
+2kDH_r
+}
+</div>
+<p>MACs/token.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+C_{\text{total}}
+\approx
+DN_r
++
+2N_sDH_s
++
+2kDH_r
+}
+</div>
+<p>per token, ignoring communication and other overhead.</p>
+<p>This is a derived expression combining the source's shared/routed architecture with matrix multiplication costs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-42">5.44.24 Parameter count with shared experts</h4>
+<p>Routed experts:</p>
+<div class="math block">
+2N_rDH_r.
+</div>
+<p>Shared experts:</p>
+<div class="math block">
+2N_sDH_s.
+</div>
+<p>Router:</p>
+<div class="math block">
+DN_r
+</div>
+<p>parameters, ignoring a possible router bias.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+P_{\text{MoE}}
+\approx
+2N_rDH_r
++
+2N_sDH_s
++
+DN_r
+}
+</div>
+<p>under the source's simplified architecture.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-43">5.44.25 Example with shared experts</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=4096
+</div>
+<div class="math block">
+N_r=64
+</div>
+<div class="math block">
+H_r=1024
+</div>
+<div class="math block">
+N_s=2
+</div>
+<div class="math block">
+H_s=1024.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-44">Routed parameters</h6>
+<div class="math block">
+2(64)(4096)(1024)
+=
+\boxed{536,870,912}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-45">Shared parameters</h6>
+<div class="math block">
+2(2)(4096)(1024)
+=
+\boxed{16,777,216}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-46">Router parameters</h6>
+<div class="math block">
+4096\times64
+=
+\boxed{262,144}.
+</div>
+<p>Total:</p>
+<div class="math block">
+536,870,912
++
+16,777,216
++
+262,144
+</div>
+<div class="math block">
+=
+\boxed{553,910,272}
+</div>
+<p>approximately.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-47">5.44.26 Active parameters for one token</h4>
+<p>Suppose:</p>
+<div class="math block">
+k=4.
+</div>
+<p>Active routed parameters:</p>
+<div class="math block">
+2(4)(4096)(1024)
+=
+\boxed{33,554,432}.
+</div>
+<p>Shared experts are dense, so:</p>
+<div class="math block">
+16,777,216
+</div>
+<p>shared parameters participate.</p>
+<p>Thus approximate expert parameters involved for the token:</p>
+<div class="math block">
+33,554,432
++
+16,777,216
+</div>
+<div class="math block">
+=
+\boxed{50,331,648}.
+</div>
+<p>This does <strong>not</strong> include attention parameters, embeddings, output head, normalization, etc.</p>
+<p>So we must call this:</p>
+<div class="math block">
+\boxed{\text{active expert parameters}}
+</div>
+<p>rather than “active model parameters.”</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-48">5.44.27 This distinction is exam-critical</h4>
+<p>Suppose the total model has:</p>
+<div class="math block">
+100B
+</div>
+<p>parameters.</p>
+<p>Suppose:</p>
+<div class="math block">
+20B
+</div>
+<p>are active per token.</p>
+<p>Do not say:</p>
+<blockquote>
+<p>“The model is a 20B model.”</p>
+</blockquote>
+<p>It is a:</p>
+<div class="math block">
+\boxed{100B\text{ total-parameter model}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{20B\text{ active parameters/token}}
+</div>
+<p>under the specified routing behavior.</p>
+<p>This distinction is central to understanding the source's DeepSeek-R1 example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-49">5.44.28 Parameter-count numerical: dense vs MoE</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=4096
+</div>
+<p>and dense FFN:</p>
+<div class="math block">
+H=4096.
+</div>
+<p>Dense parameters:</p>
+<div class="math block">
+2(4096)(4096)
+=
+\boxed{33,554,432}.
+</div>
+<p>Now create:</p>
+<div class="math block">
+N=64
+</div>
+<p>experts:</p>
+<div class="math block">
+H_e=1024.
+</div>
+<p>Total MoE expert parameters:</p>
+<div class="math block">
+2(64)(4096)(1024)
+=
+\boxed{536,870,912}.
+</div>
+<p>Ratio:</p>
+<div class="math block">
+536,870,912/33,554,432
+=
+\boxed{16}.
+</div>
+<p>So the MoE has:</p>
+<div class="math block">
+\boxed{16\times}
+</div>
+<p>the total expert parameter capacity.</p>
+<p>If:</p>
+<div class="math block">
+k=4,
+</div>
+<p>active routed parameters:</p>
+<div class="math block">
+2(4)(4096)(1024)
+=
+33,554,432.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{16× capacity}
+\quad\text{with}\quad
+1×\text{ active routed parameters}
+}
+</div>
+<p>in this designed example.</p>
+<p>This is perhaps the single best numerical example for understanding MoE scaling.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-50">5.44.29 Why fine-grained segmentation makes sense here</h4>
+<p>Now suppose we instead had:</p>
+<div class="math block">
+N=16
+</div>
+<p>with:</p>
+<div class="math block">
+H_e=4096.
+</div>
+<p>Total expert capacity:</p>
+<div class="math block">
+16\times4096
+=
+65,536.
+</div>
+<p>Fine-grained:</p>
+<div class="math block">
+N=64,
+\quad H_e=1024.
+</div>
+<p>Total:</p>
+<div class="math block">
+64\times1024
+=
+65,536.
+</div>
+<p>Same aggregate hidden capacity.</p>
+<p>But now the router can choose among:</p>
+<div class="math block">
+64
+</div>
+<p>specialized units rather than:</p>
+<div class="math block">
+16.
+</div>
+<p>This is the exact conceptual argument given by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-51">5.44.30 A very important condition</h4>
+<p>Suppose the number of experts increases by a factor:</p>
+<div class="math block">
+r.
+</div>
+<p>To preserve total capacity:</p>
+<div class="math block">
+H_e'=\frac{H_e}{r}.
+</div>
+<p>To preserve active computation:</p>
+<div class="math block">
+k'H_e'=kH_e.
+</div>
+<p>Substitute:</p>
+<div class="math block">
+k'\frac{H_e}{r}=kH_e.
+</div>
+<p>Cancel <span class="math inline">H_e</span>:</p>
+<div class="math block">
+\frac{k'}r=k.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+k'=rk
+}
+</div>
+<p>if you insist on preserving the same active hidden capacity while increasing the expert count by factor <span class="math inline">r</span>.</p>
+<p>For example:</p>
+<div class="math block">
+16\rightarrow64
+</div>
+<p>means:</p>
+<div class="math block">
+r=4.
+</div>
+<p>If:</p>
+<div class="math block">
+k=2,
+</div>
+<p>then:</p>
+<div class="math block">
+k'=8.
+</div>
+<p>That gives:</p>
+<div class="math block">
+2(4096)
+=
+8(1024)
+=
+8192.
+</div>
+<p>Again, this is a mathematical design relationship, not a claim that every DeepSeek configuration uses these exact numbers.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-52">5.44.31 Why this matters for DeepSeek's fine-grained idea</h4>
+<p>You can now see the architecture mathematically:</p>
+<div class="math block">
+\boxed{
+\text{More experts}
+\rightarrow
+\text{smaller expert size}
+}
+</div>
+<p>can preserve:</p>
+<div class="math block">
+\text{total capacity}.
+</div>
+<p>Then adjusting <span class="math inline">k</span> appropriately can preserve:</p>
+<div class="math block">
+\text{active computation}.
+</div>
+<p>Therefore the architecture can gain:</p>
+<div class="math block">
+\boxed{
+\text{finer specialization}
+}
+</div>
+<p>without simply scaling compute proportionally.</p>
+<p>This is exactly the motivation the source gives for fine-grained expert segmentation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-53">5.44.32 Dense vs conventional MoE vs DeepSeek-MoE</h4>
+<table>
+<thead>
+<tr>
+<th>Architecture</th>
+<th style="text-align:right">Total expert capacity</th>
+<th style="text-align:right">Per-token routed compute</th>
+<th>Common knowledge</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dense FFN</td>
+<td style="text-align:right">1×</td>
+<td style="text-align:right">1×</td>
+<td>Inside same FFN</td>
+</tr>
+<tr>
+<td>Conventional MoE</td>
+<td style="text-align:right"><span class="math inline">N</span> expert units</td>
+<td style="text-align:right"><span class="math inline">k</span> experts</td>
+<td>Learned within routed experts</td>
+</tr>
+<tr>
+<td>Fine-grained MoE</td>
+<td style="text-align:right">Many smaller experts</td>
+<td style="text-align:right"><span class="math inline">k'</span> smaller experts</td>
+<td>Routed</td>
+</tr>
+<tr>
+<td>DeepSeek-style</td>
+<td style="text-align:right">Many fine-grained routed + shared</td>
+<td style="text-align:right">sparse routed + dense shared</td>
+<td>Explicit shared path</td>
+</tr>
+</tbody>
+</table>
+<p>The source specifically motivates the DeepSeek version as fine-grained routed specialists plus dense shared generalists. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-54">5.44.33 Exam numerical — determine whether compute is actually saved</h4>
+<p>A dense FFN uses:</p>
+<div class="math block">
+D=4096,\qquad H=4096.
+</div>
+<p>MoE:</p>
+<div class="math block">
+N=32,\qquad H_e=1024,\qquad k=4.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-55">Dense</h6>
+<div class="math block">
+2DH
+=
+2(4096)(4096)
+=
+\boxed{33.55M}
+</div>
+<p>MACs.</p>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-56">MoE routed</h6>
+<div class="math block">
+2kDH_e
+=
+2(4)(4096)(1024)
+=
+\boxed{33.55M}
+</div>
+<p>MACs.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{same idealized active expert compute}
+}.
+</div>
+<p>But MoE stores:</p>
+<div class="math block">
+2(32)(4096)(1024)
+=
+\boxed{268.44M}
+</div>
+<p>expert parameters.</p>
+<p>Dense stores:</p>
+<div class="math block">
+\boxed{33.55M}.
+</div>
+<p>Capacity ratio:</p>
+<div class="math block">
+268.44/33.55
+=
+\boxed{8\times}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+8\times\text{ total expert capacity}
+\quad\text{at roughly}\quad
+1\times\text{ active expert compute}
+}.
+</div>
+<p>This is an excellent exam problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-57">5.44.34 Add router cost to that example</h4>
+<p>Router:</p>
+<div class="math block">
+DN
+=
+4096\times32
+=
+\boxed{131,072}
+</div>
+<p>MACs/token.</p>
+<p>So total MoE arithmetic is approximately:</p>
+<div class="math block">
+33,554,432+131,072
+</div>
+<div class="math block">
+=
+\boxed{33,685,504}
+</div>
+<p>MACs/token.</p>
+<p>That is only slightly above the dense FFN's:</p>
+<div class="math block">
+33,554,432.
+</div>
+<p>Again, real performance can differ because of communication and kernel efficiency.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-58">5.44.35 Why hardware can still prefer the MoE</h4>
+<p>The mathematical operation count may be comparable, but the model has:</p>
+<div class="math block">
+\boxed{8\times}
+</div>
+<p>the expert parameter capacity in this example.</p>
+<p>So the model can potentially learn richer, more differentiated transformations without requiring every token to pass through all of that capacity.</p>
+<p>That is conditional computation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-59">5.44.36 But why isn't the MoE infinitely scalable?</h4>
+<p>Because increasing <span class="math inline">N</span> causes:</p>
+<div class="math block">
+\boxed{\text{router cost}\uparrow}
+</div>
+<div class="math block">
+\boxed{\text{number of parameters}\uparrow}
+</div>
+<p>and, in distributed systems:</p>
+<div class="math block">
+\boxed{\text{dispatch/communication complexity}\uparrow}.
+</div>
+<p>And you still need enough tokens to keep the larger expert pool usefully trained.</p>
+<p>Hence there is no free lunch.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-60">5.44.37 This brings us back to load balancing</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=32
+</div>
+<p>and:</p>
+<div class="math block">
+k=4.
+</div>
+<p>For:</p>
+<div class="math block">
+T=1024
+</div>
+<p>tokens:</p>
+<div class="math block">
+Tk
+=
+4096
+</div>
+<p>total assignments.</p>
+<p>Ideal average:</p>
+<div class="math block">
+4096/32
+=
+\boxed{128}.
+</div>
+<p>If actual routing becomes:</p>
+<div class="math block">
+[300,250,200,180,\ldots]
+</div>
+<p>with several experts overloaded and others nearly unused, then your <strong>theoretical</strong> compute savings are not necessarily your <strong>actual hardware</strong> savings.</p>
+<p>The source's load-balancing discussion emphasizes exactly this problem and gives the dynamic bias mechanism as its solution.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-61">5.44.38 Final quantitative model</h4>
+<p>For a simplified DeepSeek-style MoE:</p>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-62">Parameters</h5>
+<div class="math block">
+\boxed{
+P
+\approx
+2N_rDH_r
++
+2N_sDH_s
++
+DN_r
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-63">Per-token arithmetic</h5>
+<div class="math block">
+\boxed{
+C
+\approx
+DN_r
++
+2kDH_r
++
+2N_sDH_s
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-64">Ideal routed active fraction</h5>
+<div class="math block">
+\boxed{
+\frac{k}{N_r}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-65">Ideal compute-preservation condition</h5>
+<div class="math block">
+\boxed{
+kH_r\approx H_{\text{dense}}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-66">Fine-grained total-capacity preservation</h5>
+<div class="math block">
+\boxed{
+N_rH_r\approx\text{constant}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-44-i85-67">Fine-grained active-capacity preservation</h5>
+<div class="math block">
+\boxed{
+kH_r\approx\text{constant}
+}
+</div>
+<p>These last two equations explain the mathematics behind dividing large experts into many smaller ones.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-68">5.44.39 Now return to the source's DeepSeek-R1 numbers</h4>
+<p>The source states:</p>
+<div class="math block">
+\boxed{671B\text{ total}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{37B\text{ active/token}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The active fraction is:</p>
+<div class="math block">
+\frac{37}{671}
+\approx
+\boxed{5.51\%}.
+</div>
+<p>The ratio is:</p>
+<div class="math block">
+\frac{671}{37}
+\approx
+\boxed{18.1\times}.
+</div>
+<p>And the source explicitly warns that all 671B model weights still need to remain available, even though only a subset is active for an individual token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-69">5.44.40 Why this is the perfect example of conditional computation</h4>
+<p>Think of the model as a huge library:</p>
+<div class="math block">
+\boxed{671B\text{ parameters}}
+</div>
+<p>but for one token the router says:</p>
+<blockquote>
+<p>“Use this subset.”</p>
+</blockquote>
+<p>So:</p>
+<div class="math block">
+\boxed{37B\text{ active}}
+</div>
+<p>for that token.</p>
+<p>For the next token:</p>
+<div class="math block">
+\boxed{\text{another subset may be selected}}.
+</div>
+<p>Thus over an entire generated sequence, the model can exploit a broad parameter pool even though each individual token uses only part of it.</p>
+<p>That is the essence of:</p>
+<div class="math block">
+\boxed{
+\text{conditional computation}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-70">5.44.41 Exam master problem</h4>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-71">Given</h6>
+<p>A dense FFN has:</p>
+<div class="math block">
+D=2048,\qquad H=4096.
+</div>
+<p>An MoE has:</p>
+<div class="math block">
+N=32,\qquad H_e=1024,\qquad k=4.
+</div>
+<p>Find:</p>
+<ol>
+<li>Dense parameter count.</li>
+<li>Total MoE expert parameters.</li>
+<li>Active MoE expert parameters.</li>
+<li>Capacity ratio.</li>
+<li>Active-compute ratio.</li>
+</ol>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-44-i85-72">1. Dense</h6>
+<div class="math block">
+P_D=2(2048)(4096)
+</div>
+<div class="math block">
+=\boxed{16,777,216}.
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-44-i85-73">2. Total MoE</h6>
+<div class="math block">
+P_M
+=
+2(32)(2048)(1024)
+</div>
+<div class="math block">
+=\boxed{134,217,728}.
+</div>
+<p>Capacity ratio:</p>
+<div class="math block">
+134,217,728/16,777,216
+=
+\boxed{8\times}.
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-44-i85-74">3. Active MoE</h6>
+<div class="math block">
+P_A
+=
+2(4)(2048)(1024)
+</div>
+<div class="math block">
+=\boxed{16,777,216}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+P_A=P_D
+}.
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-44-i85-75">4. Capacity ratio</h6>
+<div class="math block">
+\boxed{8\times}.
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-44-i85-76">5. Active compute ratio</h6>
+<p>Dense:</p>
+<div class="math block">
+2DH
+</div>
+<p>MoE:</p>
+<div class="math block">
+2kDH_e.
+</div>
+<p>So:</p>
+<div class="math block">
+\frac{2kDH_e}{2DH}
+=
+\frac{kH_e}{H}.
+</div>
+<div class="math block">
+=
+\frac{4(1024)}{4096}
+=
+1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{1\times}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-44-i85-77">Final interpretation</h6>
+<div class="math block">
+\boxed{
+8\times\text{ total expert capacity}
+}
+</div>
+<p>with approximately:</p>
+<div class="math block">
+\boxed{
+1\times\text{ active expert compute}
+}
+</div>
+<p>for this idealized configuration.</p>
+<p>That is the mathematical heart of sparse MoE.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-78">5.44.42 The one formula you should never forget</h4>
+<p>When comparing a dense FFN with an MoE, don't start with:</p>
+<div class="math block">
+\boxed{\frac{k}{N}}
+</div>
+<p>alone.</p>
+<p>Start with:</p>
+<div class="math block">
+\boxed{
+\text{Dense active capacity}=H
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MoE active capacity}=kH_e
+}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{compute ratio}
+\approx
+\frac{kH_e}{H}
+}
+</div>
+<p>for the expert MLP portion.</p>
+<p>This prevents most MoE numerical mistakes.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-79">5.44.43 And the second formula</h4>
+<p>For total expert capacity:</p>
+<div class="math block">
+\boxed{
+\text{MoE total capacity}=NH_e
+}
+</div>
+<p>relative to dense:</p>
+<div class="math block">
+\boxed{
+\frac{NH_e}{H}
+}.
+</div>
+<p>Therefore the two key ratios are:</p>
+<div class="math block">
+\boxed{
+\text{Capacity ratio}=\frac{NH_e}{H}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Active compute ratio}=\frac{kH_e}{H}.
+}
+</div>
+<p>Their ratio is:</p>
+<div class="math block">
+\boxed{
+\frac{\text{Capacity ratio}}
+{\text{Active compute ratio}}
+=
+\frac Nk
+}
+</div>
+<p>which measures how much larger the total expert pool is relative to the active expert subset.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-44-i85-80">5.44.44 Final mental model</h4>
+<p>For dense FFN:</p>
+<div class="math block">
+\boxed{
+\text{one big network}
+\rightarrow
+\text{all capacity used}
+}.
+</div>
+<p>For MoE:</p>
+<div class="math block">
+\boxed{
+\text{many networks}
+\rightarrow
+\text{few selected}
+}.
+</div>
+<p>For DeepSeek-MoE:</p>
+<div class="math block">
+\boxed{
+\text{many small specialists}
++
+\text{few shared generalists}
++
+\text{balanced sparse routing}
+}.
+</div>
+<p>Quantitatively:</p>
+<div class="math block">
+\boxed{
+\text{Total capacity}\propto NH_e
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Active routed compute}\propto kH_e.
+}
+</div>
+<p>That is the central mathematical reason MoE can scale model capacity much faster than per-token expert computation.</p>
+<p>The source's fine-grained example,</p>
+<div class="math block">
+16\times4096
+\leftrightarrow
+64\times1024,
+</div>
+<p>and its DeepSeek-R1 example,</p>
+<div class="math block">
+671B\text{ total}
+\leftrightarrow
+37B\text{ active/token},
+</div>
+<p>are concrete illustrations of this broader principle. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>
