@@ -1,0 +1,380 @@
+<section class="chunk" id="chunk-front" data-id="front"><h1>Consolidated Course — From Transformers to DeepSeek-R1 (Final v2)</h1>
+<p><em>Extracted verbatim from the shared ChatGPT conversation &quot;Create Progressive Index&quot;, then checked against your slide decks and the three books. No new teaching content was written. Changes from the chat text: citation markers became <code>*(Source: …)*</code> tags; chat-navigation text (“Next:”, “Where we are now”, “Current position”) and the final quiz were removed; 13 LaTeX slips were repaired and 26 wrong citations corrected (<a href="#app-f">Appendix F</a>); math uses <code>$ … $</code> / <code>$$ … $$</code>; headings were re-levelled.</em></p>
+<blockquote>
+<p><strong>New in v2.</strong> <a href="#app-f">Appendix F</a> is the verification report. <a href="#app-g">Appendix G</a> adds the 42 slides from your decks that the chat never taught (the MiniLLM deck's reverse-KLD material, floating-point formats, min-p and repetition penalty, and others), shown as images of your slides.</p>
+</blockquote>
+<h2>How this document is organised</h2>
+<ul>
+<li><strong>Parts 0–11</strong> follow the original lecture index (slide spine): I0 → I11. Lessons appear in the order they were taught within each part.</li>
+<li><strong>➜ “Extra / deeper material”</strong> boxes at the end of a lesson jump to the appendix section that extends it. <strong>↩ “Back to main text”</strong> boxes in the appendix jump back.</li>
+<li><strong><a href="#app-a">Appendix A</a></strong> DeepSeek extras (KV cache/MLA, MoE, MTP, FP8, distributed training, Mini-DeepSeek code) · <strong><a href="#app-b">B</a></strong> second-pass book treatments of RL, R1 and distillation · <strong><a href="#app-c">C</a></strong> Step 1 formula map · <strong><a href="#app-d">D</a></strong> plan status · <strong><a href="#app-e">E</a></strong> source key · <strong><a href="#app-f">F</a></strong> verification report · <strong><a href="#app-g">G</a></strong> slides the chat never taught.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Plan node</th>
+<th>Topic</th>
+<th>Main text</th>
+<th>Extras</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I0</td>
+<td>Math primitives</td>
+<td><a href="#part-0">Part 0</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>I1</td>
+<td>Transformer core</td>
+<td><a href="#part-1">Part 1</a></td>
+<td><a href="#app-a1">A.1</a> KV cache &amp; MLA · <a href="#app-a2">A.2</a> MoE · <a href="#app-a3">A.3</a> MTP · <a href="#app-a6">A.6</a> code</td>
+</tr>
+<tr>
+<td>I2</td>
+<td>Decoding &amp; sampling</td>
+<td><a href="#part-2">Part 2</a></td>
+<td><a href="#app-a3">A.3</a> MTP at inference · <a href="#app-g1">G.1</a> min-p, repetition penalty</td>
+</tr>
+<tr>
+<td>I3</td>
+<td>PEFT / LoRA</td>
+<td><a href="#part-3">Part 3</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>I4</td>
+<td>Quantization</td>
+<td><a href="#part-4">Part 4</a></td>
+<td><a href="#app-a4">A.4</a> FP8 · <a href="#app-g2">G.2</a> floating-point formats, GPTQ, BitNet</td>
+</tr>
+<tr>
+<td>I5</td>
+<td>Distillation</td>
+<td><a href="#part-5">Part 5</a></td>
+<td><a href="#app-b3">B.3</a> · <a href="#app-g3">G.3</a> MiniLLM</td>
+</tr>
+<tr>
+<td>I6</td>
+<td>RL / PPO / GRPO</td>
+<td><a href="#part-6">Part 6</a></td>
+<td><a href="#app-b1">B.1</a> · <a href="#app-b2">B.2</a> · <a href="#app-g4">G.4</a> KL term</td>
+</tr>
+<tr>
+<td>I7</td>
+<td>DeepSeekMath</td>
+<td><a href="#part-7">Part 7</a></td>
+<td><a href="#app-g5">G.5</a></td>
+</tr>
+<tr>
+<td>I8</td>
+<td>DeepSeek-R1</td>
+<td><a href="#part-8">Part 8</a></td>
+<td><a href="#app-b2">B.2</a> · <a href="#app-b3">B.3</a> · <a href="#app-b4">B.4</a> · <a href="#app-g6">G.6</a></td>
+</tr>
+<tr>
+<td>I9</td>
+<td>ReTool</td>
+<td><a href="#part-9">Part 9</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>I10</td>
+<td>IndicXTREME</td>
+<td><a href="#part-10">Part 10</a></td>
+<td><a href="#app-g7">G.7</a></td>
+</tr>
+<tr>
+<td>I11</td>
+<td>IndicGenBench</td>
+<td><a href="#part-11">Part 11</a></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2>Contents</h2>
+<p><strong><a href="#part-0">Part 0 — Mathematical Foundations</a></strong></p>
+<ul>
+<li><a href="#les-step-0-1-i2">STEP 0.1 — SCALARS, VECTORS AND MATRICES</a></li>
+<li><a href="#les-step-0-2-i3">STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</a></li>
+<li><a href="#les-step-0-3-i4">STEP 0.3 — ENTROPY → CROSS-ENTROPY → KL DIVERGENCE</a></li>
+<li><a href="#les-step-0-4-i5">STEP 0.4 — CALCULUS FOR DEEP LEARNING</a></li>
+<li><a href="#les-step-0-5-i6">STEP 0.5 — EXPECTATION</a></li>
+<li><a href="#les-step-0-6-i7">STEP 0.6 — TENSOR / MATRIX CALCULUS</a></li>
+</ul>
+<p><strong><a href="#part-1">Part 1 — Transformers</a></strong></p>
+<ul>
+<li><a href="#les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a></li>
+<li><a href="#les-step-1-2-i9">Step 1.2 — Tokens → Token IDs → Embeddings</a></li>
+<li><a href="#les-step-1-3-i10">Step 1.3 — Position: How Does a Transformer Know Word Order?</a></li>
+<li><a href="#les-step-1-4-i11">Step 1.4 — The Residual Stream</a></li>
+<li><a href="#les-step-1-5-i12">Step 1.5 — Q, K, V: Why Are There Three Different Vectors?</a></li>
+<li><a href="#les-step-1-6-i13">Step 1.6 — Attention Scores → Why Divide by <span class="math inline">\sqrt{d_k}</span>?</a></li>
+<li><a href="#les-step-1-7-i14">Step 1.7 — Causal Mask: How a Decoder Prevents Looking Into the Future</a></li>
+<li><a href="#les-step-1-8-i15">Step 1.8 — Multi-Head Attention (MHA)</a></li>
+<li><a href="#les-step-1-9-i16">Step 1.9 — Complete Multi-Head Attention: Numerical Example From Start to Finish</a></li>
+<li><a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></li>
+<li><a href="#les-step-1-11-i18">Step 1.11 — Layer Normalization and RMSNorm</a></li>
+<li><a href="#les-step-1-12-i19">Step 1.12 — Complete Transformer Block: One Forward Pass From Start to Finish</a></li>
+<li><a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Logits → Softmax → Next-Token Prediction</a></li>
+</ul>
+<p><strong><a href="#part-2">Part 2 — Decoding &amp; Sampling</a></strong></p>
+<ul>
+<li><a href="#les-step-2-1-i21">Step 2.1 — Decoding: From a Probability Distribution to an Actual Token</a></li>
+<li><a href="#les-step-2-2-i22">Step 2.2 — Temperature Scaling</a></li>
+<li><a href="#les-step-2-3-i23">Step 2.3 — Top-k Sampling</a></li>
+<li><a href="#les-step-2-4-i24">Step 2.4 — Top-p / Nucleus Sampling</a></li>
+<li><a href="#les-step-2-5-i25">Step 2.5 — Putting the Decoding Strategies Together</a></li>
+</ul>
+<p><strong><a href="#part-3">Part 3 — Parameter-Efficient Fine-Tuning (LoRA)</a></strong></p>
+<ul>
+<li><a href="#les-step-3-1-i26">Step 3.1 — Why PEFT Exists: Full Fine-Tuning as the Baseline</a></li>
+<li><a href="#les-step-3-2-i27">Step 3.2 — LoRA Factorization: Why <span class="math inline">\Delta W = BA</span> Works</a></li>
+<li><a href="#les-step-3-3-i28">Step 3.3 — Where LoRA Goes Inside a Transformer</a></li>
+<li><a href="#les-step-3-4-i29">Step 3.4 — LoRA Initialization, Training, Scaling, and Merge</a></li>
+</ul>
+<p><strong><a href="#part-4">Part 4 — Quantization</a></strong></p>
+<ul>
+<li><a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a></li>
+<li><a href="#les-step-3-6-i31">Step 3.6 — Advanced Quantization: Clipping, Calibration, Dynamic/Static Quantization, and GPTQ</a></li>
+<li><a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></li>
+</ul>
+<p><strong><a href="#part-5">Part 5 — Knowledge Distillation (classical KD and R1-style distillation)</a></strong></p>
+<ul>
+<li><a href="#les-step-4-1-i33">Step 4.1 — Knowledge Distillation: Why, Teacher–Student Paradigm, Hard vs Soft Distillation</a></li>
+<li><a href="#les-step-4-2-i34">Step 4.2 — Temperature Scaling and “Dark Knowledge”</a></li>
+<li><a href="#les-step-4-3-i35">Step 4.3 — Building the Complete Classical Knowledge-Distillation Loss</a></li>
+<li><a href="#les-step-4-4-i36">Step 4.4 — DeepSeek-R1 Distillation: Why It Uses Text/Reasoning Traces Instead of Classical Soft-KL Distillation</a></li>
+<li><a href="#les-step-4-5-i37">Step 4.5 — DeepSeek-R1 Distillation: Turning a Teacher Reasoning Trace into the Student’s Training Signal</a></li>
+<li><a href="#les-step-4-6-i38">Step 4.6 — The Complete DeepSeek-R1 Distillation Pipeline, Model Choices, and Empirical Results</a></li>
+<li><a href="#les-step-4-7-i39">Step 4.7 — The Three Progressive Distillation Attempts</a></li>
+<li><a href="#les-step-4-8-i40">Step 4.8 — Empirical Evidence: Does Distillation Actually Work?</a></li>
+<li><a href="#les-step-4-9-i41">Step 4.9 — Limits of Distillation and How to Choose the Student</a></li>
+</ul>
+<p><strong><a href="#part-6">Part 6 — Reinforcement Learning for LLMs (RLHF, RLVR, PPO, GRPO)</a></strong></p>
+<ul>
+<li><a href="#les-step-5-1-i42">Step 5.1 — Why Reinforcement Learning for LLM Reasoning?</a></li>
+<li><a href="#les-step-5-2-i43">Step 5.2 — RL Mathematics From the Ground Up</a></li>
+<li><a href="#les-step-5-3-i44">Step 5.3 — Why GRPO Instead of PPO?</a></li>
+<li><a href="#les-step-5-4-i45">Step 5.4 — Complete GRPO Worked Example, From Prompt to Policy Loss</a></li>
+<li><a href="#les-step-5-5-i46">Step 5.5 — Why Plain Policy Gradient Is Not Enough: Policy Ratios and Clipping</a></li>
+<li><a href="#les-step-5-6-i47">Step 5.6 — KL Regularization: Why Do We Need a Reference Model?</a></li>
+<li><a href="#les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a></li>
+<li><a href="#les-step-5-8-i49">Step 5.8 — Reading and Debugging GRPO Training Dynamics</a></li>
+</ul>
+<p><strong><a href="#part-7">Part 7 — DeepSeekMath</a></strong></p>
+<ul>
+<li><a href="#les-step-5-9-i50">Step 5.9 — DeepSeekMath: Where GRPO Came From</a></li>
+<li><a href="#les-step-5-10-i51">Step 5.10 — The Actual DeepSeekMath GRPO Objective</a></li>
+<li><a href="#les-step-5-11-i52">Step 5.11 — What DeepSeekMath's RL Actually Changes</a></li>
+</ul>
+<p><strong><a href="#part-8">Part 8 — DeepSeek-R1 (R1-Zero → R1 → Distillation)</a></strong></p>
+<ul>
+<li><a href="#les-step-5-12-i53">Step 5.12 — DeepSeek-R1 From Scratch: R1-Zero → R1 → Distill</a></li>
+<li><a href="#les-step-5-13-i54">Step 5.13 — DeepSeek-R1 Distillation: From a 671B Teacher to Small Reasoning Models</a></li>
+<li><a href="#les-step-5-14-i55">Step 5.14 — DeepSeek-R1 Distillation Training Mechanics</a></li>
+<li><a href="#les-step-5-15-i56">Step 5.15 — DeepSeek-R1 Distilled Models at Scale</a></li>
+<li><a href="#les-step-5-16-i57">Step 5.16 — The 800K Distillation Dataset: Rejection Sampling and Data Composition</a></li>
+<li><a href="#les-step-5-17-i58">Step 5.17 — From the 800K Dataset to Actual Student Training</a></li>
+<li><a href="#les-step-5-18-i59">Step 5.18 — Evaluating the Distilled Reasoning Model</a></li>
+<li><a href="#les-step-5-19-i60">Step 5.19 — Limits of Distillation + Future Directions</a></li>
+</ul>
+<p><strong><a href="#part-9">Part 9 — ReTool: Tool-Using Reasoning</a></strong></p>
+<ul>
+<li><a href="#les-step-5-20-i61">Step 5.20 — ReTool: Reinforcement Learning for Strategic Tool Use</a></li>
+<li><a href="#les-step-5-21-i62">Step 5.21 — ReTool PPO Objective, Step by Step</a></li>
+<li><a href="#les-step-5-22-i63">Step 5.22 — ReTool Cold-Start SFT</a></li>
+<li><a href="#les-step-5-23-i64">Step 5.23 — ReTool Full Rollout Engine</a></li>
+<li><a href="#les-step-5-24-i65">Step 5.24 — What ReTool Actually Discovers During RL</a></li>
+<li><a href="#les-step-5-25-i66">Step 5.25 — ReTool Results and Ablation Logic</a></li>
+</ul>
+<p><strong><a href="#part-10">Part 10 — IndicXTREME</a></strong></p>
+<ul>
+<li><a href="#les-step-5-26-i67">Step 5.26 — Indic Language Benchmarks: Why IndicXTREME Exists</a></li>
+<li><a href="#les-step-5-27-i68">Step 5.27 — IndicCorp v2: Building the Indic Pretraining Corpus</a></li>
+<li><a href="#les-step-5-28-i69">Step 5.28 — IndicXTREME Benchmark Architecture</a></li>
+<li><a href="#les-step-5-29-i70">Step 5.29 — IndicXTREME Zero-Shot Fine-Tuning Protocol</a></li>
+<li><a href="#les-step-5-30-i71">Step 5.30 — Does IndicXTREME Actually Distinguish Good Models?</a></li>
+</ul>
+<p><strong><a href="#part-11">Part 11 — IndicGenBench</a></strong></p>
+<ul>
+<li><a href="#les-step-5-31-i72">Step 5.31 — IndicGenBench: Why a Second Indic Benchmark Is Needed</a></li>
+<li><a href="#les-step-5-32-i73">Step 5.32 — IndicGenBench: Task-by-Task Dataset Construction</a></li>
+<li><a href="#les-step-5-33-i74">Step 5.33 — IndicGenBench: Metrics, Resource Gaps, Directionality, and In-Context Learning</a></li>
+<li><a href="#les-step-5-34-i75">Step 5.34 — Transfer Languages, Few-Shot Prompting, and the Failure of Single-Language Specialization</a></li>
+<li><a href="#les-step-5-35-i76">Step 5.35 — IndicGenBench: Qualitative Failure Analysis</a></li>
+</ul>
+<p><strong><a href="#app-a">Appendix A — DeepSeek Extras (DeepSeek-book branch)</a></strong></p>
+<ul>
+<li><a href="#app-a1">A.1 — KV Cache and Multi-Head Latent Attention (MLA)  (plan nodes D1, D2)</a>
+<ul>
+<li><a href="#les-step-5-36-i77">Step 5.36 — DeepSeek Architecture: From KV Cache to MLA</a></li>
+<li><a href="#les-step-5-37-i78">Step 5.37 — MLA Mathematical Derivation and the Absorption Trick</a></li>
+</ul>
+</li>
+<li><a href="#app-a2">A.2 — Mixture-of-Experts (MoE)  (plan node D3)</a>
+<ul>
+<li><a href="#les-step-5-38-i79">Step 5.38 — DeepSeek Mixture-of-Experts (MoE): From Dense FFN to Sparse Routing</a></li>
+<li><a href="#les-step-5-39-i80">Step 5.39 — MoE Load Balancing: Why Routing Must Be Controlled</a></li>
+<li><a href="#les-step-5-40-i81">Step 5.40 — DeepSeek-MoE Innovation #1 and #2</a></li>
+<li><a href="#les-step-5-41-i82">Step 5.41 — Build the Complete DeepSeek-MoE Layer</a></li>
+<li><a href="#les-step-5-42-i83">Step 5.42 — DeepSeek-MoE: End-to-End Numerical Analysis, Active Parameters, Compute, and Why 671B ≠ 671B Active</a></li>
+<li><a href="#les-step-5-44-i85">Step 5.44 — Dense FFN vs MoE: Complete Parameter, Compute, and Scaling Derivation</a></li>
+<li><a href="#les-step-5-45-i86">Step 5.45 — Full 8-Token × 4-Expert Routing Trace</a></li>
+<li><a href="#les-step-5-43-i84">Step 5.43 — How MLA and MoE Fit Together in the DeepSeek Transformer</a></li>
+</ul>
+</li>
+<li><a href="#app-a3">A.3 — Multi-Token Prediction (MTP)  (plan node D4)</a>
+<ul>
+<li><a href="#les-step-5-48-i89">Step 5.48 — Multi-Token Prediction (MTP)</a></li>
+<li><a href="#les-step-5-48-1a-i90">Step 5.48.1A — DeepSeek Causal MTP Module: Inside One Prediction Step</a></li>
+<li><a href="#les-step-5-48-1b-i91">Step 5.48.1B — Complete DeepSeek Causal MTP Training Pass</a></li>
+<li><a href="#les-step-5-48-1c-i92">Step 5.48.1C — Backpropagation Through the DeepSeek MTP Chain</a></li>
+<li><a href="#les-step-5-48-1d-i93">Step 5.48.1D — Teacher Forcing, Target Alignment, and the Exact Indexing</a></li>
+<li><a href="#les-step-5-48-1e-i94">Step 5.48.1E — MTP During Inference and Speculative Decoding</a></li>
+</ul>
+</li>
+<li><a href="#app-a4">A.4 — FP8 Training and Quantization  (plan node D5)</a>
+<ul>
+<li><a href="#les-step-5-49-i95">Step 5.49 — FP8 Quantization</a></li>
+<li><a href="#les-step-5-49-1-i96">Step 5.49.1 — DeepSeek Mixed-Precision Training: Fprop → Dgrad → Wgrad → Weight Update</a></li>
+<li><a href="#les-step-5-49-2-i97">Step 5.49.2 — Pillar 2: Fine-Grained Quantization</a></li>
+<li><a href="#les-step-5-49-3-i98">Step 5.49.3 — Pillar 3: Increasing Accumulation Precision</a></li>
+<li><a href="#les-step-5-49-4-i99">Step 5.49.4 — Pillar 4: Mantissa Over Exponents</a></li>
+<li><a href="#les-step-5-49-5-i101">R98 / Step 5.49.5 — Pillar 5: Online Quantization</a></li>
+<li><a href="#les-step-5-49-6-i102">R99 / Step 5.49.6 — Complete FP8 Synthesis: One DeepSeek Linear Operator End-to-End</a></li>
+</ul>
+</li>
+<li><a href="#app-a5">A.5 — Distributed Training: Parallelism, All-to-All, DualPipe  (plan node D6)</a>
+<ul>
+<li><a href="#les-step-5-46-i87">Step 5.46 — Distributed MoE: Expert Parallelism, All-to-All Communication, Pipeline Bubbles, and DualPipe</a></li>
+<li><a href="#les-step-5-47-i88">Step 5.47 — The Full DeepSeek Distributed-Training Stack</a></li>
+<li><a href="#les-r101-1-i113">R101.1 — Gradient Accumulation: Solving the GPU Memory Problem</a></li>
+<li><a href="#les-r101-2-i114">R101.2 — Data Parallelism: Using Multiple GPUs to Make Training Faster</a></li>
+<li><a href="#les-r101-3-i115">R101.3 — Model Parallelism: When the Model Itself Does Not Fit</a></li>
+<li><a href="#les-r101-4-i116">R101.4 — DualPipe: How DeepSeek Tackles the MoE Communication Bottleneck</a></li>
+</ul>
+</li>
+<li><a href="#app-a6">A.6 — Mini-DeepSeek: Building the Model in Code (Chapter 6 implementation)</a>
+<ul>
+<li><a href="#les-step-6-1-i103">R100.1 / Step 6.1 — The Data Foundation of Mini-DeepSeek</a></li>
+<li><a href="#les-step-6-1-1-i104">R100.2 / Step 6.1.1 — Turning the Flat Token Stream into Training Batches</a></li>
+<li><a href="#les-step-6-2-1-i105">R100.3 — Step 6.2.1: <code>ModelArgs</code> — The Architecture Contract</a></li>
+<li><a href="#les-step-6-2-1-i106">R100.4 — Step 6.2.1: Implementing RoPE in <code>model.py</code></a></li>
+<li><a href="#les-r100-5-i107">R100.5 — DeepSeekAttention: MLA + Decoupled RoPE + KV Cache</a></li>
+<li><a href="#les-r100-6-i108">R100.6 — DeepSeekMoE: ExpertFFN → Router → Top-k → Shared + Routed Output</a></li>
+<li><a href="#les-r100-7-i109">R100.7 — MTPModule: Turning One Hidden State into a Causal Prediction Chain</a></li>
+<li><a href="#les-r100-8-i110">R100.8 — The <code>TransformerBlock</code>: Putting Attention and MoE Together</a></li>
+<li><a href="#les-r100-9-i111">R100.9 — <code>MiniDeepSeek</code>: The Complete Top-Level Forward Pass</a></li>
+<li><a href="#les-r101-0-i112">R101.0 — <code>train.py</code>: Turning MiniDeepSeek Into a Learning System</a></li>
+</ul>
+</li>
+</ul>
+<p><strong><a href="#app-b">Appendix B — Second-Pass Treatments from the DeepSeek Book (RL, R1, Distillation)</a></strong></p>
+<ul>
+<li><a href="#app-b1">B.1 — RL for LLMs, PPO and GRPO (book view)</a>
+<ul>
+<li><a href="#les-r102-0-i117">R102.0 — Reinforcement Learning for LLMs: From Next-Token Prediction to Decision-Making</a></li>
+<li><a href="#les-r102-1-i118">R102.1 — PPO: Why We Need a “Safe” Policy Update</a></li>
+<li><a href="#les-r102-2-i119">R102.2 — GRPO: Removing the Value Model with Group-Relative Rewards</a></li>
+</ul>
+</li>
+<li><a href="#app-b2">B.2 — RLVR and the Full DeepSeek-R1 Pipeline (book view)</a>
+<ul>
+<li><a href="#les-r102-3-i120">R102.3 — RLVR: Turning a Verifier Into the Reward Function</a></li>
+<li><a href="#les-r102-4-i121">R102.4 — DeepSeek-R1: Why the Final Pipeline Is More Than “Just GRPO”</a></li>
+</ul>
+</li>
+<li><a href="#app-b3">B.3 — R1 Distillation: Behaviour, Implementation, Evidence (book view)</a>
+<ul>
+<li><a href="#les-r102-5-i122">R102.5 — DeepSeek-R1 Distillation: From Reasoning Behavior to Small Models</a></li>
+<li><a href="#les-r102-6-i123">R102.6 — Implementing Knowledge Distillation: From Equations to PyTorch</a></li>
+<li><a href="#les-r102-7-i124">R102.7 — The Empirical Proof: Why Distillation Can Beat Direct RL</a></li>
+</ul>
+</li>
+<li><a href="#app-b4">B.4 — Master Integration: Transformer → DeepSeek-R1-Distill</a>
+<ul>
+<li><a href="#les-r102-8-i125">R102.8 — Master Integration: From Transformer to DeepSeek-R1-Distill</a></li>
+</ul>
+</li>
+</ul>
+<p><strong><a href="#app-c">Appendix C — Step 1 Mathematical Cheatsheet</a></strong></p>
+<p><strong><a href="#app-d">Appendix D — Plan Status</a></strong></p>
+<p><strong><a href="#app-e">Appendix E — Source Key</a></strong></p>
+<p><strong><a href="#app-g">Appendix G — Slides the chat never taught</a></strong></p>
+<ul>
+<li><a href="#app-g1">G.1 — Decoding &amp; Sampling slides not covered by the lessons</a>
+<ul>
+<li><a href="#g-decoding-p11">Slide 11 — Beam search isn't a cure for open-ended generation</a></li>
+<li><a href="#g-decoding-p17">Slide 17 — Min-p sampling</a></li>
+<li><a href="#g-decoding-p18">Slide 18 — Three truncation rules, side by side</a></li>
+<li><a href="#g-decoding-p19">Slide 19 — Repetition penalty</a></li>
+<li><a href="#g-decoding-p20">Slide 20 — Further decoding &amp; sampling strategies</a></li>
+</ul>
+</li>
+<li><a href="#app-g2">G.2 — Quantization slides not covered by the lessons (floating-point formats, GPTQ, BitNet)</a>
+<ul>
+<li><a href="#g-quantization-p4">Slide 4 — Decoding a float: a worked example</a></li>
+<li><a href="#g-quantization-p5">Slide 5 — Where a format's min and max come from</a></li>
+<li><a href="#g-quantization-p6">Slide 6 — The max, bit by bit</a></li>
+<li><a href="#g-quantization-p7">Slide 7 — Subnormal numbers: the other reserved exponent</a></li>
+<li><a href="#g-quantization-p32">Slide 32 — Why not skip dequantizing — the next layer just requantizes anyway?</a></li>
+<li><a href="#g-quantization-p40">Slide 40 — GPTQ: does this actually help?</a></li>
+<li><a href="#g-quantization-p53">Slide 53 — BitNet: recovering an FP16 output</a></li>
+</ul>
+</li>
+<li><a href="#app-g3">G.3 — MiniLLM slides not covered by the lessons (forward vs reverse KLD, policy gradient, results)</a>
+<ul>
+<li><a href="#g-minillm-p11">Slide 11 — Word-level KD vs. SeqKD: two approximations</a></li>
+<li><a href="#g-minillm-p12">Slide 12 — Why not sample from the teacher and keep the soft target?</a></li>
+<li><a href="#g-minillm-p13">Slide 13 — Why forward KLD hurts open-ended generation</a></li>
+<li><a href="#g-minillm-p14">Slide 14 — A worked example: forward KLD spills into the void</a></li>
+<li><a href="#g-minillm-p15">Slide 15 — MiniLLM's objective: reverse KLD</a></li>
+<li><a href="#g-minillm-p16">Slide 16 — Forward vs. reverse KLD: a numeric example</a></li>
+<li><a href="#g-minillm-p17">Slide 17 — Why: which mistake each direction punishes</a></li>
+<li><a href="#g-minillm-p18">Slide 18 — Seeing it directly: fitting a single Gaussian</a></li>
+<li><a href="#g-minillm-p19">Slide 19 — What this means for training</a></li>
+<li><a href="#g-minillm-p20">Slide 20 — Why this needs policy gradient</a></li>
+<li><a href="#g-minillm-p21">Slide 21 — The gradient, qualitatively</a></li>
+<li><a href="#g-minillm-p22">Slide 22 — Three problems, three fixes</a></li>
+<li><a href="#g-minillm-p23">Slide 23 — Training MiniLLM: two phases</a></li>
+<li><a href="#g-minillm-p24">Slide 24 — Experimental setup</a></li>
+<li><a href="#g-minillm-p25">Slide 25 — Does it work? The headline result</a></li>
+<li><a href="#g-minillm-p26">Slide 26 — The full results table</a></li>
+<li><a href="#g-minillm-p27">Slide 27 — Lower exposure bias</a></li>
+<li><a href="#g-minillm-p28">Slide 28 — Better calibration</a></li>
+<li><a href="#g-minillm-p29">Slide 29 — Human preference</a></li>
+<li><a href="#g-minillm-p30">Slide 30 — Bigger teachers make better students</a></li>
+<li><a href="#g-minillm-p31">Slide 31 — The advantage grows with response length</a></li>
+<li><a href="#g-minillm-p32">Slide 32 — Does mode-seeking hurt diversity?</a></li>
+<li><a href="#g-minillm-p33">Slide 33 — Ablations: does every fix earn its place?</a></li>
+<li><a href="#g-minillm-p34">Slide 34 — What the outputs actually look like</a></li>
+</ul>
+</li>
+<li><a href="#app-g4">G.4 — RL / GRPO slides not covered by the lessons (the KL term)</a>
+<ul>
+<li><a href="#g-rl-p29">Slide 29 — Why the KL term can backfire</a></li>
+<li><a href="#g-rl-p30">Slide 30 — The common recommendation: skip KL for math RL</a></li>
+</ul>
+</li>
+<li><a href="#app-g5">G.5 — DeepSeekMath slide not covered by the lessons</a>
+<ul>
+<li><a href="#g-deepseekmath-p10">Slide 10 — A negative result worth keeping: arXiv papers don't help</a></li>
+</ul>
+</li>
+<li><a href="#app-g6">G.6 — DeepSeek-R1 slide not covered by the lessons (per-stage numbers)</a>
+<ul>
+<li><a href="#g-deepseek-p14">Slide 14 — What each stage actually buys, in numbers</a></li>
+</ul>
+</li>
+<li><a href="#app-g7">G.7 — IndicXTREME slides not covered by the lessons</a>
+<ul>
+<li><a href="#g-indicxtreme-p16">Slide 16 — IndicQA by the numbers</a></li>
+<li><a href="#g-indicxtreme-p27">Slide 27 — Ethics and annotator practices</a></li>
+</ul>
+</li>
+</ul>
+<p><strong><a href="#app-f">Appendix F — Verification Report</a></strong></p>
+<hr />
+</section>

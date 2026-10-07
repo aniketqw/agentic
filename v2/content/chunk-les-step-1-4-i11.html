@@ -1,0 +1,979 @@
+<section class="chunk" id="chunk-les-step-1-4-i11" data-id="les-step-1-4-i11"><details class="audit-card" id="audit-T09" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T09 — Residual updates and the identity gradient path</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T08">← Previous audit card</a> · <a href="#audit-T10">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-4-i11-1">Why this matters</h4><p>A sublayer adds an update to a continuing representation, rather than replacing that representation outright.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a>, <a href="#audit-F06">Chain rule and scalar gradients</a></p><h4 id="v3-heading-chunk-les-step-1-4-i11-2">Symbols, shapes and assumptions</h4><p>For y=x+f(x), the shapes must agree. The Jacobian is I+Jf. The identity term offers a direct path but does not guarantee that every gradient is large or nonzero.</p><h4 id="v3-heading-chunk-les-step-1-4-i11-3">Derivation or mechanism</h4><ol><li>Compute a sublayer update of the same shape.</li><li>Add it componentwise to the stream.</li><li>Differentiate both branches and sum their contributions.</li></ol><div class="math block" data-tex="y=x+f(x),\qquad J_y=I+J_f">y=x+f(x),\qquad J_y=I+J_f</div><h4 id="v3-heading-chunk-les-step-1-4-i11-4">Worked numerical</h4><p>For x=[1,2] and update=[0.5,-0.5], y=[1.5,1.5]. If f(x)=2x, the total derivative is 3I. If f(x)=-x, the paths cancel: residual structure alone cannot guarantee a nonzero derivative.</p><h4 id="v3-heading-chunk-les-step-1-4-i11-5">Edge cases and limits</h4><ul><li>The companion prohibits accidental broadcasting.</li><li>A residual connection does not mean the sublayer changes every token equally.</li></ul><h4 id="v3-heading-chunk-les-step-1-4-i11-6">Connections</h4><ul><li>T12 joins attention and MLP through two residual additions.</li></ul><h4 id="v3-heading-chunk-les-step-1-4-i11-7">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 5, 16, 17 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 262, 263, 264, 265 · §4.4</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-4-i11-8">Executable companion and checking evidence</h4><p>Functions: <code>residual</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T09-residual, T09-identity-path. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-4-i11"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-4-i11" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-3-i10">← Previous lesson</a> · <a href="#chunk-les-step-1-5-i12">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-3-i10">Step 1.3 — Position: How Does a Transformer Know Word Order?</a></p><p><strong>This lesson:</strong> Step 1.4 — The Residual Stream</p><p><strong>Source references:</strong> Use the exact grounding note in this bridge.</p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-4-i11"></a></p>
+<h2>Step 1.4 — The Residual Stream</h2>
+<p><em>Plan node: I1 · chat order #11</em></p>
+<p>We now know how the model creates a position-aware representation:</p>
+<div class="math block">
+\text{text}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{IDs}
+\rightarrow
+\text{token embeddings}
+\rightarrow
+\text{position information}
+</div>
+<p>So we have a matrix:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d}
+</div>
+<p>or, with a batch:</p>
+<div class="math block">
+X\in\mathbb R^{B\times T\times d}
+</div>
+<p>The next question is:</p>
+<blockquote>
+<p><strong>What happens to this representation as it passes through 12, 24, 48, or hundreds of Transformer blocks?</strong></p>
+</blockquote>
+<p>The answer is the <strong>residual stream</strong>.</p>
+<p>Your Transformer slides make this the central organizing idea of the architecture: attention and MLP sublayers read from the stream and write their updates back into it additively.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-9">1.4.1 First, What Is a &quot;Stream&quot;?</h3>
+<p>Suppose we have:</p>
+<pre><code class="language-text">The   cat   is   sleeping
+ ↓    ↓     ↓      ↓
+ d    d     d      d
+</code></pre>
+<p>Each token has a <span class="math inline">d</span>-dimensional vector.</p>
+<p>So for one sequence:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+x_1\\
+x_2\\
+x_3\\
+x_4
+\end{bmatrix}
+\in\mathbb R^{4\times d}
+</div>
+<p>Think of every row as a <strong>lane</strong>.</p>
+<pre><code class="language-text">Token 1 ───────────────────────── lane 1
+Token 2 ───────────────────────── lane 2
+Token 3 ───────────────────────── lane 3
+Token 4 ───────────────────────── lane 4
+</code></pre>
+<p>The collection of these <span class="math inline">d</span>-dimensional representations is the <strong>residual stream</strong>.</p>
+<p>The important idea from your slide is:</p>
+<blockquote>
+<p><strong>Attention moves information between lanes; MLPs process information within a lane.</strong></p>
+</blockquote>
+<p>This is an extremely useful mental model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-10">1.4.2 Why Do We Need a Residual Stream?</h3>
+<p>Imagine a Transformer block simply did:</p>
+<div class="math block">
+x_{\text{new}}=F(x)
+</div>
+<p>where <span class="math inline">F</span> is some complicated neural network.</p>
+<p>Then every layer would completely replace the previous representation.</p>
+<p>With many layers:</p>
+<div class="math block">
+x_1=F_1(x_0)
+</div>
+<div class="math block">
+x_2=F_2(x_1)
+</div>
+<div class="math block">
+x_3=F_3(x_2)
+</div>
+<p>and eventually:</p>
+<div class="math block">
+x_L=F_L(\cdots F_2(F_1(x_0)))
+</div>
+<p>This creates a long chain of transformations.</p>
+<p>Training becomes harder because gradients have to flow through all those transformations.</p>
+<p>Residual connections instead make the layer say:</p>
+<blockquote>
+<p><strong>&quot;Keep what you already know, and add an update.&quot;</strong></p>
+</blockquote>
+<p>So:</p>
+<div class="math block">
+\boxed{
+x_{\text{new}}=x+F(x)
+}
+</div>
+<p>This is the core residual idea.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-11">1.4.3 The Most Important Equation of This Step</h3>
+<p>Your slides use:</p>
+<div class="math block">
+\boxed{
+x\leftarrow x+\operatorname{Attn}(\operatorname{Norm}(x))
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+x\leftarrow x+\operatorname{MLP}(\operatorname{Norm}(x))
+}
+</div>
+<p>For the entire sequence:</p>
+<div class="math block">
+\boxed{
+X\leftarrow X+\operatorname{Attn}(\operatorname{Norm}(X))
+}
+</div>
+<div class="math block">
+\boxed{
+X\leftarrow X+\operatorname{MLP}(\operatorname{Norm}(X))
+}
+</div>
+<p>Notice the structure:</p>
+<pre><code class="language-text">old representation
+       +
+new information
+       ↓
+new representation
+</code></pre>
+<p>That is the residual stream.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-12">1.4.4 Why Is It Called &quot;Residual&quot;?</h3>
+<p>Suppose we want the layer to produce some ideal transformation:</p>
+<div class="math block">
+H(x)
+</div>
+<p>Instead of forcing the layer to learn <span class="math inline">H(x)</span> directly, write:</p>
+<div class="math block">
+H(x)=x+F(x)
+</div>
+<p>Therefore:</p>
+<div class="math block">
+F(x)=H(x)-x
+</div>
+<p>So the neural network only has to learn:</p>
+<div class="math block">
+\boxed{
+\text{What should I add to the current representation?}
+}
+</div>
+<p>That difference:</p>
+<div class="math block">
+H(x)-x
+</div>
+<p>is the <strong>residual</strong>.</p>
+<p>Hence the name:</p>
+<blockquote>
+<p>residual connection / residual block.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-13">1.4.5 Tiny Numerical Example</h3>
+<p>Suppose one token has representation:</p>
+<div class="math block">
+x=
+[2,4,1]
+</div>
+<p>The attention sublayer generates:</p>
+<div class="math block">
+a=
+[0.5,-1,2]
+</div>
+<p>Residual addition gives:</p>
+<div class="math block">
+x' = x+a
+</div>
+<p>so:</p>
+<div class="math block">
+x'
+=
+[2.5,3,3]
+</div>
+<p>The original information was not discarded.</p>
+<p>It remains:</p>
+<div class="math block">
+[2,4,1]
+</div>
+<p>and attention contributed:</p>
+<div class="math block">
+[0.5,-1,2]
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{new representation}
+=
+\text{old representation}
++
+\text{attention update}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-14">1.4.6 Now Add the MLP</h3>
+<p>The MLP produces another update:</p>
+<div class="math block">
+m=[-0.2,0.4,0.8]
+</div>
+<p>Then:</p>
+<div class="math block">
+x''=x'+m
+</div>
+<p>giving:</p>
+<div class="math block">
+x''=
+[2.3,3.4,3.8]
+</div>
+<p>So the block has done:</p>
+<div class="math block">
+x
+\rightarrow
+x+a
+\rightarrow
+x+a+m
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+x_{\text{out}}
+=
+x_{\text{in}}
++
+a
++
+m
+}
+</div>
+<p>This is the simplest way to understand the residual stream.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-15">1.4.7 The Stream Across Many Layers</h3>
+<p>Now suppose there are <span class="math inline">L</span> blocks.</p>
+<p>Let:</p>
+<div class="math block">
+r_0
+</div>
+<p>be the representation entering the first block.</p>
+<p>For block 1:</p>
+<div class="math block">
+r_1
+=
+r_0+a_1+m_1
+</div>
+<p>For block 2:</p>
+<div class="math block">
+r_2
+=
+r_1+a_2+m_2
+</div>
+<p>Substitute:</p>
+<div class="math block">
+r_2
+=
+r_0+a_1+m_1+a_2+m_2
+</div>
+<p>Continue through <span class="math inline">L</span> blocks:</p>
+<div class="math block">
+\boxed{
+r_L
+=
+r_0+
+\sum_{\ell=1}^{L}a_\ell+
+\sum_{\ell=1}^{L}m_\ell
+}
+</div>
+<p>Conceptually, the residual stream contains:</p>
+<div class="math block">
+\boxed{
+\text{initial embedding}
++
+\text{many learned updates}
+}
+</div>
+<p>This matches the slide's description that the final representation is the embedding plus the contributions written by the sublayers.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-16">1.4.8 What Does Attention Write?</h3>
+<p>Attention performs:</p>
+<div class="math block">
+\operatorname{Attn}(X)
+</div>
+<p>and produces an update for each position.</p>
+<p>Why is this described as:</p>
+<blockquote>
+<p><strong>moving information between lanes</strong>?</p>
+</blockquote>
+<p>Because token <span class="math inline">i</span>'s new representation can incorporate information from token <span class="math inline">j</span>.</p>
+<p>For example:</p>
+<pre><code class="language-text">&quot;The animal didn't cross the road because it was tired.&quot;
+             ↑                       ↑
+             └──── attention ────────┘
+</code></pre>
+<p>A token's representation can receive information from other token positions.</p>
+<p>So attention performs <strong>cross-token communication</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-17">1.4.9 What Does the MLP Write?</h3>
+<p>The MLP acts independently on each token position.</p>
+<p>For token <span class="math inline">i</span>:</p>
+<div class="math block">
+m_i=\operatorname{MLP}(x_i)
+</div>
+<p>It can transform the information stored in that token's vector.</p>
+<p>So:</p>
+<pre><code class="language-text">Attention:
+token 1 ↔ token 2 ↔ token 3 ↔ token 4
+
+MLP:
+token 1 → transformation
+token 2 → transformation
+token 3 → transformation
+token 4 → transformation
+</code></pre>
+<p>The MLP doesn't itself perform the cross-position mixing that attention does.</p>
+<p>This is why your slide summarizes the division of labor as:</p>
+<div class="math block">
+\boxed{
+\text{Attention = between positions}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{MLP = within a position}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-18">1.4.10 Why Must the Dimensions Match?</h3>
+<p>We want:</p>
+<div class="math block">
+x+F(x)
+</div>
+<p>Addition is only possible when the shapes match.</p>
+<p>Suppose:</p>
+<div class="math block">
+x\in\mathbb R^d
+</div>
+<p>then:</p>
+<div class="math block">
+F(x)\in\mathbb R^d
+</div>
+<p>and therefore:</p>
+<div class="math block">
+x+F(x)\in\mathbb R^d
+</div>
+<p>For a sequence:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+F(X)\in\mathbb R^{T\times d}
+</div>
+<p>so:</p>
+<div class="math block">
+X+F(X)\in\mathbb R^{T\times d}
+</div>
+<p>For a batch:</p>
+<div class="math block">
+X\in\mathbb R^{B\times T\times d}
+</div>
+<p>and the branch must return:</p>
+<div class="math block">
+\mathbb R^{B\times T\times d}
+</div>
+<p>This is why Transformer blocks preserve the model width.</p>
+<p>Raschka's implementation demonstrates that a Transformer block can take:</p>
+<div class="math block">
+[2,4,768]
+</div>
+<p>and return:</p>
+<div class="math block">
+[2,4,768].
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-19">1.4.11 Why Does Preserving the Shape Matter?</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=768
+</div>
+<p>Then every block can accept and return:</p>
+<div class="math block">
+[B,T,768]
+</div>
+<p>So we can simply do:</p>
+<pre><code class="language-text">Embedding
+    ↓
+Block 1
+    ↓
+Block 2
+    ↓
+Block 3
+    ↓
+...
+    ↓
+Block L
+</code></pre>
+<p>without changing the dimensionality between blocks.</p>
+<p>Raschka explicitly notes that preserving the input dimensions makes the Transformer architecture stackable and scalable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-20">1.4.12 The Gradient Problem</h3>
+<p>Now we get to the <strong>main reason residual connections are important</strong>.</p>
+<p>Suppose a layer is simply:</p>
+<div class="math block">
+y=f(x)
+</div>
+<p>Then by the chain rule:</p>
+<div class="math block">
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial y}
+\frac{\partial y}{\partial x}
+</div>
+<p>Across many layers, gradients involve repeated multiplication:</p>
+<div class="math block">
+\frac{\partial L}{\partial x_0}
+=
+\frac{\partial L}{\partial x_L}
+J_LJ_{L-1}\cdots J_1
+</div>
+<p>where <span class="math inline">J_i</span> is the Jacobian of layer <span class="math inline">i</span>.</p>
+<p>If these Jacobians tend to shrink gradients, the gradient can become extremely small.</p>
+<p>That is the <strong>vanishing-gradient problem</strong>.</p>
+<p>Raschka explicitly introduces shortcut/residual connections as a mechanism to mitigate this issue in deep networks.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-21">1.4.13 What Changes With a Residual Connection?</h3>
+<p>Now:</p>
+<div class="math block">
+y=x+f(x)
+</div>
+<p>Differentiate:</p>
+<div class="math block">
+\frac{\partial y}{\partial x}
+=
+I+\frac{\partial f(x)}{\partial x}
+</div>
+<p>The key term is:</p>
+<div class="math block">
+\boxed{I}
+</div>
+<p>the identity matrix.</p>
+<p>That means there is a direct gradient pathway.</p>
+<p>So:</p>
+<div class="math block">
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial y}
+\left(
+I+J_f
+\right)
+</div>
+<p>The network does not have to rely entirely on:</p>
+<div class="math block">
+J_f
+</div>
+<p>to transmit the gradient.</p>
+<p>There is an identity route.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-22">1.4.14 The Simplest Scalar Demonstration</h3>
+<p>Suppose:</p>
+<div class="math block">
+f(x)=0.1x
+</div>
+<p>Without residual connection:</p>
+<div class="math block">
+y=0.1x
+</div>
+<p>so:</p>
+<div class="math block">
+\frac{dy}{dx}=0.1
+</div>
+<p>After 20 such layers:</p>
+<div class="math block">
+(0.1)^{20}=10^{-20}
+</div>
+<p>That is extremely small.</p>
+<p>Now use a residual connection:</p>
+<div class="math block">
+y=x+0.1x=1.1x
+</div>
+<p>so:</p>
+<div class="math block">
+\frac{dy}{dx}=1.1
+</div>
+<p>After 20 layers:</p>
+<div class="math block">
+1.1^{20}\approx6.73
+</div>
+<p>This example is deliberately simplified. Real Transformer Jacobians are much more complicated, and residual connections do <strong>not</strong> mathematically guarantee that gradients can never vanish. The important point is that the identity pathway makes gradient propagation much easier.</p>
+<p>Raschka's experimental example shows exactly the intended training effect: gradient magnitudes across earlier layers remain substantially more stable with shortcut connections than without them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-23">1.4.15 This Also Helps the Forward Pass</h3>
+<p>Residual connections are not only useful during backpropagation.</p>
+<p>They also make each block behave like:</p>
+<div class="math block">
+\boxed{
+\text{current representation}
++
+\text{learned refinement}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\text{completely replace representation}
+</div>
+<p>So one way to think about depth is:</p>
+<pre><code class="language-text">Layer 0:
+&quot;Here is my initial understanding.&quot;
+
+Layer 1:
+&quot;Let me add information about relationships.&quot;
+
+Layer 2:
+&quot;Let me refine those relationships.&quot;
+
+Layer 3:
+&quot;Let me add another feature.&quot;
+
+...
+
+Layer L:
+&quot;Here is the final contextual representation.&quot;
+</code></pre>
+<p>That is an intuition, not a literal claim that every layer learns one clean human-interpretable feature.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-24">1.4.16 Pre-Norm Architecture in Your Slides</h3>
+<p>Your Transformer slides use:</p>
+<div class="math block">
+\boxed{
+x'
+=
+x+\operatorname{Attn}(\operatorname{Norm}(x))
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+y
+=
+x'+\operatorname{MLP}(\operatorname{Norm}(x'))
+}
+</div>
+<p>This is commonly called a <strong>pre-normalization</strong> arrangement because normalization occurs before the sublayer.</p>
+<p>Your slide's exact decoder-block summary is:</p>
+<div class="math block">
+y=x+\operatorname{MHA}(\operatorname{norm}(x),\text{causal mask})
+</div>
+<p>followed by:</p>
+<div class="math block">
+h=\; y+\operatorname{FFN}(\operatorname{norm}(y)).
+</div>
+<p>This ordering matters.</p>
+<p>We will study <strong>LayerNorm/RMSNorm</strong> later as its own topic, but for now understand the flow.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-25">1.4.17 One Complete Transformer Block</h3>
+<p>Let the input residual stream be:</p>
+<div class="math block">
+X^{(\ell)}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-26">Step 1 — Normalize</h5>
+<div class="math block">
+\tilde X^{(\ell)}
+=
+\operatorname{Norm}(X^{(\ell)})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-27">Step 2 — Attention</h5>
+<div class="math block">
+A^{(\ell)}
+=
+\operatorname{Attention}(\tilde X^{(\ell)})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-28">Step 3 — Residual addition</h5>
+<div class="math block">
+X'^{(\ell)}
+=
+X^{(\ell)}+A^{(\ell)}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-29">Step 4 — Normalize again</h5>
+<div class="math block">
+\tilde X'^{(\ell)}
+=
+\operatorname{Norm}(X'^{(\ell)})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-30">Step 5 — MLP</h5>
+<div class="math block">
+M^{(\ell)}
+=
+\operatorname{MLP}(\tilde X'^{(\ell)})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-31">Step 6 — Second residual addition</h5>
+<div class="math block">
+\boxed{
+X^{(\ell+1)}
+=
+X'^{(\ell)}+M^{(\ell)}
+}
+</div>
+<p>So the block is:</p>
+<pre><code class="language-text">             X
+             │
+             ├───────────────┐
+             │               │
+           Norm              │
+             ↓               │
+         Attention           │
+             ↓               │
+             + &lt;─────────────┘
+             │
+             ├───────────────┐
+             │               │
+           Norm              │
+             ↓               │
+            MLP              │
+             ↓               │
+             + &lt;─────────────┘
+             │
+             ↓
+             Y
+</code></pre>
+<p>That is the basic unit that gets repeated.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-32">1.4.18 Sequence-Level View</h3>
+<p>Now use:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d}
+</div>
+<p>The attention branch:</p>
+<div class="math block">
+\operatorname{Attention}(X)
+\in\mathbb R^{T\times d}
+</div>
+<p>so:</p>
+<div class="math block">
+X+\operatorname{Attention}(X)
+\in\mathbb R^{T\times d}
+</div>
+<p>Then MLP:</p>
+<div class="math block">
+\operatorname{MLP}(X')
+\in\mathbb R^{T\times d}
+</div>
+<p>and:</p>
+<div class="math block">
+X'+\operatorname{MLP}(X')
+\in\mathbb R^{T\times d}
+</div>
+<p>Therefore a block performs:</p>
+<div class="math block">
+\boxed{
+T\times d
+\rightarrow
+T\times d
+}
+</div>
+<p>It changes the <strong>contents</strong>, not the shape.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-33">1.4.19 The Residual Stream Is Shared Across the Architecture</h3>
+<p>This is an important conceptual phrase from your slides:</p>
+<blockquote>
+<p><strong>Every block reads from and writes back into the same residual stream.</strong></p>
+</blockquote>
+<p>Imagine:</p>
+<pre><code class="language-text">Embedding + Position
+        ↓
+   Residual Stream
+        ↓
+ ┌───────────────┐
+ │ Transformer 1 │
+ └───────────────┘
+        ↓
+   Residual Stream
+        ↓
+ ┌───────────────┐
+ │ Transformer 2 │
+ └───────────────┘
+        ↓
+   Residual Stream
+        ↓
+       ...
+        ↓
+ ┌───────────────┐
+ │ Transformer L │
+ └───────────────┘
+        ↓
+   Final Stream
+</code></pre>
+<p>The model is not creating an entirely separate representation space for each block.</p>
+<p>The same-width stream is repeatedly refined.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-34">1.4.20 Why This Matters for Interpretability</h3>
+<p>You will later encounter statements such as:</p>
+<blockquote>
+<p>&quot;The residual stream contains information.&quot;</p>
+</blockquote>
+<p>That is because the architecture literally accumulates contributions there.</p>
+<p>For example, conceptually:</p>
+<div class="math block">
+r_L
+=
+r_0
++
+\Delta_{\text{attn},1}
++
+\Delta_{\text{MLP},1}
++
+\cdots
++
+\Delta_{\text{attn},L}
++
+\Delta_{\text{MLP},L}
+</div>
+<p>This gives a useful way to think about the Transformer:</p>
+<blockquote>
+<p>each sublayer <strong>writes an update</strong> into a shared representation.</p>
+</blockquote>
+<p>We should not overinterpret this as saying every update corresponds to one human-readable concept. The mathematical structure is what is guaranteed.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-35">1.4.21 Connection to the Output</h3>
+<p>After all blocks:</p>
+<div class="math block">
+H=X^{(L)}
+</div>
+<p>Then the final representation is normalized and projected into vocabulary space:</p>
+<div class="math block">
+Z
+=
+\operatorname{Norm}(H)W_U
+</div>
+<p>where:</p>
+<div class="math block">
+W_U\in\mathbb R^{d\times|V|}
+</div>
+<p>and:</p>
+<div class="math block">
+Z\in\mathbb R^{T\times|V|}
+</div>
+<p>Your slides explicitly describe this as taking the final residual-stream representation and projecting it back to vocabulary space for next-token prediction.</p>
+<p>So the entire journey is now:</p>
+<div class="math block">
+\boxed{
+\text{embedding}
+\rightarrow
+\text{residual updates}
+\rightarrow
+\text{final residual stream}
+\rightarrow
+\text{logits}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-36">1.4.22 Simple PyTorch Residual Block</h3>
+<p>Let's implement the core idea without attention details yet.</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+
+class ResidualBlock(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+
+        self.norm = nn.LayerNorm(d_model)
+
+        self.branch = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.GELU(),
+            nn.Linear(d_model, d_model)
+        )
+
+    def forward(self, x):
+        # Save the original residual stream
+        residual = x
+
+        # Transform a normalized copy
+        update = self.branch(self.norm(x))
+
+        # Write the update back into the stream
+        x = residual + update
+
+        return x
+
+
+# Example
+x = torch.randn(2, 5, 8)
+
+block = ResidualBlock(d_model=8)
+
+y = block(x)
+
+print(&quot;Input shape :&quot;, x.shape)
+print(&quot;Output shape:&quot;, y.shape)
+</code></pre>
+<p>Output shape:</p>
+<pre><code class="language-text">Input shape : torch.Size([2, 5, 8])
+Output shape: torch.Size([2, 5, 8])
+</code></pre>
+<p>Notice:</p>
+<div class="math block">
+\boxed{
+[2,5,8]\rightarrow[2,5,8]
+}
+</div>
+<p>The branch changes the information, while the residual addition preserves the stream dimensions.</p>
+<p>Raschka's actual Transformer block follows this same residual-addition idea, storing <code>shortcut = x</code>, applying normalization and the sublayer, then adding the original input back.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-37">1.4.23 A Very Common Mistake</h3>
+<p>Do <strong>not</strong> think:</p>
+<blockquote>
+<p>&quot;Residual connection means we skip the layer.&quot;</p>
+</blockquote>
+<p>Not exactly.</p>
+<p>The branch is still computed.</p>
+<p>We do:</p>
+<div class="math block">
+F(x)
+</div>
+<p>and then:</p>
+<div class="math block">
+x+F(x)
+</div>
+<p>So the layer is not skipped in the forward computation.</p>
+<p>What is provided is an <strong>alternative path</strong> for both representation flow and gradients.</p>
+<p>That is why the book calls them shortcut/skip connections.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-38">1.4.24 Another Common Mistake</h3>
+<p>Do not confuse:</p>
+<div class="math block">
+\boxed{\text{residual stream}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{residual connection}}
+</div>
+<p>They are related but conceptually different.</p>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-39">Residual stream</h5>
+<p>The evolving representation:</p>
+<div class="math block">
+X^{(0)},X^{(1)},\ldots,X^{(L)}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-4-i11-40">Residual connection</h5>
+<p>The addition operation:</p>
+<div class="math block">
+x_{\text{out}}=x_{\text{in}}+F(x_{\text{in}})
+</div>
+<p>The stream is the <strong>thing being carried through the network</strong>.</p>
+<p>The residual connection is the <strong>mechanism used to update it</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-41">1.4.25 Where We Are Now</h3>
+<p>We have now constructed:</p>
+<div class="math block">
+\boxed{
+\text{tokens}
+\rightarrow
+\text{token IDs}
+\rightarrow
+\text{embeddings}
+\rightarrow
+\text{position}
+\rightarrow
+\text{residual stream}
+}
+</div>
+<p>Inside a block:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+\operatorname{Norm}(X)
+\rightarrow
+\operatorname{Attention}
+\rightarrow
++X
+\rightarrow
+\operatorname{Norm}
+\rightarrow
+\operatorname{MLP}
+\rightarrow
++X
+}
+</div>
+<p>The only major piece we haven't yet opened is the <strong>attention mechanism itself</strong>.</p>
+<p>And now we can finally introduce it properly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-42">1.4.26 Why Q, K, V Are the Next Step</h3>
+<p>Suppose the residual stream contains:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+x_1\\
+x_2\\
+x_3\\
+x_4
+\end{bmatrix}
+</div>
+<p>We want token <span class="math inline">i</span> to ask:</p>
+<blockquote>
+<p>Which other tokens are relevant to me?</p>
+</blockquote>
+<p>For this, the Transformer creates three different views of the same representation:</p>
+<div class="math block">
+\boxed{
+Q=XW_Q
+}
+</div>
+<div class="math block">
+\boxed{
+K=XW_K
+}
+</div>
+<div class="math block">
+\boxed{
+V=XW_V
+}
+</div>
+<p>Then:</p>
+<ul>
+<li><strong>Query</strong> = what this token is looking for</li>
+<li><strong>Key</strong> = what each token offers for matching</li>
+<li><strong>Value</strong> = what information each token can provide</li>
+</ul>
+<p>And the similarity computation:</p>
+<div class="math block">
+\boxed{
+QK^T
+}
+</div>
+<p>creates all pairwise token-to-token relevance scores.</p>
+<p>We are now at the exact point where the mathematics from <strong>Step 0.1</strong> becomes the core Transformer mechanism.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-4-i11-43">Step 1.4 Master Check</h3>
+<p>Make sure you can explain these without looking back.</p>
+<p><strong>Q1.</strong> What exactly is the residual stream?</p>
+<p><strong>Q2.</strong> Why do Transformer blocks use:</p>
+<div class="math block">
+x+F(x)
+</div>
+<p>instead of simply:</p>
+<div class="math block">
+F(x)?
+</div>
+<p><strong>Q3.</strong> In:</p>
+<div class="math block">
+x\leftarrow x+\operatorname{Attn}(\operatorname{Norm}(x))
+</div>
+<p>what is the purpose of the <span class="math inline">x</span> being added back?</p>
+<p><strong>Q4.</strong> Why must the attention/MLP branch output have the same <span class="math inline">d</span> dimension as the residual stream?</p>
+<p><strong>Q5.</strong> Explain mathematically why:</p>
+<div class="math block">
+y=x+f(x)
+</div>
+<p>provides a better gradient pathway than:</p>
+<div class="math block">
+y=f(x).
+</div>
+<p><strong>Q6.</strong> What does this mean?</p>
+<div class="math block">
+r_L
+=
+r_0+
+\sum_{\ell=1}^{L}a_\ell+
+\sum_{\ell=1}^{L}m_\ell
+</div>
+<p><strong>Q7.</strong> What is the division of labor between:</p>
+<div class="math block">
+\text{Attention}
+</div>
+<p>and</p>
+<div class="math block">
+\text{MLP}?
+</div>
+<p><strong>Q8.</strong> What's the difference between a <strong>residual stream</strong> and a <strong>residual connection</strong>?</p>
+<p><strong>Q9.</strong> If:</p>
+<div class="math block">
+X\in\mathbb R^{8\times128\times768}
+</div>
+<p>what must be the output shape of the attention branch so that it can be added to <span class="math inline">X</span>?</p>
+<hr />
+</section>

@@ -1,0 +1,1190 @@
+<section class="chunk" id="chunk-les-step-5-11-i52" data-id="les-step-5-11-i52"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-11-i52"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-11-i52" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-10-i51">← Previous lesson</a> · <a href="#chunk-les-step-5-12-i53">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-10-i51">Step 5.10 — The Actual DeepSeekMath GRPO Objective</a></p><p><strong>This lesson:</strong> Step 5.11 — What DeepSeekMath&#x27;s RL Actually Changes</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-8">deepseekmath-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-11-i52"></a></p>
+<h2>Step 5.11 — What DeepSeekMath's RL Actually Changes</h2>
+<p><em>Plan node: I7 · chat order #52</em></p>
+<p>We now have the full GRPO equation. The next question is deeper:</p>
+<blockquote>
+<p><strong>What does GRPO actually improve in the model?</strong></p>
+</blockquote>
+<p>Does RL teach the model completely new mathematical abilities?</p>
+<p>Or does it mainly make already-available good solutions <strong>more likely to be produced</strong>?</p>
+<p>The supplied DeepSeekMath slides address this directly using <strong>Pass@K vs Maj@K</strong>. They also compare <strong>Online RFT vs GRPO</strong> and <strong>outcome supervision vs process supervision</strong>. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-1">5.11.1 First reconstruct the DeepSeekMath pipeline</h3>
+<p>The whole experiment should be viewed as:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-Coder-Base-v1.5}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{math-focused pretraining}
+}
+</div>
+<p>using the large DeepSeekMath Corpus:</p>
+<div class="math block">
+\boxed{120B\text{ math tokens}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-Base 7B}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{instruction tuning}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-Instruct}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{GRPO + verifiable rewards}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-RL}
+}
+</div>
+<p>The supplied slides describe DeepSeekMath-Base 7B as starting from DeepSeek-Coder-Base-v1.5, and the RL stage as applying GRPO to DeepSeekMath-Instruct. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-2">5.11.2 What reward is available?</h3>
+<p>For many mathematical problems, we know the correct answer.</p>
+<p>So after the model generates:</p>
+<div class="math block">
+o_i
+</div>
+<p>we can verify it.</p>
+<p>For a simplified binary reward:</p>
+<div class="math block">
+R_i=
+\begin{cases}
+1 &amp; \text{correct}\\
+0 &amp; \text{incorrect}
+\end{cases}
+</div>
+<p>This is:</p>
+<div class="math block">
+\boxed{\text{outcome supervision}}
+</div>
+<p>because the reward concerns the <strong>final outcome</strong>.</p>
+<p>The key advantage is that we do not need a human to manually score every generated reasoning trace.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-3">5.11.3 Why can math use RLVR?</h3>
+<p>Because the answer can often be checked mechanically.</p>
+<p>Suppose the model answers:</p>
+<div class="math block">
+2x+3=11
+</div>
+<p>with:</p>
+<div class="math block">
+x=4.
+</div>
+<p>A verifier can simply calculate:</p>
+<div class="math block">
+2(4)+3=11.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R=1.
+</div>
+<p>For:</p>
+<div class="math block">
+x=3,
+</div>
+<p>we get:</p>
+<div class="math block">
+2(3)+3=9\neq11
+</div>
+<p>so:</p>
+<div class="math block">
+R=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{problem}+\text{verifier}\rightarrow\text{scalable reward}}
+</div>
+<p>This is the basis of RL with verifiable rewards.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-4">5.11.4 The key experimental question</h3>
+<p>Suppose the pretrained/instruction-tuned model already has a chance of solving a problem.</p>
+<p>Example:</p>
+<pre><code class="language-text">Model samples 8 answers:
+
+Correct
+Wrong
+Wrong
+Correct
+Wrong
+Wrong
+Wrong
+Wrong
+</code></pre>
+<p>The model <strong>already knew how to produce a correct solution sometimes</strong>.</p>
+<p>GRPO can increase the probability of the successful trajectories.</p>
+<p>That motivates the question:</p>
+<div class="math block">
+\boxed{
+\text{Does RL create new capability, or sharpen existing capability?}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-5">5.11.5 Pass@K</h3>
+<p>Define:</p>
+<div class="math block">
+\boxed{\text{Pass@K}}
+</div>
+<p>as:</p>
+<blockquote>
+<p>Is there at least one correct answer among <span class="math inline">K</span> sampled responses?</p>
+</blockquote>
+<p>For example, with:</p>
+<div class="math block">
+K=5
+</div>
+<p>suppose:</p>
+<div class="math block">
+[W,W,C,W,W].
+</div>
+<p>There is one correct answer.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\text{Pass@5}=1}.
+</div>
+<p>If:</p>
+<div class="math block">
+[W,W,W,W,W],
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{\text{Pass@5}=0}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-6">5.11.6 Why is Pass@K important?</h3>
+<p>Pass@K measures something close to:</p>
+<div class="math block">
+\boxed{
+\text{Can the model produce a correct solution at all?}
+}
+</div>
+<p>Suppose the model has:</p>
+<div class="math block">
+\text{Pass@8}=80\%.
+</div>
+<p>That means that across eight attempts, a correct answer appears for many problems.</p>
+<p>But that does not mean the <strong>first/default answer</strong> will be correct.</p>
+<p>The correct response might be buried among several wrong ones.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-7">5.11.7 Majority@K / Maj@K</h3>
+<p>Now consider:</p>
+<div class="math block">
+\boxed{\text{Maj@K}}
+</div>
+<p>The question becomes:</p>
+<blockquote>
+<p>Among the <span class="math inline">K</span> sampled answers, is the <strong>most common answer</strong> correct?</p>
+</blockquote>
+<p>Example:</p>
+<div class="math block">
+[83,83,38,83,38].
+</div>
+<p>The majority answer is:</p>
+<div class="math block">
+83.
+</div>
+<p>If the correct answer is 83:</p>
+<div class="math block">
+\boxed{\text{Maj@5}=1}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-8">5.11.8 Compare the two</h3>
+<p>Consider:</p>
+<pre><code class="language-text">Samples:
+83
+83
+38
+41
+17
+</code></pre>
+<p>Assume 83 is correct.</p>
+<p>Then:</p>
+<div class="math block">
+\text{Pass@5}=1
+</div>
+<p>because at least one response is correct.</p>
+<p>And:</p>
+<div class="math block">
+\text{Maj@5}=1
+</div>
+<p>because the correct answer is also the majority.</p>
+<p>Now consider:</p>
+<pre><code class="language-text">83
+38
+38
+41
+17
+</code></pre>
+<p>Again 83 is correct.</p>
+<p>Then:</p>
+<div class="math block">
+\text{Pass@5}=1
+</div>
+<p>but:</p>
+<div class="math block">
+\text{Maj@5}=0
+</div>
+<p>because 38 is the majority.</p>
+<p>This distinction is crucial.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-9">5.11.9 What happens after RL?</h3>
+<p>The supplied DeepSeekMath slides report an important observation:</p>
+<div class="math block">
+\boxed{\text{Maj@K improves}}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{\text{Pass@K changes little}}
+</div>
+<p>under the discussed RL analysis. <em>(Source: deepseekmath-slides)</em></p>
+<p>That means the model may already have been capable of producing correct solutions.</p>
+<p>RL makes the correct solution <strong>more dominant</strong> in the output distribution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-10">5.11.10 Visualize the distribution</h3>
+<p>Before RL:</p>
+<pre><code class="language-text">Correct solution      20%
+Wrong strategy A      25%
+Wrong strategy B      20%
+Wrong strategy C      20%
+Other                 15%
+</code></pre>
+<p>There is a correct solution, but it isn't dominant.</p>
+<p>After RL:</p>
+<pre><code class="language-text">Correct solution      55%
+Wrong strategy A      15%
+Wrong strategy B      12%
+Wrong strategy C      10%
+Other                  8%
+</code></pre>
+<p>The model's probability mass has been reshaped.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{capability already present}
+\rightarrow
+\text{probability mass shifted toward successful behavior}
+}
+</div>
+<p>This is the interpretation emphasized by the supplied deck. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-11">5.11.11 This is the paper's interpretation, not a universal theorem</h3>
+<p>The slides phrase this as the paper's own interpretation:</p>
+<blockquote>
+<p>RL is sharpening the probability distribution so that correct answers become more likely to dominate top-of-distribution decoding. <em>(Source: deepseekmath-slides)</em></p>
+</blockquote>
+<p>So we should be careful.</p>
+<p>This does <strong>not</strong> prove:</p>
+<div class="math block">
+\boxed{\text{RL can never create new reasoning capabilities}}
+</div>
+<p>It means that, for this particular DeepSeekMath analysis, the Pass@K/Maj@K behavior suggests that a significant part of the gain can be explained as <strong>making successful existing behaviors more likely</strong>.</p>
+<p>That distinction is important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-12">5.11.12 Why does this make intuitive sense?</h3>
+<p>Suppose the model already generates:</p>
+<div class="math block">
+A=\text{correct solution}
+</div>
+<p>with probability:</p>
+<div class="math block">
+P(A)=0.2.
+</div>
+<p>There are many competing incorrect solutions.</p>
+<p>RL rewards sampled trajectories that succeed.</p>
+<p>Repeatedly reinforcing successful trajectories pushes:</p>
+<div class="math block">
+P(A)
+</div>
+<p>upward.</p>
+<p>For example:</p>
+<div class="math block">
+0.2
+\rightarrow
+0.35
+\rightarrow
+0.50
+\rightarrow
+0.65.
+</div>
+<p>Eventually the correct solution becomes dominant.</p>
+<p>Thus greedy or ordinary top-of-distribution decoding becomes much more likely to return the correct answer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-13">5.11.13 A simple probability numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+P(\text{correct})=0.2.
+</div>
+<p>Assuming independent samples, the probability of getting at least one correct response in <span class="math inline">K</span> samples is:</p>
+<div class="math block">
+\boxed{
+\text{Pass@K}
+=
+1-(1-p)^K
+}
+</div>
+<p>for this simplified setting.</p>
+<p>For:</p>
+<div class="math block">
+K=5,
+</div>
+<p>we get:</p>
+<div class="math block">
+1-(0.8)^5.
+</div>
+<div class="math block">
+0.8^5=0.32768.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\text{Pass@5}
+=
+1-0.32768
+=
+\boxed{0.67232}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{67.2\%}.
+</div>
+<p>This formula is a useful mathematical interpretation of Pass@K, though the supplied slide's primary point is the empirical Pass@K vs Maj@K behavior rather than a derivation of this formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-14">5.11.14 Suppose RL increases <span class="math inline">p</span></h3>
+<p>Now suppose RL changes:</p>
+<div class="math block">
+p=0.2
+\rightarrow
+p=0.6.
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{Pass@5}
+=
+1-(1-0.6)^5
+</div>
+<div class="math block">
+=1-0.4^5
+</div>
+<div class="math block">
+=1-0.01024
+</div>
+<div class="math block">
+=\boxed{98.976\%}.
+</div>
+<p>So increasing the probability of successful reasoning dramatically increases the chance of seeing at least one correct answer.</p>
+<p>But in the slide's interpretation, the particularly important gain is that correct answers become <strong>more likely to be the dominant/selected answer</strong>, not merely somewhere in the sample set. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-15">5.11.15 Now connect this directly to GRPO</h3>
+<p>Remember:</p>
+<div class="math block">
+A_i=
+\frac{R_i-\mu_R}{\sigma_R+\epsilon}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+R=[1,0,0,0].
+</div>
+<p>Then the one successful response receives:</p>
+<div class="math block">
+A&gt;0.
+</div>
+<p>The incorrect responses receive:</p>
+<div class="math block">
+A&lt;0.
+</div>
+<p>Therefore the policy update approximately says:</p>
+<div class="math block">
+\boxed{
+\text{increase probability of successful trajectory}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{decrease probability of unsuccessful trajectories}
+}
+</div>
+<p>Repeated across many problems, that reshapes the distribution.</p>
+<p>That is exactly the bridge:</p>
+<div class="math block">
+\boxed{
+\text{GRPO mathematics}
+\rightarrow
+\text{distribution sharpening}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-16">5.11.16 Why GRPO beats Online RFT</h3>
+<p>Now compare two approaches.</p>
+<h5 id="v3-heading-chunk-les-step-5-11-i52-17">Online RFT</h5>
+<p>Correct:</p>
+<div class="math block">
+R=1
+</div>
+<p>Wrong:</p>
+<div class="math block">
+R=0.
+</div>
+<p>The correct rollouts receive a binary reinforcement signal.</p>
+<h5 id="v3-heading-chunk-les-step-5-11-i52-18">GRPO</h5>
+<p>Use:</p>
+<div class="math block">
+A_i=
+\frac{R_i-\mu}{\sigma+\epsilon}.
+</div>
+<p>So the signal is relative.</p>
+<p>The supplied deck says that Online RFT and GRPO use the same online data source; their key difference is the <strong>gradient coefficient</strong>. GRPO provides a richer continuous signal that reinforces above-average responses more strongly and penalizes below-average ones. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-19">5.11.17 Numerical comparison</h3>
+<p>Suppose:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=0.5.
+</div>
+<p>Unnormalized deviations:</p>
+<div class="math block">
+[+0.5,+0.5,-0.5,-0.5].
+</div>
+<p>Online RFT essentially gives:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>GRPO instead gives positive/negative relative signals.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{GRPO has directional suppression as well as reinforcement}
+}
+</div>
+<p>rather than merely:</p>
+<div class="math block">
+\boxed{
+\text{rewarded = reinforce}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-20">5.11.18 Why actively penalizing bad responses matters</h3>
+<p>Imagine all four responses:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>You want to increase:</p>
+<div class="math block">
+P(o_1),P(o_2)
+</div>
+<p>and decrease:</p>
+<div class="math block">
+P(o_3),P(o_4).
+</div>
+<p>GRPO naturally supplies:</p>
+<div class="math block">
+A_{1},A_{2}&gt;0
+</div>
+<p>and:</p>
+<div class="math block">
+A_{3},A_{4}&lt;0.
+</div>
+<p>This gives the policy a much richer update direction.</p>
+<p>That richer gradient coefficient is exactly what the supplied deck highlights. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-21">5.11.19 Outcome supervision vs Process supervision</h3>
+<p>Now we reach another important experiment.</p>
+<h5 id="v3-heading-chunk-les-step-5-11-i52-22">Outcome supervision</h5>
+<p>Reward only the final result.</p>
+<p>For example:</p>
+<div class="math block">
+\boxed{
+R=
+1\quad\text{if final answer is correct}
+}
+</div>
+<div class="math block">
+0\quad\text{otherwise}.
+</div>
+<p>This is:</p>
+<div class="math block">
+\boxed{\text{GRPO+OS}}
+</div>
+<p>in the supplied slide terminology.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-23">5.11.20 Process supervision</h3>
+<p>Instead of only evaluating the final answer, provide reward signals at intermediate reasoning steps.</p>
+<p>For example:</p>
+<pre><code class="language-text">Step 1 → correct setup      +1
+Step 2 → correct algebra    +1
+Step 3 → correct substitution +1
+Step 4 → correct answer     +1
+</code></pre>
+<p>The slide describes process supervision as giving <strong>one reward per reasoning step</strong>, rather than only a final-answer reward. <em>(Source: deepseekmath-slides)</em></p>
+<p>This produces:</p>
+<div class="math block">
+\boxed{\text{GRPO+PS}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-24">5.11.21 Why should process supervision help?</h3>
+<p>Consider this reasoning chain:</p>
+<div class="math block">
+S_1\rightarrow S_2\rightarrow S_3\rightarrow S_4
+</div>
+<p>where only the final answer is checked.</p>
+<p>Suppose the final answer is wrong.</p>
+<p>With outcome supervision:</p>
+<div class="math block">
+R=0.
+</div>
+<p>But maybe:</p>
+<div class="math block">
+S_1
+</div>
+<p>and:</p>
+<div class="math block">
+S_2
+</div>
+<p>were perfectly correct, and the mistake happened at:</p>
+<div class="math block">
+S_3.
+</div>
+<p>Outcome supervision doesn't tell us exactly where the reasoning went wrong.</p>
+<p>This creates a <strong>credit-assignment problem</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-25">5.11.22 Process supervision provides finer credit assignment</h3>
+<p>Instead of:</p>
+<div class="math block">
+[0]
+</div>
+<p>we might have:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>Now the learning system receives more localized information.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{final reward}
+\rightarrow
+\text{coarse credit}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{step rewards}
+\rightarrow
+\text{fine-grained credit}
+}
+</div>
+<p>The supplied slides report that:</p>
+<div class="math block">
+\boxed{\text{GRPO+PS}}
+</div>
+<p>edges out:</p>
+<div class="math block">
+\boxed{\text{GRPO+OS}}
+</div>
+<p>in the cited comparison, suggesting the finer credit assignment is useful. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-26">5.11.23 Why doesn't DeepSeekMath simply use process supervision everywhere?</h3>
+<p>Because it is more expensive and difficult.</p>
+<p>For outcome supervision:</p>
+<div class="math block">
+\text{one final verification}.
+</div>
+<p>For process supervision:</p>
+<div class="math block">
+\text{verify many intermediate steps}.
+</div>
+<p>That raises the requirements for:</p>
+<ul>
+<li>step-level correctness checking,</li>
+<li>reward-model or verifier quality,</li>
+<li>data construction,</li>
+<li>computational cost.</li>
+</ul>
+<p>The supplied material identifies the empirical benefit but does not provide a complete cost analysis in the cited slide, so we should not attach a specific cost number here.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-27">5.11.24 Iterative RL — another important idea</h3>
+<p>The deck also introduces <strong>Iterative GRPO</strong>.</p>
+<p>Suppose we have a reward model trained using behavior from:</p>
+<div class="math block">
+\pi_0.
+</div>
+<p>After substantial RL:</p>
+<div class="math block">
+\pi_t
+</div>
+<p>may generate responses that look very different.</p>
+<p>The old reward model may now be operating out of distribution.</p>
+<p>Therefore its judgments can become less trustworthy.</p>
+<p>The supplied slides describe iterative GRPO as periodically:</p>
+<ol>
+<li>retraining the reward model on fresh rollouts,</li>
+<li>retaining 10% older data as replay,</li>
+<li>resetting the reference policy,</li>
+<li>continuing training. <em>(Source: deepseekmath-slides)</em></li>
+</ol>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-28">5.11.25 Why does this make sense?</h3>
+<p>We have a moving policy:</p>
+<div class="math block">
+\pi_0
+\rightarrow
+\pi_1
+\rightarrow
+\pi_2
+\rightarrow
+\pi_3.
+</div>
+<p>If the reward model was trained on:</p>
+<div class="math block">
+\pi_0\text{'s outputs},
+</div>
+<p>then eventually:</p>
+<div class="math block">
+\pi_3
+</div>
+<p>may produce very different outputs.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{policy distribution shifts}
+\rightarrow
+\text{reward model distribution shift}
+}
+</div>
+<p>This is another form of instability in RL training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-29">5.11.26 Why keep old data?</h3>
+<p>The supplied slide says the iterative procedure retains about:</p>
+<div class="math block">
+\boxed{10\%}
+</div>
+<p>older data as replay.</p>
+<p>Conceptually, this prevents the new reward model from completely forgetting the earlier distribution while adapting to the current one. <em>(Source: deepseekmath-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{fresh data}
++
+\text{some historical data}
+}
+</div>
+<p>helps maintain continuity.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-30">5.11.27 Put all DeepSeekMath experiments into one hierarchy</h3>
+<p>We can now see the evolution:</p>
+<div class="math block">
+\boxed{\text{SFT}}
+</div>
+<p>teaches the model from demonstrations.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Offline RFT}}
+</div>
+<p>uses fixed sampled responses.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Online RFT}}
+</div>
+<p>continually samples from the updated policy.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{GRPO}}
+</div>
+<p>adds richer group-relative gradient coefficients.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{GRPO+PS}}
+</div>
+<p>adds finer-grained process supervision.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Iterative GRPO}}
+</div>
+<p>refreshes reward modeling as the policy changes.</p>
+<p>This is the experimental progression presented across the supplied DeepSeekMath slides. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-31">5.11.28 The most important conceptual axis</h3>
+<p>The slide's unifying lens is:</p>
+<div class="math block">
+\boxed{
+\text{What data do we train on?}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{What gradient coefficient do we apply?}
+}
+</div>
+<p>So:</p>
+<pre><code class="language-text">                 TRAINING METHOD
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+        DATA SOURCE         GRADIENT SIGNAL
+             │                   │
+      offline / online      binary / relative /
+                           token / process ...
+</code></pre>
+<p>This makes the algorithms much easier to compare. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-32">5.11.29 DeepSeekMath result — the headline number</h3>
+<p>After applying GRPO to DeepSeekMath-Instruct:</p>
+<div class="math block">
+\text{MATH}
+:
+46.8\%\rightarrow51.7\%.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{+4.9\text{ percentage points}}.
+</div>
+<p>GSM8K:</p>
+<div class="math block">
+82.9\%\rightarrow88.2\%
+</div>
+<div class="math block">
+\boxed{+5.3\text{ points}}.
+</div>
+<p>CMATH:</p>
+<div class="math block">
+84.6\%\rightarrow88.8\%
+</div>
+<div class="math block">
+\boxed{+4.2\text{ points}}.
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-33">5.11.30 Why the CMATH result matters</h3>
+<p>The RL training data came from:</p>
+<div class="math block">
+\boxed{\text{GSM8K + MATH}}
+</div>
+<p>yet CMATH also improved.</p>
+<p>So the result is not simply:</p>
+<div class="math block">
+\text{memorize training benchmark}.
+</div>
+<p>It suggests some transfer of the improved reasoning behavior to a related out-of-domain benchmark. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-34">5.11.31 One subtle but important conclusion</h3>
+<p>DeepSeekMath teaches us that RL can be extremely effective <strong>without necessarily requiring the model to learn an entirely new algorithmic capability from scratch</strong>.</p>
+<p>The evidence in the deck suggests:</p>
+<div class="math block">
+\boxed{
+\text{successful behaviors already present}
+}
+</div>
+<p>can be:</p>
+<div class="math block">
+\boxed{
+\text{amplified and made more likely}
+}
+</div>
+<p>through reinforcement.</p>
+<p>This is why:</p>
+<div class="math block">
+\text{Pass@K}\approx\text{stable}
+</div>
+<p>while:</p>
+<div class="math block">
+\text{Maj@K}\uparrow
+</div>
+<p>is so informative. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-35">5.11.32 Numerical — Pass@K</h3>
+<p>A model has:</p>
+<div class="math block">
+p=0.3
+</div>
+<p>chance of producing a correct answer in any individual sample.</p>
+<p>For:</p>
+<div class="math block">
+K=4,
+</div>
+<p>under the simplified independent-sampling assumption:</p>
+<div class="math block">
+\text{Pass@4}
+=
+1-(1-0.3)^4
+</div>
+<div class="math block">
+=
+1-(0.7)^4
+</div>
+<div class="math block">
+=
+1-0.2401
+=
+\boxed{0.7599}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{75.99\%}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-36">5.11.33 Numerical — probability sharpening</h3>
+<p>Suppose before RL:</p>
+<div class="math block">
+P(\text{correct})=0.25.
+</div>
+<p>After RL:</p>
+<div class="math block">
+P(\text{correct})=0.55.
+</div>
+<p>Probability increase:</p>
+<div class="math block">
+0.55-0.25
+=
+\boxed{0.30}.
+</div>
+<p>So the correct behavior gained:</p>
+<div class="math block">
+\boxed{30\text{ percentage points}}
+</div>
+<p>of probability mass in this toy example.</p>
+<p>This illustrates the deck's “sharpening” interpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-37">5.11.34 Numerical — outcome vs process supervision</h3>
+<p>Suppose four reasoning steps receive:</p>
+<div class="math block">
+[1,1,0,1].
+</div>
+<p>Under process supervision, total step reward might be:</p>
+<div class="math block">
+1+1+0+1
+=
+\boxed{3}
+</div>
+<p>depending on the reward design.</p>
+<p>Under binary outcome supervision, if the final answer is wrong:</p>
+<div class="math block">
+\boxed{R_{\text{outcome}}=0}.
+</div>
+<p>The process signal therefore contains substantially more information about <strong>where the successful/unsuccessful trajectory differed</strong>, although the exact aggregation depends on the particular training setup.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-38">5.11.35 Interview question</h3>
+<p><strong>Question: Why does GRPO need multiple responses for the same prompt?</strong></p>
+<p>Correct reasoning:</p>
+<div class="math block">
+\boxed{
+\text{because its advantage is relative to the group's reward distribution}
+}
+</div>
+<p>For:</p>
+<div class="math block">
+G=1,
+</div>
+<p>the only reward is also the group mean, so:</p>
+<div class="math block">
+R_1-\mu=0.
+</div>
+<p>There is no meaningful relative signal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-39">5.11.36 Interview question</h3>
+<p><strong>Question: Why can GRPO improve Maj@K without greatly improving Pass@K?</strong></p>
+<p>Answer:</p>
+<p>Because RL may primarily change the <strong>probability distribution over already-available behaviors</strong>.</p>
+<p>The model may already be able to generate a correct solution occasionally, so Pass@K remains similar.</p>
+<p>But GRPO increases the probability of successful trajectories, making the correct answer more likely to dominate the sampled set:</p>
+<div class="math block">
+\boxed{
+\text{correct behavior becomes more probable}
+}
+</div>
+<p>which increases Maj@K. This is the interpretation highlighted in the supplied deck. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-40">5.11.37 Interview question</h3>
+<p><strong>Question: What is the difference between Online RFT and GRPO if both sample from the current policy?</strong></p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{data source is similar}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{gradient coefficient is different}}.
+</div>
+<p>Online RFT uses a simpler binary reinforcement signal, while GRPO uses group-relative advantages that both reward above-average responses and penalize below-average responses. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-41">5.11.38 Interview question</h3>
+<p><strong>Question: What is the difference between outcome supervision and process supervision?</strong></p>
+<div class="math block">
+\boxed{\text{Outcome supervision}}
+</div>
+<p>judges the final result.</p>
+<div class="math block">
+\boxed{\text{Process supervision}}
+</div>
+<p>provides feedback on intermediate reasoning steps.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{OS = coarse credit assignment}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{PS = fine-grained credit assignment}
+}
+</div>
+<p>The supplied slide reports GRPO+PS slightly outperforming GRPO+OS in its cited comparison. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-42">5.11.39 The complete DeepSeekMath story so far</h3>
+<p>We can now connect <strong>everything</strong>:</p>
+<div class="math block">
+\boxed{
+\text{Common Crawl}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{iterative math mining}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+120B\text{-token DeepSeekMath Corpus}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-Base 7B}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-Instruct}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{online sampling}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{verifiable rewards}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{group-relative advantages}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{token-level GRPO}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{successful behavior becomes more probable}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath-RL 7B}
+}
+</div>
+<p>with the reported MATH improvement:</p>
+<div class="math block">
+\boxed{
+46.8\%\rightarrow51.7\%
+}.
+</div>
+<p><em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-43">5.11.40 The bridge to DeepSeek-R1</h3>
+<p>This is the point where the story becomes very interesting.</p>
+<p>DeepSeekMath established:</p>
+<div class="math block">
+\boxed{\text{GRPO + verifiable rewards}}
+</div>
+<p>as a practical reasoning-training recipe.</p>
+<p>DeepSeek-R1 then takes the same broad RL idea much further, including a much larger model, stronger reasoning behavior, staged training, and eventually distillation into small students.</p>
+<p>The supplied book explicitly describes GRPO as originating in DeepSeekMath and later being used for DeepSeek-R1. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+=
+\text{proof of the training mechanism}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1}
+=
+\text{large-scale reasoning system built around it}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-44">Step 5.11 — Exam bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-11-i52-45">N1</h5>
+<p>A model has:</p>
+<div class="math block">
+P(\text{correct})=0.2.
+</div>
+<p>Compute simplified Pass@5.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-46">N2</h5>
+<p>Before RL:</p>
+<div class="math block">
+P(\text{correct})=0.25
+</div>
+<p>After RL:</p>
+<div class="math block">
+P(\text{correct})=0.55.
+</div>
+<p>What happened conceptually?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-47">N3</h5>
+<p>Samples are:</p>
+<div class="math block">
+[83,38,83,41,17].
+</div>
+<p>If 83 is correct, calculate Pass@5 and Maj@5.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-48">N4</h5>
+<p>Rewards are:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>Calculate:</p>
+<div class="math block">
+\mu_R
+</div>
+<p>and the unnormalized advantage deviations.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-49">N5</h5>
+<p>Why does <span class="math inline">G=1</span> provide no useful GRPO relative-comparison signal?</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-50">N6</h5>
+<p>Explain why:</p>
+<div class="math block">
+\text{Pass@K}\approx\text{unchanged}
+</div>
+<p>but:</p>
+<div class="math block">
+\text{Maj@K}\uparrow
+</div>
+<p>can indicate probability sharpening rather than entirely new reasoning capability.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-51">N7</h5>
+<p>MATH improves:</p>
+<div class="math block">
+46.8\%\rightarrow51.7\%.
+</div>
+<p>Calculate the absolute gain and relative percentage gain.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-11-i52-52">N8</h5>
+<p>Explain, mathematically and conceptually, why process supervision gives finer credit assignment than outcome supervision.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-11-i52-53">Final mental model for Step 5.11</h3>
+<p>The most important chain to memorize is:</p>
+<div class="math block">
+\boxed{
+\text{GRPO does not simply ask “is the answer good?”}
+}
+</div>
+<p>It effectively asks:</p>
+<div class="math block">
+\boxed{
+\text{“Among several ways the model tried to solve this problem, which behaviors were better than the others?”}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{better trajectories}
+\rightarrow
+A&gt;0
+\rightarrow
+\text{probability increased}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{worse trajectories}
+\rightarrow
+A&lt;0
+\rightarrow
+\text{probability decreased}
+}
+</div>
+<p>Repeated over many problems:</p>
+<div class="math block">
+\boxed{
+\text{distribution sharpens toward successful reasoning}.
+}
+</div>
+<p>That is the central empirical lesson the DeepSeekMath slides draw from the <strong>Pass@K/Maj@K</strong> analysis. <em>(Source: deepseekmath-slides)</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-g5">G.5 — DeepSeekMath slide not covered by the lessons</a> — <em>arXiv negative result</em></p>
+</blockquote>
+<hr />
+</section>

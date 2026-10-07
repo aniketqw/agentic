@@ -1,0 +1,1134 @@
+<section class="chunk" id="chunk-les-step-1-8-i15" data-id="les-step-1-8-i15"><details class="audit-card" id="audit-T11" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T11 — Multiple heads: split, attend, concatenate, project</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T10">← Previous audit card</a> · <a href="#audit-T12">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-8-i15-1">Why this matters</h4><p>Separate learned attention operations can produce different context mixtures before the output projection combines their feature spaces.</p><p><strong>Prerequisites:</strong> <a href="#audit-T04">Scores to attention weights to output</a>, <a href="#audit-F01">Matrix multiplication and shape contracts</a></p><h4 id="v3-heading-chunk-les-step-1-8-i15-2">Symbols, shapes and assumptions</h4><p>This fixture uses a projected width divisible by H. Split along features, not tokens. Concatenating H head outputs returns H×dv features; Wout then maps to the residual width.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-3">Derivation or mechanism</h4><ol><li>Partition each projected feature row into head slices.</li><li>Compute attention independently for each head.</li><li>Concatenate per-token head outputs, then multiply by Wout.</li></ol><div class="math block" data-tex="\mathrm{MHA}(Q,K,V)=\mathrm{Concat}(O_1,\ldots,O_H)W_O">\mathrm{MHA}(Q,K,V)=\mathrm{Concat}(O_1,\ldots,O_H)W_O</div><h4 id="v3-heading-chunk-les-step-1-8-i15-4">Worked numerical</h4><p>The executable two-head fixture has two tokens and four projected features: each head receives two features. The checker independently computes both NumPy head outputs and concatenates them. For the first causal token, the concatenated value is [1,2,3,4] before the identity output projection.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-5">Edge cases and limits</h4><ul><li>Heads are concatenated here, not averaged.</li><li>This implementation rejects width 3 with two equal heads.</li><li>No guarantee assigns a head to a particular linguistic phenomenon.</li></ul><h4 id="v3-heading-chunk-les-step-1-8-i15-6">Connections</h4><ul><li>T12 composes a multi-head sublayer with residuals.</li><li>Later MQA/GQA alter key/value sharing and need distinct checks.</li></ul><h4 id="v3-heading-chunk-les-step-1-8-i15-7">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 13 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 204, 205, 210, 211, 212 · §3.6</li><li><a href="https://arxiv.org/html/1706.03762v7" rel="noopener noreferrer">§3.2.2</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-8">Executable companion and checking evidence</h4><p>Functions: <code>split_heads</code>, <code>multihead</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T11-heads, T11-head-shape. <a href="#audit-checks">Inspect the check methods</a>.</p></details><details class="audit-card" id="audit-T14" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T14 — Attention dropout is not another normalized probability row</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T13">← Previous audit card</a></nav><h4 id="v3-heading-chunk-les-step-1-8-i15-9">Why this matters</h4><p>The weighted-average interpretation needs qualification when dropout is applied to the attention weights during training.</p><p><strong>Prerequisites:</strong> <a href="#audit-T04">Scores to attention weights to output</a>, <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-1-8-i15-10">Symbols, shapes and assumptions</h4><p>Let the dropout keep probability be 1-r. Inverted dropout divides retained entries by 1-r. The expected entry matches its pre-dropout value, but an individual row sum need not be one.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-11">Derivation or mechanism</h4><ol><li>Start with the normalized attention row.</li><li>Zero the sampled dropped entries.</li><li>Scale retained entries by the inverse keep probability; do not renormalize unless the implementation explicitly does so.</li></ol><div class="math block" data-tex="\widetilde A_{ij}=A_{ij}D_{ij}/(1-r),\qquad \mathbb E[\widetilde A_{ij}]=A_{ij}">\widetilde A_{ij}=A_{ij}D_{ij}/(1-r),\qquad \mathbb E[\widetilde A_{ij}]=A_{ij}</div><h4 id="v3-heading-chunk-les-step-1-8-i15-12">Worked numerical</h4><p>For A=[0.25,0.75], dropout rate 0.5, and keep mask [0,1], the row becomes [0,1.5]. Its sum is 1.5. The standard-library attention companion omits dropout and labels its weights pre-dropout.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-13">Edge cases and limits</h4><ul><li>This is a specified mask example, not a stochastic training experiment.</li><li>The PyTorch scaled-dot-product API applies its supplied dropout probability; evaluation behavior must follow that API contract. PyTorch was not installed here, so no API execution is claimed.</li></ul><h4 id="v3-heading-chunk-les-step-1-8-i15-14">Connections</h4><ul><li>T04 row-normalization checks apply before dropout.</li></ul><h4 id="v3-heading-chunk-les-step-1-8-i15-15">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 195, 196, 197, 198, 199, 200 · §3.5 dropout</li><li><a href="https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html" rel="noopener noreferrer">Dropout warning and reference implementation</a></li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-8-i15-16">Executable companion and checking evidence</h4><p>Functions: <code>attention</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T14-dropout. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-8-i15"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-8-i15" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-7-i14">← Previous lesson</a> · <a href="#chunk-les-step-1-9-i16">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-7-i14">Step 1.7 — Causal Mask: How a Decoder Prevents Looking Into the Future</a></p><p><strong>This lesson:</strong> Step 1.8 — Multi-Head Attention (MHA)</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-13">Understanding_Attention_Handbook_01</a>; <a href="#source-16">NLP_TRANSFORMER</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-8-i15"></a></p>
+<h2>Step 1.8 — Multi-Head Attention (MHA)</h2>
+<p><em>Plan node: I1 · chat order #15</em></p>
+<p>We now know a <strong>single causal attention head</strong> completely:</p>
+<div class="math block">
+\boxed{
+O=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)V
+}
+</div>
+<p>The next question is fundamental:</p>
+<blockquote>
+<p><strong>Why don't we just use one attention operation? Why does a Transformer use multiple heads?</strong></p>
+</blockquote>
+<p>Your sources answer this in essentially the same way: different heads can learn different patterns of relationships simultaneously. One head may emphasize one kind of relationship while another emphasizes a different one; these relations are <strong>learned</strong>, not manually assigned. <em>(Source: NLP_TRANSFORMER)</em></p>
+<p>The key idea is:</p>
+<div class="math block">
+\boxed{
+\text{One head = one learned attention pattern}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Multiple heads = multiple learned attention patterns in parallel}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-17">1.8.1 First: What Was the Limitation of One Head?</h3>
+<p>Suppose we have:</p>
+<pre><code class="language-text">The quick brown fox jumps
+</code></pre>
+<p>A single attention head has one set of learned projections:</p>
+<div class="math block">
+W_Q,\;W_K,\;W_V.
+</div>
+<p>Therefore, it creates one compatibility structure:</p>
+<div class="math block">
+A=
+\operatorname{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right).
+</div>
+<p>That one attention distribution has to determine what relationships matter for that head.</p>
+<p>But language contains many relationships simultaneously:</p>
+<ul>
+<li>a word may depend on its subject,</li>
+<li>a verb may relate to an object,</li>
+<li>an adjective may relate to a noun,</li>
+<li>a token may need nearby contextual information,</li>
+<li>a token may need information from something much earlier.</li>
+</ul>
+<p>The NLP with Transformers source gives this intuition explicitly: one head tends to focus on a particular aspect of similarity, while multiple heads allow several aspects to be considered at once. <em>(Source: NLP_TRANSFORMER)</em></p>
+<p>So instead of:</p>
+<div class="math block">
+\boxed{\text{one attention pattern}}
+</div>
+<p>we use:</p>
+<div class="math block">
+\boxed{
+\text{head}_1,\text{ head}_2,\ldots,\text{head}_h
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-18">1.8.2 The Most Important Mental Model</h3>
+<p>Imagine a meeting with <span class="math inline">8</span> analysts.</p>
+<p>Each analyst sees the same document, but each has learned to pay attention to different relationships.</p>
+<p>One might focus on:</p>
+<div class="math block">
+\text{subject}\leftrightarrow\text{verb}
+</div>
+<p>another on:</p>
+<div class="math block">
+\text{noun}\leftrightarrow\text{adjective}
+</div>
+<p>another on:</p>
+<div class="math block">
+\text{long-range dependency}.
+</div>
+<p>The model does <strong>not</strong> explicitly tell head 1:</p>
+<blockquote>
+<p>&quot;You are the subject-verb head.&quot;</p>
+</blockquote>
+<p>Instead, every head has its own learned parameters, so different patterns <strong>emerge from training</strong>. Your source specifically warns against assuming that each head corresponds to a clean human-interpretable concept. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So the safe statement is:</p>
+<div class="math block">
+\boxed{
+\text{different heads can learn different patterns}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{
+\text{head 1 always means grammar, head 2 always means nouns}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-19">1.8.3 One Head First</h3>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">n</span> = number of tokens</li>
+<li><span class="math inline">d</span> = model/embedding dimension.</li>
+</ul>
+<p>A single head creates:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<div class="math block">
+K=XW_K
+</div>
+<div class="math block">
+V=XW_V.
+</div>
+<p>If:</p>
+<div class="math block">
+W_Q,W_K\in\mathbb{R}^{d\times d_k}
+</div>
+<p>and:</p>
+<div class="math block">
+W_V\in\mathbb{R}^{d\times d_v},
+</div>
+<p>then:</p>
+<div class="math block">
+Q,K\in\mathbb{R}^{n\times d_k}
+</div>
+<p>and:</p>
+<div class="math block">
+V\in\mathbb{R}^{n\times d_v}.
+</div>
+<p>Then:</p>
+<div class="math block">
+QK^T\in\mathbb{R}^{n\times n}.
+</div>
+<p>Then:</p>
+<div class="math block">
+A\in\mathbb{R}^{n\times n}.
+</div>
+<p>Finally:</p>
+<div class="math block">
+O=AV
+</div>
+<p>gives:</p>
+<div class="math block">
+O\in\mathbb{R}^{n\times d_v}.
+</div>
+<p>That is <strong>one head</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-20">1.8.4 Now Create Two Heads</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=8
+</div>
+<p>and we choose:</p>
+<div class="math block">
+h=2
+</div>
+<p>attention heads.</p>
+<p>A standard design divides the model width between heads:</p>
+<div class="math block">
+d_k=d_v=\frac{d}{h}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+d_k=d_v=\frac{8}{2}=4.
+</div>
+<p>So instead of one large attention operation with width <span class="math inline">8</span>, we have:</p>
+<div class="math block">
+\boxed{
+2\text{ heads}\times4\text{ dimensions per head}
+}
+</div>
+<p>The NLP with Transformers source gives the analogous example of BERT using 12 heads with:</p>
+<div class="math block">
+768/12=64
+</div>
+<p>dimensions per head. <em>(Source: NLP_TRANSFORMER)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-21">1.8.5 Each Head Gets Its Own Projections</h3>
+<p>This is critical.</p>
+<p>Head 1 has:</p>
+<div class="math block">
+W_Q^{(1)},W_K^{(1)},W_V^{(1)}.
+</div>
+<p>Head 2 has:</p>
+<div class="math block">
+W_Q^{(2)},W_K^{(2)},W_V^{(2)}.
+</div>
+<p>So:</p>
+<div class="math block">
+Q_1=XW_Q^{(1)}
+</div>
+<div class="math block">
+K_1=XW_K^{(1)}
+</div>
+<div class="math block">
+V_1=XW_V^{(1)}
+</div>
+<p>and:</p>
+<div class="math block">
+Q_2=XW_Q^{(2)}
+</div>
+<div class="math block">
+K_2=XW_K^{(2)}
+</div>
+<div class="math block">
+V_2=XW_V^{(2)}.
+</div>
+<p>Because the matrices are different:</p>
+<div class="math block">
+\boxed{
+\text{Head 1 and Head 2 see the same input through different learned projections.}
+}
+</div>
+<p>This is the mathematical reason they can learn different relationships.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-22">1.8.6 Each Head Performs the Same Attention Algorithm</h3>
+<p>Head 1 computes:</p>
+<div class="math block">
+O_1
+=
+\operatorname{softmax}
+\left(
+\frac{Q_1K_1^T}{\sqrt{d_k}}+M
+\right)V_1.
+</div>
+<p>Head 2 computes:</p>
+<div class="math block">
+O_2
+=
+\operatorname{softmax}
+\left(
+\frac{Q_2K_2^T}{\sqrt{d_k}}+M
+\right)V_2.
+</div>
+<p>Notice what changed?</p>
+<p>Only the learned projections.</p>
+<p>The attention mechanism itself is identical.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{MHA = several independent attention calculations}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-23">1.8.7 Why Do the Heads Actually Behave Differently?</h3>
+<p>Because:</p>
+<div class="math block">
+W_Q^{(1)}\neq W_Q^{(2)}
+</div>
+<p>and similarly for <span class="math inline">W_K,W_V</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+Q_1\neq Q_2
+</div>
+<div class="math block">
+K_1\neq K_2
+</div>
+<div class="math block">
+V_1\neq V_2.
+</div>
+<p>So their score matrices differ:</p>
+<div class="math block">
+Q_1K_1^T
+\neq
+Q_2K_2^T.
+</div>
+<p>Hence their attention probabilities can differ:</p>
+<div class="math block">
+A_1\neq A_2.
+</div>
+<p>And consequently:</p>
+<div class="math block">
+O_1\neq O_2.
+</div>
+<p>This is the heart of multi-head attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-24">1.8.8 Small Illustrative Example</h3>
+<p>Suppose token 3 has three permissible positions to attend to.</p>
+<p>Head 1 might learn:</p>
+<div class="math block">
+A_1^{(3)}
+=
+[0.8,0.1,0.1].
+</div>
+<p>So it strongly uses position 1.</p>
+<p>Head 2 might learn:</p>
+<div class="math block">
+A_2^{(3)}
+=
+[0.1,0.8,0.1].
+</div>
+<p>So it strongly uses position 2.</p>
+<p>Same input.</p>
+<p>Same causal constraint.</p>
+<p>Different learned projections.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{different heads can retrieve different information}
+}
+</div>
+<p>This is an illustrative example of the mechanism, not a claim about what actual named heads in a trained model necessarily do.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-25">1.8.9 What Happens to the Head Outputs?</h3>
+<p>Suppose:</p>
+<div class="math block">
+O_1\in\mathbb{R}^{n\times4}
+</div>
+<p>and:</p>
+<div class="math block">
+O_2\in\mathbb{R}^{n\times4}.
+</div>
+<p>We cannot simply add them and call it multi-head attention.</p>
+<p>Instead, we <strong>concatenate</strong> them.</p>
+<div class="math block">
+\boxed{
+O_{\text{concat}}
+=
+\operatorname{Concat}(O_1,O_2)
+}
+</div>
+<p>So:</p>
+<div class="math block">
+[n\times4]
+\quad || \quad
+[n\times4]
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+n\times8
+}
+</div>
+<p>because:</p>
+<div class="math block">
+4+4=8.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-26">1.8.10 Why Concatenate Instead of Add?</h3>
+<p>Suppose:</p>
+<div class="math block">
+O_1=[a,b,c,d]
+</div>
+<p>and:</p>
+<div class="math block">
+O_2=[e,f,g,h].
+</div>
+<p>Adding produces:</p>
+<div class="math block">
+O_1+O_2
+=
+[a+e,b+f,c+g,d+h].
+</div>
+<p>Information from the two heads gets mixed immediately.</p>
+<p>Concatenation instead preserves both:</p>
+<div class="math block">
+\boxed{
+[a,b,c,d,e,f,g,h]
+}
+</div>
+<p>So the model can retain the outputs of the different heads separately before learning how to combine them.</p>
+<p>This is why the architecture uses:</p>
+<div class="math block">
+\boxed{
+\operatorname{Concat}(head_1,\ldots,head_h)
+}
+</div>
+<p>rather than simply summing the heads.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-27">1.8.11 But We Now Have the Wrong Width</h3>
+<p>After concatenation, we have:</p>
+<div class="math block">
+n\times(hd_v).
+</div>
+<p>With the typical choice:</p>
+<div class="math block">
+d_v=\frac dh,
+</div>
+<p>we get:</p>
+<div class="math block">
+hd_v
+=
+h\frac dh
+=
+d.
+</div>
+<p>So the concatenated result is already:</p>
+<div class="math block">
+n\times d.
+</div>
+<p>But there is still another learned transformation.</p>
+<p>That is:</p>
+<div class="math block">
+\boxed{W_O}
+</div>
+<p>the <strong>output projection</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-28">1.8.12 The Output Projection</h3>
+<p>We calculate:</p>
+<div class="math block">
+\boxed{
+O_{\text{MHA}}
+=
+O_{\text{concat}}W_O
+}
+</div>
+<p>where:</p>
+<div class="math block">
+W_O\in\mathbb{R}^{d\times d}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+[n\times d][d\times d]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+n\times d.
+}
+</div>
+<p>So the complete MHA equation is:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+=
+\operatorname{Concat}
+(head_1,\ldots,head_h)W_O
+}
+</div>
+<p>This is the standard formulation given in your attention handbook. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-29">1.8.13 Why Do We Need <span class="math inline">W_O</span>?</h3>
+<p>This is another subtle point.</p>
+<p>The heads independently produce useful representations.</p>
+<p>Concatenation simply places those representations side-by-side:</p>
+<div class="math block">
+[head_1\;|\;head_2\;|\;\cdots\;|\;head_h].
+</div>
+<p>But the model still needs to learn:</p>
+<blockquote>
+<p>How should information from these different heads be combined?</p>
+</blockquote>
+<p>That is what <span class="math inline">W_O</span> does.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{heads extract different information}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+W_O\text{ learns how to combine it}
+}
+</div>
+<p>Then this result can be added back into the residual stream.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-30">1.8.14 Complete MHA Flow</h3>
+<p>Let's put everything together.</p>
+<p>Start:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}.
+</div>
+<p>For each head <span class="math inline">h</span>:</p>
+<div class="math block">
+Q_h=XW_Q^{(h)}
+</div>
+<div class="math block">
+K_h=XW_K^{(h)}
+</div>
+<div class="math block">
+V_h=XW_V^{(h)}.
+</div>
+<p>Then:</p>
+<div class="math block">
+A_h=
+\operatorname{softmax}
+\left(
+\frac{Q_hK_h^T}{\sqrt{d_k}}+M
+\right).
+</div>
+<p>Then:</p>
+<div class="math block">
+head_h=A_hV_h.
+</div>
+<p>Do this for all heads:</p>
+<div class="math block">
+head_1,\ldots,head_H.
+</div>
+<p>Concatenate:</p>
+<div class="math block">
+O_{\text{concat}}
+=
+\operatorname{Concat}
+(head_1,\ldots,head_H).
+</div>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+O=
+O_{\text{concat}}W_O
+}
+</div>
+<p>This is multi-head attention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-31">1.8.15 Tensor Shapes — This Is Extremely Important</h3>
+<p>Let's use:</p>
+<div class="math block">
+B=2,\qquad n=5,\qquad d=8,\qquad h=2.
+</div>
+<p>Then:</p>
+<div class="math block">
+d_k=d_v=4.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-32">Input</h5>
+<div class="math block">
+X:
+\boxed{2\times5\times8}
+</div>
+<p>meaning:</p>
+<pre><code class="language-text">2 sequences
+× 5 tokens
+× 8 features
+</code></pre>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-33">Project queries</h5>
+<p>For each head:</p>
+<div class="math block">
+Q_h:
+\boxed{2\times5\times4}
+</div>
+<p>Similarly:</p>
+<div class="math block">
+K_h:
+\boxed{2\times5\times4}
+</div>
+<div class="math block">
+V_h:
+\boxed{2\times5\times4}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-34">Scores</h5>
+<div class="math block">
+Q_hK_h^T
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{2\times5\times5}.
+</div>
+<p>Why?</p>
+<p>For every batch example:</p>
+<div class="math block">
+5\text{ query positions}
+\times
+5\text{ key positions}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-35">Attention weights</h5>
+<p>After scaling, masking, softmax:</p>
+<div class="math block">
+A_h:
+\boxed{2\times5\times5}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-36">Head output</h5>
+<div class="math block">
+A_hV_h:
+</div>
+<div class="math block">
+[2\times5\times5]
+[2\times5\times4]
+</div>
+<p>conceptually gives:</p>
+<div class="math block">
+\boxed{2\times5\times4}.
+</div>
+<p>So each head returns:</p>
+<div class="math block">
+\boxed{B\times n\times d_v}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-37">Concatenation</h5>
+<p>Two heads:</p>
+<div class="math block">
+2\times5\times4
+</div>
+<p>and:</p>
+<div class="math block">
+2\times5\times4
+</div>
+<p>concatenate along the final dimension:</p>
+<div class="math block">
+\boxed{
+2\times5\times8
+}
+</div>
+<p>because:</p>
+<div class="math block">
+4+4=8.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-8-i15-38">Output projection</h5>
+<div class="math block">
+W_O:
+8\times8.
+</div>
+<p>Then:</p>
+<div class="math block">
+[2\times5\times8]
+\rightarrow
+[2\times5\times8].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+:
+B\times n\times d
+}
+</div>
+<p>The mathematical cheatsheet you generated earlier summarizes exactly this shape preservation. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-39">1.8.16 How Do We Implement Many Heads Efficiently?</h3>
+<p>There are two conceptual implementations.</p>
+<h4 id="v3-heading-chunk-les-step-1-8-i15-40">Method 1 — Literally create separate heads</h4>
+<p>You can imagine:</p>
+<pre><code class="language-python">head1 = AttentionHead(...)
+head2 = AttentionHead(...)
+head3 = AttentionHead(...)
+</code></pre>
+<p>and then:</p>
+<pre><code class="language-python">outputs = [head(x) for head in heads]
+</code></pre>
+<p>Your Raschka source first presents multi-head attention this way: multiple single-head attention modules with their own weights, followed by concatenation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Conceptually very easy.</p>
+<p>But this is not the most efficient implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-41">1.8.17 Method 2 — Project Once, Then Split</h3>
+<p>A more efficient implementation combines the projections.</p>
+<p>Instead of explicitly doing separate matrix multiplications one by one, we can calculate a larger projection:</p>
+<div class="math block">
+Q=XW_Q
+</div>
+<p>where:</p>
+<div class="math block">
+W_Q\in\mathbb{R}^{d\times(hd_k)}.
+</div>
+<p>So the output is:</p>
+<div class="math block">
+Q\in\mathbb{R}^{n\times(hd_k)}.
+</div>
+<p>Then reshape it into:</p>
+<div class="math block">
+\boxed{
+h\times n\times d_k
+}
+</div>
+<p>or, with batches:</p>
+<div class="math block">
+\boxed{
+B\times h\times n\times d_k.
+}
+</div>
+<p>Do the same for <span class="math inline">K</span> and <span class="math inline">V</span>.</p>
+<p>Raschka explicitly describes this optimized implementation as projecting and then reshaping to split the tensors into multiple heads, rather than maintaining separate attention classes. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-42">1.8.18 Why Is This Valid?</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=8,\quad h=2,\quad d_k=4.
+</div>
+<p>A single combined query projection can produce:</p>
+<div class="math block">
+Q\in\mathbb{R}^{n\times8}.
+</div>
+<p>We then interpret it as:</p>
+<div class="math block">
+Q=
+[Q^{(1)}\;|\;Q^{(2)}]
+</div>
+<p>where:</p>
+<div class="math block">
+Q^{(1)}\in\mathbb{R}^{n\times4}
+</div>
+<p>and:</p>
+<div class="math block">
+Q^{(2)}\in\mathbb{R}^{n\times4}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+n\times8
+\rightarrow
+2\times n\times4
+}
+</div>
+<p>is just reorganizing the same projected numbers into separate head dimensions.</p>
+<p>No information is magically lost by the reshape itself.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-43">1.8.19 The Shape Flow You Should Memorize by Understanding</h3>
+<p>For standard MHA:</p>
+<div class="math block">
+\boxed{
+X:B\times n\times d
+}
+</div>
+<p>↓</p>
+<p>project:</p>
+<div class="math block">
+Q,K,V:B\times n\times(hd_k)
+</div>
+<p>↓</p>
+<p>split heads:</p>
+<div class="math block">
+\boxed{
+B\times h\times n\times d_k
+}
+</div>
+<p>for <span class="math inline">Q,K</span>, and analogous <span class="math inline">V</span>.</p>
+<p>↓</p>
+<p>attention:</p>
+<div class="math block">
+\boxed{
+B\times h\times n\times n
+}
+</div>
+<p>↓</p>
+<p>weighted values:</p>
+<div class="math block">
+\boxed{
+B\times h\times n\times d_v
+}
+</div>
+<p>↓</p>
+<p>transpose/reshape/concatenate:</p>
+<div class="math block">
+\boxed{
+B\times n\times(hd_v)
+}
+</div>
+<p>↓</p>
+<p>output projection:</p>
+<div class="math block">
+\boxed{
+B\times n\times d
+}
+</div>
+<p>This shape chain is one of the most important things for implementing Transformers correctly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-44">1.8.20 Where Does the Causal Mask Go?</h3>
+<p>Every head uses causal attention.</p>
+<p>Therefore each head has:</p>
+<div class="math block">
+A_h=
+\operatorname{softmax}
+\left(
+\frac{Q_hK_h^T}{\sqrt{d_k}}+M
+\right).
+</div>
+<p>So the causal mask is applied to the score matrix for every head.</p>
+<p>The model therefore gets:</p>
+<div class="math block">
+\boxed{
+\text{multiple attention patterns}
++
+\text{future-token protection}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-45">1.8.21 MHA Does NOT Mean Different Heads Have Different Sequence Positions</h3>
+<p>This is a common misunderstanding.</p>
+<p>Every head sees the <strong>same token sequence</strong>.</p>
+<p>For example:</p>
+<pre><code class="language-text">The cat is sleeping
+</code></pre>
+<p>All heads receive representations corresponding to:</p>
+<pre><code class="language-text">The | cat | is | sleeping
+</code></pre>
+<p>What changes is the learned projection:</p>
+<div class="math block">
+W_Q^{(h)},W_K^{(h)},W_V^{(h)}.
+</div>
+<p>Therefore the heads can produce different views of the same sequence.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{different heads}
+\neq
+\text{different input sequences}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-46">1.8.22 MHA vs Single-Head Attention</h3>
+<table>
+<thead>
+<tr>
+<th>Single head</th>
+<th>Multi-head attention</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One <span class="math inline">W_Q,W_K,W_V</span></td>
+<td>Separate learned projections per head</td>
+</tr>
+<tr>
+<td>One attention pattern</td>
+<td>Multiple attention patterns</td>
+</tr>
+<tr>
+<td>One head output</td>
+<td>Multiple head outputs</td>
+</tr>
+<tr>
+<td>One <span class="math inline">d_k</span> subspace</td>
+<td>Several <span class="math inline">d_k</span> subspaces</td>
+</tr>
+<tr>
+<td>One context-mixing pattern</td>
+<td>Several patterns simultaneously</td>
+</tr>
+<tr>
+<td>Output already in one value space</td>
+<td>Outputs concatenated then projected with <span class="math inline">W_O</span></td>
+</tr>
+</tbody>
+</table>
+<p>The source framing is essentially: multiple attention operations in parallel, concatenate, then apply an output projection. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-47">1.8.23 Why Not Just Make One Huge Head?</h3>
+<p>Excellent question.</p>
+<p>Suppose:</p>
+<div class="math block">
+d=512.
+</div>
+<p>We could use one head with:</p>
+<div class="math block">
+d_k=512.
+</div>
+<p>Instead, suppose we use:</p>
+<div class="math block">
+h=8
+</div>
+<p>with:</p>
+<div class="math block">
+d_k=64.
+</div>
+<p>Each head gets its own learned projection.</p>
+<p>So rather than requiring one representation space to learn one large compatibility pattern, we get:</p>
+<div class="math block">
+8
+</div>
+<p>different learned subspaces and compatibility patterns.</p>
+<p>This gives the architecture a richer way to represent relationships.</p>
+<p>The NLP with Transformers source gives precisely this motivation: multiple heads let the model focus on multiple aspects simultaneously. <em>(Source: NLP_TRANSFORMER)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-48">1.8.24 But There Is an Important Nuance</h3>
+<p>Do <strong>not</strong> conclude:</p>
+<blockquote>
+<p>More heads always means better performance.</p>
+</blockquote>
+<p>That is not what the sources establish.</p>
+<p>The important architectural principle is:</p>
+<div class="math block">
+\boxed{
+\text{multiple independently projected attention computations}
+}
+</div>
+<p>The actual useful behavior and quality depend on the learned model, dimensions, architecture, training, etc.</p>
+<p>Also, the handbook emphasizes that head semantics are emergent and are not guaranteed to correspond to clean human concepts. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-49">1.8.25 One More Very Important Distinction: <span class="math inline">h</span> vs <span class="math inline">H_{kv}</span></h3>
+<p>For the basic Transformer MHA we are studying now:</p>
+<div class="math block">
+H_q=H_{kv}=h.
+</div>
+<p>But later, when we study modern LLM architectures, you will encounter:</p>
+<ul>
+<li>MHA</li>
+<li>MQA</li>
+<li>GQA</li>
+</ul>
+<p>The attention handbook makes this distinction explicit: modern grouped attention can have a different number of query heads and key/value heads. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>So don't assume forever that:</p>
+<div class="math block">
+\boxed{
+\text{number of query heads}
+=
+\text{number of KV heads}.
+}
+</div>
+<p>For <strong>standard MHA</strong>, yes.</p>
+<p>For <strong>GQA/MQA</strong>, not necessarily.</p>
+<p>We'll handle this later when we reach modern inference architectures and KV caching.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-50">1.8.26 The Full Mathematical Definition</h3>
+<p>For head <span class="math inline">i</span>:</p>
+<div class="math block">
+\boxed{
+head_i
+=
+\operatorname{Attention}
+(Q_i,K_i,V_i)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+Q_i=XW_Q^{(i)}
+</div>
+<div class="math block">
+K_i=XW_K^{(i)}
+</div>
+<div class="math block">
+V_i=XW_V^{(i)}.
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+head_i
+=
+\operatorname{softmax}
+\left(
+\frac{Q_iK_i^T}{\sqrt{d_k}}+M
+\right)V_i
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\operatorname{MHA}(X)
+=
+\operatorname{Concat}
+(head_1,\ldots,head_h)W_O
+}
+</div>
+<p>That is the equation you should understand rather than memorize blindly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-51">1.8.27 Connect MHA to Our Previous Steps</h3>
+<p>Look how the architecture has grown.</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-52">Step 1.5 — Q/K/V</h5>
+<div class="math block">
+X
+\rightarrow
+Q,K,V
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-53">Step 1.6 — Scaling</h5>
+<div class="math block">
+QK^T
+\rightarrow
+\frac{QK^T}{\sqrt{d_k}}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-54">Step 1.7 — Causal masking</h5>
+<div class="math block">
+\frac{QK^T}{\sqrt{d_k}}
+\rightarrow
+\frac{QK^T}{\sqrt{d_k}}+M
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-55">Now Step 1.8 — Multi-head</h5>
+<p>Instead of one:</p>
+<div class="math block">
+\boxed{
+Q,K,V
+}
+</div>
+<p>we create:</p>
+<div class="math block">
+\boxed{
+Q_1,K_1,V_1
+}
+</div>
+<div class="math block">
+\boxed{
+Q_2,K_2,V_2
+}
+</div>
+<div class="math block">
+\vdots
+</div>
+<div class="math block">
+\boxed{
+Q_h,K_h,V_h
+}
+</div>
+<p>perform attention independently, concatenate, and project.</p>
+<p>So MHA is <strong>not a completely new attention mechanism</strong>.</p>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{the same attention mechanism, performed in multiple learned subspaces.}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-56">1.8.28 Connect MHA to the Residual Stream</h3>
+<p>Remember our residual-stream formulation:</p>
+<div class="math block">
+x\leftarrow x+\operatorname{Attn}(\operatorname{norm}(x)).
+</div>
+<p>Now &quot;Attn&quot; is actually:</p>
+<div class="math block">
+\operatorname{MHA}.
+</div>
+<p>So a decoder block begins conceptually as:</p>
+<div class="math block">
+y=
+x+
+\operatorname{MHA}(\operatorname{norm}(x),M).
+</div>
+<p>Then later:</p>
+<div class="math block">
+h=
+y+
+\operatorname{FFN}(\operatorname{norm}(y)).
+</div>
+<p>That gives the block structure we saw earlier in the Transformer slides.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-57">1.8.29 The Entire Attention Subsystem So Far</h3>
+<p>You can now visualize it as:</p>
+<pre><code class="language-text">                 X
+                 │
+       ┌─────────┼─────────┐
+       │         │         │
+     Head 1    Head 2    ... Head h
+       │         │            │
+     Q1K1ᵀ     Q2K2ᵀ       QhKhᵀ
+       │         │            │
+     scale     scale        scale
+       │         │            │
+      mask      mask         mask
+       │         │            │
+    softmax    softmax      softmax
+       │         │            │
+      A1        A2           Ah
+       │         │            │
+      A1V1      A2V2         AhVh
+       │         │            │
+       └─────────┼────────────┘
+                 │
+             Concatenate
+                 │
+                W_O
+                 │
+          MHA output
+                 │
+                 +
+                 │
+          Residual stream
+</code></pre>
+<p>This is the architecture we have been building mathematically since Step 1.5.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-8-i15-58">1.8.30 Master Check — Step 1.8</h3>
+<p>Try to reason through these.</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-59">Q1</h5>
+<p>Why can two heads produce different attention patterns even though they receive the same <span class="math inline">X</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-60">Q2</h5>
+<p>If:</p>
+<div class="math block">
+d=12,\qquad h=3,
+</div>
+<p>what is the typical:</p>
+<div class="math block">
+d_k=d_v?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-61">Q3</h5>
+<p>If:</p>
+<div class="math block">
+X\in\mathbb{R}^{B\times n\times d}
+</div>
+<p>what is the per-head shape of <span class="math inline">Q_h</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-62">Q4</h5>
+<p>What is the shape of:</p>
+<div class="math block">
+Q_hK_h^T?
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-63">Q5</h5>
+<p>Why do we concatenate head outputs rather than simply discard all but one?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-64">Q6</h5>
+<p>If:</p>
+<div class="math block">
+h=4,\quad d_v=16,
+</div>
+<p>what is the last dimension immediately after concatenation?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-65">Q7</h5>
+<p>What does <span class="math inline">W_O</span> do?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-66">Q8</h5>
+<p>Complete:</p>
+<div class="math block">
+\operatorname{MHA}(X)
+=
+\boxed{\phantom{\operatorname{Concat}(head_1,\ldots,head_h)W_O}}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-67">Q9</h5>
+<p>Does a causal mask disappear when we move to multi-head attention?</p>
+<h5 id="v3-heading-chunk-les-step-1-8-i15-68">Q10</h5>
+<p>Explain in one sentence the difference between:</p>
+<div class="math block">
+\text{single-head attention}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{multi-head attention}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-8-i15-69">The key idea to retain</h4>
+<p>Do not memorize MHA as a mysterious new formula.</p>
+<p>Think:</p>
+<div class="math block">
+\boxed{
+\text{same attention mechanism}
+}
+</div>
+<p>performed:</p>
+<div class="math block">
+\boxed{
+\text{in multiple learned subspaces}
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+\text{concatenate + }W_O.
+}
+</div>
+<p>That single mental model will make the later topics—<strong>GQA, MQA, KV cache, FlashAttention, modern LLM architectures, and inference optimization</strong>—much easier.</p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-a1">A.1 — KV Cache and Multi-Head Latent Attention (MLA)</a> — <em>KV cache and Multi-Head Latent Attention (MLA)</em></p>
+</blockquote>
+<hr />
+</section>

@@ -1,0 +1,1258 @@
+<section class="chunk" id="chunk-les-r100-9-i111" data-id="les-r100-9-i111"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r100-9-i111"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r100-9-i111" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r100-8-i110">← Previous lesson</a> · <a href="#chunk-les-r101-0-i112">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r100-8-i110">R100.8 — The TransformerBlock: Putting Attention and MoE Together</a></p><p><strong>This lesson:</strong> R100.9 — MiniDeepSeek: The Complete Top-Level Forward Pass</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r100-9-i111"></a></p>
+<h3 id="v3-heading-chunk-les-r100-9-i111-1">R100.9 — <code>MiniDeepSeek</code>: The Complete Top-Level Forward Pass</h3>
+<p><em>Plan node: A6 · chat order #111</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We have now built every major component underneath the model:</p>
+<div class="math block">
+\text{RoPE}
+\rightarrow
+\text{DeepSeekAttention}
+\rightarrow
+\text{DeepSeekMoE}
+\rightarrow
+\text{TransformerBlock}
+\rightarrow
+\text{MTPModule}.
+</div>
+<p>Now we reach the <strong>top of the hierarchy</strong>:</p>
+<div class="math block">
+\boxed{\texttt{MiniDeepSeek}}
+</div>
+<p>The source describes this class as the main container that orchestrates the embedding layer, Transformer-block stack, final normalization, LM head, and MTP chain. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The most important thing in this step is understanding that the same <code>forward()</code> function has <strong>two different execution modes</strong>:</p>
+<div class="math block">
+\boxed{\text{training}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{inference with KV cache}}.
+</div>
+<p>The switch is simply:</p>
+<div class="math block">
+\boxed{
+\texttt{targets is None}
+}
+</div>
+<p>according to the source.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-2">1. First see the entire model</h4>
+<p>The top-level architecture is:</p>
+<pre><code class="language-text">                    input_ids
+                        │
+                        ▼
+                   Embedding
+                        │
+                        ▼
+              Transformer Block 1
+                        │
+                        ▼
+              Transformer Block 2
+                        │
+                       ...
+                        │
+                        ▼
+              Transformer Block N
+                        │
+                        ▼
+                    final norm
+                        │
+              ┌─────────┴──────────┐
+              │                    │
+              ▼                    ▼
+          Main LM Head          MTP chain
+              │                    │
+              ▼                    ▼
+         main logits          MTP logits
+                                   │
+                                   ▼
+                              MTP losses
+                                   │
+                                   ▼
+                              total loss
+</code></pre>
+<p>That is the <strong>training-oriented conceptual view</strong>.</p>
+<p>For inference, MTP is not traversed in this top-level path; the source uses the cached main Transformer path instead.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-3">2. <code>MiniDeepSeek.__init__</code></h4>
+<p>The source creates five major things:</p>
+<pre><code class="language-python">self.embed
+self.blocks
+self.norm_f
+self.lm_head
+self.mtp_modules
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's understand their roles.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-r100-9-i111-4">2.1 Token embedding</h5>
+<pre><code class="language-python">self.embed = nn.Embedding(
+    args.vocab_size,
+    args.d_model
+)
+</code></pre>
+<p>This converts:</p>
+<div class="math block">
+\boxed{\text{token ID}}
+</div>
+<p>into:</p>
+<div class="math block">
+\boxed{\text{d-dimensional vector}}.
+</div>
+<p>So:</p>
+<div class="math block">
+[B,S]
+\rightarrow
+[B,S,D].
+</div>
+<p>For the source's default configuration:</p>
+<div class="math block">
+D=512.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[B,S]\rightarrow[B,S,512].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-5">3. Transformer stack</h4>
+<p>The source creates:</p>
+<pre><code class="language-python">self.blocks = nn.ModuleList([
+    TransformerBlock(args)
+    for _ in range(args.n_layers)
+])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>If:</p>
+<div class="math block">
+n_{\text{layers}}=8,
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{8\text{ blocks}}
+</div>
+<p>are constructed.</p>
+<p>Each block itself is:</p>
+<div class="math block">
+\boxed{
+LN
+\rightarrow
+DeepSeekAttention
+\rightarrow
+Residual
+\rightarrow
+LN
+\rightarrow
+DeepSeekMoE
+\rightarrow
+Residual.
+}
+</div>
+<p>So the top-level model does not need to know the details of MLA or MoE.</p>
+<p>It simply says:</p>
+<div class="math block">
+\boxed{
+x\rightarrow Block_1\rightarrow Block_2\rightarrow\cdots\rightarrow Block_N.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-6">4. Final normalization</h4>
+<p>After the final block:</p>
+<pre><code class="language-python">self.norm_f = nn.LayerNorm(args.d_model)
+</code></pre>
+<p>is applied.</p>
+<p>Thus:</p>
+<div class="math block">
+h_{\text{main}}
+=
+LN_f(x).
+</div>
+<p>The shape remains:</p>
+<div class="math block">
+\boxed{
+[B,S,D].
+}
+</div>
+<p>The source uses LayerNorm here as well, consistent with the simplified Mini-DeepSeek implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-7">5. LM head</h4>
+<p>The source then creates:</p>
+<pre><code class="language-python">self.lm_head = nn.Linear(
+    args.d_model,
+    args.vocab_size,
+    bias=False
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+D\rightarrow V.
+</div>
+<p>For every token position:</p>
+<div class="math block">
+\boxed{
+\mathbb R^D
+\rightarrow
+\mathbb R^V.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+\boxed{[B,S,V]}.
+</div>
+<p>With GPT-2 vocabulary:</p>
+<div class="math block">
+V=50,257.
+</div>
+<p>So the main training logits are conceptually:</p>
+<div class="math block">
+\boxed{
+[B,S,50,257].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-8">6. MTP module list</h4>
+<p>Finally:</p>
+<pre><code class="language-python">self.mtp_modules = nn.ModuleList([
+    MTPModule(args)
+    for _ in range(args.n_mtp_modules)
+])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>With:</p>
+<div class="math block">
+n_{\text{mtp}}=1,
+</div>
+<p>there is one extra MTP block.</p>
+<p>For a larger depth <span class="math inline">D</span>:</p>
+<div class="math block">
+MTP_1
+\rightarrow
+MTP_2
+\rightarrow
+\cdots
+\rightarrow
+MTP_D.
+</div>
+<p>The model therefore has one main trunk plus a separate prediction chain.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-9">7. The <code>causal_mask()</code> function</h4>
+<p>The source defines:</p>
+<pre><code class="language-python">def causal_mask(self, S: int, device):
+    mask = torch.triu(
+        torch.ones(
+            S, S,
+            device=device,
+            dtype=torch.bool
+        ),
+        diagonal=1
+    )
+
+    return torch.zeros(
+        S, S,
+        device=device
+    ).masked_fill(
+        mask,
+        float('-inf')
+    )
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's decode that.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-10">8. What does <code>torch.triu(..., diagonal=1)</code> create?</h4>
+<p>For:</p>
+<div class="math block">
+S=4,
+</div>
+<p>the upper-triangular part above the diagonal is:</p>
+<pre><code class="language-text">0 1 1 1
+0 0 1 1
+0 0 0 1
+0 0 0 0
+</code></pre>
+<p>The <code>1</code>s identify future positions.</p>
+<p>Then those positions are replaced with:</p>
+<div class="math block">
+-\infty.
+</div>
+<p>So the additive attention mask becomes:</p>
+<pre><code class="language-text">0   -∞  -∞  -∞
+0    0  -∞  -∞
+0    0   0  -∞
+0    0   0   0
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-11">9. Why <code>-∞</code>?</h4>
+<p>Because later we compute:</p>
+<div class="math block">
+softmax(\text{attention scores}).
+</div>
+<p>For a masked position:</p>
+<div class="math block">
+e^{-\infty}=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{masked future position}
+\rightarrow
+\text{zero attention probability}.
+}
+</div>
+<p>This is the exact same causal-mask principle we learned earlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-12">10. The top-level <code>forward()</code></h4>
+<p>The source begins:</p>
+<pre><code class="language-python">def forward(
+    self,
+    input_ids,
+    targets=None,
+    mtp_weight=0.1,
+    past_kv_cache=None
+):
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">B, S = input_ids.shape
+x = self.embed(input_ids)
+</code></pre>
+<p>So initially:</p>
+<div class="math block">
+input\_ids:[B,S].
+</div>
+<p>After embedding:</p>
+<div class="math block">
+\boxed{
+x:[B,S,D].
+}
+</div>
+<p>Now the model chooses between two paths.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-13">11. The master switch</h4>
+<p>The condition is:</p>
+<pre><code class="language-python">if targets is None:
+</code></pre>
+<p>This means:</p>
+<h6 id="v3-heading-chunk-les-r100-9-i111-14"><code>targets is None</code></h6>
+<div class="math block">
+\boxed{\text{inference}}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-15"><code>targets is not None</code></h6>
+<div class="math block">
+\boxed{\text{training}}
+</div>
+<p>This is elegant because the caller doesn't need a completely separate model implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-16">12. PATH A — Inference</h4>
+<p>Let's understand this first.</p>
+<p>The source says the inference path is optimized for autoregressive generation and KV caching. It processes only the new token(s), updates the cache, and computes logits only for the final token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-17">13. Determine the position offset</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">position_offset = (
+    past_kv_cache[0][0].shape[1]
+    if past_kv_cache
+    else 0
+)
+</code></pre>
+<p>Recall our cache:</p>
+<div class="math block">
+past\_kv=(c_{kv},k_r).
+</div>
+<p><code>past_kv_cache</code> contains one such cache for each Transformer block.</p>
+<p>So:</p>
+<div class="math block">
+past\_kv\_cache[0]
+</div>
+<p>is the cache for the first layer.</p>
+<p>And:</p>
+<div class="math block">
+past\_kv\_cache[0][0]
+</div>
+<p>is that layer's:</p>
+<div class="math block">
+c_{kv}.
+</div>
+<p>Its sequence dimension tells us how many tokens are already cached.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+position\_offset
+=
+\text{number of previously cached tokens}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-18">14. Example</h4>
+<p>Suppose:</p>
+<div class="math block">
+P=100.
+</div>
+<p>That means the model has already processed 100 tokens.</p>
+<p>Now a new token comes in:</p>
+<div class="math block">
+S=1.
+</div>
+<p>We need:</p>
+<div class="math block">
+position\_offset=100.
+</div>
+<p>So RoPE knows:</p>
+<blockquote>
+<p>This new token is position 100.</p>
+</blockquote>
+<p>This connects exactly to the <code>position_offset</code> mechanism we studied earlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-19">15. Construct the inference mask</h4>
+<p>The source does:</p>
+<pre><code class="language-python">mask = self.causal_mask(
+    S + position_offset,
+    x.device
+)[position_offset:, :]
+</code></pre>
+<p>Suppose:</p>
+<div class="math block">
+P=100,\qquad S=1.
+</div>
+<p>First construct a:</p>
+<div class="math block">
+101\times101
+</div>
+<p>causal mask.</p>
+<p>Then select row:</p>
+<div class="math block">
+100.
+</div>
+<p>So the resulting mask represents:</p>
+<div class="math block">
+\boxed{
+\text{new query position}
+\rightarrow
+\text{all available past + current positions}.
+}
+</div>
+<p>Its shape is:</p>
+<div class="math block">
+[1,P+1].
+</div>
+<p>After the two <code>unsqueeze</code>s:</p>
+<div class="math block">
+\boxed{
+[1,1,1,101].
+}
+</div>
+<p>This is exactly what the attention score tensor needs for one new query against 101 keys.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-20">16. Why don't we use a <code>101×101</code> matrix?</h4>
+<p>Because we don't need to recompute attention for all 101 query positions.</p>
+<p>Only the new query is being processed.</p>
+<p>This is one of the key benefits of KV caching.</p>
+<p>Without caching:</p>
+<div class="math block">
+101
+</div>
+<p>queries would be recomputed.</p>
+<p>With caching:</p>
+<div class="math block">
+\boxed{1\text{ new query}}
+</div>
+<p>is processed against already cached keys.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-21">17. Prepare the new cache container</h4>
+<p>The source creates:</p>
+<pre><code class="language-python">new_kv_cache = []
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">for i, blk in enumerate(self.blocks):
+</code></pre>
+<p>iterates over every Transformer block.</p>
+<p>This means every layer maintains its own cache.</p>
+<p>So:</p>
+<pre><code class="language-text">Layer 1 → cache 1
+Layer 2 → cache 2
+...
+Layer N → cache N
+</code></pre>
+<p>The full cache is therefore:</p>
+<div class="math block">
+\boxed{
+[
+cache_1,
+cache_2,
+\ldots,
+cache_N
+].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-22">18. Retrieve the layer's old cache</h4>
+<p>The source does:</p>
+<pre><code class="language-python">layer_past_kv = (
+    past_kv_cache[i]
+    if past_kv_cache
+    else None
+)
+</code></pre>
+<p>So layer <span class="math inline">i</span> receives only its own cached state.</p>
+<p>This is necessary because the attention weights of layer 1 and layer 2 are generated from different learned projections.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-23">19. Run the block</h4>
+<p>Then:</p>
+<pre><code class="language-python">x, new_cache = blk(
+    x,
+    attn_mask=mask,
+    past_kv=layer_past_kv,
+    position_offset=position_offset
+)
+</code></pre>
+<p>This single call now triggers everything we have learned:</p>
+<pre><code class="language-text">LayerNorm
+   ↓
+DeepSeekAttention
+   ├── MLA content path
+   ├── RoPE position path
+   ├── use old cache
+   ├── generate new cache
+   └── attention output
+   ↓
+Residual
+   ↓
+LayerNorm
+   ↓
+DeepSeekMoE
+   ├── shared expert
+   └── routed top-k experts
+   ↓
+Residual
+</code></pre>
+<p>And then:</p>
+<div class="math block">
+x
+</div>
+<p>is passed to the next layer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-24">20. Save the updated cache</h4>
+<p>The source does:</p>
+<pre><code class="language-python">new_kv_cache.append(new_cache)
+</code></pre>
+<p>So after all layers:</p>
+<div class="math block">
+\boxed{
+new\_kv\_cache
+=
+[cache_1',cache_2',...,cache_N'].
+}
+</div>
+<p>That cache is returned to the generation loop and reused on the next token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-25">21. Final normalization during inference</h4>
+<p>After the whole stack:</p>
+<pre><code class="language-python">x = self.norm_f(x)
+</code></pre>
+<p>So:</p>
+<div class="math block">
+x:[B,S,D].
+</div>
+<p>For ordinary token-by-token generation:</p>
+<div class="math block">
+S=1.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+x:[B,1,D].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-26">22. The inference LM head does something clever</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">logits = self.lm_head(
+    x[:, [-1], :]
+)
+</code></pre>
+<p>Instead of calculating vocabulary logits for every token in the sequence, it selects only the final position.</p>
+<p>Thus:</p>
+<div class="math block">
+x[:,[-1],:]:
+[B,S,D]\rightarrow[B,1,D].
+</div>
+<p>Then:</p>
+<div class="math block">
+[B,1,D]
+\rightarrow
+\boxed{[B,1,V]}.
+</div>
+<p>So the model returns only the logits needed to choose the next token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-27">23. Why only the last token?</h4>
+<p>Suppose:</p>
+<div class="math block">
+S=1000.
+</div>
+<p>During generation, we only care about:</p>
+<div class="math block">
+P(t_{1001}\mid t_1,\ldots,t_{1000}).
+</div>
+<p>The logits for positions 1 through 999 aren't needed.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{compute/return only last-position logits}.
+}
+</div>
+<p>The source explicitly identifies this as an inference optimization.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-28">24. Inference output</h4>
+<p>The source returns:</p>
+<pre><code class="language-python">return logits, new_kv_cache
+</code></pre>
+<p>So the generation loop receives:</p>
+<div class="math block">
+\boxed{
+\text{next-token logits}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{updated KV cache}.
+}
+</div>
+<p>Then the decoder chooses the next token using the sampling strategy we learned earlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-29">25. Complete inference flow</h4>
+<p>Put everything together:</p>
+<pre><code class="language-text">Previous tokens
+      │
+      ▼
+Cached states
+      │
+      │
+New token ───────────────┐
+      │                  │
+      ▼                  ▼
+   Embedding       position_offset
+      │                  │
+      └────────┬─────────┘
+               ▼
+       Transformer Block 1
+               │
+               ▼
+       Transformer Block 2
+               │
+              ...
+               │
+               ▼
+       Transformer Block N
+               │
+               ▼
+          Final Norm
+               │
+               ▼
+        Last-position LM head
+               │
+               ▼
+          next-token logits
+               │
+               └────→ updated cache
+</code></pre>
+<p>This is the entire cached-generation architecture.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-30">26. PATH B — Training</h4>
+<p>Now we take the other branch:</p>
+<div class="math block">
+\boxed{
+targets\neq None.
+}
+</div>
+<p>The source explicitly says that during training the KV cache is not used because the entire input sequence is processed simultaneously.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-31">27. Build the full causal mask</h4>
+<p>The source does:</p>
+<pre><code class="language-python">mask = self.causal_mask(
+    S,
+    x.device
+).unsqueeze(0).unsqueeze(0)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+S\times S
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+[1,1,S,S].
+}
+</div>
+<p>Every Transformer block can then use this same causal structure.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-32">28. Run the complete Transformer trunk</h4>
+<p>The source:</p>
+<pre><code class="language-python">for blk in self.blocks:
+    x, _ = blk(
+        x,
+        attn_mask=mask
+    )
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice the underscore:</p>
+<pre><code class="language-python">x, _
+</code></pre>
+<p>The returned cache is ignored.</p>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{training does not use the KV cache}.
+}
+</div>
+<p>We're processing the full sequence at once.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-33">29. Main hidden states</h4>
+<p>After the last block:</p>
+<pre><code class="language-python">h_main = self.norm_f(x)
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+h_{\text{main}}\in
+\mathbb R^{B\times S\times D}.
+}
+</div>
+<p>Think of:</p>
+<div class="math block">
+h_i^0
+</div>
+<p>as the main hidden state associated with token position <span class="math inline">i</span>.</p>
+<p>This is exactly the starting hidden state from which the MTP chain begins.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-34">30. Main logits</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">logits_main = self.lm_head(h_main)
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+\boxed{
+[B,S,V].
+}
+</div>
+<p>These are the normal next-token logits.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-35">31. Main loss</h4>
+<p>The source then computes:</p>
+<pre><code class="language-python">loss_main = F.cross_entropy(...)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The exact tensor arguments are abbreviated in this listing with <code>...</code>, so the source excerpt does <strong>not</strong> provide the exact reshape/slicing expression here.</p>
+<p>What the source does establish is:</p>
+<div class="math block">
+\boxed{
+L_{\text{main}}
+=
+\text{cross-entropy between main logits and next-token targets}.
+}
+</div>
+<p>Then:</p>
+<pre><code class="language-python">total_loss = loss_main
+</code></pre>
+<p>So initially:</p>
+<div class="math block">
+\boxed{
+L=L_{\text{main}}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-36">32. Now the MTP chain begins</h4>
+<p>The source sets:</p>
+<pre><code class="language-python">h_prev = h_main
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is critical.</p>
+<p>It establishes:</p>
+<div class="math block">
+\boxed{
+h^0=h_{\text{main}}.
+}
+</div>
+<p>Then:</p>
+<pre><code class="language-python">for k, mtp_block in enumerate(
+    self.mtp_modules,
+    start=1
+):
+</code></pre>
+<p>creates:</p>
+<div class="math block">
+k=1,2,\ldots,D.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-37">33. MTP depth 1</h4>
+<p>At:</p>
+<div class="math block">
+k=1,
+</div>
+<p>we use the main hidden representation:</p>
+<div class="math block">
+h^0
+</div>
+<p>to create:</p>
+<div class="math block">
+h^1.
+</div>
+<p>The source constructs:</p>
+<pre><code class="language-python">h_prev_shifted = h_prev[:, :-(k+1), :]
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">next_tokens_embed =
+    self.embed(input_ids[:, k:-1])
+</code></pre>
+<p>then:</p>
+<pre><code class="language-python">h_k = mtp_block(
+    h_prev_shifted,
+    next_tokens_embed
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The MTP module itself then does:</p>
+<div class="math block">
+[h^{k-1};E(\text{future token})]
+\rightarrow
+\text{projection}
+\rightarrow
+\text{TransformerBlock}
+\rightarrow
+h^k.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-38">34. Why slice the hidden state?</h4>
+<p>Because the farther into the future we predict, the fewer valid positions remain.</p>
+<p>This is why MTP logits get progressively shorter.</p>
+<p>The source's separate verification example makes the resulting pattern explicit:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+Main &amp;: [B,S,V]\\
+MTP_1 &amp;: [B,S-1,V]\\
+MTP_2 &amp;: [B,S-2,V]\\
+MTP_3 &amp;: [B,S-3,V].
+\end{aligned}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The Chapter 6 implementation uses its own explicit slicing convention, which we preserved in the previous MTP step. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-39">35. MTP logits</h4>
+<p>Once <code>h_k</code> is produced:</p>
+<pre><code class="language-python">logits_k =
+    self.lm_head(
+        self.norm_f(h_k)
+    )
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+[B,L_k,D]
+\rightarrow
+[B,L_k,V].
+</div>
+<p>Notice again:</p>
+<div class="math block">
+\boxed{
+\text{same LM head}.
+}
+</div>
+<p>There is not one giant independent output head per MTP module.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-40">36. MTP loss</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">loss_k = F.cross_entropy(...)
+</code></pre>
+<p>and then:</p>
+<pre><code class="language-python">total_loss += mtp_weight * loss_k
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+L
+=
+L_{\text{main}}
++
+\lambda L_1
++
+\lambda L_2
++\cdots
+}
+</div>
+<p>for the Chapter 6 implementation's <code>mtp_weight</code> scaling.</p>
+<h6 id="v3-heading-chunk-les-r100-9-i111-41">Important source distinction</h6>
+<p>The earlier Chapter 5 standalone MTP implementation explicitly uses:</p>
+<div class="math block">
+\boxed{
+L=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\sum_{k=1}^{D}L_k.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The Chapter 6 <code>MiniDeepSeek</code> listing instead shows:</p>
+<pre><code class="language-python">total_loss += mtp_weight * loss_k
+</code></pre>
+<p>without the <code>/D</code> factor in that abbreviated code. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So again, we should preserve the difference rather than silently reconcile the two source implementations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-42">37. Why does the same loss train the main trunk?</h4>
+<p>Because the MTP chain begins with:</p>
+<div class="math block">
+h^0=h_{\text{main}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+h^0\rightarrow h^1\rightarrow h^2\rightarrow\cdots.
+</div>
+<p>Therefore a deeper MTP loss has a computational path back through the preceding MTP modules and eventually into the main Transformer trunk.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                    Main loss
+                       ↑
+                       │
+                    h⁰ / trunk
+                       ↑
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+           MTP 1              deeper MTP
+             ↑                   ↑
+             │                   │
+            L₁                 L₂, L₃...
+</code></pre>
+<p>This is why the source describes the combined objective as providing a richer, multi-faceted gradient signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-43">38. The entire training computation</h4>
+<p>Now put the branch together:</p>
+<pre><code class="language-text">input_ids
+    │
+    ▼
+Embedding
+    │
+    ▼
+Transformer Block × N
+    │
+    ▼
+h_main
+    │
+    ├─────────────────────┐
+    │                     │
+    ▼                     ▼
+Main LM head            MTP chain
+    │                     │
+    ▼                     ▼
+Main logits              h¹
+    │                     │
+    ▼                     ▼
+Main CE                  MTP 1
+    │                     │
+    │                     ▼
+    │                    h²
+    │                     │
+    │                     ▼
+    │                    MTP 2
+    │                     │
+    │                    ...
+    │
+    └──────────┬──────────┘
+               ▼
+          total loss
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-44">39. Training vs inference side by side</h4>
+<p>This is probably the <strong>most important comparison of this entire node</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Training</th>
+<th>Inference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>targets</code> provided</td>
+<td><code>targets=None</code></td>
+</tr>
+<tr>
+<td>Full sequence processed</td>
+<td>Only new token(s) processed</td>
+</tr>
+<tr>
+<td>No KV cache</td>
+<td>KV cache used</td>
+</tr>
+<tr>
+<td>Full <code>[B,S]</code> causal mask</td>
+<td>Mask covers new query against old + new keys</td>
+</tr>
+<tr>
+<td>Main Transformer trunk</td>
+<td>Main Transformer trunk</td>
+</tr>
+<tr>
+<td>Main logits for sequence</td>
+<td>Only final-token logits</td>
+</tr>
+<tr>
+<td>MTP chain active</td>
+<td>MTP training path not used</td>
+</tr>
+<tr>
+<td>Loss calculated</td>
+<td>Logits returned</td>
+</tr>
+<tr>
+<td>Backpropagation later</td>
+<td>Sampling/generation later</td>
+</tr>
+</tbody>
+</table>
+<p>The source explicitly makes this training/inference distinction inside the same <code>forward()</code> implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-45">40. A concrete example</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=2
+</div>
+<div class="math block">
+S=256
+</div>
+<div class="math block">
+D=512
+</div>
+<div class="math block">
+V=50,257.
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-46">Input</h6>
+<div class="math block">
+\boxed{
+input\_ids:[2,256]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-47">Embedding</h6>
+<div class="math block">
+\boxed{
+x:[2,256,512]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-48">Transformer stack</h6>
+<div class="math block">
+\boxed{
+h_{\text{main}}:[2,256,512]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-49">Main logits</h6>
+<div class="math block">
+\boxed{
+logits_{\text{main}}:[2,256,50257]
+}
+</div>
+<p>Now, with one MTP stage, its valid sequence is shorter according to the source's indexing convention, and its logits therefore also have a shorter sequence dimension.</p>
+<p>The vocabulary dimension remains:</p>
+<div class="math block">
+50,257.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-50">41. Now the inference case</h4>
+<p>Suppose the model has already cached:</p>
+<div class="math block">
+P=255
+</div>
+<p>tokens.</p>
+<p>A new token arrives:</p>
+<div class="math block">
+S=1.
+</div>
+<p>Then:</p>
+<div class="math block">
+input\_ids:[B,1].
+</div>
+<p>Embedding:</p>
+<div class="math block">
+[B,1,D].
+</div>
+<p>The attention compares the new query against:</p>
+<div class="math block">
+P+1=256
+</div>
+<p>available key positions.</p>
+<p>So the attention score shape is conceptually:</p>
+<div class="math block">
+\boxed{
+[B,H,1,256].
+}
+</div>
+<p>Then final logits:</p>
+<div class="math block">
+\boxed{
+[B,1,V].
+}
+</div>
+<p>That is all the generator needs.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-51">42. Why the top-level model has to know about the cache</h4>
+<p><code>DeepSeekAttention</code> knows how to <strong>use</strong> a cache.</p>
+<p>But <code>MiniDeepSeek</code> has to manage the collection of caches across layers.</p>
+<p>That is why the top-level logic does:</p>
+<pre><code class="language-text">for every Transformer block:
+    take its old cache
+    run the block
+    save its new cache
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+MiniDeepSeek
+=
+\text{cache coordinator}.
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+DeepSeekAttention
+=
+\text{cache operator}.
+}
+</div>
+<p>This is a useful software-architecture distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-52">43. The top-level model is now completely connected</h4>
+<p>We can finally trace one token from disk all the way to generation.</p>
+<pre><code class="language-text">TinyStories
+    ↓
+GPT-2 BPE
+    ↓
+token IDs
+    ↓
+train.bin / val.bin
+    ↓
+random training window
+    ↓
+X, Y
+    ↓
+Embedding
+    ↓
+TransformerBlock 1
+    ├── MLA + RoPE
+    └── MoE
+    ↓
+TransformerBlock 2
+    ├── MLA + RoPE
+    └── MoE
+    ↓
+...
+    ↓
+TransformerBlock N
+    ↓
+Final Norm
+    ↓
+LM Head
+    ↓
+Vocabulary logits
+    ↓
+Cross-entropy during training
+</code></pre>
+<p>And during autoregressive inference:</p>
+<pre><code class="language-text">prompt
+  ↓
+Embedding
+  ↓
+Transformer blocks
+  ↓
+KV cache
+  ↓
+last-token logits
+  ↓
+sampling
+  ↓
+new token
+  ↓
+reuse cache
+  ↓
+repeat
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-53">44. This is the architectural payoff</h4>
+<p>We started Chapter 6 with:</p>
+<div class="math block">
+\boxed{\text{a flat token stream}}
+</div>
+<p>and now have a complete trainable architecture:</p>
+<div class="math block">
+\boxed{
+\text{MiniDeepSeek}
+=
+\text{Embedding}
++
+\text{Transformer Blocks}
++
+\text{MLA}
++
+\text{Decoupled RoPE}
++
+\text{MoE}
++
+\text{MTP}
++
+\text{LM Head}.
+}
+</div>
+<p>The source explicitly states that after this point the <code>model.py</code> implementation is complete and the next step is the training script. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-9-i111-54">45. Final mental model</h4>
+<p>You should now think of the model at <strong>three levels</strong>.</p>
+<h6 id="v3-heading-chunk-les-r100-9-i111-55">Level 1 — One Transformer block</h6>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+Attention
+\rightarrow
+Residual
+\rightarrow
+MoE
+\rightarrow
+Residual.
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-56">Level 2 — Main model trunk</h6>
+<div class="math block">
+\boxed{
+Embedding
+\rightarrow
+Block_1
+\rightarrow
+\cdots
+\rightarrow
+Block_N
+\rightarrow
+h_{\text{main}}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-9-i111-57">Level 3 — Two operating modes</h6>
+<div class="math block">
+\boxed{
+\begin{array}{ll}
+\text{Training:} &amp;
+h_{\text{main}}\rightarrow LM+MTP\rightarrow loss
+\\[4pt]
+\text{Inference:} &amp;
+h_{\text{main}}\rightarrow last\ logits+KV\ cache
+\end{array}
+}
+</div>
+<p>That is the complete architecture.</p>
+<hr />
+</section>

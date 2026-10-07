@@ -1,0 +1,1288 @@
+<section class="chunk" id="chunk-les-step-5-18-i59" data-id="les-step-5-18-i59"><details class="audit-card" id="audit-B02" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> B02 — Pass-at-k versus selected-answer accuracy</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Availability of a correct candidate and ability to select it are different evaluation outcomes.</p><p><strong>Prerequisites:</strong> <a href="#audit-F07">Expectation and population variance</a>, <a href="#audit-B01">Self-consistency voting needs answer canonicalization</a></p><h4 id="v3-heading-chunk-les-step-5-18-i59-1">Notation and assumptions</h4><p>n sampled candidates,c successful,k≤n. Combinatorial estimator1-C(n-c,k)/C(n,k). This does not score a learned verifier.</p><h4 id="v3-heading-chunk-les-step-5-18-i59-2">Derivation and mechanism</h4><ol><li>Count successes under a fixed validity/correctness evaluator.</li><li>Count k-subsets with no successful candidate.</li><li>Subtract their fraction from1. Compare with the actual selection method.</li></ol><div class="math block">\widehat{\mathrm{pass@}k}=1-{\binom{n-c}{k}\over\binom nk}</div><h4 id="v3-heading-chunk-les-step-5-18-i59-3">Worked example</h4><p>n4,c1,k2 gives1-3/6=.5. A selector that always chooses a wrong answer still has selected-answer accuracy0, despite candidate availability.</p><h4 id="v3-heading-chunk-les-step-5-18-i59-4">Limitations</h4><ul><li>The iid formula1-(1-p)^k is a different probabilistic model.</li><li>Sample budget, temperature and test contamination affect interpretation.</li></ul><h4 id="v3-heading-chunk-les-step-5-18-i59-5">Connections to later concepts</h4><ul><li>I01 evaluates selected answers with a declared matching rule; an available candidate only counts as successful under that rule.</li></ul><h4 id="v3-heading-chunk-les-step-5-18-i59-6">Source support</h4><ul><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 82, 83, 84, 85 · Chapter3 evaluation/verifier context; estimator derived combinatorially</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-18-i59-7">Executed code and evidence</h4><p>Functions: pass_at_k. Passed checks: Pass-at-two</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-18-i59"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-18-i59" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-17-i58">← Previous lesson</a> · <a href="#chunk-les-step-5-19-i60">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-17-i58">Step 5.17 — From the 800K Dataset to Actual Student Training</a></p><p><strong>This lesson:</strong> Step 5.18 — Evaluating the Distilled Reasoning Model</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-18-i59"></a></p>
+<h2>Step 5.18 — Evaluating the Distilled Reasoning Model</h2>
+<p><em>Plan node: I8 · chat order #59</em></p>
+<p>We have now completed the entire <strong>training side</strong>:</p>
+<div class="math block">
+\text{R1 teacher}
+\rightarrow
+\text{candidate responses}
+\rightarrow
+\text{rejection sampling}
+\rightarrow
+\text{curated data}
+\rightarrow
+\text{student SFT}
+\rightarrow
+\text{checkpoint}
+</div>
+<p>Now comes the crucial question:</p>
+<div class="math block">
+\boxed{\textbf{Did the student actually become a better reasoning model?}}
+</div>
+<p>And this is where an important distinction appears:</p>
+<div class="math block">
+\boxed{
+\text{training loss}
+\neq
+\text{reasoning accuracy}
+}
+</div>
+<p>The supplied source demonstrates this very clearly. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-8">5.18.1 There are two different things we can measure</h3>
+<p>During training, we measure:</p>
+<div class="math block">
+\boxed{L_{\text{train}}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{L_{\text{val}}}.
+</div>
+<p>After training, we can measure:</p>
+<div class="math block">
+\boxed{\text{task accuracy}}.
+</div>
+<p>For example:</p>
+<div class="math block">
+\boxed{\text{MATH-500 accuracy}}.
+</div>
+<p>These answer different questions.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-9">Validation loss asks:</h5>
+<blockquote>
+<p>How well does the student predict the teacher-style target sequence on held-out examples?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-10">MATH-500 accuracy asks:</h5>
+<blockquote>
+<p>Can the trained model actually solve unseen mathematical problems?</p>
+</blockquote>
+<p>That distinction is fundamental.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-11">5.18.2 The evaluation pipeline</h3>
+<p>The source evaluates saved student checkpoints using the MATH-500 verifier-based evaluation utilities. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Student checkpoint
+       │
+       ▼
+     Prompt
+       │
+       ▼
+ Student generates response
+       │
+       ▼
+Extract final answer
+       │
+       ▼
+Compare with gold answer
+       │
+       ▼
+Correct / Incorrect
+</code></pre>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{accuracy}
+=
+\frac{\text{number correct}}
+{\text{number evaluated}}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-12">5.18.3 MATH-500 numerical definition</h3>
+<p>Suppose the model solves:</p>
+<div class="math block">
+360
+</div>
+<p>out of:</p>
+<div class="math block">
+500
+</div>
+<p>questions.</p>
+<p>Then:</p>
+<div class="math block">
+\text{Accuracy}
+=
+\frac{360}{500}
+=
+0.72.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{72\%}.
+</div>
+<p>Very simple mathematically, but very important experimentally.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-13">5.18.4 Why accuracy is different from cross-entropy</h3>
+<p>Suppose two models produce the correct answer.</p>
+<p>Model A assigns:</p>
+<div class="math block">
+P(\text{correct token})=0.51.
+</div>
+<p>Model B assigns:</p>
+<div class="math block">
+P(\text{correct token})=0.99.
+</div>
+<p>Both can ultimately generate the same correct answer.</p>
+<p>Thus the benchmark may score both:</p>
+<div class="math block">
+\boxed{1}
+</div>
+<p>while their token-level losses are very different.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same benchmark outcome}
+\not\Rightarrow
+\text{same probability distribution}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{lower CE}
+\not\Rightarrow
+\text{proportionally higher benchmark accuracy}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-14">5.18.5 The source's tiny demonstration</h3>
+<p>The source reports the following tiny training run:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th style="text-align:right">Train loss</th>
+<th style="text-align:right">Validation loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Epoch 1, step 5</td>
+<td style="text-align:right">0.9648</td>
+<td style="text-align:right">0.9082</td>
+</tr>
+<tr>
+<td>Epoch 1, step 10</td>
+<td style="text-align:right">0.9844</td>
+<td style="text-align:right">0.8871</td>
+</tr>
+<tr>
+<td>Epoch 2, step 15</td>
+<td style="text-align:right">0.8008</td>
+<td style="text-align:right">0.8707</td>
+</tr>
+<tr>
+<td>Epoch 2, step 20</td>
+<td style="text-align:right">0.7148</td>
+<td style="text-align:right">0.8586</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Notice the overall trend:</p>
+<div class="math block">
+L_{\text{val}}:
+0.9082
+\rightarrow
+0.8871
+\rightarrow
+0.8707
+\rightarrow
+0.8586.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}\downarrow
+}
+</div>
+<p>which indicates the student is becoming better at matching the teacher-generated target distribution on held-out examples.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-15">5.18.6 Why does the source care more about validation loss?</h3>
+<p>Because training loss is evaluated on the examples currently being optimized.</p>
+<p>Validation loss is evaluated on a fixed held-out set.</p>
+<p>The source explicitly says validation loss is:</p>
+<div class="math block">
+\boxed{\text{less noisy}}
+</div>
+<p>and more informative for estimating whether the training improvement generalizes. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So the hierarchy is:</p>
+<div class="math block">
+\text{training loss}
+\rightarrow
+\text{optimization signal}
+</div>
+<p>while:</p>
+<div class="math block">
+\text{validation loss}
+\rightarrow
+\text{generalization signal}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-16">5.18.7 What should happen to validation loss?</h3>
+<p>Ideally:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}\downarrow
+}
+</div>
+<p>as the student learns.</p>
+<p>But the source gives an important observation:</p>
+<div class="math block">
+\boxed{
+\text{initial sharp decrease}
+\rightarrow
+\text{flattening}
+}
+</div>
+<p>This indicates diminishing returns from additional training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-17">5.18.8 Numerical: diminishing returns</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{val},1}=0.5436
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{val},3}=0.5343.
+</div>
+<p>The improvement is:</p>
+<div class="math block">
+0.5436-0.5343
+=
+\boxed{0.0093}.
+</div>
+<p>Relative reduction:</p>
+<div class="math block">
+\frac{0.0093}{0.5436}\times100
+\approx
+\boxed{1.71\%}.
+</div>
+<p>So later training gives a much smaller improvement than the initial learning phase.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-18">5.18.9 Now compare actual benchmark accuracy</h3>
+<p>For the DeepSeek-R1 teacher-generated run, the source reports:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Epoch</th>
+<th style="text-align:right">Validation loss</th>
+<th style="text-align:right">MATH-500 accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0.5436</td>
+<td style="text-align:right">30.6%</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">0.5349</td>
+<td style="text-align:right">32.4%</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">0.5343</td>
+<td style="text-align:right">33.6%</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This gives us an important parallel.</p>
+<p>Validation loss:</p>
+<div class="math block">
+0.5436
+\rightarrow
+0.5349
+\rightarrow
+0.5343.
+</div>
+<p>Accuracy:</p>
+<div class="math block">
+30.6
+\rightarrow
+32.4
+\rightarrow
+33.6.
+</div>
+<p>So in this particular run, both metrics improve together.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-19">5.18.10 But the improvement is not proportional</h3>
+<p>From epoch 1 to epoch 3:</p>
+<p>Accuracy improvement:</p>
+<div class="math block">
+33.6-30.6
+=
+\boxed{3.0\text{ points}}.
+</div>
+<p>Validation-loss reduction:</p>
+<div class="math block">
+0.5436-0.5343
+=
+\boxed{0.0093}.
+</div>
+<p>There is no simple equation such as:</p>
+<div class="math block">
+\text{accuracy}\propto-\text{loss}.
+</div>
+<p>They are related, but they measure different phenomena.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-20">5.18.11 Why does lower CE not perfectly predict reasoning accuracy?</h3>
+<p>Because cross-entropy evaluates:</p>
+<div class="math block">
+\boxed{
+\text{token-level conditional prediction}
+}
+</div>
+<p>while benchmark accuracy evaluates:</p>
+<div class="math block">
+\boxed{
+\text{successful completion of an entire task}
+}.
+</div>
+<p>A mathematical problem may require:</p>
+<div class="math block">
+100
+</div>
+<p>correctly generated tokens.</p>
+<p>A tiny probability change at several crucial positions can alter the final answer from correct to incorrect.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{token-level improvement}
+}
+</div>
+<p>doesn't translate linearly into:</p>
+<div class="math block">
+\boxed{
+\text{task-level success}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-21">5.18.12 This is especially important for reasoning models</h3>
+<p>Suppose the teacher's solution is:</p>
+<div class="math block">
+A\rightarrow B\rightarrow C\rightarrow D\rightarrow E.
+</div>
+<p>Student predicts:</p>
+<div class="math block">
+A\rightarrow B\rightarrow C\rightarrow D\rightarrow X.
+</div>
+<p>Only the final critical token might be wrong.</p>
+<p>Token-level loss could still look reasonably good.</p>
+<p>But the benchmark answer may be:</p>
+<div class="math block">
+\boxed{\text{incorrect}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{one critical generation error}
+\rightarrow
+\text{entire problem failure}
+}.
+</div>
+<p>That is why evaluation must include task-level metrics.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-22">5.18.13 The source's MATH-500 result</h3>
+<p>The source's compact DeepSeek-R1 distillation experiment reaches:</p>
+<div class="math block">
+\boxed{33.6\%}
+</div>
+<p>after epoch 3. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Compare that to the original Qwen3 0.6B reasoning model used as the reference:</p>
+<div class="math block">
+\boxed{48.2\%}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So the compact experiment does transfer useful reasoning ability, but does not fully reproduce the stronger reasoning model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-23">5.18.14 Calculate the gap</h3>
+<div class="math block">
+48.2-33.6
+=
+\boxed{14.6\text{ percentage points}}.
+</div>
+<p>Relative to the 48.2% reference:</p>
+<div class="math block">
+\frac{48.2-33.6}{48.2}\times100
+\approx
+\boxed{30.3\%}.
+</div>
+<p>So the student reaches about:</p>
+<div class="math block">
+\frac{33.6}{48.2}\times100
+\approx
+\boxed{69.7\%}
+</div>
+<p>of the reference model's MATH-500 accuracy.</p>
+<p>This is a <strong>derived comparison from the source's numbers</strong>, not a source-reported “69.7% retention” metric.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-24">5.18.15 Why is the Qwen3 235B-A22B teacher better?</h3>
+<p>The source includes another experiment in which the student is trained on outputs generated by:</p>
+<div class="math block">
+\boxed{\text{Qwen3 235B-A22B}}.
+</div>
+<p>It reports:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Epoch</th>
+<th style="text-align:right">Validation loss</th>
+<th style="text-align:right">MATH-500</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0.4043</td>
+<td style="text-align:right">45.0%</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">0.3963</td>
+<td style="text-align:right">43.8%</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">0.3948</td>
+<td style="text-align:right">44.2%</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Notice something fascinating.</p>
+<p>Validation loss:</p>
+<div class="math block">
+0.4043
+\rightarrow
+0.3963
+\rightarrow
+0.3948
+</div>
+<p>continually improves.</p>
+<p>But MATH-500:</p>
+<div class="math block">
+45.0
+\rightarrow
+43.8
+\rightarrow
+44.2.
+</div>
+<p>It does <strong>not</strong> monotonically improve.</p>
+<p>This is an extremely useful lesson.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-25">5.18.16 Very important conclusion</h3>
+<div class="math block">
+\boxed{
+\text{Validation loss can improve while benchmark accuracy fluctuates.}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}\downarrow
+\not\Rightarrow
+\text{accuracy strictly}\uparrow
+}
+</div>
+<p>on every checkpoint.</p>
+<p>This is exactly why evaluation must include both training metrics and downstream task evaluation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-26">5.18.17 Why might this happen?</h3>
+<p>A benchmark evaluates one particular behavioral objective.</p>
+<p>Cross-entropy evaluates token prediction across the validation distribution.</p>
+<p>So the student can become better at reproducing teacher-style text without necessarily becoming proportionally better at solving the exact benchmark problems.</p>
+<p>The source does not provide a formal causal decomposition of this fluctuation, so we should not assign a specific mechanism beyond this metric distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-27">5.18.18 Now comes <code>&lt;think&gt;</code> tokens</h3>
+<p>This is one of the most interesting experiments in the source.</p>
+<p>The training data can contain:</p>
+<pre><code class="language-text">&lt;think&gt;
+reasoning...
+&lt;/think&gt;
+
+final answer
+</code></pre>
+<p>or omit the explicit:</p>
+<pre><code class="language-text">&lt;think&gt;...&lt;/think&gt;
+</code></pre>
+<p>structure.</p>
+<p>The source describes <code>&lt;think&gt;</code> and <code>&lt;/think&gt;</code> as ordinary tokens used to delimit the reasoning region. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-28">5.18.19 Why use <code>&lt;think&gt;</code>?</h3>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\texttt{&lt;think&gt;}
+}
+</div>
+<p>marks:</p>
+<div class="math block">
+\text{reasoning region}.
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\texttt{&lt;/think&gt;}
+}
+</div>
+<p>marks the end.</p>
+<p>Then the final response can be generated outside that region.</p>
+<p>This gives the model an explicit structural convention:</p>
+<div class="math block">
+\boxed{
+\text{reasoning}
+\rightarrow
+\text{final answer}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-29">5.18.20 Important: <code>&lt;think&gt;</code> is not the reasoning itself</h3>
+<p>This is a subtle point.</p>
+<p>The token:</p>
+<pre><code class="language-text">&lt;think&gt;
+</code></pre>
+<p>does not magically create reasoning.</p>
+<p>The useful signal comes from the <strong>tokens between the delimiters</strong>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\texttt{&lt;think&gt;} \neq \text{reasoning capability}
+}
+</div>
+<p>It is a structural marker for reasoning-style text.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-30">5.18.21 The source performs an ablation</h3>
+<p>The source asks:</p>
+<blockquote>
+<p>What happens if we train without the explicit <code>&lt;think&gt;...&lt;/think&gt;</code> tokens?</p>
+</blockquote>
+<p>This is an <strong>ablation study</strong>.</p>
+<p>We keep the rest of the training setup similar and remove one component.</p>
+<p>Then compare:</p>
+<div class="math block">
+\boxed{\text{with think tokens}}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{\text{without think tokens}}.
+</div>
+<p>This is exactly how experimental causality is tested in ML engineering.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-31">5.18.22 The results are surprising</h3>
+<p>The source's appendix reports:</p>
+<table>
+<thead>
+<tr>
+<th>Model / epoch</th>
+<th style="text-align:right">Without <code>&lt;think&gt;</code></th>
+<th style="text-align:right">With <code>&lt;think&gt;</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DeepSeek-R1 1</td>
+<td style="text-align:right">loss 0.5436, 31.8%</td>
+<td style="text-align:right">loss 0.5404, 30.6%</td>
+</tr>
+<tr>
+<td>DeepSeek-R1 2</td>
+<td style="text-align:right">loss 0.5349, 31.8%</td>
+<td style="text-align:right">loss 0.5339, 32.4%</td>
+</tr>
+<tr>
+<td>DeepSeek-R1 3</td>
+<td style="text-align:right">loss 0.5343, 30.2%</td>
+<td style="text-align:right">loss 0.5306, 33.6%</td>
+</tr>
+<tr>
+<td>Qwen3 235B teacher 1</td>
+<td style="text-align:right">0.4043, 44.8%</td>
+<td style="text-align:right">0.3130, 45.0%</td>
+</tr>
+<tr>
+<td>Qwen3 235B teacher 2</td>
+<td style="text-align:right">0.3963, 39.4%</td>
+<td style="text-align:right">0.3087, 43.8%</td>
+</tr>
+<tr>
+<td>Qwen3 235B teacher 3</td>
+<td style="text-align:right">0.3948, 39.8%</td>
+<td style="text-align:right">0.3078, 44.2%</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-32">5.18.23 The key surprising observation</h3>
+<p>For the Qwen3-teacher run, removing <code>&lt;think&gt;</code> gives:</p>
+<div class="math block">
+\boxed{\text{lower validation loss}}
+</div>
+<p>yet:</p>
+<div class="math block">
+\boxed{\text{worse MATH-500 accuracy}}
+</div>
+<p>in nearly all cases.</p>
+<p>The source explicitly highlights this. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{lower loss}
+\neq
+\text{better reasoning benchmark}
+}
+</div>
+<p>even more strongly than before.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-33">5.18.24 Let's quantify one example</h3>
+<p>Qwen3 teacher, epoch 3:</p>
+<p>With think:</p>
+<div class="math block">
+L_{\text{val}}=0.3078
+</div>
+<p>Accuracy:</p>
+<div class="math block">
+44.2\%.
+</div>
+<p>Without think:</p>
+<div class="math block">
+L_{\text{val}}=0.3948
+</div>
+<p>Accuracy:</p>
+<div class="math block">
+39.8\%.
+</div>
+<p>Here both metrics agree.</p>
+<p>But epoch 2:</p>
+<p>With think:</p>
+<div class="math block">
+0.3087,\quad43.8\%.
+</div>
+<p>Without think:</p>
+<div class="math block">
+0.3963,\quad39.4\%.
+</div>
+<p>Again they agree.</p>
+<p>The more interesting point is that <strong>within some other comparisons, loss and benchmark accuracy need not move together</strong>; the source's DeepSeek-R1 and later observations illustrate that these are distinct evaluation dimensions. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-34">5.18.25 Why might explicit reasoning structure help?</h3>
+<p>A reasonable interpretation, consistent with the source's framing, is:</p>
+<p>Without explicit markers:</p>
+<div class="math block">
+\text{reasoning text}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{final answer}
+</div>
+<p>are less structurally separated.</p>
+<p>With markers:</p>
+<div class="math block">
+\boxed{
+\text{reasoning region}
+}
+\rightarrow
+\boxed{
+\text{answer region}
+}
+</div>
+<p>the training examples contain a more explicit response structure.</p>
+<p>The source says these tokens make the output structure explicit and help separate reasoning from the final result. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-35">5.18.26 But don't overclaim the result</h3>
+<p>The source does <strong>not</strong> establish a universal theorem:</p>
+<div class="math block">
+\boxed{
+\text{think tokens always improve reasoning}
+}
+</div>
+<p>Instead, it presents an experiment in this particular small-model setup.</p>
+<p>The correct exam statement is:</p>
+<blockquote>
+<p>In the supplied experiment, omitting <code>&lt;think&gt;</code> tokens produced slightly worse MATH-500 modeling results in almost all cases, even in cases where validation loss was lower. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-36">5.18.27 Another major evaluation lesson: checkpoint selection</h3>
+<p>Suppose three checkpoints have:</p>
+<div class="math block">
+L_{\text{val}}
+=
+0.54,\;0.53,\;0.52.
+</div>
+<p>You might automatically choose:</p>
+<div class="math block">
+\boxed{0.52}.
+</div>
+<p>But if benchmark accuracy is:</p>
+<div class="math block">
+30\%,\;34\%,\;32\%
+</div>
+<p>then the best benchmark checkpoint is the middle one.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{lowest validation loss}
+\neq
+\text{best benchmark checkpoint}
+}
+</div>
+<p>in general.</p>
+<p>This is why the source evaluates saved checkpoints rather than assuming the final checkpoint is always best. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-37">5.18.28 This connects to early stopping</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{val}}
+</div>
+<p>continues to improve only marginally while:</p>
+<div class="math block">
+\text{benchmark accuracy}
+</div>
+<p>stops improving.</p>
+<p>Then more training may have little practical value.</p>
+<p>So one can conceptually select:</p>
+<div class="math block">
+\boxed{
+\text{best checkpoint according to the desired downstream metric}
+}
+</div>
+<p>rather than simply:</p>
+<div class="math block">
+\boxed{
+\text{last checkpoint}
+}.
+</div>
+<p>The source does not provide an explicit early-stopping algorithm here, but its checkpoint-based evaluation supports this reasoning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-38">5.18.29 Evaluation must also use the correct prompting format</h3>
+<p>This is an important connection to the earlier reasoning-model chapters.</p>
+<p>The source shows that MATH-500 performance can depend on:</p>
+<ul>
+<li>whether the reasoning model mode is used,</li>
+<li>prompt formatting,</li>
+<li>maximum generation length,</li>
+<li>reasoning-style output conventions.</li>
+</ul>
+<p>For example, the earlier evaluation results show the reasoning Qwen3 model substantially outperforming the base model on MATH-500, with longer responses and higher computation.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{model}
++
+\text{prompt}
++
+\text{generation settings}
+\rightarrow
+\text{measured accuracy}
+}
+</div>
+<p>The metric is not solely a property of the model weights.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-39">5.18.30 Why maximum generation length matters</h3>
+<p>Suppose evaluation allows only:</p>
+<div class="math block">
+100
+</div>
+<p>new tokens.</p>
+<p>A reasoning model may not have enough space to complete its solution.</p>
+<p>If we allow:</p>
+<div class="math block">
+4096
+</div>
+<p>tokens, the model has much more room for intermediate reasoning.</p>
+<p>The source's distillation evaluation command uses:</p>
+<div class="math block">
+\boxed{\text{max\_new\_tokens}=4096}
+</div>
+<p>in its longer evaluation run. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is important because reasoning models may require more generation steps than ordinary answer-only models.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-40">5.18.31 But longer output is not automatically better</h3>
+<p>Earlier in the source, reasoning models are shown to generate substantially longer answers.</p>
+<p>However:</p>
+<div class="math block">
+\boxed{
+\text{longer response}
+\neq
+\text{guaranteed correctness}
+}
+</div>
+<p>More tokens provide room for:</p>
+<ul>
+<li>intermediate calculations,</li>
+<li>checking,</li>
+<li>alternative approaches,</li>
+</ul>
+<p>but they also consume more compute.</p>
+<p>The broader chapter emphasizes this tradeoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-41">5.18.32 Evaluation as an engineering stack</h3>
+<p>We can now define four layers.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-42">Layer 1 — Training loss</h5>
+<div class="math block">
+L_{\text{train}}
+</div>
+<p>Did the student fit the training examples?</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-43">Layer 2 — Validation loss</h5>
+<div class="math block">
+L_{\text{val}}
+</div>
+<p>Does that behavior generalize to held-out teacher-style examples?</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-44">Layer 3 — Benchmark accuracy</h5>
+<div class="math block">
+\text{MATH-500 accuracy}
+</div>
+<p>Can it solve an external task?</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-45">Layer 4 — Generation behavior</h5>
+<p>Inspect:</p>
+<ul>
+<li>reasoning structure,</li>
+<li>response length,</li>
+<li>formatting,</li>
+<li>final-answer extraction.</li>
+</ul>
+<p>This is a much stronger evaluation framework than looking at one scalar loss.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-46">5.18.33 Full evaluation flow</h3>
+<pre><code class="language-text">                   Student checkpoint
+                          │
+                          ▼
+                 Held-out validation
+                          │
+                          ▼
+                   Cross-entropy
+                          │
+                          ▼
+                  Validation loss
+                          │
+                          │
+                          ▼
+                    MATH-500
+                          │
+                          ▼
+                 Generate reasoning
+                          │
+                          ▼
+                  Extract answer
+                          │
+                          ▼
+                 Verify correctness
+                          │
+                          ▼
+                 Benchmark accuracy
+</code></pre>
+<p>This is the practical sequence described in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-47">5.18.34 Why use a held-out validation set?</h3>
+<p>Suppose all training examples are memorized.</p>
+<p>Then:</p>
+<div class="math block">
+L_{\text{train}}
+</div>
+<p>can be very low.</p>
+<p>But the model might not generalize.</p>
+<p>A validation set provides examples the optimizer did not directly use for parameter updates.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{training loss}
+\rightarrow
+\text{fit}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{validation loss}
+\rightarrow
+\text{generalization}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-48">5.18.35 Why still evaluate MATH-500?</h3>
+<p>Because the validation set is drawn from the distillation-data distribution.</p>
+<p>MATH-500 is a downstream benchmark.</p>
+<p>So there are two generalization questions:</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-49">Question A</h5>
+<p>Can the student reproduce teacher-style responses on held-out data?</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-50">Question B</h5>
+<p>Can the student solve external mathematical tasks?</p>
+<p>Question B is closer to the actual capability goal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-51">5.18.36 A very important exam distinction</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{val}}=0.30.
+</div>
+<p>Can you conclude:</p>
+<div class="math block">
+\boxed{\text{MATH-500 accuracy}=70\%?}
+</div>
+<p>No.</p>
+<p>There is no direct conversion:</p>
+<div class="math block">
+\boxed{
+L\not\leftrightarrow\text{benchmark accuracy}
+}
+</div>
+<p>without additional empirical information.</p>
+<p>This is a conceptual trap worth remembering.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-52">5.18.37 Numerical: benchmark accuracy</h3>
+<p>Suppose a model gets:</p>
+<div class="math block">
+168
+</div>
+<p>questions correct out of:</p>
+<div class="math block">
+500.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{168}{500}\times100
+=
+\boxed{33.6\%}.
+</div>
+<p>This exactly corresponds to the source's reported:</p>
+<div class="math block">
+\boxed{33.6\%}
+</div>
+<p>for the third epoch of its DeepSeek-R1 distillation run. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-53">5.18.38 Numerical: epoch improvement</h3>
+<p>Epoch 1:</p>
+<div class="math block">
+30.6\%.
+</div>
+<p>Epoch 3:</p>
+<div class="math block">
+33.6\%.
+</div>
+<p>Absolute improvement:</p>
+<div class="math block">
+\boxed{3.0\text{ points}}.
+</div>
+<p>Relative improvement:</p>
+<div class="math block">
+\frac{33.6-30.6}{30.6}\times100
+\approx
+\boxed{9.8\%}.
+</div>
+<p>So the benchmark accuracy increased by about 9.8% relative to the epoch-1 score.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-54">5.18.39 Numerical: teacher-model run</h3>
+<p>Qwen3 235B-A22B teacher-data run:</p>
+<p>Epoch 1:</p>
+<div class="math block">
+45.0\%.
+</div>
+<p>Epoch 3:</p>
+<div class="math block">
+44.2\%.
+</div>
+<p>Change:</p>
+<div class="math block">
+44.2-45.0
+=
+\boxed{-0.8\text{ percentage points}}.
+</div>
+<p>So despite additional training:</p>
+<div class="math block">
+\boxed{\text{accuracy slightly decreased}}
+</div>
+<p>while validation loss also decreased.</p>
+<p>This is an excellent numerical demonstration that these metrics can move differently. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-55">5.18.40 Numerical: validation loss improvement</h3>
+<p>DeepSeek-R1 teacher run:</p>
+<div class="math block">
+0.5436\rightarrow0.5343.
+</div>
+<p>Absolute reduction:</p>
+<div class="math block">
+\boxed{0.0093}.
+</div>
+<p>Percentage reduction:</p>
+<div class="math block">
+\boxed{\approx1.71\%}.
+</div>
+<p>MATH-500 simultaneously:</p>
+<div class="math block">
+30.6\rightarrow33.6
+</div>
+<p>which is:</p>
+<div class="math block">
+\boxed{+3.0\text{ points}}.
+</div>
+<p>So this particular run exhibits:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}\downarrow
+\quad\text{and}\quad
+\text{accuracy}\uparrow
+}
+</div>
+<p>but the Qwen3-teacher experiment reminds us that this relationship is not guaranteed to be monotonic. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-56">5.18.41 Numerical: <code>&lt;think&gt;</code> ablation</h3>
+<p>For DeepSeek-R1 epoch 3:</p>
+<p>With <code>&lt;think&gt;</code>:</p>
+<div class="math block">
+33.6\%.
+</div>
+<p>Without <code>&lt;think&gt;</code>:</p>
+<div class="math block">
+30.2\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+33.6-30.2
+=
+\boxed{3.4\text{ points}}.
+</div>
+<p>Validation loss:</p>
+<p>With:</p>
+<div class="math block">
+0.5306.
+</div>
+<p>Without:</p>
+<div class="math block">
+0.5343.
+</div>
+<p>So in this case:</p>
+<div class="math block">
+\boxed{
+\text{think tokens}
+\rightarrow
+\text{lower loss}
++
+\text{higher benchmark accuracy}
+}
+</div>
+<p>for the epoch-3 comparison. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-57">5.18.42 The most important experimental lesson</h3>
+<p>Never evaluate a new training technique using only one metric.</p>
+<p>For example, suppose you change:</p>
+<div class="math block">
+\text{with think}
+\rightarrow
+\text{without think}.
+</div>
+<p>You should inspect:</p>
+<div class="math block">
+\boxed{L_{\text{train}}}
+</div>
+<div class="math block">
+\boxed{L_{\text{val}}}
+</div>
+<div class="math block">
+\boxed{\text{benchmark accuracy}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{actual generated responses}}.
+</div>
+<p>Why?</p>
+<p>Because these metrics capture different dimensions of model behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-58">5.18.43 What the source's full experiment demonstrates</h3>
+<p>The source's small-scale experiment establishes several concrete observations:</p>
+<div class="math block">
+\boxed{
+\text{student learns teacher traces}
+}
+</div>
+<p>because validation loss falls. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{student gains downstream reasoning ability}
+}
+</div>
+<p>because MATH-500 accuracy rises from 30.6% to 33.6% over the three reported epochs. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{teacher choice matters}
+}
+</div>
+<p>because the Qwen3 235B-A22B-generated run performs better in that setup. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{explicit reasoning structure can matter}
+}
+</div>
+<p>because the <code>&lt;think&gt;</code> ablation generally worsens MATH-500 results in the reported experiments. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-59">5.18.44 How this connects back to Step 5.15</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+\text{bigger/better teacher}
+\rightarrow
+\text{potentially better student}.
+</div>
+<p>The current evaluation gives concrete evidence.</p>
+<p>Teacher:</p>
+<div class="math block">
+\text{DeepSeek-R1}
+</div>
+<p>produces a student reaching:</p>
+<div class="math block">
+33.6\%.
+</div>
+<p>Another teacher:</p>
+<div class="math block">
+\text{Qwen3 235B-A22B}
+</div>
+<p>produces:</p>
+<div class="math block">
+45.0\%
+</div>
+<p>in epoch 1 of the reported small-scale experiment.</p>
+<p>This supports the broader principle:</p>
+<div class="math block">
+\boxed{
+\text{quality of teacher supervision matters}
+}
+</div>
+<p>but does not establish that teacher size alone determines the result.</p>
+<p>The source specifically suggests family alignment—tokenizer, prompting conventions, and response style—as one likely reason the Qwen3 teacher/student pairing works well. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-60">5.18.45 The full chapter is now almost complete</h3>
+<p>We have learned:</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-61">5.13</h5>
+<p>Why distillation is needed.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-62">5.14</h5>
+<p>Exactly how the teacher response becomes a CE target.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-63">5.15</h5>
+<p>How model size and base model affect the student.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-64">5.16</h5>
+<p>How the 800K dataset is constructed.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-65">5.17</h5>
+<p>How the optimizer actually trains the student.</p>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-66">5.18</h5>
+<p>How to determine whether the training worked.</p>
+<p>The complete chain is now:</p>
+<div class="math block">
+\boxed{
+\text{Teacher}
+\rightarrow
+\text{generation}
+\rightarrow
+\text{verification}
+\rightarrow
+\text{curated dataset}
+\rightarrow
+\text{tokenization}
+\rightarrow
+\text{response masking}
+\rightarrow
+\text{cross-entropy}
+\rightarrow
+\text{backprop}
+\rightarrow
+\text{AdamW}
+\rightarrow
+\text{checkpoint}
+\rightarrow
+\text{validation}
+\rightarrow
+\text{benchmark}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-67">Step 5.18 — Exam Bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-18-i59-68">Level 1</h5>
+<p>500 MATH problems, 168 correct:</p>
+<div class="math block">
+\boxed{33.6\%}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-18-i59-69">Level 2</h5>
+<p>Validation loss:</p>
+<div class="math block">
+0.5436\rightarrow0.5343.
+</div>
+<p>Absolute decrease:</p>
+<div class="math block">
+\boxed{0.0093}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-18-i59-70">Level 3</h5>
+<p>Accuracy:</p>
+<div class="math block">
+30.6\rightarrow33.6.
+</div>
+<p>Improvement:</p>
+<div class="math block">
+\boxed{3.0\text{ percentage points}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-18-i59-71">Level 4</h5>
+<p>With <code>&lt;think&gt;</code>:</p>
+<div class="math block">
+33.6\%.
+</div>
+<p>Without:</p>
+<div class="math block">
+30.2\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+\boxed{3.4\text{ points}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-18-i59-72">Level 5 — Mixed reasoning</h5>
+<p>Qwen3 teacher-data run:</p>
+<div class="math block">
+45.0\%\rightarrow44.2\%
+</div>
+<p>while validation loss:</p>
+<div class="math block">
+0.4043\rightarrow0.3948.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{loss improved while benchmark accuracy declined}
+}
+</div>
+<p>which proves that validation loss and downstream reasoning accuracy are related but not identical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-18-i59-73">The single most important takeaway from Step 5.18</h3>
+<p>The student-training objective is:</p>
+<div class="math block">
+\boxed{
+\text{predict the teacher's response tokens}
+}
+</div>
+<p>but the ultimate objective is:</p>
+<div class="math block">
+\boxed{
+\text{solve new problems correctly}
+}.
+</div>
+<p>Therefore the proper evaluation ladder is:</p>
+<div class="math block">
+\boxed{
+\text{CE loss}
+\rightarrow
+\text{validation loss}
+\rightarrow
+\text{benchmark accuracy}
+\rightarrow
+\text{actual reasoning behavior}
+}
+</div>
+<p>and never:</p>
+<div class="math block">
+\boxed{
+\text{lower loss}= \text{automatically better reasoning}
+}
+</div>
+<p>The source's own results demonstrate why that distinction matters. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

@@ -1,0 +1,1466 @@
+<section class="chunk" id="chunk-les-step-4-3-i35" data-id="les-step-4-3-i35"><details class="audit-card" id="audit-K01" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> K01 — Classical KD temperature and mixed loss</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Train against both hard labels and teacher probabilities under an explicit weighting convention.</p><p><strong>Prerequisites:</strong> <a href="#audit-F05">Entropy, cross-entropy, KL, and support</a>, <a href="#audit-F10">Softmax Jacobian and the CE logit gradient</a></p><h4 id="v3-heading-chunk-les-step-4-3-i35-1">Notation and assumptions</h4><p>Fixed teacher, softened student/teacher logits divided by positive T. Alpha here weights hard CE. Mask and mean over valid target tokens separately.</p><h4 id="v3-heading-chunk-les-step-4-3-i35-2">Derivation and mechanism</h4><ol><li>Compute hard CE using untempered student logits.</li><li>Compute forward KL from softened teacher to softened student.</li><li>Multiply soft KL by T² under this classical variant, then mix by alpha.</li></ol><div class="math block">L=\alpha\mathrm{CE}_{hard}+(1-\alpha)T^2D_{KL}(p_T\Vert q_T)</div><h4 id="v3-heading-chunk-les-step-4-3-i35-3">Worked example</h4><p>Equal teacher/student logits give zero soft KL at every T. Alpha1 recovers hard CE. Student logits[1,2], target1 gives ln(1+e^-1)≈.313262. T² belongs to this variant, not every distillation objective.</p><h4 id="v3-heading-chunk-les-step-4-3-i35-4">Limitations</h4><ul><li>Some sources reverse the alpha convention.</li><li>PyTorch KL inputs are log-probabilities; a default reduction may not be the intended token mean.</li></ul><h4 id="v3-heading-chunk-les-step-4-3-i35-5">Connections to later concepts</h4><ul><li>F10 explains the hard CE gradient. K02 reverses the KL arguments and consequently changes both the sampling distribution and gradient.</li></ul><h4 id="v3-heading-chunk-les-step-4-3-i35-6">Source support</h4><ul><li>minillm-slides(1).pdf · physical PDF pages 5, 6, 7 · Soft KD and forward KL</li><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 432, 433, 434, 435 · Chapter8 KD context</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-4-3-i35-7">Executed code and evidence</h4><p>Functions: kd_loss, kl. Passed checks: KD-identical-teacher, KD-hard-component</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-3-i35"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-3-i35" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-2-i34">← Previous lesson</a> · <a href="#v3-minillm-concepts">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-4-2-i34">Step 4.2 — Temperature Scaling and “Dark Knowledge”</a></p><p><strong>This lesson:</strong> Step 4.3 — Building the Complete Classical Knowledge-Distillation Loss</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-3-i35"></a></p>
+<h2>Step 4.3 — Building the Complete Classical Knowledge-Distillation Loss</h2>
+<p><em>Plan node: I5 · chat order #35</em></p>
+<p>We now have all the pieces:</p>
+<div class="math block">
+\boxed{\text{hard labels}}
+</div>
+<div class="math block">
+\boxed{\text{teacher soft targets}}
+</div>
+<div class="math block">
+\boxed{\text{temperature }T}
+</div>
+<div class="math block">
+\boxed{\text{KL divergence}}
+</div>
+<div class="math block">
+\boxed{T^2\text{ correction}}
+</div>
+<p>The next question is:</p>
+<blockquote>
+<p><strong>How do we combine all of these into one loss that actually trains the student?</strong></p>
+</blockquote>
+<p>The supplied chapter builds this progressively and gives the final classical KD objective as a combination of a hard-label cross-entropy term and a temperature-scaled soft-target KL term. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-8">1. Why do we need two losses?</h3>
+<p>Suppose the teacher says:</p>
+<div class="math block">
+P_T=[0.523,0.268,0.138,0.071].
+</div>
+<p>This is rich information.</p>
+<p>But suppose the teacher is wrong.</p>
+<p>Then if we force the student to imitate the teacher blindly, the student can inherit the teacher's mistake.</p>
+<p>So we want two sources of supervision:</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-9">Ground truth</h5>
+<div class="math block">
+\boxed{\text{What is actually correct}}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-10">Teacher</h5>
+<div class="math block">
+\boxed{\text{How a strong model distributes its belief}}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{student learns correctness}
++
+\text{student learns teacher structure}
+}
+</div>
+<p>This is why the final classical distillation loss contains two components. The chapter calls the hard term the <strong>grounding</strong> signal and the soft term the <strong>dark-knowledge</strong> transfer signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-11">2. Hard-label loss</h3>
+<p>Suppose the true class is:</p>
+<div class="math block">
+y=0.
+</div>
+<p>Student logits are:</p>
+<div class="math block">
+z_S=[4.0,2.5,1.5,-0.5].
+</div>
+<p>At ordinary temperature:</p>
+<div class="math block">
+P_S=\operatorname{softmax}(z_S).
+</div>
+<p>The chapter gives approximately:</p>
+<div class="math block">
+\boxed{
+P_S=[0.760,0.170,0.062,0.008]
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Cross-entropy for the true class is:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+-\log P_S(y)
+}
+</div>
+<p>Since:</p>
+<div class="math block">
+P_S(0)\approx0.760,
+</div>
+<p>we get:</p>
+<div class="math block">
+L_{\text{hard}}
+=
+-\log(0.760)
+\approx
+\boxed{0.275}.
+</div>
+<p>This is exactly the hard loss used in the chapter's worked example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-12">3. What does this term teach?</h3>
+<p>The hard loss says:</p>
+<blockquote>
+<p>Put high probability on the actual correct answer.</p>
+</blockquote>
+<p>If:</p>
+<div class="math block">
+P_S(y)=0.99,
+</div>
+<p>then:</p>
+<div class="math block">
+-\log(0.99)\approx0.010.
+</div>
+<p>Very good.</p>
+<p>If:</p>
+<div class="math block">
+P_S(y)=0.10,
+</div>
+<p>then:</p>
+<div class="math block">
+-\log(0.10)\approx2.303.
+</div>
+<p>Bad.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}\downarrow
+\Rightarrow
+P_S(\text{correct})\uparrow
+}
+</div>
+<p>This is standard cross-entropy from ordinary supervised learning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-13">4. Soft-target loss</h3>
+<p>Now we use the teacher.</p>
+<p>Teacher logits:</p>
+<div class="math block">
+\boxed{
+z_T=[5.0,3.0,1.0,-1.0]
+}
+</div>
+<p>Student logits:</p>
+<div class="math block">
+\boxed{
+z_S=[4.0,2.5,1.5,-0.5]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+T=3.
+</div>
+<p>We divide both sets by 3.</p>
+<p>Teacher:</p>
+<div class="math block">
+z_T/T
+=
+[1.667,1.000,0.333,-0.333].
+</div>
+<p>Student:</p>
+<div class="math block">
+z_S/T
+=
+[1.333,0.833,0.500,-0.167].
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-14">5. Teacher soft targets</h3>
+<p>We already calculated:</p>
+<div class="math block">
+\boxed{
+P_T^T=[0.523,0.268,0.138,0.071]
+}
+</div>
+<p>from Step 4.2. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-15">6. Student soft targets</h3>
+<p>Apply softmax to:</p>
+<div class="math block">
+[1.333,0.833,0.500,-0.167].
+</div>
+<p>This gives approximately:</p>
+<div class="math block">
+\boxed{
+P_S^T=[0.442,0.268,0.192,0.099]
+}
+</div>
+<p>which is the student's temperature-scaled distribution shown in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice something interesting.</p>
+<p>The student is already reasonably close to the teacher:</p>
+<div class="math block">
+T:\quad[0.523,0.268,0.138,0.071]
+</div>
+<div class="math block">
+S:\quad[0.442,0.268,0.192,0.099].
+</div>
+<p>The largest disagreement is:</p>
+<div class="math block">
+\text{cat: }0.523\text{ vs }0.442
+</div>
+<p>and:</p>
+<div class="math block">
+\text{fox: }0.138\text{ vs }0.192.
+</div>
+<p>This is exactly the information the KL term will exploit.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-16">7. KL divergence</h3>
+<p>We compare:</p>
+<div class="math block">
+P_T^T
+</div>
+<p>and:</p>
+<div class="math block">
+P_S^T.
+</div>
+<p>The KL divergence is:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P_T^T\|P_S^T)
+=
+\sum_i
+P_T^T(i)
+\log
+\frac{P_T^T(i)}
+{P_S^T(i)}
+}
+</div>
+<p>The chapter gives:</p>
+<div class="math block">
+\boxed{
+D_{KL}\approx0.0199
+}
+</div>
+<p>for this example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-17">8. Let's interpret the KL term</h3>
+<p>Suppose the teacher says:</p>
+<div class="math block">
+[\text{cat}=0.523,\text{dog}=0.268,\text{fox}=0.138,\text{bird}=0.071].
+</div>
+<p>The student says:</p>
+<div class="math block">
+[\text{cat}=0.442,\text{dog}=0.268,\text{fox}=0.192,\text{bird}=0.099].
+</div>
+<p>The student is wrong relative to the teacher in a <strong>distributional</strong> sense.</p>
+<p>The KL penalty pushes:</p>
+<div class="math block">
+0.442\rightarrow0.523
+</div>
+<p>and:</p>
+<div class="math block">
+0.192\rightarrow0.138
+</div>
+<p>etc.</p>
+<p>So the student's probability landscape begins to resemble the teacher's.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-18">9. Apply the <span class="math inline">T^2</span> correction</h3>
+<p>We have:</p>
+<div class="math block">
+T=3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+T^2=9.
+</div>
+<p>Raw KL:</p>
+<div class="math block">
+0.0199.
+</div>
+<p>Multiply:</p>
+<div class="math block">
+9(0.0199)
+=
+0.1791.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_{\text{soft}}\approx0.179
+}
+</div>
+<p>The chapter gives exactly this value. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-19">10. Why does the hard loss use <span class="math inline">T=1</span>?</h3>
+<p>This is an important detail.</p>
+<p>The hard-label loss asks:</p>
+<blockquote>
+<p>How well does the student predict the actual correct class?</p>
+</blockquote>
+<p>Therefore the chapter computes:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+CE(z_S,y)
+}
+</div>
+<p>using the student's ordinary logits:</p>
+<div class="math block">
+T=1.
+</div>
+<p>The soft-target loss, by contrast, uses:</p>
+<div class="math block">
+\boxed{T&gt;1}
+</div>
+<p>because we intentionally want to soften the distributions.</p>
+<p>The chapter explicitly specifies this separation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-20">11. Why not also temperature-scale the hard loss?</h3>
+<p>Because these are solving different objectives.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-21">Hard loss</h5>
+<div class="math block">
+\boxed{
+\text{“Be correct.”}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-22">Soft loss</h5>
+<div class="math block">
+\boxed{
+\text{“Match the teacher's belief structure.”}
+}
+</div>
+<p>The hard branch should retain ordinary supervised learning semantics.</p>
+<p>The soft branch needs temperature to expose the dark knowledge.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-23">12. Combine the two objectives</h3>
+<p>Now we need to decide how much to trust:</p>
+<div class="math block">
+\text{ground truth}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{teacher}.
+</div>
+<p>The chapter's implementation uses:</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+(1-\alpha)T^2D_{KL}(P_T^T\|P_S^T)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+0\le\alpha\le1.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-24">13. What does <span class="math inline">\alpha</span> mean?</h3>
+<p>In this formula:</p>
+<div class="math block">
+\boxed{\alpha=\text{hard-label weight}}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+\boxed{1-\alpha=\text{soft-teacher weight}}.
+</div>
+<p>For example:</p>
+<div class="math block">
+\alpha=0.3.
+</div>
+<p>Then:</p>
+<div class="math block">
+1-\alpha=0.7.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+30\%\text{ hard-label influence}
++
+70\%\text{ teacher-soft influence}
+}
+</div>
+<p>The chapter describes this as a common example configuration. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-25">14. Equivalent <span class="math inline">\alpha,\beta</span> notation</h3>
+<p>You may also see:</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+\beta T^2L_{\text{soft}}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\alpha+\beta=1}
+</div>
+<p>if normalized weights are used.</p>
+<p>For the chapter's implementation:</p>
+<div class="math block">
+\beta=1-\alpha.
+</div>
+<p>So:</p>
+<div class="math block">
+\alpha=0.3
+</div>
+<p>means:</p>
+<div class="math block">
+\beta=0.7.
+</div>
+<p>This removes a common source of confusion.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-26">15. Plug in the chapter's numbers</h3>
+<p>We have:</p>
+<div class="math block">
+L_{\text{hard}}=0.275
+</div>
+<div class="math block">
+L_{\text{soft}}=0.179
+</div>
+<div class="math block">
+\alpha=0.3.
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+0.3(0.275)
++
+0.7(0.179).
+</div>
+<p>First term:</p>
+<div class="math block">
+0.3(0.275)
+=
+0.0825.
+</div>
+<p>Second term:</p>
+<div class="math block">
+0.7(0.179)
+=
+0.1253.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L=0.0825+0.1253
+</div>
+<div class="math block">
+\boxed{
+L\approx0.208
+}
+</div>
+<p>which is the final value reported in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-27">16. IMPORTANT source note</h3>
+<p>The supplied chapter has an apparent textual inconsistency immediately after this calculation: it says the “soft loss” is <span class="math inline">0.056</span> and the “hard loss” is <span class="math inline">0.126</span>, even though just before that it defines the raw hard loss as <span class="math inline">0.275</span>, the <span class="math inline">T^2</span>-scaled soft loss as <span class="math inline">0.179</span>, and computes:</p>
+<div class="math block">
+0.3(0.275)+0.7(0.179)\approx0.208.
+</div>
+<p>Those displayed inputs themselves give <span class="math inline">0.208</span>, so I am using the formula and preceding numerical values rather than silently treating the later <span class="math inline">0.056/0.126</span> sentence as a separate definition. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is exactly the kind of source inconsistency worth recognizing rather than memorizing blindly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-28">17. What each term is doing</h3>
+<p>The total loss:</p>
+<div class="math block">
+L=
+\underbrace{\alpha L_{\text{hard}}}_{\text{ground truth}}
++
+\underbrace{(1-\alpha)T^2D_{KL}}_{\text{teacher}}
+</div>
+<p>has two jobs.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-29">First term</h5>
+<div class="math block">
+\alpha L_{\text{hard}}
+</div>
+<p>says:</p>
+<div class="math block">
+\boxed{
+\text{“Do not forget what is actually correct.”}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-30">Second term</h5>
+<div class="math block">
+(1-\alpha)T^2D_{KL}
+</div>
+<p>says:</p>
+<div class="math block">
+\boxed{
+\text{“Also behave like the knowledgeable teacher.”}
+}
+</div>
+<p>That is the entire philosophy of classical distillation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-31">18. What happens if <span class="math inline">\alpha=1</span>?</h3>
+<p>Then:</p>
+<div class="math block">
+L
+=
+L_{\text{hard}}.
+</div>
+<p>The teacher disappears from the objective.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\alpha=1
+\Rightarrow
+\text{ordinary supervised training}
+}
+</div>
+<p>No soft distillation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-32">19. What happens if <span class="math inline">\alpha=0</span>?</h3>
+<p>Then:</p>
+<div class="math block">
+L=
+T^2D_{KL}(P_T^T\|P_S^T).
+</div>
+<p>So the student relies completely on the teacher's soft distribution.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\alpha=0
+\Rightarrow
+\text{pure soft distillation}
+}
+</div>
+<p>assuming the normalized weighting convention.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-33">20. What happens if <span class="math inline">T=1</span>?</h3>
+<p>Then:</p>
+<div class="math block">
+T^2=1
+</div>
+<p>and:</p>
+<div class="math block">
+P_T^T=P_T,
+\qquad
+P_S^T=P_S.
+</div>
+<p>You still have a teacher/student distribution-matching objective, but the teacher's distribution may be very peaked.</p>
+<p>That brings us back to the weakness of Attempt #2:</p>
+<div class="math block">
+\boxed{
+T=1\Rightarrow\text{dark knowledge is weakly exposed}
+}
+</div>
+<p>The chapter explicitly motivates using a larger <span class="math inline">T</span> to reveal that information. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-34">21. What if <span class="math inline">T</span> is extremely large?</h3>
+<p>Then:</p>
+<div class="math block">
+P_T^T\rightarrow
+\left[\frac1K,\ldots,\frac1K\right]
+</div>
+<p>and:</p>
+<div class="math block">
+P_S^T\rightarrow
+\left[\frac1K,\ldots,\frac1K\right].
+</div>
+<p>So:</p>
+<div class="math block">
+D_{KL}\rightarrow0.
+</div>
+<p>Although we multiply by:</p>
+<div class="math block">
+T^2,
+</div>
+<p>the distributional information itself is being washed out.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+T\text{ must be chosen carefully}
+}
+</div>
+<p>rather than simply made as large as possible.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-35">22. Why <span class="math inline">T^2</span> and not <span class="math inline">T</span>?</h3>
+<p>This is one of the most likely derivation questions.</p>
+<p>Recall:</p>
+<div class="math block">
+q_i^S
+=
+\operatorname{softmax}(z_i^S/T).
+</div>
+<p>The derivative gets one <span class="math inline">1/T</span> from:</p>
+<div class="math block">
+z/T.
+</div>
+<p>At high <span class="math inline">T</span>, the teacher and student probabilities also become closer to uniform, so:</p>
+<div class="math block">
+q_i^S-p_i^T
+</div>
+<p>shrinks by roughly another <span class="math inline">1/T</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{gradient}\sim\frac1{T^2}
+}
+</div>
+<p>and compensation uses:</p>
+<div class="math block">
+\boxed{T^2}.
+</div>
+<p>The chapter explicitly gives this derivation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-36">23. A simplified gradient derivation</h3>
+<p>For softmax cross-entropy-like matching, the student-logit gradient has the basic structure:</p>
+<div class="math block">
+\frac{\partial L}{\partial z_i^S}
+\propto
+\frac1T
+(q_i^S-p_i^T).
+</div>
+<p>For large <span class="math inline">T</span>:</p>
+<div class="math block">
+q_i^S-p_i^T
+\sim
+\frac1T.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\frac{\partial L}{\partial z_i^S}
+\sim
+\frac1{T^2}.
+</div>
+<p>Multiplication by <span class="math inline">T^2</span> gives:</p>
+<div class="math block">
+T^2\frac{\partial L}{\partial z_i^S}
+\sim
+O(1).
+</div>
+<p>This is the mathematical reason for the correction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-37">24. Full training pipeline</h3>
+<p>Now let's connect the mathematics to the actual training loop.</p>
+<p>The supplied chapter's training process is:</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-38">Step 1 — input batch</h5>
+<div class="math block">
+(x,y)
+</div>
+<p>enters.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-39">Step 2 — teacher forward pass</h5>
+<div class="math block">
+t_{\text{logits}}=T(x)
+</div>
+<p>with teacher frozen.</p>
+<p>The implementation uses:</p>
+<pre><code class="language-python">with torch.no_grad():
+    t_logits = teacher(x)
+</code></pre>
+<p>because no teacher gradients are needed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-40">Step 3 — student forward pass</h5>
+<div class="math block">
+s_{\text{logits}}=S(x).
+</div>
+<p>Student gradients are tracked.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-41">Step 4 — hard loss</h5>
+<div class="math block">
+L_{\text{hard}}
+=
+CE(s_{\text{logits}},y).
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-42">Step 5 — temperature soft targets</h5>
+<div class="math block">
+P_T^T=
+\operatorname{softmax}(t_{\text{logits}}/T)
+</div>
+<div class="math block">
+P_S^T=
+\operatorname{softmax}(s_{\text{logits}}/T).
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-43">Step 6 — KL</h5>
+<div class="math block">
+L_{KL}
+=
+D_{KL}(P_T^T\|P_S^T).
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-44">Step 7 — <span class="math inline">T^2</span></h5>
+<div class="math block">
+L_{\text{soft}}
+=
+T^2L_{KL}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-45">Step 8 — combine</h5>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+(1-\alpha)L_{\text{soft}}
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-46">Step 9 — backpropagate</h5>
+<div class="math block">
+\nabla_{\theta_S}L.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-3-i35-47">Step 10 — optimizer update</h5>
+<div class="math block">
+\theta_S
+\leftarrow
+\theta_S-\eta\nabla_{\theta_S}L.
+</div>
+<p>Teacher stays fixed.</p>
+<p>The chapter lists essentially this exact sequence. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-48">25. Why use <code>log_softmax</code> for the student in PyTorch?</h3>
+<p>The chapter's implementation is:</p>
+<pre><code class="language-python">soft_teacher = F.softmax(
+    teacher_logits / temperature,
+    dim=-1
+)
+
+soft_student = F.log_softmax(
+    student_logits / temperature,
+    dim=-1
+)
+
+kl_loss = F.kl_div(
+    soft_student,
+    soft_teacher,
+    reduction=&quot;batchmean&quot;
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why log probabilities?</p>
+<p>Because the KL formula is:</p>
+<div class="math block">
+D_{KL}(P_T\|P_S)
+=
+\sum_iP_T(i)
+\log\frac{P_T(i)}{P_S(i)}.
+</div>
+<p>This requires:</p>
+<div class="math block">
+\log P_S(i).
+</div>
+<p>PyTorch's <code>F.kl_div</code> is designed to accept the student in log-probability form in this usage.</p>
+<p>So the code corresponds directly to the mathematics.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-49">26. Complete PyTorch implementation</h3>
+<p>Here is the complete classical KD loss in the source's style:</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+def distillation_loss(
+    student_logits,
+    teacher_logits,
+    labels,
+    temperature=3.0,
+    alpha=0.3,
+):
+    # Teacher distribution at temperature T
+    soft_teacher = F.softmax(
+        teacher_logits / temperature,
+        dim=-1
+    )
+
+    # Student log-probabilities at temperature T
+    soft_student = F.log_softmax(
+        student_logits / temperature,
+        dim=-1
+    )
+
+    # Distribution-matching loss
+    kl_loss = F.kl_div(
+        soft_student,
+        soft_teacher,
+        reduction=&quot;batchmean&quot;
+    )
+
+    # Ordinary hard-label cross-entropy
+    hard_loss = F.cross_entropy(
+        student_logits,
+        labels
+    )
+
+    # Combined objective
+    loss = (
+        alpha * hard_loss
+        + (1 - alpha)
+        * (temperature ** 2)
+        * kl_loss
+    )
+
+    return loss
+</code></pre>
+<p>This is directly based on the chapter's Listing 8.2. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-50">27. Complete training loop</h3>
+<p>The corresponding architecture is:</p>
+<pre><code class="language-python">def train_distill(
+    teacher,
+    student,
+    loader,
+    epochs=10,
+    temperature=3.0,
+    alpha=0.3,
+    lr=1e-3,
+):
+
+    teacher.eval()
+
+    optimizer = torch.optim.Adam(
+        student.parameters(),
+        lr=lr
+    )
+
+    for epoch in range(epochs):
+
+        for x, y in loader:
+
+            optimizer.zero_grad()
+
+            # Teacher is frozen
+            with torch.no_grad():
+                teacher_logits = teacher(x)
+
+            # Student is trainable
+            student_logits = student(x)
+
+            # Combined KD loss
+            loss = distillation_loss(
+                student_logits,
+                teacher_logits,
+                y,
+                temperature=temperature,
+                alpha=alpha
+            )
+
+            # Student gradients
+            loss.backward()
+
+            # Update student only
+            optimizer.step()
+</code></pre>
+<p>This follows the source's training-loop structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-51">28. Very important: there are two softmax temperatures in the computation</h3>
+<p>Do not confuse:</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-52">Hard branch</h5>
+<div class="math block">
+\boxed{T=1}
+</div>
+<p>for normal student classification.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-53">Soft branch</h5>
+<div class="math block">
+\boxed{T=T_{\text{KD}}}
+</div>
+<p>for teacher/student distribution matching.</p>
+<p>So the graph looks like:</p>
+<pre><code class="language-text">                   Student logits
+                  /              \
+                 /                \
+          T = 1 /                  \ T = KD temperature
+               ▼                    ▼
+        Hard CE branch       Student soft distribution
+                                      |
+Teacher logits                        |
+      | / T                            |
+      ▼                                |
+Teacher soft distribution ───────► KL
+                                      |
+                                     ×T²
+                                      |
+                    ┌─────────────────┘
+                    ▼
+                 combine
+                    |
+                    ▼
+              total loss
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-54">29. Numerical exercise — complete loss</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{hard}}=0.4
+</div>
+<div class="math block">
+KL=0.03
+</div>
+<div class="math block">
+T=4
+</div>
+<div class="math block">
+\alpha=0.25.
+</div>
+<p>Calculate the soft loss:</p>
+<div class="math block">
+L_{\text{soft}}
+=
+T^2KL
+=
+16(0.03)
+=
+\boxed{0.48}.
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+0.25(0.4)+0.75(0.48).
+</div>
+<div class="math block">
+=0.10+0.36
+</div>
+<div class="math block">
+\boxed{L=0.46}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-55">30. Numerical exercise — changing alpha</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{hard}}=0.5
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{soft}}=0.2.
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-56"><span class="math inline">\alpha=0.8</span></h5>
+<div class="math block">
+L=0.8(0.5)+0.2(0.2)
+</div>
+<div class="math block">
+=0.4+0.04
+</div>
+<div class="math block">
+\boxed{0.44}.
+</div>
+<p>Ground truth dominates.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-57"><span class="math inline">\alpha=0.2</span></h5>
+<div class="math block">
+L=0.2(0.5)+0.8(0.2)
+</div>
+<div class="math block">
+=0.1+0.16
+</div>
+<div class="math block">
+\boxed{0.26}.
+</div>
+<p>Teacher guidance dominates.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-58">31. Numerical exercise — effect of temperature</h3>
+<p>Suppose:</p>
+<div class="math block">
+KL=0.01.
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-59"><span class="math inline">T=2</span></h5>
+<div class="math block">
+T^2KL
+=
+4(0.01)
+=
+\boxed{0.04}.
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-60"><span class="math inline">T=3</span></h5>
+<div class="math block">
+9(0.01)
+=
+\boxed{0.09}.
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-61"><span class="math inline">T=5</span></h5>
+<div class="math block">
+25(0.01)
+=
+\boxed{0.25}.
+</div>
+<p>But remember:</p>
+<div class="math block">
+KL
+</div>
+<p>itself generally changes with <span class="math inline">T</span>.</p>
+<p>So you <strong>cannot</strong> determine the actual final soft loss from <span class="math inline">T</span> alone.</p>
+<p>You must recompute the distributions.</p>
+<p>This is an important exam trap.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-62">32. Numerical exercise — zero KL</h3>
+<p>Suppose:</p>
+<div class="math block">
+P_T=P_S.
+</div>
+<p>Then:</p>
+<div class="math block">
+D_{KL}(P_T\|P_S)=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{L_{\text{soft}}=0}.
+</div>
+<p>Then the only remaining contribution is:</p>
+<div class="math block">
+\boxed{
+L=\alpha L_{\text{hard}}
+}
+</div>
+<p>in the combined formula.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-63">33. Numerical exercise — perfect hard prediction</h3>
+<p>Suppose the correct class receives:</p>
+<div class="math block">
+P_S(y)=1.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{hard}}
+=
+-\log1
+=
+\boxed0.
+</div>
+<p>But if the student distribution still differs from the teacher:</p>
+<div class="math block">
+KL&gt;0.
+</div>
+<p>So the total loss does not necessarily become zero.</p>
+<p>This demonstrates that the two branches really are independent objectives.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-64">34. The deepest insight: teacher and ground truth are not redundant</h3>
+<p>You might ask:</p>
+<blockquote>
+<p>“If the teacher knows the answer, why do we still need labels?”</p>
+</blockquote>
+<p>Because the teacher may not be perfectly reliable.</p>
+<p>The hard label provides:</p>
+<div class="math block">
+\boxed{\text{objective correctness}}
+</div>
+<p>while the teacher provides:</p>
+<div class="math block">
+\boxed{\text{rich structure}}
+</div>
+<p>The chapter explicitly describes the hard component as a safety net against blindly inheriting teacher errors or biases. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-65">35. What happens when the teacher is uncertain?</h3>
+<p>This is where soft distillation is particularly interesting.</p>
+<p>Suppose:</p>
+<div class="math block">
+P_T=[0.40,0.35,0.20,0.05].
+</div>
+<p>The teacher is unsure.</p>
+<p>A hard-label student only receives:</p>
+<div class="math block">
+[1,0,0,0].
+</div>
+<p>But the soft-target student learns:</p>
+<div class="math block">
+\boxed{
+\text{class 1 is best, but class 2 is nearly as plausible}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{class 3 is also somewhat possible}
+}
+</div>
+<p>This uncertainty structure is valuable information.</p>
+<p>The chapter notes that the benefit of distillation is particularly strong on ambiguous examples where teacher probabilities reveal meaningful class relationships. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-66">36. Why the student may outperform training from scratch</h3>
+<p>Suppose a student has limited capacity.</p>
+<p>From hard labels alone, it must infer:</p>
+<div class="math block">
+\text{which classes/tokens are related}
+</div>
+<p>from many examples.</p>
+<p>With a teacher, it receives those relationships directly.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{teacher supervision can make learning more sample-efficient}
+}
+</div>
+<p>The chapter explains this as transferring relational information that would otherwise take many examples to discover. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-67">37. But distillation cannot magically exceed the teacher</h3>
+<p>The student is approximating teacher behavior.</p>
+<p>So broadly:</p>
+<div class="math block">
+\boxed{
+\text{distillation transfers existing teacher capability}
+}
+</div>
+<p>rather than guaranteeing new capability beyond the teacher.</p>
+<p>This becomes especially important when we later discuss DeepSeek-R1 Distill. The chapter explicitly makes this point: distillation is efficient transfer, while advancing beyond the teacher's frontier generally requires other training such as stronger models or RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-68">38. Classical KD vs normal supervised learning</h3>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-69">Normal training</h5>
+<div class="math block">
+\boxed{
+L=CE(P_S,y)
+}
+</div>
+<p>One supervision source.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-70">Classical KD</h5>
+<div class="math block">
+\boxed{
+L=
+\alpha CE(P_S,y)
++
+(1-\alpha)T^2KL(P_T^T\|P_S^T)
+}
+</div>
+<p>Two supervision sources.</p>
+<p>That is the essential difference.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-71">39. Classical KD vs DeepSeek-R1 Distill</h3>
+<p>This deserves repetition because it is central to the chapter.</p>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-72">Classical KD</h5>
+<div class="math block">
+\boxed{
+\text{teacher logits}
+\rightarrow
+\text{temperature}
+\rightarrow
+\text{KL}
+\rightarrow
+\text{student}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-3-i35-73">DeepSeek-R1 Distill</h5>
+<div class="math block">
+\boxed{
+\text{teacher generates reasoning traces}
+\rightarrow
+\text{curate}
+\rightarrow
+\text{SFT student}
+}
+</div>
+<p>The chapter explicitly calls this a <strong>fundamental difference</strong> in the two paradigms. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-74">40. Exam question: derive the loss</h3>
+<p>Given:</p>
+<div class="math block">
+L_h=0.3,
+\quad
+KL=0.02,
+\quad
+T=5,
+\quad
+\alpha=0.4.
+</div>
+<p>First:</p>
+<div class="math block">
+L_s=T^2KL
+</div>
+<div class="math block">
+=25(0.02)
+</div>
+<div class="math block">
+=\boxed{0.5}.
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+0.4(0.3)
++
+0.6(0.5)
+</div>
+<div class="math block">
+=0.12+0.30
+</div>
+<div class="math block">
+\boxed{0.42}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-75">41. Exam question: identify what gets updated</h3>
+<p>Given:</p>
+<div class="math block">
+L=
+\alpha L_h+
+(1-\alpha)T^2KL.
+</div>
+<p>Which parameters receive gradients?</p>
+<div class="math block">
+\boxed{\theta_S}
+</div>
+<p>Student parameters.</p>
+<p>Teacher:</p>
+<div class="math block">
+\boxed{\nabla_{\theta_T}=0}
+</div>
+<p>because teacher is frozen.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-76">42. Exam question: effect of alpha</h3>
+<p>If:</p>
+<div class="math block">
+\alpha\rightarrow1
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{hard labels dominate}
+}
+</div>
+<p>If:</p>
+<div class="math block">
+\alpha\rightarrow0
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{teacher soft targets dominate}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-77">43. Exam question: effect of T</h3>
+<p>If:</p>
+<div class="math block">
+T\uparrow
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{soft targets become flatter}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{ranking stays the same}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{soft-loss gradient becomes weaker without the }T^2\text{ correction}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-78">44. Exam question: why not simply train on teacher's argmax token?</h3>
+<p>Because argmax gives:</p>
+<div class="math block">
+\boxed{
+\text{only the chosen answer}
+}
+</div>
+<p>whereas soft targets give:</p>
+<div class="math block">
+\boxed{
+\text{the entire probability distribution}
+}
+</div>
+<p>The latter contains the relative plausibility of alternatives.</p>
+<p>That's the dark knowledge.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-79">45. Master formula for the entire classical KD section</h3>
+<p>Everything can now be compressed into one equation:</p>
+<div class="math block">
+\boxed{
+L_{\text{KD}}
+=
+\alpha
+\underbrace{
+CE(z_S,y)
+}_{\text{hard / correctness}}
++
+(1-\alpha)
+T^2
+\underbrace{
+D_{KL}
+\left(
+\operatorname{softmax}(z_T/T)
+\middle\|
+\operatorname{softmax}(z_S/T)
+\right)
+}_{\text{soft / dark knowledge}}
+}
+</div>
+<p>This is the formula you should be able to reconstruct from memory.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-80">46. Symbol dictionary</h3>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">z_T</span></td>
+<td>teacher logits</td>
+</tr>
+<tr>
+<td><span class="math inline">z_S</span></td>
+<td>student logits</td>
+</tr>
+<tr>
+<td><span class="math inline">T</span></td>
+<td>distillation temperature</td>
+</tr>
+<tr>
+<td><span class="math inline">P_T^T</span></td>
+<td>teacher soft target at <span class="math inline">T</span></td>
+</tr>
+<tr>
+<td><span class="math inline">P_S^T</span></td>
+<td>student soft distribution at <span class="math inline">T</span></td>
+</tr>
+<tr>
+<td><span class="math inline">L_h</span></td>
+<td>hard-label CE loss</td>
+</tr>
+<tr>
+<td><span class="math inline">KL</span></td>
+<td>teacher-to-student distribution mismatch</td>
+</tr>
+<tr>
+<td><span class="math inline">\alpha</span></td>
+<td>hard-loss weight</td>
+</tr>
+<tr>
+<td><span class="math inline">1-\alpha</span></td>
+<td>soft-loss weight</td>
+</tr>
+<tr>
+<td><span class="math inline">T^2</span></td>
+<td>gradient-magnitude correction</td>
+</tr>
+<tr>
+<td><span class="math inline">\theta_T</span></td>
+<td>teacher parameters, frozen</td>
+</tr>
+<tr>
+<td><span class="math inline">\theta_S</span></td>
+<td>student parameters, trainable</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-81">47. The entire process in one equation chain</h3>
+<div class="math block">
+z_T
+\overset{/T}{\longrightarrow}
+P_T^T
+</div>
+<div class="math block">
+z_S
+\overset{/T}{\longrightarrow}
+P_S^T
+</div>
+<p>then:</p>
+<div class="math block">
+P_T^T,P_S^T
+\longrightarrow
+D_{KL}
+</div>
+<p>then:</p>
+<div class="math block">
+D_{KL}
+\overset{\times T^2}{\longrightarrow}
+L_{\text{soft}}
+</div>
+<p>while separately:</p>
+<div class="math block">
+z_S,y
+\longrightarrow
+L_{\text{hard}}
+</div>
+<p>and finally:</p>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+(1-\alpha)L_{\text{soft}}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{backpropagate into student}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{update student parameters}
+}
+</div>
+<p>Teacher never moves.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-82">48. Cumulative numerical challenge</h3>
+<p>Try solving this mentally:</p>
+<p>Teacher:</p>
+<div class="math block">
+z_T=[6,4,2,0]
+</div>
+<p>Student:</p>
+<div class="math block">
+z_S=[5,3,2,1]
+</div>
+<p>with:</p>
+<div class="math block">
+T=2,\quad \alpha=0.3.
+</div>
+<p>You should perform, in order:</p>
+<div class="math block">
+\boxed{1.\ z_T/T}
+</div>
+<div class="math block">
+\boxed{2.\ z_S/T}
+</div>
+<div class="math block">
+\boxed{3.\ \operatorname{softmax}}
+</div>
+<div class="math block">
+\boxed{4.\ KL(P_T^T\|P_S^T)}
+</div>
+<div class="math block">
+\boxed{5.\ \times T^2}
+</div>
+<div class="math block">
+\boxed{6.\ CE(z_S,y)}
+</div>
+<div class="math block">
+\boxed{7.\ 0.3L_h+0.7L_s}
+</div>
+<p>That seven-stage sequence is a very good exam template.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-3-i35-83">49. What we have completed</h3>
+<p>The classical distillation mathematics is now fully connected:</p>
+<div class="math block">
+\boxed{
+\text{hard label}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{teacher soft targets}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+T&gt;1\text{ exposes dark knowledge}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+KL\text{ measures teacher/student mismatch}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+T^2\text{ restores soft-loss gradient scale}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\alpha L_{\text{hard}}
++
+(1-\alpha)T^2L_{\text{soft}}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{update student only}
+}
+</div>
+<p>The supplied chapter's classical implementation and numerical example support this complete chain. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-b3">B.3 — R1 Distillation: Behaviour, Implementation, Evidence (book view)</a> — <em>Implementing knowledge distillation in PyTorch</em>  ·  <a href="#app-g3">G.3 — MiniLLM slides not covered by the lessons (forward vs reverse KLD, policy gradient, results)</a> — <em>MiniLLM: reverse KLD and policy-gradient distillation</em></p>
+</blockquote>
+<hr />
+</section>

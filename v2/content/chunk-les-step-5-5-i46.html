@@ -1,0 +1,1173 @@
+<section class="chunk" id="chunk-les-step-5-5-i46" data-id="les-step-5-5-i46"><aside class="audit-card" data-continuation="added" id="audit-finding-E06-chunk-les-step-5-5-i46"><h3 id="v3-heading-chunk-les-step-5-5-i46-1">GRPO tutorial hyperparameters and reference refresh provenance</h3><p>Status: provided_book_claim_found; primary_confirmation_pending</p><p>The supplied reasoning book discusses these in Chapter7, physical pages270–275. The retrieved R1 v1 report does not independently confirm the claimed400-step setting. Keep those claims attributed to the tutorial/book instead of marking them as verified R1 implementation parameters. Also, clipping a surrogate does not impose a hard bound on the policy update.</p><p><a href="https://arxiv.org/html/2501.12948v1">Primary/official source</a> · Compare §2.2.1 with supplied reasoning book Chapter7 pp270–275 and RL slides24,27</p><p>Remaining evidence: Recover the exact author/released configuration or later report supporting the attributed settings.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><details class="audit-card" id="audit-R02" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> R02 — Clipped surrogate and advantage sign</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Discourage some large policy changes while retaining a useful reward gradient.</p><p><strong>Prerequisites:</strong> <a href="#audit-R01">Group advantages and standard-deviation conventions</a>, <a href="#audit-F04">Conditional sequence probability and log likelihood</a></p><h4 id="v3-heading-chunk-les-step-5-5-i46-2">Notation and assumptions</h4><p>Ratio=current/old probability on fixed sampled actions. Maximization objective uses min(rA,clip(r)A); minimization negates it.</p><h4 id="v3-heading-chunk-les-step-5-5-i46-3">Derivation and mechanism</h4><ol><li>Compute ratio by exponentiating a difference of log probabilities.</li><li>Clamp ratio to[1-epsilon,1+epsilon].</li><li>Multiply both original and clamped ratios by A, take the smaller, then apply declared token/sequence reduction.</li></ol><div class="math block">J=\min(rA,\operatorname{clip}(r,1-\epsilon,1+\epsilon)A)</div><h4 id="v3-heading-chunk-les-step-5-5-i46-4">Worked example</h4><p>epsilon.2: r1.5,A2→min3,2.4=2.4. r.5,A-2→min-1,-1.6=-1.6. r1.5,A-2→-3. Blindly clipping the ratio alone gives the wrong last value.</p><h4 id="v3-heading-chunk-les-step-5-5-i46-5">Limitations</h4><ul><li>Clipping is not a hard trust-region or KL guarantee.</li><li>Sequence ratios, geometric-mean ratios and token ratios are different objectives.</li></ul><h4 id="v3-heading-chunk-les-step-5-5-i46-6">Connections to later concepts</h4><ul><li>R03 measures drift against a reference, whereas the clipped ratio compares the current policy with an old rollout policy.</li></ul><h4 id="v3-heading-chunk-les-step-5-5-i46-7">Source support</h4><ul><li>rl-grpo-slides(1).pdf · physical PDF pages 24, 25, 26 · Clipping and ratio variants</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 269, 270, 271, 272 · Chapter7 clipping implementation</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-5-i46-8">Executed code and evidence</h4><p>Functions: clipped_surrogate. Passed checks: PPO-positive-clip, PPO-negative-clip, PPO-negative-large-ratio</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-5-i46"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-5-i46" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-4-i45">← Previous lesson</a> · <a href="#chunk-les-step-5-6-i47">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-4-i45">Step 5.4 — Complete GRPO Worked Example, From Prompt to Policy Loss</a></p><p><strong>This lesson:</strong> Step 5.5 — Why Plain Policy Gradient Is Not Enough: Policy Ratios and Clipping</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-20">rl-grpo-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-5-i46"></a></p>
+<h2>Step 5.5 — Why Plain Policy Gradient Is Not Enough: Policy Ratios and Clipping</h2>
+<p><em>Plan node: I6 · chat order #46</em></p>
+<p>We now move from the simplified Chapter 6 objective to the <strong>stabilized GRPO formulation introduced in Chapter 7</strong>.</p>
+<p>The source's sequence is:</p>
+<div class="math block">
+\text{plain policy gradient}
+\rightarrow
+\text{old/current policy comparison}
+\rightarrow
+\text{policy ratio}
+\rightarrow
+\text{clipping}
+\rightarrow
+\text{clipped GRPO loss}.
+</div>
+<p>The reason for this extra machinery is simple:</p>
+<div class="math block">
+\boxed{\text{Do not let one update change the policy too aggressively.}}
+</div>
+<p>The source explicitly motivates clipped policy ratios as a way to limit overly large updates and improve training stability. <em>(Source: Build a Reasoning Model (From Scratch); rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-9">1. What was wrong with our previous loss?</h3>
+<p>We previously had:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac{1}{N}
+\sum_i
+A_i\log\pi_\theta(o_i\mid q).
+</div>
+<p>This says:</p>
+<ul>
+<li>positive advantage → increase probability;</li>
+<li>negative advantage → decrease probability.</li>
+</ul>
+<p>That is correct.</p>
+<p>But there is a problem.</p>
+<p>Suppose the model sees one lucky high-reward rollout and, after an update, its probability changes enormously.</p>
+<p>For example:</p>
+<div class="math block">
+\pi_{\text{old}}(o)=0.01
+</div>
+<p>but after one update:</p>
+<div class="math block">
+\pi_{\text{new}}(o)=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\pi_{\text{new}}}{\pi_{\text{old}}}
+=
+50.
+</div>
+<p>That is a massive change.</p>
+<p>The source describes exactly this concern: a sampled rollout can receive disproportionately large influence if its probability under the updated policy becomes much larger or smaller than under the old policy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-10">2. The key idea: compare old and new policies</h3>
+<p>We therefore introduce two policies.</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-11">Old policy</h5>
+<div class="math block">
+\boxed{\pi_{\theta_{\text{old}}}}
+</div>
+<p>This is the policy that generated the rollout.</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-12">Current policy</h5>
+<div class="math block">
+\boxed{\pi_\theta}
+</div>
+<p>This is the policy we are currently optimizing.</p>
+<p>Now ask:</p>
+<blockquote>
+<p>How much has the current policy changed its probability for this exact sampled response?</p>
+</blockquote>
+<p>That gives us the <strong>policy ratio</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-13">3. Policy ratio</h3>
+<p>For a rollout <span class="math inline">o_i</span>:</p>
+<div class="math block">
+\boxed{
+r_i(\theta)
+=
+\frac{\pi_\theta(o_i\mid q)}
+{\pi_{\theta_{\text{old}}}(o_i\mid q)}
+}
+</div>
+<p>Interpretation:</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-14">If</h5>
+<div class="math block">
+r_i=1
+</div>
+<p>then:</p>
+<div class="math block">
+\pi_\theta(o_i\mid q)
+=
+\pi_{\theta_{\text{old}}}(o_i\mid q)
+</div>
+<p>so the policy has not changed its probability.</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-15">If</h5>
+<div class="math block">
+r_i&gt;1
+</div>
+<p>the current model considers the rollout more likely.</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-16">If</h5>
+<div class="math block">
+r_i&lt;1
+</div>
+<p>the current model considers it less likely.</p>
+<p>The source defines the ratio in implementation through old and new sequence log probabilities. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-17">4. Why do we calculate this with log probabilities?</h3>
+<p>Directly computing:</p>
+<div class="math block">
+\frac{\pi_{\text{new}}}{\pi_{\text{old}}}
+</div>
+<p>for long sequences is inconvenient.</p>
+<p>But:</p>
+<div class="math block">
+\log\frac{p_{\text{new}}}{p_{\text{old}}}
+=
+\log p_{\text{new}}
+-
+\log p_{\text{old}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\exp(
+\log p_i^{\text{new}}
+-
+\log p_i^{\text{old}}
+)
+}
+</div>
+<p>This is exactly how the source implements it:</p>
+<pre><code class="language-python">log_ratio = new_logps - old_logps
+ratio = torch.exp(log_ratio)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-18">5. Simple numerical example</h3>
+<p>Suppose:</p>
+<div class="math block">
+\log p_{\text{old}}=-3
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{new}}=-2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log r
+=
+-2-(-3)
+=
+1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=e^1\approx2.718.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{r\approx2.72}
+</div>
+<p>means the current policy assigns about 2.72 times as much probability to that response.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-19">6. Another example: policy becomes less likely</h3>
+<p>Suppose:</p>
+<div class="math block">
+\log p_{\text{old}}=-2
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{new}}=-4.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log r=-4-(-2)=-2
+</div>
+<p>and:</p>
+<div class="math block">
+r=e^{-2}\approx0.1353.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{r\approx0.135}
+</div>
+<p>The new policy assigns only about 13.5% of the old probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-20">7. Why is the ratio dangerous?</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=+1.
+</div>
+<p>A good rollout should be reinforced.</p>
+<p>If:</p>
+<div class="math block">
+r=1.2,
+</div>
+<p>the reinforcement is moderate.</p>
+<p>But if:</p>
+<div class="math block">
+r=100,
+</div>
+<p>the same rollout can dominate the update.</p>
+<p>Similarly, if a bad rollout has:</p>
+<div class="math block">
+A=-1
+</div>
+<p>and:</p>
+<div class="math block">
+r=0.001,
+</div>
+<p>the update can become disproportionately strong.</p>
+<p>The source describes clipping as a “seatbelt” that prevents one noisy sample from dominating the update. <em>(Source: rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-21">8. The clipping operation</h3>
+<p>We restrict the ratio to:</p>
+<div class="math block">
+[1-\epsilon,1+\epsilon].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r_{\text{clip}}
+=
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)
+}
+</div>
+<p>For example, if:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>then:</p>
+<div class="math block">
+1-\epsilon=0.8
+</div>
+<p>and:</p>
+<div class="math block">
+1+\epsilon=1.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=1.5
+</div>
+<p>becomes:</p>
+<div class="math block">
+1.2.
+</div>
+<p>And:</p>
+<div class="math block">
+r=0.5
+</div>
+<p>becomes:</p>
+<div class="math block">
+0.8.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-22">9. Why “1 ± epsilon”?</h3>
+<p>Because:</p>
+<div class="math block">
+r=1
+</div>
+<p>means:</p>
+<div class="math block">
+\text{new policy}=\text{old policy}
+</div>
+<p>for that rollout.</p>
+<p>Therefore the clipping region is centered around <strong>no change</strong>:</p>
+<div class="math block">
+1.
+</div>
+<p>We permit some movement:</p>
+<div class="math block">
+1-\epsilon
+\le r\le
+1+\epsilon
+</div>
+<p>but suppress extreme movement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-23">10. Important: clipping itself is not the final objective</h3>
+<p>We don't simply replace:</p>
+<div class="math block">
+r
+</div>
+<p>with:</p>
+<div class="math block">
+\operatorname{clip}(r).
+</div>
+<p>We combine both through the clipped policy objective.</p>
+<p>The source uses:</p>
+<pre><code class="language-python">unclipped = ratio * adv
+clipped = clipped_ratio * adv
+obj = torch.minimum(unclipped, clipped)
+</code></pre>
+<p>and then:</p>
+<pre><code class="language-python">clipped_pg_loss = -torch.mean(obj)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+L_{\text{clip}}
+=
+-
+\mathbb E
+\left[
+\min
+\left(
+rA,
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)A
+\right)
+\right]
+}
+</div>
+<p>This is the PPO-style clipped structure used in the source's GRPO extension.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-24">11. Why do we use <code>minimum</code>?</h3>
+<p>This is the subtle part.</p>
+<p>We want clipping to prevent a beneficial-looking update from becoming <strong>too beneficial</strong> in magnitude.</p>
+<p>Consider a positive advantage:</p>
+<div class="math block">
+A&gt;0.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+r=2
+</div>
+<p>and:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA=2A
+</div>
+<p>while:</p>
+<div class="math block">
+r_{\text{clip}}A=1.2A.
+</div>
+<p>Taking:</p>
+<div class="math block">
+\min(2A,1.2A)=1.2A.
+</div>
+<p>So the update gets capped.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-25">12. What about a negative advantage?</h3>
+<p>Suppose:</p>
+<div class="math block">
+A&lt;0.
+</div>
+<p>Take:</p>
+<div class="math block">
+A=-1
+</div>
+<p>and:</p>
+<div class="math block">
+r=0.5.
+</div>
+<p>With:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>the clipped ratio is:</p>
+<div class="math block">
+0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+rA=(0.5)(-1)=-0.5
+</div>
+<p>and:</p>
+<div class="math block">
+r_{\text{clip}}A=(0.8)(-1)=-0.8.
+</div>
+<p>Now:</p>
+<div class="math block">
+\min(-0.5,-0.8)=-0.8.
+</div>
+<p>The more restrictive term is selected.</p>
+<p>This sign behavior is why the objective uses:</p>
+<div class="math block">
+\boxed{\min(rA,\operatorname{clip}(r)A)}
+</div>
+<p>rather than simply clipping <span class="math inline">r</span> everywhere.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-26">13. The source's exact numerical example</h3>
+<p>Now return to our four rollouts.</p>
+<p>The source has:</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-27">Current/new logprobs</h5>
+<div class="math block">
+[-7.9243,-20.1546,-16.6130,-23.3677]
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-28">Old logprobs</h5>
+<div class="math block">
+[-10.9243,-20.3546,-14.6130,-23.3677].
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-29">14. Compute the first ratio</h3>
+<p>For rollout 1:</p>
+<div class="math block">
+\log r_1
+=
+-7.9243-(-10.9243)
+=
+3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r_1=e^3.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{r_1=20.0855}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-30">15. Second ratio</h3>
+<div class="math block">
+\log r_2
+=
+-20.1546-(-20.3546)
+=
+0.2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r_2=e^{0.2}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{r_2=1.2214}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-31">16. Third ratio</h3>
+<div class="math block">
+\log r_3
+=
+-16.6130-(-14.6130)
+=
+-2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r_3=e^{-2}
+</div>
+<div class="math block">
+\boxed{r_3=0.1353}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-32">17. Fourth ratio</h3>
+<div class="math block">
+\log r_4
+=
+-23.3677-(-23.3677)
+=
+0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+r_4=e^0
+=
+\boxed{1.0}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r=[20.0855,1.2214,0.1353,1.0]
+}
+</div>
+<p>This exactly matches the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-33">18. Now apply clipping</h3>
+<p>The source uses:</p>
+<div class="math block">
+\epsilon=10.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+1+\epsilon=11
+</div>
+<p>and:</p>
+<div class="math block">
+1-\epsilon=-9.
+</div>
+<p>Since ratios cannot be negative, the meaningful upper restriction here is:</p>
+<div class="math block">
+r\le11.
+</div>
+<p>Thus:</p>
+<div class="math block">
+20.0855\rightarrow11
+</div>
+<p>while:</p>
+<div class="math block">
+1.2214\rightarrow1.2214
+</div>
+<div class="math block">
+0.1353\rightarrow0.1353
+</div>
+<div class="math block">
+1.0\rightarrow1.0.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+r_{\text{clip}}
+=
+[11,1.2214,0.1353,1.0]
+}
+</div>
+<p>exactly as in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-34">19. Why does the first rollout get clipped?</h3>
+<p>Because:</p>
+<div class="math block">
+20.0855&gt;11.
+</div>
+<p>That means the new policy has increased its probability for that sampled rollout enormously relative to the old policy.</p>
+<p>The clipping mechanism says:</p>
+<div class="math block">
+\boxed{
+\text{“That is too large for one update.”}
+}
+</div>
+<p>So instead of using:</p>
+<div class="math block">
+20.0855,
+</div>
+<p>we use:</p>
+<div class="math block">
+11.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-35">20. Why didn't the other ratios change?</h3>
+<p>Because:</p>
+<div class="math block">
+1.2214&lt;11
+</div>
+<div class="math block">
+0.1353&gt;-9
+</div>
+<p>and:</p>
+<div class="math block">
+1.0&lt;11.
+</div>
+<p>Thus they are already inside the allowed clipping range.</p>
+<p>The source notes that only the first ratio gets clipped in this example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-36">21. Now combine ratios with advantages</h3>
+<p>Recall:</p>
+<div class="math block">
+A=
+[0.8659,0.8659,-0.8659,-0.8659].
+</div>
+<p>Calculate:</p>
+<div class="math block">
+\text{unclipped}=rA
+</div>
+<p>and:</p>
+<div class="math block">
+\text{clipped}=r_{\text{clip}}A.
+</div>
+<p>For rollout 1:</p>
+<div class="math block">
+r_1A_1
+=
+20.0855(0.8659)
+\approx17.392.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+11(0.8659)
+=
+9.5249.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\min(17.392,9.5249)
+=
+\boxed{9.5249}.
+</div>
+<p>So the enormous 20.09 multiplier is not allowed to dominate.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-37">22. Rollout 2</h3>
+<div class="math block">
+1.2214(0.8659)
+\approx1.0576.
+</div>
+<p>Since it was not clipped:</p>
+<div class="math block">
+\boxed{1.0576}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-38">23. Rollout 3</h3>
+<p>Here:</p>
+<div class="math block">
+A_3=-0.8659
+</div>
+<p>and:</p>
+<div class="math block">
+r_3=0.1353.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+0.1353(-0.8659)
+\approx
+\boxed{-0.1172}.
+</div>
+<p>The clipped value is identical because the ratio was already inside the range.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-39">24. Rollout 4</h3>
+<div class="math block">
+1(-0.8659)
+=
+\boxed{-0.8659}.
+</div>
+<p>Again no clipping.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-40">25. Final clipped objective terms</h3>
+<p>We therefore have approximately:</p>
+<div class="math block">
+\boxed{
+[9.5249,\;1.0576,\;-0.1172,\;-0.8659]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{clip}}
+=
+-\frac14
+(9.5249+1.0576-0.1172-0.8659).
+</div>
+<p>The source reports:</p>
+<div class="math block">
+\boxed{
+L_{\text{clip}}\approx-2.3998
+}
+</div>
+<p>compared with the previous:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}=-2.5764.
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-41">26. What did clipping actually accomplish?</h3>
+<p>Without clipping, rollout 1 contributed:</p>
+<div class="math block">
+17.392
+</div>
+<p>to the objective.</p>
+<p>With clipping:</p>
+<div class="math block">
+9.5249.
+</div>
+<p>Therefore the contribution was deliberately reduced.</p>
+<p>This is the key effect:</p>
+<div class="math block">
+\boxed{
+\text{large policy change}
+\rightarrow
+\text{limited influence}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-42">27. The best intuition</h3>
+<p>Imagine four students solving the same problem.</p>
+<p>One student happens to give a correct answer.</p>
+<p>The model update begins strongly favoring that student's exact response.</p>
+<p>But what if the probability increase is caused by a noisy, accidental update?</p>
+<p>Without clipping:</p>
+<div class="math block">
+\text{one sample}
+\rightarrow
+\text{huge update}.
+</div>
+<p>With clipping:</p>
+<div class="math block">
+\text{one sample}
+\rightarrow
+\text{bounded influence}.
+</div>
+<p>That is why the source compares clipping to a safety mechanism for preventing overly aggressive policy movement. <em>(Source: rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-43">28. Why is it called “proximal”?</h3>
+<p>The goal is to keep the new policy <strong>reasonably close</strong> to the policy that produced the data.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\pi_{\text{new}}
+\approx
+\pi_{\text{old}}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\pi_{\text{new}}
+\gg
+\pi_{\text{old}}.
+</div>
+<p>The source connects this mechanism directly to PPO's clipped policy-ratio idea. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-44">29. Important source detail: DeepSeek-R1 used weak clipping</h3>
+<p>The source reports:</p>
+<div class="math block">
+\boxed{\epsilon=10}
+</div>
+<p>for DeepSeek-R1 in this context.</p>
+<p>That is much wider than a conventional PPO example such as:</p>
+<div class="math block">
+\epsilon=0.1.
+</div>
+<p>The source explicitly contrasts these: <span class="math inline">\epsilon=10</span> provides weak clipping, whereas <span class="math inline">0.1</span> gives much tighter control. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So don't blindly memorize:</p>
+<div class="math block">
+\epsilon=0.2
+</div>
+<p>as “the GRPO value.”</p>
+<p>The important concept is:</p>
+<div class="math block">
+\boxed{
+\text{epsilon controls how much policy movement is tolerated}
+}
+</div>
+<p>and the source-specific example uses 10.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-45">30. Why old logprob must be stored</h3>
+<p>Suppose we generated a rollout under:</p>
+<div class="math block">
+\pi_{\theta_{\text{old}}}.
+</div>
+<p>Later the model changes.</p>
+<p>If we don't keep:</p>
+<div class="math block">
+\log p_{\text{old}},
+</div>
+<p>we can't compute:</p>
+<div class="math block">
+r=
+\exp(\log p_{\text{new}}-\log p_{\text{old}}).
+</div>
+<p>Therefore, rollout generation and optimization are connected by stored old-policy information.</p>
+<p>The source describes exactly this workflow: generate a fixed rollout set, compute old logprobs, compute new logprobs under the changing model, then update. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-46">31. Large-scale DeepSeek-R1 workflow</h3>
+<p>The source describes a larger-scale procedure:</p>
+<ol>
+<li>Make a copy of the current model as the reference/old policy.</li>
+<li>Generate a large rollout pool.</li>
+<li>Hold the rollouts fixed.</li>
+<li>Split them into minibatches.</li>
+<li>Calculate old logprobs.</li>
+<li>Calculate new logprobs under the changing policy.</li>
+<li>Update the current model.</li>
+<li>Later refresh the reference model.</li>
+</ol>
+<p>The source reports an example with:</p>
+<div class="math block">
+\boxed{8192}
+</div>
+<p>responses and:</p>
+<div class="math block">
+\boxed{16}
+</div>
+<p>minibatches. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-47">32. Why hold rollouts fixed?</h3>
+<p>Because then:</p>
+<div class="math block">
+\pi_{\text{old}}
+</div>
+<p>has a clear meaning.</p>
+<p>The response was actually generated by that fixed policy.</p>
+<p>We can then ask:</p>
+<div class="math block">
+\boxed{
+\text{How much did the current policy move away from the policy that generated this data?}
+}
+</div>
+<p>That gives us a meaningful importance ratio.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-48">33. The full clipped GRPO pipeline</h3>
+<p>Now the architecture becomes:</p>
+<pre><code class="language-text">Prompt
+  ↓
+Old / rollout policy
+  ↓
+Generate G responses
+  ↓
+Verifier
+  ↓
+Rewards
+  ↓
+Group-relative advantages
+  ↓
+Compute old logprobs
+  ↓
+Current policy computes new logprobs
+  ↓
+ratio = exp(new_logprob - old_logprob)
+  ↓
+clip ratio
+  ↓
+min(unclipped objective, clipped objective)
+  ↓
+policy loss
+  ↓
+backpropagation
+  ↓
+update current policy
+</code></pre>
+<p>This follows the Chapter 7 extension of the Chapter 6 pipeline. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-49">34. Tensor-shape view</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=16
+</div>
+<p>prompts,</p>
+<div class="math block">
+G=8
+</div>
+<p>rollouts per prompt,</p>
+<p>and:</p>
+<div class="math block">
+T=512
+</div>
+<p>tokens per response.</p>
+<p>Then token log probabilities are conceptually:</p>
+<div class="math block">
+\boxed{
+[B,G,T]
+=
+[16,8,512]
+}
+</div>
+<p>Old:</p>
+<div class="math block">
+\boxed{
+[16,8,512]
+}
+</div>
+<p>Current:</p>
+<div class="math block">
+\boxed{
+[16,8,512]
+}
+</div>
+<p>Advantages:</p>
+<div class="math block">
+\boxed{
+[16,8]
+}
+</div>
+<p>For token-level clipping, advantages may be broadcast across the token dimension:</p>
+<div class="math block">
+[16,8]
+\rightarrow
+[16,8,1]
+</div>
+<p>and then:</p>
+<div class="math block">
+[16,8,512].
+</div>
+<p>The source also gives a simplified implementation with exactly this conceptual structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-50">35. Level 1 exam numerical</h3>
+<p>Given:</p>
+<div class="math block">
+\log p_{\text{new}}=-3
+</div>
+<div class="math block">
+\log p_{\text{old}}=-4,
+</div>
+<p>calculate the policy ratio.</p>
+<div class="math block">
+r=e^{-3-(-4)}
+=e^1
+</div>
+<div class="math block">
+\boxed{r=2.718}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-51">36. Level 2 exam numerical</h3>
+<p>Given:</p>
+<div class="math block">
+r=1.8
+</div>
+<p>and:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>calculate:</p>
+<div class="math block">
+r_{\text{clip}}.
+</div>
+<p>Allowed range:</p>
+<div class="math block">
+[0.8,1.2].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{r_{\text{clip}}=1.2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-52">37. Level 3 exam numerical</h3>
+<p>Given:</p>
+<div class="math block">
+A=2,
+\qquad
+r=1.8,
+\qquad
+\epsilon=0.2.
+</div>
+<p>Unclipped:</p>
+<div class="math block">
+rA=1.8(2)=3.6.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(2)=2.4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\min(3.6,2.4)
+=
+\boxed{2.4}.
+</div>
+<p>The huge update is limited.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-53">38. Level 3 negative-advantage numerical</h3>
+<p>Given:</p>
+<div class="math block">
+A=-2,
+\quad
+r=0.5,
+\quad
+\epsilon=0.2.
+</div>
+<p>Clipped ratio:</p>
+<div class="math block">
+0.8.
+</div>
+<p>Unclipped:</p>
+<div class="math block">
+0.5(-2)=-1.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+0.8(-2)=-1.6.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\min(-1,-1.6)
+=
+\boxed{-1.6}.
+</div>
+<p>This negative-advantage case is exactly why you should not casually reason about clipping without considering the sign of <span class="math inline">A</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-54">39. Level 4 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=4,\quad G=8,\quad T=256.
+</div>
+<p>Then:</p>
+<div class="math block">
+A\in\mathbb R^{4\times8}.
+</div>
+<p>Old logprobs:</p>
+<div class="math block">
+[4,8,256].
+</div>
+<p>New logprobs:</p>
+<div class="math block">
+[4,8,256].
+</div>
+<p>Ratios:</p>
+<div class="math block">
+[4,8,256].
+</div>
+<p>After token-wise loss reduction, the final policy loss is:</p>
+<div class="math block">
+\boxed{\text{one scalar}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-55">40. The most important distinction so far</h3>
+<p>We now have <strong>three different quantities</strong>:</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-56">Reward</h5>
+<div class="math block">
+\boxed{R_i}
+</div>
+<p>answers:</p>
+<blockquote>
+<p>Was the rollout successful?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-57">Advantage</h5>
+<div class="math block">
+\boxed{A_i}
+</div>
+<p>answers:</p>
+<blockquote>
+<p>Was this rollout better or worse than the other rollouts for this prompt?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-58">Policy ratio</h5>
+<div class="math block">
+\boxed{r_i}
+</div>
+<p>answers:</p>
+<blockquote>
+<p>How much did the current policy change its probability relative to the old policy?</p>
+</blockquote>
+<p>These are not interchangeable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-59">41. Put all three together</h3>
+<p>The learning signal is:</p>
+<div class="math block">
+A_i.
+</div>
+<p>The current-vs-old policy movement is:</p>
+<div class="math block">
+r_i.
+</div>
+<p>The clipped objective combines them:</p>
+<div class="math block">
+\boxed{
+\min(r_iA_i,\operatorname{clip}(r_i)A_i)
+}
+</div>
+<p>This one expression is the bridge between:</p>
+<div class="math block">
+\boxed{\text{relative reward}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{stable policy update}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-60">42. The hierarchy of objectives</h3>
+<p>We have now built three increasingly sophisticated levels:</p>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-61">Level 1 — basic RL idea</h5>
+<div class="math block">
+\boxed{
+R\log\pi
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-62">Level 2 — relative GRPO signal</h5>
+<div class="math block">
+\boxed{
+A\log\pi
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-63">Level 3 — clipped objective</h5>
+<div class="math block">
+\boxed{
+\min(rA,\operatorname{clip}(r)A)
+}
+</div>
+<p>Then the next step adds another constraint:</p>
+<div class="math block">
+\boxed{\text{KL regularization against a reference model}}
+</div>
+<p>which prevents the policy from drifting too far from a chosen reference distribution.</p>
+<p>The source introduces that in Chapter 7 immediately after clipped ratios. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-5-i46-64">43. Final mental picture for Step 5.5</h3>
+<pre><code class="language-text">                 REWARDS
+                    │
+                    ▼
+               ADVANTAGES
+                    │
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+   OLD LOGPROB             NEW LOGPROB
+        │                       │
+        └───────────┬───────────┘
+                    ▼
+        ratio = exp(new - old)
+                    │
+                    ▼
+                 clip
+                    │
+                    ▼
+        min(ratio × advantage,
+            clipped × advantage)
+                    │
+                    ▼
+               POLICY LOSS
+                    │
+                    ▼
+               BACKPROP
+                    │
+                    ▼
+              UPDATE POLICY
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-5-i46-65">Step 5.5 master equations</h4>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-66">Policy ratio</h5>
+<div class="math block">
+\boxed{
+r_i(\theta)
+=
+\frac{\pi_\theta(o_i\mid q)}
+{\pi_{\theta_{\mathrm{old}}}(o_i\mid q)}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-67">Log-prob implementation</h5>
+<div class="math block">
+\boxed{
+r_i
+=
+\exp(
+\log p_i^{\text{new}}
+-
+\log p_i^{\text{old}}
+)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-68">Clipped ratio</h5>
+<div class="math block">
+\boxed{
+r_i^{\text{clip}}
+=
+\operatorname{clip}
+(r_i,1-\epsilon,1+\epsilon)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-5-i46-69">Clipped policy objective</h5>
+<div class="math block">
+\boxed{
+L_{\text{clip}}
+=
+-
+\mathbb E
+\left[
+\min
+\left(
+r_iA_i,\,
+r_i^{\text{clip}}A_i
+\right)
+\right]
+}
+</div>
+<p>The source's actual worked example gives:</p>
+<div class="math block">
+\boxed{
+r=[20.0855,1.2214,0.1353,1.0]
+}
+</div>
+<div class="math block">
+\boxed{
+r_{\text{clip}}=[11,1.2214,0.1353,1.0]
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+L_{\text{clip}}=-2.3998
+}
+</div>
+<p>compared with:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}=-2.5764.
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

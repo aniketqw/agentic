@@ -1,0 +1,964 @@
+<section class="chunk" id="chunk-les-step-5-2-i43" data-id="les-step-5-2-i43"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-2-i43"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-2-i43" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-reasoning">← Previous lesson</a> · <a href="#v3-minillm-optimization">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-1-i42">Step 5.1 — Why Reinforcement Learning for LLM Reasoning?</a></p><p><strong>This lesson:</strong> Step 5.2 — RL Mathematics From the Ground Up</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-2-i43"></a></p>
+<h2>Step 5.2 — RL Mathematics From the Ground Up</h2>
+<p><em>Plan node: I6 · chat order #43</em></p>
+<p>Now we build the mathematical bridge from:</p>
+<div class="math block">
+\boxed{\text{LLM probability}}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{\text{policy gradient}}
+</div>
+<p>and only after that will we derive GRPO.</p>
+<p>The source's Chapter 6 explicitly builds toward this sequence: generate rollouts → calculate rewards → compute advantages → score sequence log probabilities → construct the policy-gradient loss. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-2-i43-1">1. First: what exactly is the model doing?</h4>
+<p>Suppose our prompt is:</p>
+<blockquote>
+<p>Solve <span class="math inline">2x+5=17</span>.</p>
+</blockquote>
+<p>The LLM generates:</p>
+<div class="math block">
+y_1,y_2,\ldots,y_T.
+</div>
+<p>For example:</p>
+<pre><code class="language-text">Subtract 5
+→
+2x = 12
+→
+x = 6
+</code></pre>
+<p>At each step, the model has a probability distribution:</p>
+<div class="math block">
+\pi_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>Here:</p>
+<ul>
+<li><span class="math inline">x</span> = prompt</li>
+<li><span class="math inline">y_{&lt;t}</span> = tokens generated before step <span class="math inline">t</span></li>
+<li><span class="math inline">y_t</span> = current token</li>
+<li><span class="math inline">\theta</span> = model parameters</li>
+<li><span class="math inline">\pi_\theta</span> = policy</li>
+</ul>
+<p>So the LLM is a policy because it determines:</p>
+<div class="math block">
+\boxed{\text{probability of each possible next action}}
+</div>
+<p>The source describes the policy as the LLM's probability distribution over next tokens. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-2">2. State, action, policy</h3>
+<p>These three terms must become automatic.</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-3">State</h5>
+<p>At generation step <span class="math inline">t</span>:</p>
+<div class="math block">
+s_t=(x,y_1,\ldots,y_{t-1})
+</div>
+<p>This is everything the model currently sees.</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-4">Action</h5>
+<p>The model chooses:</p>
+<div class="math block">
+a_t=y_t.
+</div>
+<p>For an LLM, the action is therefore the next token.</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-5">Policy</h5>
+<p>The policy gives:</p>
+<div class="math block">
+\pi_\theta(a_t\mid s_t).
+</div>
+<p>For the LLM:</p>
+<div class="math block">
+\boxed{
+\pi_\theta(y_t\mid x,y_{&lt;t})
+}
+</div>
+<p>is simply its next-token probability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-6">3. A complete generated response is a trajectory</h3>
+<p>An RL trajectory is the sequence of actions taken.</p>
+<p>For an LLM:</p>
+<div class="math block">
+\tau=(y_1,y_2,\ldots,y_T).
+</div>
+<p>The model generates the trajectory autoregressively:</p>
+<div class="math block">
+P_\theta(y\mid x)
+=
+\prod_{t=1}^{T}
+\pi_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>This is just the chain rule of probability.</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-7">Why is this important?</h5>
+<p>Because RL evaluates the <strong>whole generated response</strong>, not merely one token.</p>
+<p>The probability of the entire response comes from multiplying the probabilities of all its token decisions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-8">4. Why do we take logarithms?</h3>
+<p>The product above can become extremely tiny.</p>
+<p>Suppose:</p>
+<div class="math block">
+p_1=0.5,\quad
+p_2=0.4,\quad
+p_3=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+P(y\mid x)
+=
+0.5(0.4)(0.2)
+=
+0.04.
+</div>
+<p>For a long sequence of hundreds or thousands of tokens, the product becomes numerically tiny.</p>
+<p>So we use:</p>
+<div class="math block">
+\log P_\theta(y\mid x).
+</div>
+<p>Using:</p>
+<div class="math block">
+\log(ab)=\log a+\log b,
+</div>
+<p>we obtain:</p>
+<div class="math block">
+\boxed{
+\log P_\theta(y\mid x)
+=
+\sum_{t=1}^{T}
+\log \pi_\theta(y_t\mid x,y_{&lt;t})
+}
+</div>
+<p>This is the <strong>sequence log probability</strong>, or <strong>sequence logprob</strong>.</p>
+<p>The source later explicitly scores rollouts using this quantity. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-9">5. Numerical example: sequence log probability</h3>
+<p>Suppose:</p>
+<div class="math block">
+p=[0.5,0.4,0.2].
+</div>
+<p>We already found:</p>
+<div class="math block">
+P(y\mid x)=0.04.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\log P(y\mid x)
+=
+\log(0.04).
+</div>
+<p>Using natural logarithm:</p>
+<div class="math block">
+\boxed{\log(0.04)\approx -3.219}
+</div>
+<p>Alternatively:</p>
+<div class="math block">
+\log(0.5)+\log(0.4)+\log(0.2)
+</div>
+<div class="math block">
+\approx
+-0.6931-0.9163-1.6094
+=
+-3.2188.
+</div>
+<p>Same result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-10">6. Reward enters after generation</h3>
+<p>Now suppose a verifier evaluates the response.</p>
+<p>For a math problem:</p>
+<div class="math block">
+R(y)=
+\begin{cases}
+1 &amp; \text{correct}\\
+0 &amp; \text{incorrect}
+\end{cases}
+</div>
+<p>The important point is:</p>
+<div class="math block">
+\boxed{
+\text{the model generates first, then receives reward}
+}
+</div>
+<p>The source uses exactly this RLVR setup for mathematical verification. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-11">7. Expected reward is what RL ultimately wants</h3>
+<p>Different random samples can produce different answers.</p>
+<p>Suppose the model has:</p>
+<div class="math block">
+70\%
+</div>
+<p>chance of generating a correct answer and:</p>
+<div class="math block">
+30\%
+</div>
+<p>chance of generating an incorrect answer.</p>
+<p>With reward:</p>
+<div class="math block">
+R=
+\begin{cases}
+1 &amp; \text{correct}\\
+0 &amp; \text{incorrect}
+\end{cases}
+</div>
+<p>the expected reward is:</p>
+<div class="math block">
+\mathbb E[R]
+=
+0.7(1)+0.3(0)
+=
+\boxed{0.7}.
+</div>
+<p>So the goal of policy optimization is conceptually:</p>
+<div class="math block">
+\boxed{
+\max_\theta\mathbb E_{\tau\sim\pi_\theta}[R(\tau)]
+}
+</div>
+<p>That is:</p>
+<blockquote>
+<p>Change the model parameters so that high-reward trajectories become more likely.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-12">8. Why can't we simply differentiate the reward?</h3>
+<p>This is a very important conceptual difficulty.</p>
+<p>Suppose:</p>
+<div class="math block">
+R(y)=1
+</div>
+<p>for correct and:</p>
+<div class="math block">
+R(y)=0
+</div>
+<p>for incorrect.</p>
+<p>The verifier is not necessarily differentiable with respect to the LLM weights.</p>
+<p>For example:</p>
+<pre><code class="language-text">LLM output
+   ↓
+&quot;answer = 42&quot;
+   ↓
+string parsing / execution / verifier
+   ↓
+0 or 1
+</code></pre>
+<p>There is no ordinary backpropagation path:</p>
+<div class="math block">
+R\rightarrow\nabla_\theta R.
+</div>
+<p>So we need a way to learn from the reward <strong>without differentiating through the environment/verifier</strong>.</p>
+<p>That is the role of the <strong>policy-gradient trick</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-13">9. Start with the objective</h3>
+<p>Define:</p>
+<div class="math block">
+J(\theta)
+=
+\mathbb E_{y\sim\pi_\theta}[R(y)].
+</div>
+<p>We want:</p>
+<div class="math block">
+\boxed{
+\max_\theta J(\theta)
+}
+</div>
+<p>Expand the expectation:</p>
+<div class="math block">
+J(\theta)
+=
+\sum_y
+\pi_\theta(y\mid x)R(y).
+</div>
+<p>Take the gradient:</p>
+<div class="math block">
+\nabla_\theta J(\theta)
+=
+\nabla_\theta
+\sum_y
+\pi_\theta(y\mid x)R(y).
+</div>
+<p>Since reward is treated as fixed with respect to the policy parameters during this calculation:</p>
+<div class="math block">
+=
+\sum_y
+R(y)\nabla_\theta\pi_\theta(y\mid x).
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-14">10. The log-derivative trick</h3>
+<p>Use:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta \pi_\theta
+=
+\pi_\theta\nabla_\theta\log\pi_\theta
+}
+</div>
+<p>because:</p>
+<div class="math block">
+\nabla_\theta\log\pi_\theta
+=
+\frac{1}{\pi_\theta}\nabla_\theta\pi_\theta.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\nabla_\theta J(\theta)
+=
+\sum_y
+R(y)\pi_\theta(y\mid x)
+\nabla_\theta\log\pi_\theta(y\mid x).
+</div>
+<p>Recognize the expectation:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta J(\theta)
+=
+\mathbb E_{y\sim\pi_\theta}
+\left[
+R(y)
+\nabla_\theta
+\log\pi_\theta(y\mid x)
+\right]
+}
+</div>
+<p>This is the core policy-gradient idea.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-15">11. Intuition behind the equation</h3>
+<p>Look at:</p>
+<div class="math block">
+R(y)\nabla_\theta\log\pi_\theta(y\mid x).
+</div>
+<p>Suppose:</p>
+<div class="math block">
+R(y)&gt;0.
+</div>
+<p>Then the sampled response was good.</p>
+<p>The update pushes:</p>
+<div class="math block">
+\log\pi_\theta(y\mid x)
+</div>
+<p>upward.</p>
+<p>So the model becomes more likely to produce it.</p>
+<p>Conversely, a lower-reward sample gets a weaker or negative learning signal.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{good sampled behavior}
+\rightarrow
+\text{increase its probability}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{bad sampled behavior}
+\rightarrow
+\text{decrease its probability}
+}
+</div>
+<p>That is the essence of policy gradient.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-16">12. Why the LLM uses sequence log probability</h3>
+<p>For a complete response:</p>
+<div class="math block">
+\log\pi_\theta(y\mid x)
+=
+\sum_t
+\log
+\pi_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\nabla_\theta
+\log\pi_\theta(y\mid x)
+=
+\sum_t
+\nabla_\theta
+\log
+\pi_\theta(y_t\mid x,y_{&lt;t}).
+</div>
+<p>So a reward assigned to the complete answer can influence the token-level decisions that created it.</p>
+<p>This is how a <strong>sequence-level reward</strong> gets converted into a learning signal for token probabilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-17">13. From reward to advantage</h3>
+<p>Raw reward alone is often not the best signal.</p>
+<p>Suppose four responses get:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>What do we really want to say?</p>
+<p>Not merely:</p>
+<pre><code class="language-text">response 1 → 1
+response 2 → 1
+response 3 → 0
+response 4 → 0
+</code></pre>
+<p>We want a <strong>relative</strong> signal:</p>
+<blockquote>
+<p>Which responses were better than the other responses generated for the same problem?</p>
+</blockquote>
+<p>This motivates the <strong>advantage</strong>.</p>
+<p>For the simplified GRPO setup in the source:</p>
+<div class="math block">
+\boxed{
+A_i
+=
+\frac{R_i-\mu}{\sigma+\epsilon}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\mu=\text{mean reward in the group}
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma=\text{standard deviation of rewards in the group}.
+</div>
+<p>The source explicitly implements group-relative reward normalization this way. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-18">14. Why subtract the mean?</h3>
+<p>Take:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=\frac{1+1+0+0}{4}
+=
+0.5.
+</div>
+<p>Subtract:</p>
+<div class="math block">
+R-\mu
+=
+[0.5,0.5,-0.5,-0.5].
+</div>
+<p>Now we immediately have:</p>
+<div class="math block">
+\boxed{\text{positive}=\text{better than group average}}
+</div>
+<div class="math block">
+\boxed{\text{negative}=\text{worse than group average}}
+</div>
+<p>That is what makes the signal <strong>relative</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-19">15. Compute the normalized advantages</h3>
+<p>For:</p>
+<div class="math block">
+[1,1,0,0],
+</div>
+<p>using sample standard deviation as in PyTorch, approximately:</p>
+<div class="math block">
+\sigma\approx0.577.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+A_1=A_2
+\approx
+\frac{0.5}{0.577}
+\approx0.866
+</div>
+<p>and:</p>
+<div class="math block">
+A_3=A_4
+\approx
+\frac{-0.5}{0.577}
+\approx-0.866.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+A=[0.866,0.866,-0.866,-0.866]
+}
+</div>
+<p>which matches the numerical GRPO example in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-20">16. This is the big conceptual leap</h3>
+<p>Before normalization:</p>
+<div class="math block">
+R=[1,1,0,0]
+</div>
+<p>After normalization:</p>
+<div class="math block">
+A=[+0.866,+0.866,-0.866,-0.866].
+</div>
+<p>Now the algorithm knows:</p>
+<pre><code class="language-text">Rollout 1 → reinforce
+Rollout 2 → reinforce
+Rollout 3 → suppress
+Rollout 4 → suppress
+</code></pre>
+<p>That is much more useful than simply saying:</p>
+<pre><code class="language-text">reward = 1
+reward = 0
+</code></pre>
+<p>The source explicitly describes this as converting binary verifier rewards into reinforcement and penalization signals. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-21">17. A critical GRPO property: relative, not absolute</h3>
+<p>Suppose all four responses are correct:</p>
+<div class="math block">
+R=[1,1,1,1].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_i-\mu=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+A=[0,0,0,0].
+</div>
+<p>The source explicitly notes that when all rewards in a group are equal, the advantages are all zero and no policy update occurs for that prompt. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because the group provides no information about <strong>which behavior was better</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-22">18. What happens when all responses are wrong?</h3>
+<p>Suppose:</p>
+<div class="math block">
+R=[0,0,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+A=[0,0,0,0].
+</div>
+<p>Again:</p>
+<div class="math block">
+\boxed{\text{no relative learning signal}}
+</div>
+<p>This is important because you do <strong>not</strong> want to reinforce some arbitrary wrong answer simply because it happened to be sampled.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-23">19. Now combine advantage and log probability</h3>
+<p>We have:</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-24">Advantage</h5>
+<div class="math block">
+A_i
+</div>
+<p>which tells us:</p>
+<blockquote>
+<p>How good was this rollout relative to its group?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-25">Log probability</h5>
+<div class="math block">
+\log \pi_\theta(y^{(i)}\mid x)
+</div>
+<p>which tells us:</p>
+<blockquote>
+<p>How much probability does the current model assign to this rollout?</p>
+</blockquote>
+<p>The source combines them into:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\frac{1}{N}
+\sum_{i=1}^{N}
+A_i
+\log\pi_\theta(y^{(i)}\mid x)
+}
+</div>
+<p>For the sequence version, the log probability expands into the sum over generated tokens. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-26">20. Why the minus sign?</h3>
+<p>Our RL objective naturally wants to <strong>maximize</strong>:</p>
+<div class="math block">
+A_i\log\pi_\theta(y^{(i)}\mid x).
+</div>
+<p>But PyTorch optimizers conventionally <strong>minimize a loss</strong>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\text{desired objective}
+}
+</div>
+<p>so minimizing <span class="math inline">L_{\text{PG}}</span> is equivalent to maximizing the desired RL objective.</p>
+<p>The source explicitly explains this sign flip. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-27">21. Numerical calculation of the policy-gradient loss</h3>
+<p>Take:</p>
+<div class="math block">
+A=[0.866,0.866,-0.866,-0.866].
+</div>
+<p>And suppose the sequence log probabilities are:</p>
+<div class="math block">
+[-7.9243,-20.1546,-16.6130,-23.3677].
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac{1}{4}
+\left[
+0.866(-7.9243)
++
+0.866(-20.1546)
++
+(-0.866)(-16.6130)
++
+(-0.866)(-23.3677)
+\right].
+</div>
+<p>Evaluating gives approximately:</p>
+<div class="math block">
+\boxed{-2.5764}
+</div>
+<p>which is the exact numerical result shown in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-28">22. Why do negative advantages work?</h3>
+<p>Take one good response:</p>
+<div class="math block">
+A=+0.866.
+</div>
+<p>Its log probability is negative because probabilities are below 1:</p>
+<div class="math block">
+\log p&lt;0.
+</div>
+<p>The optimizer sees:</p>
+<div class="math block">
+-(+0.866)\log p.
+</div>
+<p>Minimizing this encourages the log probability to become larger, meaning the probability increases.</p>
+<p>For a bad response:</p>
+<div class="math block">
+A=-0.866.
+</div>
+<p>Now:</p>
+<div class="math block">
+-(-0.866)\log p
+</div>
+<p>creates the opposite pressure.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+A&gt;0
+\Rightarrow
+\text{increase probability}
+}
+</div>
+<div class="math block">
+\boxed{
+A&lt;0
+\Rightarrow
+\text{decrease probability}
+}
+</div>
+<p>This is the mechanism you should visualize.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-29">23. Why do we use <code>detach()</code> on advantages?</h3>
+<p>The source's implementation contains:</p>
+<pre><code class="language-python">pg_loss = -(advantages.detach() * logps).mean()
+</code></pre>
+<p>Why?</p>
+<p>Because advantages are treated as fixed learning signals during the policy update.</p>
+<p>We do:</p>
+<div class="math block">
+\boxed{
+A=\text{constant for this optimization step}
+}
+</div>
+<p>rather than allowing gradients to flow through the reward/advantage calculation.</p>
+<p>The source explicitly explains that this prevents gradients from flowing back through the advantage computation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-30">24. The entire mathematical chain</h3>
+<p>Now you can see the whole construction:</p>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-31">Step 1 — generate</h5>
+<div class="math block">
+y^{(i)}
+\sim
+\pi_\theta(\cdot\mid x)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-32">Step 2 — verify</h5>
+<div class="math block">
+R_i=R(x,y^{(i)})
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-33">Step 3 — normalize</h5>
+<div class="math block">
+A_i
+=
+\frac{R_i-\mu}{\sigma+\epsilon}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-34">Step 4 — score the sequence</h5>
+<div class="math block">
+\log\pi_\theta(y^{(i)}\mid x)
+=
+\sum_t
+\log\pi_\theta(y_t^{(i)}\mid x,y_{&lt;t}^{(i)})
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-35">Step 5 — policy loss</h5>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\frac{1}{N}
+\sum_i
+A_i
+\log\pi_\theta(y^{(i)}\mid x)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-36">Step 6 — backpropagation</h5>
+<div class="math block">
+\nabla_\theta L_{\text{PG}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-37">Step 7 — update</h5>
+<div class="math block">
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L_{\text{PG}}
+</div>
+<p>This is the simplified GRPO foundation used in Chapter 6.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-38">25. Tensor shapes</h3>
+<p>This becomes important when you implement it.</p>
+<p>Suppose:</p>
+<div class="math block">
+B=\text{batch size}
+</div>
+<p>and:</p>
+<div class="math block">
+G=\text{number of rollouts per prompt}.
+</div>
+<p>Rewards:</p>
+<div class="math block">
+\boxed{
+R\in\mathbb R^{B\times G}
+}
+</div>
+<p>Advantages:</p>
+<div class="math block">
+\boxed{
+A\in\mathbb R^{B\times G}
+}
+</div>
+<p>Suppose generated response length is <span class="math inline">T</span>.</p>
+<p>Per-token log probabilities:</p>
+<div class="math block">
+\boxed{
+\log p\in\mathbb R^{B\times G\times T}
+}
+</div>
+<p>For sequence-level log probability:</p>
+<div class="math block">
+\log P(y\mid x)
+=
+\sum_{t=1}^{T}\log p_t
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+\log P\in\mathbb R^{B\times G}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+A\odot\log P
+</div>
+<p>also has shape:</p>
+<div class="math block">
+\boxed{
+[B,G]
+}
+</div>
+<p>and finally mean over the rollout dimensions gives a scalar loss.</p>
+<p>The source later shows the full clipped implementation using shapes <code>[batch_size, group_size, tokens]</code> for token log probabilities and <code>[batch_size, group_size]</code> for advantages. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-39">26. Level 1 exam numerical</h3>
+<p>Rewards:</p>
+<div class="math block">
+[1,0,1,0]
+</div>
+<p>Calculate the mean.</p>
+<div class="math block">
+\mu=
+\frac{1+0+1+0}{4}
+=
+\boxed{0.5}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-40">27. Level 2 exam numerical</h3>
+<p>Using:</p>
+<div class="math block">
+R=[1,0,1,0]
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma\approx0.577,
+</div>
+<p>calculate:</p>
+<div class="math block">
+A_i=\frac{R_i-0.5}{0.577}.
+</div>
+<p>For reward 1:</p>
+<div class="math block">
+A=\frac{0.5}{0.577}
+\approx\boxed{0.866}.
+</div>
+<p>For reward 0:</p>
+<div class="math block">
+A=\frac{-0.5}{0.577}
+\approx\boxed{-0.866}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+A=[0.866,-0.866,0.866,-0.866]
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-41">28. Level 3 exam numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=[1,-1]
+</div>
+<p>and:</p>
+<div class="math block">
+\log p=[-2,-4].
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+-\frac{1}{2}
+[
+(1)(-2)+(-1)(-4)
+].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L
+=
+-\frac{1}{2}(-2+4)
+</div>
+<div class="math block">
+=
+\boxed{-1}.
+</div>
+<p>The positive-advantage response is encouraged, while the negative-advantage response is discouraged.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-42">29. Level 4 tensor numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=8,\qquad G=4,\qquad T=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{rewards shape}=[8,4]
+</div>
+<div class="math block">
+\text{advantages shape}=[8,4]
+</div>
+<div class="math block">
+\text{token logprobs shape}=[8,4,128].
+</div>
+<p>After summing token log probabilities:</p>
+<div class="math block">
+[8,4,128]
+\rightarrow
+[8,4].
+</div>
+<p>Then multiply:</p>
+<div class="math block">
+[8,4]\odot[8,4]
+\rightarrow
+[8,4].
+</div>
+<p>Mean:</p>
+<div class="math block">
+[8,4]\rightarrow\boxed{\text{scalar}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-43">30. One major warning before GRPO</h3>
+<p>The equation we have derived:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac1N\sum_i A_i\log\pi_\theta(y_i|x)
+</div>
+<p>is the <strong>simplified policy-gradient objective used in Chapter 6</strong>.</p>
+<p>The source deliberately postpones two important stabilizing mechanisms:</p>
+<div class="math block">
+\boxed{\text{clipped policy ratios}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{KL regularization}}
+</div>
+<p>until Chapter 7. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So do <strong>not</strong> mentally replace today's equation with the full modern GRPO equation yet.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-2-i43-44">31. The key picture to memorize</h3>
+<pre><code class="language-text">                 PROMPT
+                    │
+                    ▼
+             Current LLM πθ
+                    │
+           sample multiple
+              rollouts
+                    │
+                    ▼
+          y1, y2, ..., yG
+                    │
+                    ▼
+               Verifier
+                    │
+                    ▼
+             Rewards R1...RG
+                    │
+                    ▼
+          Normalize within group
+                    │
+                    ▼
+          Advantages A1...AG
+                    │
+                    ▼
+      Sequence log probabilities
+                    │
+                    ▼
+       - mean(A × log probability)
+                    │
+                    ▼
+              Backprop
+                    │
+                    ▼
+            Update θ
+</code></pre>
+<p>This is the mathematical skeleton of the RLVR→GRPO pipeline. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-2-i43-45">The three equations you should now know</h4>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-46">Sequence probability</h5>
+<div class="math block">
+\boxed{
+P_\theta(y\mid x)
+=
+\prod_t
+\pi_\theta(y_t\mid x,y_{&lt;t})
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-47">Sequence log probability</h5>
+<div class="math block">
+\boxed{
+\log P_\theta(y\mid x)
+=
+\sum_t
+\log\pi_\theta(y_t\mid x,y_{&lt;t})
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-2-i43-48">Simplified GRPO policy-gradient loss</h5>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\frac1N
+\sum_i
+A_i\log P_\theta(y^{(i)}\mid x)
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\mu}{\sigma+\epsilon}
+}
+</div>
+<p>These four equations form the bridge from <strong>RL theory to GRPO implementation</strong>. <em>(Source: Build a DeepSeek Model (From Scratch); Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

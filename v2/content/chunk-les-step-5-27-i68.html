@@ -1,0 +1,1161 @@
+<section class="chunk" id="chunk-les-step-5-27-i68" data-id="les-step-5-27-i68"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-27-i68"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-27-i68" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-26-i67">← Previous lesson</a> · <a href="#chunk-les-step-5-28-i69">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-26-i67">Step 5.26 — Indic Language Benchmarks: Why IndicXTREME Exists</a></p><p><strong>This lesson:</strong> Step 5.27 — IndicCorp v2: Building the Indic Pretraining Corpus</p><p><strong>Source references:</strong> <a href="#source-3">indicxtreme-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-27-i68"></a></p>
+<h2>Step 5.27 — IndicCorp v2: Building the Indic Pretraining Corpus</h2>
+<p><em>Plan node: I10 · chat order #68</em></p>
+<p>Now we go through <strong>IndicCorp v2 from raw web sources to the final 20.9B-token corpus</strong>, exactly in the order of the supplied deck.</p>
+<p>The central pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{Discover sources}
+\rightarrow
+\text{Human verify}
+\rightarrow
+\text{Crawl}
+\rightarrow
+\text{Language filter}
+\rightarrow
+\text{Script filter}
+\rightarrow
+\text{Punctuation/length filter}
+\rightarrow
+\text{Offensive-content filter}
+\rightarrow
+\text{Deduplicate}
+\rightarrow
+20.9B\text{ tokens}
+}
+</div>
+<p>The important idea is that <strong>large-scale web collection is not treated as “just scrape everything.”</strong> The corpus uses a quality gate before crawling and multiple automatic cleaning stages afterward. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-1">5.27.1 First: what is IndicCorp v2?</h3>
+<p>IndicCorp v2 is the <strong>pretraining corpus</strong> component of the overall Indic work.</p>
+<p>The deck describes it as:</p>
+<div class="math block">
+\boxed{20.9\text{B tokens}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{24\text{ languages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{4\text{ language families}}.
+</div>
+<p>Its purpose is to provide substantially better Indic-language monolingual pretraining data. <em>(Source: indicxtreme-slides)</em></p>
+<p>Remember the separation:</p>
+<div class="math block">
+\boxed{
+\text{IndicCorp}=\text{training data}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}=\text{evaluation benchmark}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{IndicBERT v2}=\text{model trained on IndicCorp and evaluated on IndicXTREME}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-2">5.27.2 Step 1 — Find good source websites</h3>
+<p>The first question is:</p>
+<blockquote>
+<p>Where should the text come from?</p>
+</blockquote>
+<p>The deck says the corpus prioritizes <strong>clean, diverse text</strong>, and therefore chooses <strong>news articles as the primary source</strong>.</p>
+<p>This is a deliberate departure from generic web corpora such as:</p>
+<div class="math block">
+\boxed{\text{CC-100}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{mC4}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-3">5.27.3 Why news?</h3>
+<p>Think about the alternatives.</p>
+<p>A generic CommonCrawl-style dump may contain:</p>
+<div class="math block">
+\text{forums}
++
+\text{blogs}
++
+\text{spam}
++
+\text{machine-generated pages}
++
+\text{duplicated pages}
++
+\text{navigation text}
++
+\text{advertising}
++
+\text{clean articles}.
+</div>
+<p>A news source is much more likely to provide structured natural-language prose.</p>
+<p>So the corpus construction process deliberately prioritizes:</p>
+<div class="math block">
+\boxed{
+\text{high-quality source domains}
+}
+</div>
+<p>rather than simply maximizing raw token count.</p>
+<p>This is source-derived from the deck; the expanded list of typical web-noise categories is explanatory context.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-4">5.27.4 Step 2 — Discover new sources</h3>
+<p>The researchers did not rely only on existing IndicCorp v1 sources.</p>
+<p>The deck says new sources were found using:</p>
+<div class="math block">
+\boxed{\text{news repositories}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{automatic web search}}.
+</div>
+<p>The search queries are generated from <strong>frequent words in the target language</strong>. Retrieved pages are then inspected to identify candidate source URLs. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-5">5.27.5 Why use frequent words as search queries?</h3>
+<p>Suppose the target language is Hindi.</p>
+<p>A corpus builder can obtain frequent Hindi words and use them as search queries.</p>
+<p>Conceptually:</p>
+<div class="math block">
+w_1,w_2,\ldots,w_k
+</div>
+<p>are frequent words.</p>
+<p>Then:</p>
+<div class="math block">
+w_i
+\rightarrow
+\text{search engine}
+\rightarrow
+\text{candidate pages}
+\rightarrow
+\text{candidate source domains}.
+</div>
+<p>This increases the chance of discovering websites that actually publish text in the target language.</p>
+<p>The deck emphasizes that this discovery stage is noisy. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-6">5.27.6 Why is source discovery noisy?</h3>
+<p>Because a page retrieved using a language-specific word does not guarantee:</p>
+<div class="math block">
+\boxed{
+\text{clean Indic-language text}
+}.
+</div>
+<p>A retrieved URL might contain:</p>
+<div class="math block">
+\text{offensive content}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{machine-generated content}.
+</div>
+<p>So the researchers need another stage:</p>
+<div class="math block">
+\boxed{
+\text{human verification}
+}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-7">5.27.7 Step 3 — Human verification before crawling</h3>
+<p>This is one of the most important design decisions.</p>
+<p>Before crawling a candidate site:</p>
+<div class="math block">
+\boxed{
+\text{a human checks the URL}
+}
+</div>
+<p>The annotator visits the candidate URL and verifies that it is:</p>
+<ol>
+<li>a genuine website,</li>
+<li>containing clean data,</li>
+<li>in the language of interest.</li>
+</ol>
+<p>Only verified URLs are then passed to the web-crawling system. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-8">5.27.8 Why verify the URL before crawling?</h3>
+<p>Because crawling is expensive.</p>
+<p>Imagine discovering:</p>
+<div class="math block">
+100,000
+</div>
+<p>candidate websites.</p>
+<p>Suppose many are:</p>
+<div class="math block">
+\text{spam}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{wrong language}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{machine-generated}.
+</div>
+<p>If you crawl everything first and clean it later, you waste:</p>
+<div class="math block">
+\boxed{\text{crawl bandwidth + storage + processing}}
+</div>
+<p>on obviously bad sources.</p>
+<p>So IndicCorp inserts a quality gate early:</p>
+<div class="math block">
+\boxed{
+\text{candidate URL}
+\rightarrow
+\text{human verification}
+\rightarrow
+\text{crawl}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\text{candidate URL}
+\rightarrow
+\text{crawl everything}
+\rightarrow
+\text{huge cleanup}.
+</div>
+<p>The deck explicitly identifies this as the distinction in the “Verified source URLs” row compared with CC-100 and mC4. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-9">5.27.9 How aggressive is this gate?</h3>
+<p>Across languages:</p>
+<div class="math block">
+\boxed{1\%-33\%}
+</div>
+<p>of candidate URLs are discarded as noisy.</p>
+<p>So different languages have different source quality.</p>
+<p>That itself is informative.</p>
+<p>A language with:</p>
+<div class="math block">
+1\%
+</div>
+<p>rejection is very different from one with:</p>
+<div class="math block">
+33\%
+</div>
+<p>rejection.</p>
+<p>The exact language-by-language values are not given on this slide, only the overall range. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-10">5.27.10 Numerical example — URL verification</h3>
+<p>Suppose:</p>
+<div class="math block">
+10,000
+</div>
+<p>candidate URLs are collected.</p>
+<p>If:</p>
+<div class="math block">
+20\%
+</div>
+<p>are rejected, then:</p>
+<div class="math block">
+10,000\times0.20
+=
+\boxed{2,000}
+</div>
+<p>URLs are rejected.</p>
+<p>Accepted:</p>
+<div class="math block">
+10,000-2,000
+=
+\boxed{8,000}.
+</div>
+<p>This is an illustrative calculation; the actual slide gives a rejection range of 1–33%, not this specific 20% example. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-11">5.27.11 Step 4 — Crawl the verified sources</h3>
+<p>Once URLs pass human review, they are handed to the:</p>
+<div class="math block">
+\boxed{\text{open-source webcorpus toolkit}}
+</div>
+<p>for crawling. <em>(Source: indicxtreme-slides)</em></p>
+<p>So the sequence is:</p>
+<div class="math block">
+\boxed{
+\text{Search}
+\rightarrow
+\text{Candidate URL}
+\rightarrow
+\text{Human verification}
+\rightarrow
+\text{Web crawl}
+}
+</div>
+<p>This separation is very important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-12">5.27.12 Why not make the entire pipeline human?</h3>
+<p>Because the corpus is:</p>
+<div class="math block">
+\boxed{20.9\text{ billion tokens}}
+</div>
+<p>which is far too large for full manual inspection.</p>
+<p>So the design is hybrid:</p>
+<div class="math block">
+\boxed{
+\text{human supervision at strategic quality gates}
+}
+</div>
+<p>plus:</p>
+<div class="math block">
+\boxed{
+\text{automatic large-scale filtering}
+}.
+</div>
+<p>This pattern appears repeatedly throughout the Indic work.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-13">5.27.13 Step 5 — Language Identification (LID)</h3>
+<p>After crawling, the raw text needs to be checked for language.</p>
+<p>The deck says paragraph-level language filtering is performed using:</p>
+<div class="math block">
+\boxed{\text{cld3}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{langdetect}}
+</div>
+<p>in parallel. <em>(Source: indicxtreme-slides)</em></p>
+<p>So conceptually:</p>
+<div class="math block">
+\text{paragraph}
+\rightarrow
+\begin{cases}
+\text{cld3}\\
+\text{langdetect}
+\end{cases}
+\rightarrow
+\text{language decision}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-14">5.27.14 Why use two language-ID tools?</h3>
+<p>The deck's reason is practical rather than theoretical:</p>
+<div class="math block">
+\boxed{
+\text{one tool has language-specific limitations}
+}
+</div>
+<p>It notes that cld3 misses:</p>
+<div class="math block">
+\boxed{\text{Assamese and Oriya}}
+</div>
+<p>and that neither of the two tools supports:</p>
+<div class="math block">
+\boxed{\text{Bodo and Dogri}}.
+</div>
+<p>Therefore LID filtering is skipped for Bodo and Dogri. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a very useful data-engineering lesson:</p>
+<div class="math block">
+\boxed{
+\text{automation is only as good as its coverage on the target population}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-15">5.27.15 Why is skipping LID for Bodo and Dogri not necessarily a contradiction?</h3>
+<p>Because a filter that cannot correctly recognize the language could be worse than not applying it.</p>
+<p>Suppose the true language is:</p>
+<div class="math block">
+L.
+</div>
+<p>If the detector doesn't support <span class="math inline">L</span>, then applying its output may cause systematic false rejection.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{unsupported detector}
+\rightarrow
+\text{do not blindly trust detector output}
+}
+</div>
+<p>The deck specifically says LID filtering is skipped for Bodo and Dogri. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-16">5.27.16 Step 6 — Script-based cleaning</h3>
+<p>Language identification alone isn't enough.</p>
+<p>A page can still contain:</p>
+<div class="math block">
+\text{Indic text}
++
+\text{English phrases}
++
+\text{Latin transliteration}.
+</div>
+<p>Therefore the next filter checks the proportion of characters written in the language's native script.</p>
+<p>The deck uses a threshold:</p>
+<div class="math block">
+\boxed{0.75}.
+</div>
+<p>A sentence is dropped if:</p>
+<div class="math block">
+\boxed{
+\frac{\text{native-script characters}}
+{\text{total characters}}
+&lt;0.75
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>This formula is a direct expression of the threshold described by the slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-17">5.27.17 Numerical example — script threshold</h3>
+<p>Suppose a sentence contains:</p>
+<div class="math block">
+200
+</div>
+<p>characters.</p>
+<p>Of these:</p>
+<div class="math block">
+150
+</div>
+<p>are in the native script.</p>
+<p>Then:</p>
+<div class="math block">
+\frac{150}{200}
+=
+0.75.
+</div>
+<p>So it is:</p>
+<div class="math block">
+\boxed{\text{not dropped under the stated }&lt;0.75\text{ rule}}
+</div>
+<p>because the fraction is exactly 0.75, not below 0.75.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-18">5.27.18 Another example</h3>
+<p>Suppose:</p>
+<div class="math block">
+200
+</div>
+<p>characters total and:</p>
+<div class="math block">
+140
+</div>
+<p>native-script characters.</p>
+<p>Then:</p>
+<div class="math block">
+\frac{140}{200}
+=
+0.70.
+</div>
+<p>Because:</p>
+<div class="math block">
+0.70&lt;0.75,
+</div>
+<p>the sentence is:</p>
+<div class="math block">
+\boxed{\text{dropped}}.
+</div>
+<p>Excellent exam-style threshold question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-19">5.27.19 Why use a script threshold?</h3>
+<p>Because a sentence can technically pass language identification while still being dominated by another script.</p>
+<p>For example:</p>
+<pre><code class="language-text">Indic-language words + English terminology + transliteration
+</code></pre>
+<p>could produce a misleadingly mixed corpus.</p>
+<p>The script threshold therefore improves:</p>
+<div class="math block">
+\boxed{
+\text{language-pure text quality}
+}.
+</div>
+<p>That is the purpose described by the slide. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-20">5.27.20 Step 7 — Punctuation-based cleaning</h3>
+<p>Now punctuation is stripped from each sentence.</p>
+<p>Then the system asks:</p>
+<div class="math block">
+\boxed{
+\text{How many words remain?}
+}
+</div>
+<p>If the resulting content is shorter than:</p>
+<div class="math block">
+\boxed{10\text{ words}}
+</div>
+<p>the document is discarded entirely. <em>(Source: indicxtreme-slides)</em></p>
+<p>Notice the granularity:</p>
+<ul>
+<li>sentence-level punctuation stripping,</li>
+<li>document-level discard condition.</li>
+</ul>
+<p>That's easy to miss.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-21">5.27.21 Why strip punctuation?</h3>
+<p>Because punctuation and formatting can contribute noise to corpus statistics.</p>
+<p>The deck's pipeline uses this cleaning stage before deciding whether the remaining textual content is substantial enough.</p>
+<p>The specific 10-word threshold is source-derived. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-22">5.27.22 Numerical example — 10-word threshold</h3>
+<p>Suppose after punctuation stripping a document contains:</p>
+<div class="math block">
+8
+</div>
+<p>remaining words.</p>
+<p>Since:</p>
+<div class="math block">
+8&lt;10,
+</div>
+<p>it is:</p>
+<div class="math block">
+\boxed{\text{discarded}}.
+</div>
+<p>If it contains:</p>
+<div class="math block">
+10
+</div>
+<p>words:</p>
+<div class="math block">
+10&lt;10
+</div>
+<p>is false.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\text{it survives this particular threshold}}
+</div>
+<p>assuming it passes the other filters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-23">5.27.23 Why is this not just sentence filtering?</h3>
+<p>Because the slide explicitly says:</p>
+<blockquote>
+<p>if what remains is shorter than 10 words, the <strong>document</strong> is discarded entirely. <em>(Source: indicxtreme-slides)</em></p>
+</blockquote>
+<p>This is a useful exam trap.</p>
+<p>Do not accidentally write:</p>
+<div class="math block">
+\text{discard sentence if &lt;10 words}.
+</div>
+<p>The stated operation is:</p>
+<div class="math block">
+\boxed{
+\text{discard document if remaining content &lt;10 words}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-24">5.27.24 Step 8 — Offensive-content filtering</h3>
+<p>Now comes another important cleaning stage.</p>
+<p>Web-crawled Indic text can contain offensive material.</p>
+<p>The deck uses <strong>two blacklists</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-27-i68-25">Blacklist A — In-house list</h4>
+<p>Native annotators create an in-house list covering:</p>
+<div class="math block">
+\boxed{17\text{ languages}}
+</div>
+<p>with about:</p>
+<div class="math block">
+\boxed{90\text{ words/phrases per language}}
+</div>
+<p>and including some borderline expressions identified as contextually offensive by native speakers. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-27-i68-26">Blacklist B — NLLB list</h4>
+<p>A second independently released blacklist covers:</p>
+<div class="math block">
+\boxed{209\text{ languages}}.
+</div>
+<p>This is merged with the in-house list to widen coverage. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-27">5.27.25 Why use two lists?</h3>
+<p>Because one list has:</p>
+<div class="math block">
+\boxed{\text{deep native/context coverage}}
+</div>
+<p>for the 17 languages,</p>
+<p>while the other provides:</p>
+<div class="math block">
+\boxed{\text{much wider language coverage}}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{local expertise}
++
+\text{broad external coverage}
+}
+</div>
+<p>produces a stronger filtering mechanism.</p>
+<p>That interpretation follows the stated purposes of the two lists. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-28">5.27.26 How is the offensive filter applied?</h3>
+<p>The deck says:</p>
+<h5 id="v3-heading-chunk-les-step-5-27-i68-29">For a blacklisted word</h5>
+<p>Remove the sentence if the word occurs.</p>
+<h5 id="v3-heading-chunk-les-step-5-27-i68-30">For a blacklisted phrase</h5>
+<p>Remove the sentence if the <strong>whole phrase appears verbatim</strong>.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{blacklisted word}
+\rightarrow
+\text{remove sentence}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{blacklisted phrase appears verbatim}
+\rightarrow
+\text{remove sentence}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-31">5.27.27 The surprising scale effect</h3>
+<p>Before this offensive-content filter:</p>
+<div class="math block">
+\boxed{23.1\text{B tokens}}
+</div>
+<p>After:</p>
+<div class="math block">
+\boxed{20.9\text{B tokens}}.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+23.1-20.9
+=
+\boxed{2.2\text{B tokens}}.
+</div>
+<p>Percentage reduction:</p>
+<div class="math block">
+\frac{2.2}{23.1}\times100
+\approx
+\boxed{9.52\%}
+</div>
+<p>which the deck reports as:</p>
+<div class="math block">
+\boxed{9.5\%}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-32">5.27.28 Exam question — filtering percentage</h3>
+<p><strong>Question:</strong> A corpus contains 23.1B tokens before filtering and 20.9B after filtering. What percentage was removed?</p>
+<div class="math block">
+\frac{23.1-20.9}{23.1}\times100
+</div>
+<div class="math block">
+=
+\frac{2.2}{23.1}\times100
+</div>
+<div class="math block">
+\approx
+\boxed{9.52\%}
+</div>
+<p>So the reported:</p>
+<div class="math block">
+\boxed{9.5\%}
+</div>
+<p>is mathematically consistent.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-33">5.27.29 Step 9 — Deduplication</h3>
+<p>After the cleaning pipeline, the resulting corpus is <strong>deduplicated</strong>.</p>
+<p>This matters because web crawling often finds the same material multiple times.</p>
+<p>For example:</p>
+<div class="math block">
+D_1=D_2
+</div>
+<p>could happen because:</p>
+<ul>
+<li>multiple URLs mirror the same article,</li>
+<li>syndication duplicates content,</li>
+<li>crawlers encounter repeated copies.</li>
+</ul>
+<p>If duplicated text remains, a language model effectively sees:</p>
+<div class="math block">
+\boxed{
+\text{same evidence repeatedly}
+}
+</div>
+<p>which inflates the apparent dataset size.</p>
+<p>The deck reports the final corpus as <strong>de-duplicated</strong>. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-34">5.27.30 Final corpus</h3>
+<p>After these steps:</p>
+<div class="math block">
+\boxed{
+20.9\text{B tokens}
+}
+</div>
+<p>remain across:</p>
+<div class="math block">
+\boxed{
+24\text{ languages}
+}.
+</div>
+<p>This is IndicCorp v2. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-35">5.27.31 Compare with IndicCorp v1</h3>
+<p>IndicCorp v1:</p>
+<div class="math block">
+\boxed{
+8.79\text{B tokens}
+}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{
+12\text{ languages}
+}.
+</div>
+<p>IndicCorp v2:</p>
+<div class="math block">
+\boxed{
+20.9\text{B tokens}
+}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{
+24\text{ languages}
+}.
+</div>
+<p>So the token-scale ratio is:</p>
+<div class="math block">
+\frac{20.9}{8.79}
+\approx
+\boxed{2.38\times}.
+</div>
+<p>The deck states that the paper rounds this to approximately:</p>
+<div class="math block">
+\boxed{2.3\times}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-36">5.27.32 And language coverage doubled</h3>
+<p>V1:</p>
+<div class="math block">
+12
+</div>
+<p>languages.</p>
+<p>V2:</p>
+<div class="math block">
+24.
+</div>
+<p>So:</p>
+<div class="math block">
+\frac{24}{12}
+=
+\boxed{2\times}.
+</div>
+<p>This is a simple but useful observation from the reported figures.</p>
+<p>So the improvement is not merely:</p>
+<div class="math block">
+\boxed{\text{more text}}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{\text{broader language coverage}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-37">5.27.33 Hindi growth</h3>
+<p>The deck reports that Hindi alone grew:</p>
+<div class="math block">
+\boxed{3.28\times}
+</div>
+<p>from v1 to v2, with the paper rounding it to:</p>
+<div class="math block">
+\boxed{3.3\times}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>This shows why simply saying “the corpus grew 2.38×” is incomplete.</p>
+<p>Different languages experienced different growth.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-38">5.27.34 Low-resource tail</h3>
+<p>This is an extremely important observation.</p>
+<p>The bottom:</p>
+<div class="math block">
+\boxed{11}
+</div>
+<p>lowest-resource languages together contribute only:</p>
+<div class="math block">
+\boxed{1.08\text{B tokens}}.
+</div>
+<p>The deck explicitly contrasts this with Hindi alone. <em>(Source: indicxtreme-slides)</em></p>
+<p>So even within a corpus described as “Indic”:</p>
+<div class="math block">
+\boxed{
+\text{data distribution remains highly unequal}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-39">5.27.35 Numerical interpretation of the low-resource tail</h3>
+<p>The 11-language tail contributes:</p>
+<div class="math block">
+1.08\text{B}
+</div>
+<p>out of:</p>
+<div class="math block">
+20.9\text{B}.
+</div>
+<p>Fraction:</p>
+<div class="math block">
+\frac{1.08}{20.9}
+\approx
+0.0517.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{\approx5.17\%}
+</div>
+<p>of the total corpus is contributed by those bottom 11 languages.</p>
+<p>This is our derived calculation from the deck's reported numbers. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-40">5.27.36 Why this is important for the later benchmark results</h3>
+<p>This connects directly to what we'll eventually see.</p>
+<p>Even after creating a massive Indic corpus:</p>
+<div class="math block">
+20.9\text{B tokens}
+</div>
+<p>the data is still not evenly distributed.</p>
+<p>Therefore we should expect:</p>
+<div class="math block">
+\boxed{
+\text{resource-rich languages}
+&gt;
+\text{resource-poor languages}
+}
+</div>
+<p>in many downstream tasks.</p>
+<p>And indeed, later in the deck, the lowest-resource languages show sharp performance drops. <em>(Source: indicxtreme-slides)</em></p>
+<p>So the data-construction section isn't isolated.</p>
+<p>It explains the benchmark results we will study later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-41">5.27.37 Complete IndicCorp pipeline</h3>
+<p>Now memorize the architecture:</p>
+<pre><code class="language-text">Frequent-language words
+        │
+        ▼
+News repositories / Web search
+        │
+        ▼
+Candidate URLs
+        │
+        ▼
+Human URL verification
+        │
+        ▼
+Verified sources
+        │
+        ▼
+Web crawling
+        │
+        ▼
+Raw crawled text
+        │
+        ├──► Language ID
+        │      cld3 + langdetect
+        │
+        ├──► Native-script threshold
+        │      &gt;= 0.75
+        │
+        ├──► Punctuation stripping
+        │      document must retain &gt;= 10 words
+        │
+        ├──► Offensive-content filtering
+        │      in-house + NLLB lists
+        │
+        ▼
+Deduplication
+        │
+        ▼
+20.9B-token IndicCorp v2
+</code></pre>
+<p>The major stages and thresholds are directly from the supplied deck. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-42">5.27.38 What is human and what is automatic?</h3>
+<p>This is another exam-important classification.</p>
+<h5 id="v3-heading-chunk-les-step-5-27-i68-43">Human</h5>
+<div class="math block">
+\boxed{
+\text{source URL verification}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{creation of the in-house offensive blacklist}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-27-i68-44">Automatic</h5>
+<div class="math block">
+\boxed{
+\text{web crawling}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{LID}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{script filtering}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{punctuation/length filtering}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{blacklist filtering}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{deduplication}
+}
+</div>
+<p>The in-house blacklist itself comes from human annotators, while its application to text is automatic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-45">5.27.39 The underlying engineering philosophy</h3>
+<p>IndicCorp v2 follows a pattern:</p>
+<div class="math block">
+\boxed{
+\text{Human judgment where semantic quality is difficult}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{automation where scale is essential}
+}.
+</div>
+<p>Humans are good at answering:</p>
+<blockquote>
+<p>“Is this website actually a trustworthy source in the language?”</p>
+</blockquote>
+<p>Machines are good at applying:</p>
+<div class="math block">
+\text{millions/billions of repetitive filtering operations}.
+</div>
+<p>That hybrid architecture is one of the most important lessons from the corpus-construction section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-46">5.27.40 Exam-style Level 5 problem</h3>
+<p>Suppose a hypothetical crawl produces:</p>
+<div class="math block">
+10\text{B tokens}.
+</div>
+<p>After:</p>
+<ul>
+<li>LID filtering: 85% remain</li>
+<li>script filtering: 80% of the previous stage remains</li>
+<li>punctuation/length filtering: 90% remain</li>
+<li>offensive filtering: 90% remain</li>
+<li>deduplication: 95% remain</li>
+</ul>
+<p>Then final size is:</p>
+<div class="math block">
+10
+\times0.85
+\times0.80
+\times0.90
+\times0.90
+\times0.95
+</div>
+<div class="math block">
+=
+\boxed{5.2334\text{B tokens approximately}}.
+</div>
+<p>This is an illustrative multi-stage filtering problem, not an IndicCorp reported statistic.</p>
+<p>The exam lesson is:</p>
+<div class="math block">
+\boxed{
+\text{successive percentages multiply; they do not simply add}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-47">5.27.41 Another exam trap</h3>
+<p>Suppose:</p>
+<div class="math block">
+23.1\text{B}
+</div>
+<p>becomes:</p>
+<div class="math block">
+20.9\text{B}.
+</div>
+<p>Do <strong>not</strong> say:</p>
+<blockquote>
+<p>“The corpus lost 2.2%.”</p>
+</blockquote>
+<p>It lost:</p>
+<div class="math block">
+2.2\text{B tokens}
+</div>
+<p>and the <strong>percentage</strong> loss is:</p>
+<div class="math block">
+\boxed{9.5\%}.
+</div>
+<p>Always distinguish:</p>
+<div class="math block">
+\boxed{\text{absolute reduction}}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{\text{relative percentage reduction}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-48">5.27.42 Another exam trap: 0.75 threshold</h3>
+<p>The rule is:</p>
+<div class="math block">
+\text{drop if native-script fraction}&lt;0.75.
+</div>
+<p>So:</p>
+<div class="math block">
+0.749
+\rightarrow
+\boxed{\text{drop}}
+</div>
+<p>but:</p>
+<div class="math block">
+0.750
+\rightarrow
+\boxed{\text{keep under this particular rule}}.
+</div>
+<p>Because the inequality is <strong>strictly less than</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-49">5.27.43 Final mental model</h3>
+<p>You should now visualize IndicCorp v2 as:</p>
+<div class="math block">
+\boxed{
+\text{Discovery}
+}
+</div>
+<p>find candidate sources.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Human quality gate}
+}
+</div>
+<p>verify sources before crawling.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Web crawl}
+}
+</div>
+<p>collect massive raw text.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Automatic linguistic cleaning}
+}
+</div>
+<p>LID + script + length.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Safety/quality filtering}
+}
+</div>
+<p>offensive-content filtering.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Deduplication}
+}
+</div>
+<p>remove repeated material.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+20.9\text{B tokens / 24 languages}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-27-i68-50">5.27.44 The deepest lesson</h3>
+<p>The most important thing about IndicCorp is not:</p>
+<div class="math block">
+\boxed{20.9\text{B}}
+</div>
+<p>It is the <strong>pipeline philosophy</strong>:</p>
+<div class="math block">
+\boxed{
+\text{More data is not automatically better data}
+}
+</div>
+<p>A useful pretraining corpus must optimize:</p>
+<div class="math block">
+\boxed{
+\text{coverage}
++
+\text{quality}
++
+\text{language correctness}
++
+\text{script purity}
++
+\text{safety}
++
+\text{deduplication}
+}
+</div>
+<p>while still operating at billion-token scale.</p>
+<p>And there is a fundamental tension:</p>
+<div class="math block">
+\boxed{
+\text{corpus-wide scale}
+\quad\text{vs}\quad
+\text{low-resource language balance}
+}
+</div>
+<p>The final 20.9B-token corpus is much larger than v1, but the deck makes clear that its language distribution is still highly uneven. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-27-i68-51">Step 5.27 checkpoint</h4>
+<p>For an exam, you should be able to reproduce this without the slides:</p>
+<div class="math block">
+\boxed{
+\text{Search}
+\rightarrow
+\text{Human URL verification}
+\rightarrow
+\text{Crawl}
+\rightarrow
+\text{LID}
+\rightarrow
+\text{Script }(0.75)
+\rightarrow
+\text{Length }(10\text{ words})
+\rightarrow
+\text{Offensive filter}
+\rightarrow
+\text{Deduplicate}
+}
+</div>
+<p>and remember:</p>
+<div class="math block">
+\boxed{
+23.1B\rightarrow20.9B
+=
+2.2B\text{ removed}
+=
+9.5\%\text{ reduction}
+}
+</div>
+<div class="math block">
+\boxed{
+20.9/8.79\approx2.38\times
+}
+</div>
+<div class="math block">
+\boxed{
+24\text{ languages in IndicCorp v2}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{bottom 11 languages}=1.08B\text{ tokens}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+</section>

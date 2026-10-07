@@ -1,0 +1,559 @@
+<section class="chunk" id="chunk-les-r101-2-i114" data-id="les-r101-2-i114"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r101-2-i114"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r101-2-i114" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r101-1-i113">← Previous lesson</a> · <a href="#chunk-les-r101-3-i115">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r101-1-i113">R101.1 — Gradient Accumulation: Solving the GPU Memory Problem</a></p><p><strong>This lesson:</strong> R101.2 — Data Parallelism: Using Multiple GPUs to Make Training Faster</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r101-2-i114"></a></p>
+<h3 id="v3-heading-chunk-les-r101-2-i114-1">R101.2 — Data Parallelism: Using Multiple GPUs to Make Training Faster</h3>
+<p><em>Plan node: A5 · chat order #114</em></p>
+<p>We have just seen <strong>Gradient Accumulation</strong> solve one problem:</p>
+<div class="math block">
+\boxed{\text{GPU memory limitation}}
+</div>
+<p>But it creates a new realization:</p>
+<blockquote>
+<p>Even when we can fit the model and batch, training may still be too slow.</p>
+</blockquote>
+<p>The source now introduces <strong>Data Parallelism</strong> as the first major multi-GPU strategy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-2">1. The problem changes</h4>
+<p>Suppose one GPU can process:</p>
+<div class="math block">
+16\text{ samples}
+</div>
+<p>per training operation.</p>
+<p>With one GPU:</p>
+<pre><code class="language-text">GPU 0
+  ↓
+16 samples
+  ↓
+Forward
+  ↓
+Backward
+</code></pre>
+<p>Then it processes the next batch.</p>
+<p>So computation happens sequentially.</p>
+<p>The obvious question is:</p>
+<div class="math block">
+\boxed{
+\text{Can several GPUs process different data at the same time?}
+}
+</div>
+<p>Yes.</p>
+<p>That is the core idea of <strong>Data Parallelism</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-3">2. What does &quot;data parallel&quot; actually mean?</h4>
+<p>The key is:</p>
+<div class="math block">
+\boxed{
+\text{same model, different data}
+}
+</div>
+<p>Suppose we have four GPUs.</p>
+<p>We create:</p>
+<pre><code class="language-text">GPU 0 → Model copy 0
+GPU 1 → Model copy 1
+GPU 2 → Model copy 2
+GPU 3 → Model copy 3
+</code></pre>
+<p>Each model copy has the <strong>same parameters</strong>.</p>
+<p>But each GPU receives a different part of the batch:</p>
+<pre><code class="language-text">Global batch
+      │
+ ┌────┼────┬────┐
+ ▼    ▼    ▼    ▼
+GPU0 GPU1 GPU2 GPU3
+ 16   16   16   16
+</code></pre>
+<p>The source describes exactly this arrangement: split the batch across GPUs while each GPU holds an identical copy of the entire model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-4">3. What happens on each GPU?</h4>
+<p>Each GPU independently performs:</p>
+<div class="math block">
+\boxed{
+\text{Forward}
+\rightarrow
+\text{Loss}
+\rightarrow
+\text{Backward}
+}
+</div>
+<p>For example:</p>
+<pre><code class="language-text">GPU 0:
+data A → model → gradients A
+
+GPU 1:
+data B → model → gradients B
+
+GPU 2:
+data C → model → gradients C
+
+GPU 3:
+data D → model → gradients D
+</code></pre>
+<p>This happens <strong>in parallel</strong>.</p>
+<p>So rather than waiting for GPU 0 to finish before beginning GPU 1, all GPUs work simultaneously.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-5">4. But now we have a problem</h4>
+<p>Each GPU has calculated a different gradient.</p>
+<p>For example:</p>
+<div class="math block">
+g_0,\quad g_1,\quad g_2,\quad g_3.
+</div>
+<p>If GPU 0 updates using only <span class="math inline">g_0</span>, while GPU 1 updates using only <span class="math inline">g_1</span>, the models would start moving in different directions.</p>
+<p>Then:</p>
+<pre><code class="language-text">GPU 0 model ≠ GPU 1 model
+</code></pre>
+<p>which is not what we want.</p>
+<p>We want every GPU to apply the same global gradient.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-6">5. The solution: synchronize gradients</h4>
+<p>The source explains that after the local backward passes, gradients are:</p>
+<div class="math block">
+\boxed{\text{gathered, aggregated, and averaged}}
+</div>
+<p>across GPUs. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+g_{\text{global}}
+=
+\frac{
+g_0+g_1+g_2+g_3
+}{4}.
+</div>
+<p>Then every GPU uses:</p>
+<div class="math block">
+g_{\text{global}}
+</div>
+<p>to update its local model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-7">6. Full Data Parallel workflow</h4>
+<p>The source's conceptual workflow is:</p>
+<pre><code class="language-text">                 GLOBAL BATCH
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+        GPU 0       GPU 1       GPU 2 ... GPU N
+        Model       Model       Model
+        Copy 0      Copy 1      Copy 2
+          │           │           │
+          ▼           ▼           ▼
+      Forward     Forward     Forward
+          │           │           │
+          ▼           ▼           ▼
+      Backward    Backward    Backward
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+              Gradient averaging
+                      │
+                      ▼
+                 Same update
+                      │
+                      ▼
+             synchronized models
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-8">7. Why does this make training faster?</h4>
+<p>Suppose one GPU needs:</p>
+<div class="math block">
+T
+</div>
+<p>seconds to process its mini-batch.</p>
+<p>With four GPUs, four different mini-batches can be processed approximately simultaneously.</p>
+<p>Ideally:</p>
+<div class="math block">
+\boxed{
+\text{throughput}\approx4\times
+}
+</div>
+<p>compared with one GPU.</p>
+<p>The exact speedup will not be perfectly linear because communication and other overheads exist, but the source presents Data Parallelism as the direct &quot;more GPUs, less time&quot; approach. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-9">8. Very important: Data Parallelism does NOT make the model smaller</h4>
+<p>This is one of the most important interview points.</p>
+<p>Suppose the model requires:</p>
+<div class="math block">
+20\text{ GB}
+</div>
+<p>of memory.</p>
+<p>In 4-GPU data parallelism:</p>
+<pre><code class="language-text">GPU 0 → 20 GB model
+GPU 1 → 20 GB model
+GPU 2 → 20 GB model
+GPU 3 → 20 GB model
+</code></pre>
+<p>So the model is <strong>replicated</strong>.</p>
+<p>We have not split its parameters.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Data Parallelism solves throughput, not model-size memory.}
+}
+</div>
+<p>This distinction becomes crucial later when the source introduces Model Parallelism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-10">9. Two PyTorch approaches in the source</h4>
+<p>The source introduces two implementations:</p>
+<div class="math block">
+\boxed{\texttt{nn.DataParallel}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\texttt{nn.DistributedDataParallel}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{DP vs DDP}}.
+</div>
+<p>It describes DP as the older and simpler approach, while DDP is the modern industry-standard approach for serious large-scale training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We need to understand <strong>why</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-11">10. <code>nn.DataParallel</code> — the centralized design</h4>
+<p>Think of DP as:</p>
+<pre><code class="language-text">             Main GPU
+             GPU 0
+               │
+      ┌────────┼────────┐
+      ▼        ▼        ▼
+    GPU 1     GPU 2    GPU 3
+</code></pre>
+<p>GPU 0 acts as the central coordinator.</p>
+<p>The source gives a five-stage flow.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-12">11. DP Step 1 — Scatter</h4>
+<p>The full batch is initially loaded on the main GPU.</p>
+<p>Then GPU 0 scatters chunks of the batch to the other GPUs.</p>
+<p>For example:</p>
+<pre><code class="language-text">Full batch = 64
+
+GPU 0 → 16
+GPU 1 → 16
+GPU 2 → 16
+GPU 3 → 16
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-13">12. DP Step 2 — Parallel forward pass</h4>
+<p>Each GPU runs a forward pass using its local data chunk.</p>
+<pre><code class="language-text">GPU 0 → Forward(batch0)
+GPU 1 → Forward(batch1)
+GPU 2 → Forward(batch2)
+GPU 3 → Forward(batch3)
+</code></pre>
+<p>So far this looks good.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-14">13. DP Step 3 — Gather</h4>
+<p>Here is where the centralized design starts hurting.</p>
+<p>The outputs from the GPUs are sent back to GPU 0.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">GPU 1 ──┐
+GPU 2 ──┼──→ GPU 0
+GPU 3 ──┘
+</code></pre>
+<p>The source says the logits are gathered back to the main GPU. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-15">14. DP Step 4 — Centralized computation</h4>
+<p>GPU 0 now performs the centralized loss/backward work described by the source.</p>
+<p>So GPU 0 is handling much more responsibility:</p>
+<pre><code class="language-text">GPU 0:
+- receives the data
+- distributes the data
+- gathers outputs
+- computes centralized work
+- updates weights
+</code></pre>
+<p>while the other GPUs have a much simpler role.</p>
+<p>This creates the fundamental bottleneck.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-16">15. DP Step 5 — Replicate the updated model again</h4>
+<p>After GPU 0 updates its model, the newly updated model has to be replicated out to the other GPUs for the next forward pass.</p>
+<p>So the cycle becomes:</p>
+<pre><code class="language-text">GPU 0
+  ↓
+scatter
+  ↓
+other GPUs
+  ↓
+forward
+  ↓
+gather
+  ↓
+GPU 0
+  ↓
+update
+  ↓
+copy model again
+  ↓
+repeat
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-17">16. Why is DP bad for large-scale LLM training?</h4>
+<p>The source identifies two major problems.</p>
+<h6 id="v3-heading-chunk-les-r101-2-i114-18">Problem 1 — Central bottleneck</h6>
+<p>GPU 0 does substantially more work.</p>
+<h6 id="v3-heading-chunk-les-r101-2-i114-19">Problem 2 — Communication bottleneck</h6>
+<p>A lot of communication is funneled through one main GPU.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{poor load balance}
++
+\text{communication bottleneck}
+\Rightarrow
+\text{poor scalability}
+}
+</div>
+<p>The source consequently says DP is rarely used for modern large-scale training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-20">17. DP vs single GPU</h4>
+<p>Let's make the distinction very concrete.</p>
+<h6 id="v3-heading-chunk-les-r101-2-i114-21">Single GPU</h6>
+<pre><code class="language-text">Data
+ ↓
+GPU
+ ↓
+Model
+ ↓
+Gradient
+ ↓
+Update
+</code></pre>
+<h6 id="v3-heading-chunk-les-r101-2-i114-22">DataParallel</h6>
+<pre><code class="language-text">             GPU 0
+             / | \
+            /  |  \
+           ▼   ▼   ▼
+         GPU1 GPU2 GPU3
+            │
+            ▼
+         gather
+            │
+            ▼
+           GPU0
+            │
+          update
+</code></pre>
+<p>The multiple GPUs exist, but GPU 0 remains the boss.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-23">18. Why DDP is fundamentally different</h4>
+<p>The source introduces DDP as a decentralized model.</p>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{\text{one boss GPU}}
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{\text{peer GPUs}}
+</div>
+<p>Each GPU has:</p>
+<ul>
+<li>its own process,</li>
+<li>its own model copy,</li>
+<li>its own optimizer,</li>
+<li>its own data shard.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the key conceptual leap.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-24">19. DDP architecture</h4>
+<p>Instead of:</p>
+<pre><code class="language-text">           GPU 0
+          /     \
+       GPU 1    GPU 2
+                 |
+                GPU 3
+</code></pre>
+<p>think:</p>
+<pre><code class="language-text">GPU 0  ↔  GPU 1
+ ↕         ↕
+GPU 2  ↔  GPU 3
+</code></pre>
+<p>There is no central &quot;boss&quot; GPU.</p>
+<p>The source describes each GPU as an independent peer/process. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-25">20. DDP Step 1 — One process per GPU</h4>
+<p>Each GPU gets its own process.</p>
+<p>So with four GPUs:</p>
+<pre><code class="language-text">Process 0 → GPU 0
+Process 1 → GPU 1
+Process 2 → GPU 2
+Process 3 → GPU 3
+</code></pre>
+<p>Each process owns its local copy of the model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-26">21. DDP Step 2 — Shard the data</h4>
+<p>Each process gets its own unique data slice.</p>
+<p>So:</p>
+<pre><code class="language-text">Dataset
+   │
+   ├── Process 0 → shard 0
+   ├── Process 1 → shard 1
+   ├── Process 2 → shard 2
+   └── Process 3 → shard 3
+</code></pre>
+<p>There is no central GPU distributing the batch every iteration.</p>
+<p>The source uses <code>DistributedSampler</code> for this partitioning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-27">22. DDP Step 3 — Local forward + backward</h4>
+<p>Each process independently computes:</p>
+<div class="math block">
+L_0,L_1,L_2,L_3
+</div>
+<p>and:</p>
+<div class="math block">
+g_0,g_1,g_2,g_3.
+</div>
+<p>So:</p>
+<pre><code class="language-text">GPU 0 → local forward/backward
+GPU 1 → local forward/backward
+GPU 2 → local forward/backward
+GPU 3 → local forward/backward
+</code></pre>
+<p>Everything is happening in parallel.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-28">23. DDP Step 4 — All-Reduce</h4>
+<p>This is the heart of DDP.</p>
+<p>The source calls out <strong>All-Reduce</strong> as the core communication mechanism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+g_0,g_1,g_2,g_3
+</div>
+<p>are combined into:</p>
+<div class="math block">
+\boxed{
+g_{\text{avg}}
+=
+\frac{g_0+g_1+g_2+g_3}{4}
+}
+</div>
+<p>and every process ends up with the same averaged gradient.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-29">24. Why is All-Reduce better?</h4>
+<p>Because we no longer make GPU 0 do all the communication.</p>
+<p>Instead, the GPUs participate as peers.</p>
+<p>The source mentions efficient communication algorithms such as <strong>Ring-AllReduce</strong> and explains that communication can be overlapped with backward computation, hiding some communication latency. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+\text{better utilization}
++
+\text{less central bottleneck}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-30">25. DDP Step 5 — Every GPU updates locally</h4>
+<p>Once every GPU has the same averaged gradient:</p>
+<div class="math block">
+g_{\text{avg}},
+</div>
+<p>each process can independently execute:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p>because every GPU started with the same parameters and has the same gradient.</p>
+<p>Therefore:</p>
+<div class="math block">
+\theta_0'
+=
+\theta_1'
+=
+\theta_2'
+=
+\theta_3'.
+</div>
+<p>The replicas remain synchronized.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-31">26. This gives us the key DDP invariant</h4>
+<p>After synchronization:</p>
+<div class="math block">
+\boxed{
+\text{all model replicas have identical weights}
+}
+</div>
+<p>That invariant must continue after every optimizer update.</p>
+<p>Otherwise the replicas would diverge.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-32">27. DP vs DDP — the interview table</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>DataParallel (DP)</th>
+<th>DistributedDataParallel (DDP)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model copies</td>
+<td>One per GPU</td>
+<td>One per GPU</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>Centralized</td>
+<td>Decentralized</td>
+</tr>
+<tr>
+<td>Processes</td>
+<td>Central mechanism</td>
+<td>One process/GPU</td>
+</tr>
+<tr>
+<td>Data distribution</td>
+<td>Main GPU scatters</td>
+<td>Distributed sampler</td>
+</tr>
+<tr>
+<td>Gradient synchronization</td>
+<td>Centralized</td>
+<td>All-Reduce</td>
+</tr>
+<tr>
+<td>Main bottleneck</td>
+<td>Main GPU</td>
+<td>Much better balanced</td>
+</tr>
+<tr>
+<td>Scalability</td>
+<td>Poorer</td>
+<td>Much better</td>
+</tr>
+<tr>
+<td>Source's recommendation</td>
+<td>Older/simple</td>
+<td>Modern/industry-standard</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-2-i114-33">28. The most important distinction so far</h4>
+<p>Remember these three ideas:</p>
+<div class="math block">
+\boxed{
+\text{Gradient Accumulation}
+}
+</div>
+<p>means:</p>
+<blockquote>
+<p><strong>same GPU(s), process several small batches before one optimizer update.</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{Data Parallelism}
+}
+</div>
+<p>means:</p>
+<blockquote>
+<p><strong>replicate the model and split the data across GPUs.</strong></p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{Model Parallelism}
+}
+</div>
+<p>means:</p>
+<blockquote>
+<p><strong>split the model itself across GPUs.</strong></p>
+</blockquote>
+<p>The first two solve different bottlenecks.</p>
+<hr />
+</section>

@@ -1,0 +1,834 @@
+<section class="chunk" id="chunk-les-r102-8-i125" data-id="les-r102-8-i125"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-8-i125"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-8-i125" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r102-7-i124">← Previous lesson</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-19-i60">Step 5.19 — Limits of Distillation + Future Directions</a></p><p><strong>This lesson:</strong> R102.8 — Master Integration: From Transformer to DeepSeek-R1-Distill</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-11">deepseek-r1-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-8-i125"></a></p>
+<h3 id="v3-heading-chunk-les-r102-8-i125-1">R102.8 — Master Integration: From Transformer to DeepSeek-R1-Distill</h3>
+<p><em>Plan node: B4 · chat order #125</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a> · <a href="#les-step-5-19-i60">Step 5.19 — Limits of Distillation + Future Directions</a></p>
+</blockquote>
+<p>We have learned every major component separately. Now we need to <strong>connect them into one system</strong>.</p>
+<p>The source itself organizes the DeepSeek journey into four broad stages:</p>
+<div class="math block">
+\boxed{
+\text{KV Cache}
+\rightarrow
+\text{MLA + MoE}
+\rightarrow
+\text{MTP + FP8 + training}
+\rightarrow
+\text{RL + Distillation}
+}
+</div>
+<p>with the post-training path ultimately producing reasoning models and distilled students. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the point where memorizing individual definitions stops being enough. You should be able to answer:</p>
+<blockquote>
+<p><strong>Why was each component introduced, what bottleneck does it solve, and what component comes next because of it?</strong></p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-2">1. Start with an ordinary Transformer</h4>
+<p>We begin with:</p>
+<div class="math block">
+\text{tokens}
+\rightarrow
+\text{embeddings}
+\rightarrow
+\text{Transformer blocks}
+\rightarrow
+\text{logits}
+\rightarrow
+\text{next token}.
+</div>
+<p>The problem is that scaling a normal Transformer creates several different bottlenecks.</p>
+<p>Think of them as four separate engineering problems:</p>
+<div class="math block">
+\boxed{
+\begin{array}{ll}
+\text{Inference:} &amp; \text{KV-cache memory}\\
+\text{Model scaling:} &amp; \text{parameter/compute cost}\\
+\text{Training:} &amp; \text{memory + communication + throughput}\\
+\text{Post-training:} &amp; \text{reasoning + deployment}
+\end{array}}
+</div>
+<p>DeepSeek's innovations are easier to remember when attached to those problems.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-3">2. Problem 1 — Autoregressive inference</h4>
+<p>Suppose we have generated:</p>
+<pre><code class="language-text">The student studied machine learning ...
+</code></pre>
+<p>and want the next token.</p>
+<p>At every step, the query for the new token has to attend to all previous tokens.</p>
+<p>Without caching, we would repeatedly recompute old keys and values.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{KV Cache}
+}
+</div>
+<p>stores information from previous positions.</p>
+<p>Instead of:</p>
+<div class="math block">
+\text{recompute old K,V every step},
+</div>
+<p>we do:</p>
+<div class="math block">
+\text{compute new K,V once}
++
+\text{reuse cache}.
+</div>
+<p>That is the foundation for efficient autoregressive inference.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-4">3. But KV Cache creates another scaling problem</h4>
+<p>For conventional multi-head attention, the cache contains:</p>
+<div class="math block">
+K,V
+</div>
+<p>for every layer, every head, every previous token.</p>
+<p>Therefore, for long contexts:</p>
+<div class="math block">
+\boxed{\text{KV-cache memory grows with sequence length}}
+</div>
+<p>This leads directly to the next architectural idea.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-5">4. Problem 2 — Make the KV cache smaller</h4>
+<p>DeepSeek introduces:</p>
+<div class="math block">
+\boxed{\text{MLA — Multi-Head Latent Attention}}
+</div>
+<p>Instead of storing full key/value representations for every head, MLA compresses the content into a lower-dimensional latent representation.</p>
+<p>Conceptually:</p>
+<div class="math block">
+x
+\rightarrow
+c_{KV}
+\rightarrow
+\text{store latent}
+</div>
+<p>and during attention the necessary representations are reconstructed.</p>
+<p>Thus the key idea is:</p>
+<div class="math block">
+\boxed{
+\text{store a compact latent representation rather than full K,V}
+}
+</div>
+<p>The source explicitly describes MLA as targeting the attention memory/speed bottleneck, especially for long sequences. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-6">5. MLA has two kinds of information</h4>
+<p>This is one of the most important architectural ideas to retain.</p>
+<p>The source implementation separates:</p>
+<div class="math block">
+\boxed{\text{content}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{position}}
+</div>
+<p>paths.</p>
+<p>So conceptually:</p>
+<pre><code class="language-text">                     x
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+      content path          position path
+          │                     │
+      latent c_kv              RoPE
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+                   scores
+                     │
+                     ▼
+                  context
+</code></pre>
+<p>The source's Chapter 6 implementation caches:</p>
+<div class="math block">
+(c_{kv},k_r)
+</div>
+<p>rather than a conventional full <span class="math inline">K,V</span> pair.</p>
+<p>That is the actual implementation distinction we previously traced.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-7">6. Problem 3 — Scaling model capacity</h4>
+<p>Suppose we want a much larger model.</p>
+<p>A dense Transformer makes every token pass through the same large feed-forward network.</p>
+<p>That is expensive.</p>
+<p>DeepSeek-MoE changes the idea:</p>
+<div class="math block">
+\boxed{
+\text{many experts exist, but only a few are activated per token}
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+N=8,\qquad k=2
+</div>
+<p>means:</p>
+<div class="math block">
+\boxed{\text{8 available routed experts, 2 selected per token}}
+</div>
+<p>in our Mini-DeepSeek configuration.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-8">7. What MoE gives us</h4>
+<p>A token <span class="math inline">x</span> goes through the router:</p>
+<div class="math block">
+g(x)
+\rightarrow
+\text{scores}
+</div>
+<p>then top-<span class="math inline">k</span> experts are selected.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                 Token
+                   │
+                 Router
+                   │
+          ┌────────┼────────┐
+          ▼        ▼        ▼
+        Expert   Expert   Expert ...
+          │        │
+          └── weighted ────┘
+                   │
+             Routed output
+</code></pre>
+<p>A shared expert can also process every token.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{model capacity can be large without activating every routed expert}
+}
+</div>
+<p>The source identifies MoE as the solution to the scaling/model-capacity problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-9">8. But MoE creates a new problem</h4>
+<p>Now tokens must travel to the GPUs containing their selected experts.</p>
+<p>That creates:</p>
+<div class="math block">
+\boxed{\text{All-to-All communication}}
+</div>
+<p>So we traded one bottleneck for another:</p>
+<div class="math block">
+\text{dense compute cost}
+\rightarrow
+\text{sparse compute + communication}.
+</div>
+<p>This becomes extremely important when we reach distributed training.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-10">9. Problem 4 — Improve learning and inference through future prediction</h4>
+<p>The next DeepSeek innovation is:</p>
+<div class="math block">
+\boxed{\text{MTP — Multi-Token Prediction}}
+</div>
+<p>Instead of training only:</p>
+<div class="math block">
+t_{i+1}
+</div>
+<p>from position <span class="math inline">i</span>, MTP creates additional prediction objectives for future tokens:</p>
+<div class="math block">
+t_{i+1},t_{i+2},t_{i+3},\ldots
+</div>
+<p>depending on the number of MTP modules.</p>
+<p>The source describes MTP as improving learning and inference speed by predicting multiple future tokens. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-11">10. MTP is not simply “many independent heads”</h4>
+<p>This is important.</p>
+<p>Our source implementation uses a sequential structure:</p>
+<div class="math block">
+h^0
+\rightarrow
+h^1
+\rightarrow
+h^2
+\rightarrow\cdots
+</div>
+<p>where each MTP stage receives:</p>
+<div class="math block">
+\text{previous hidden representation}
++
+\text{future-token embedding}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MTP = sequential refinement/prediction chain}
+}
+</div>
+<p>in the implementation we studied.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-12">11. Why does MTP connect to inference?</h4>
+<p>The interesting possibility is speculative decoding.</p>
+<p>The main model predicts the next token, while MTP-trained modules can provide information about several future positions.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{predict farther ahead}
+\rightarrow
+\text{propose multiple tokens}
+\rightarrow
+\text{verify}
+}
+</div>
+<p>So an objective originally introduced during training can also have an inference-time interpretation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-13">12. Problem 5 — Training efficiency</h4>
+<p>Now imagine the model is too large for one GPU.</p>
+<p>We need distributed training.</p>
+<p>Start with:</p>
+<div class="math block">
+\boxed{\text{Data Parallelism / DDP}}
+</div>
+<p>Every GPU holds a copy of the model.</p>
+<p>Different GPUs process different data.</p>
+<p>Then gradients are synchronized using All-Reduce.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{DDP increases throughput}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{DDP does not reduce model-replica memory}
+}
+</div>
+<p>because every GPU still holds the full model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-14">13. Model too large? Move beyond DDP</h4>
+<p>Then we use:</p>
+<div class="math block">
+\boxed{\text{model/pipeline parallelism}}
+</div>
+<p>Instead of:</p>
+<pre><code class="language-text">GPU 0 → full model
+GPU 1 → full model
+GPU 2 → full model
+GPU 3 → full model
+</code></pre>
+<p>we can have:</p>
+<pre><code class="language-text">GPU 0 → layers 0–N
+GPU 1 → layers N–2N
+GPU 2 → layers 2N–3N
+GPU 3 → layers 3N–4N
+</code></pre>
+<p>Now the model itself is distributed.</p>
+<p>This solves the:</p>
+<div class="math block">
+\boxed{\text{model-doesn't-fit}}
+</div>
+<p>problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-15">14. But pipeline parallelism creates a bubble</h4>
+<p>Suppose there are 4 stages and 8 micro-batches.</p>
+<p>Pipeline execution contains fill and drain periods.</p>
+<p>The source's simplified GPipe example gives:</p>
+<div class="math block">
+\text{bubble}=8-4=4?
+</div>
+<p>Careful: in the source's stated example, the reported bubble is:</p>
+<div class="math block">
+\boxed{4-1=3}
+</div>
+<p>and theoretical efficiency:</p>
+<div class="math block">
+\frac{8}{8+3}
+\approx73\%.
+</div>
+<p>The important thing is not memorizing this one numerical example but understanding the idle time created while the pipeline fills/drains.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-16">15. 1F1B improves the memory behavior</h4>
+<p>Instead of doing:</p>
+<pre><code class="language-text">FFFF...
+BBBB...
+</code></pre>
+<p>the schedule interleaves:</p>
+<pre><code class="language-text">F B F B F B ...
+</code></pre>
+<p>after warm-up.</p>
+<p>This is:</p>
+<div class="math block">
+\boxed{\text{1F1B}}
+</div>
+<p>and reduces activation-memory pressure.</p>
+<p>However, with MoE we now face another problem:</p>
+<div class="math block">
+\boxed{\text{All-to-All communication}}
+</div>
+<p>can become expensive.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-17">16. DualPipe enters</h4>
+<p>DeepSeek therefore uses a more sophisticated pipeline schedule.</p>
+<p>The source describes the key principle as:</p>
+<div class="math block">
+\boxed{
+\text{overlap communication with computation}
+}
+</div>
+<p>Instead of:</p>
+<pre><code class="language-text">communication
+   ↓
+wait
+   ↓
+computation
+</code></pre>
+<p>we try:</p>
+<pre><code class="language-text">communication ──────────┐
+                        │
+                        ▼
+                 computation
+</code></pre>
+<p>so GPU resources remain occupied.</p>
+<p>The source emphasizes this especially for MoE's expensive token shuffling. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-18">17. Problem 6 — Numerical efficiency</h4>
+<p>Even if the model fits and communication is handled, computation and memory traffic are expensive.</p>
+<p>So the training pipeline introduces:</p>
+<div class="math block">
+\boxed{\text{FP8}}
+</div>
+<p>The central idea:</p>
+<div class="math block">
+\text{higher numerical efficiency}
+</div>
+<p>through 8-bit floating-point computation/representation in appropriate parts of the training system.</p>
+<p>We previously separated:</p>
+<div class="math block">
+\text{format}
+\rightarrow
+\text{scaling}
+\rightarrow
+\text{range}
+\rightarrow
+\text{clipping/outliers}
+\rightarrow
+\text{training implications}.
+</div>
+<p>That is why FP8 belongs to the <strong>training-efficiency</strong> portion of the graph rather than being an architectural attention mechanism.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-19">18. So now we have a trained foundation model</h4>
+<p>Put the architecture + training components together:</p>
+<div class="math block">
+\boxed{
+\text{Transformer}
++
+\text{KV Cache}
++
+\text{MLA}
++
+\text{MoE}
++
+\text{MTP}
++
+\text{FP8}
++
+\text{distributed training}
+}
+</div>
+<p>produces the foundation-model stage.</p>
+<p>In the book's framing, this is the path toward:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-V3 Base}}
+</div>
+<p>which then enters post-training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-20">19. Now comes post-training</h4>
+<p>This is where the knowledge graph changes direction.</p>
+<p>Before:</p>
+<div class="math block">
+\text{How do we efficiently train a powerful model?}
+</div>
+<p>Now:</p>
+<div class="math block">
+\boxed{\text{How do we change what the model does?}}
+</div>
+<p>We enter:</p>
+<div class="math block">
+\boxed{\text{SFT → RL → Distillation}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-21">20. SFT comes first</h4>
+<p>Supervised fine-tuning gives the model demonstrations of desirable behavior.</p>
+<p>Conceptually:</p>
+<div class="math block">
+(x,y)
+\rightarrow
+\text{cross-entropy}
+\rightarrow
+\text{parameter update}.
+</div>
+<p>In R1's cold-start stage, curated reasoning examples provide an initial reasoning format. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-22">21. Then RL changes the optimization regime</h4>
+<p>LLM RL mapping:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+state &amp;= \text{prompt + generated tokens}\\
+action &amp;= \text{next token}\\
+transition &amp;= \text{append token}\\
+reward &amp;= \text{response score}\\
+policy &amp;= \text{LLM}
+\end{aligned}}
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{policy update}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-23">22. PPO and GRPO</h4>
+<p>Our knowledge graph becomes:</p>
+<div class="math block">
+\boxed{
+\text{Policy Gradient}
+\rightarrow
+\text{Advantage}
+\rightarrow
+\text{PPO / GRPO}
+}
+</div>
+<p>PPO uses a learned value baseline.</p>
+<p>GRPO replaces that learned value model with a group-relative baseline:</p>
+<div class="math block">
+A_i=
+\frac{r_i-\mu_r}{\sigma_r+\epsilon}.
+</div>
+<p>The source's DeepSeek-R1 framing uses GRPO as the central RL algorithm. <em>(Source: deepseek-r1-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-24">23. DeepSeekMath is the bridge</h4>
+<p>This is where the earlier index matters.</p>
+<p>Your learning spine had:</p>
+<div class="math block">
+I_7=\boxed{\text{DeepSeekMath}}
+</div>
+<p>before:</p>
+<div class="math block">
+I_8=\boxed{\text{DeepSeek-R1}}.
+</div>
+<p>Why?</p>
+<p>Because DeepSeekMath introduces GRPO, which R1 then uses.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+\rightarrow
+\text{GRPO}
+\rightarrow
+\text{R1}
+}
+</div>
+<p>The R1 slides explicitly state that GRPO comes from DeepSeekMath. <em>(Source: deepseek-r1-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-25">24. R1-Zero asks the fundamental question</h4>
+<p>The slide's central design question is:</p>
+<blockquote>
+<p>Can reasoning emerge from RL alone without SFT first?</p>
+</blockquote>
+<p>The experimental setup begins from DeepSeek-V3-Base and applies GRPO with reward based on final-answer correctness, without human reasoning demonstrations or a learned reward model. <em>(Source: deepseek-r1-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+V3\text{-Base}
+\rightarrow
+GRPO + verifiable reward
+\rightarrow
+R1\text{-Zero}
+}
+</div>
+<p>This is the <strong>reasoning discovery experiment</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-26">25. But R1-Zero is not the final assistant</h4>
+<p>The problems we already studied lead to:</p>
+<div class="math block">
+\boxed{
+\text{R1-Zero}
+\rightarrow
+\text{R1 staged pipeline}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\text{cold-start SFT}
+\rightarrow
+\text{reasoning RL}
+\rightarrow
+\text{rejection sampling}
+\rightarrow
+\text{mixed-data SFT}
+\rightarrow
+\text{final hybrid RL}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice how all our previously separate concepts now appear in one line.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-27">26. Where ReTool fits</h4>
+<p>Your original index has:</p>
+<div class="math block">
+I_9=\boxed{\text{ReTool / tool-using reasoning}}.
+</div>
+<p>ReTool extends the reasoning loop:</p>
+<div class="math block">
+\text{reason}
+\rightarrow
+\text{call tool}
+\rightarrow
+\text{observe result}
+\rightarrow
+\text{continue reasoning}.
+</div>
+<p>So reasoning isn't necessarily:</p>
+<div class="math block">
+\text{LLM}\rightarrow\text{answer}.
+</div>
+<p>It can become:</p>
+<div class="math block">
+\boxed{
+\text{LLM}
+\rightarrow
+\text{tool}
+\rightarrow
+\text{environment feedback}
+\rightarrow
+\text{LLM}
+}
+</div>
+<p>This is the natural bridge from reasoning models toward agentic systems.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-28">27. Then comes distillation</h4>
+<p>R1 is powerful but very large.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+R1
+\rightarrow
+\text{generate reasoning traces}
+\rightarrow
+\text{rejection sampling}
+\rightarrow
+\text{student SFT}
+}
+</div>
+<p>This gives the distilled models.</p>
+<p>The key transition is:</p>
+<div class="math block">
+\boxed{
+\text{discover}
+\rightarrow
+\text{demonstrate}
+\rightarrow
+\text{imitate}
+}
+</div>
+<p>rather than asking the small student to independently rediscover the teacher's reasoning strategy.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-29">28. The complete DeepSeek knowledge graph</h4>
+<p>Now look at the whole thing:</p>
+<pre><code class="language-text">                          TRANSFORMER
+                              │
+                              ▼
+                         KV CACHE
+                              │
+                 solve inference memory
+                              │
+                              ▼
+                             MLA
+                              │
+              compress attention state
+                              │
+                              ▼
+                             MoE
+                              │
+             scale model capacity sparsely
+                              │
+                              ▼
+                             MTP
+                              │
+           improve future-token prediction
+                              │
+                              ▼
+                             FP8
+                              │
+                 improve numerical efficiency
+                              │
+                              ▼
+                  DISTRIBUTED TRAINING
+                     │       │       │
+                    DDP    Pipeline  DualPipe
+                              │
+                              ▼
+                       FOUNDATION MODEL
+                              │
+                              ▼
+                       DeepSeek-V3 Base
+                              │
+                    ┌─────────┴──────────┐
+                    ▼                    ▼
+                   SFT                   RL
+                    │                    │
+             cold-start behavior     GRPO/RLVR
+                    │                    │
+                    └─────────┬──────────┘
+                              ▼
+                           R1-Zero
+                              │
+                              │ reasoning discovery
+                              ▼
+                       DeepSeek-R1
+                              │
+                     generate best traces
+                              │
+                              ▼
+                       Rejection Sampling
+                              │
+                              ▼
+                         800K dataset
+                              │
+                              ▼
+                         Student SFT
+                              │
+                              ▼
+                         R1-Distill
+</code></pre>
+<p>This is the <strong>system-level mental model</strong> you should retain.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-30">29. Now map it back to your original index</h4>
+<p>Your original learning spine was:</p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Concept</th>
+<th>Where it appears in the DeepSeek graph</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I0</td>
+<td>Mathematical primitives</td>
+<td>Foundation for attention, CE, KL, RL, gradients</td>
+</tr>
+<tr>
+<td>I1</td>
+<td>Transformer Core</td>
+<td>Base architecture</td>
+</tr>
+<tr>
+<td>I2</td>
+<td>Decoding &amp; Sampling</td>
+<td>Generation, RL rollouts, rejection sampling</td>
+</tr>
+<tr>
+<td>I3</td>
+<td>PEFT / LoRA</td>
+<td>Efficient adaptation/fine-tuning</td>
+</tr>
+<tr>
+<td>I4</td>
+<td>Quantization</td>
+<td>FP8 / deployment efficiency</td>
+</tr>
+<tr>
+<td>I5</td>
+<td>KD / MiniLLM</td>
+<td>Distillation</td>
+</tr>
+<tr>
+<td>I6</td>
+<td>RL / RLHF / RLVR / PPO / GRPO</td>
+<td>R1 reasoning training</td>
+</tr>
+<tr>
+<td>I7</td>
+<td>DeepSeekMath</td>
+<td>GRPO origin/use</td>
+</tr>
+<tr>
+<td>I8</td>
+<td>DeepSeek-R1</td>
+<td>Reasoning-model pipeline</td>
+</tr>
+<tr>
+<td>I9</td>
+<td>ReTool</td>
+<td>Tool-using reasoning</td>
+</tr>
+<tr>
+<td>I10</td>
+<td>IndicXTREME</td>
+<td>Multilingual evaluation/generalization</td>
+</tr>
+<tr>
+<td>I11</td>
+<td>IndicGenBench</td>
+<td>Multilingual generation evaluation</td>
+</tr>
+</tbody>
+</table>
+<p>So the DeepSeek book is not replacing your original index.</p>
+<p>It is <strong>connecting and specializing the nodes</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-31">30. The most important dependency chain</h4>
+<p>For an interview, remember this:</p>
+<div class="math block">
+\boxed{
+\text{Transformer}
+\rightarrow
+\text{efficient inference}
+\rightarrow
+\text{efficient scaling}
+\rightarrow
+\text{efficient training}
+\rightarrow
+\text{reasoning}
+\rightarrow
+\text{distillation}
+}
+</div>
+<p>And each stage answers one bottleneck:</p>
+<div class="math block">
+\boxed{
+\begin{array}{rcl}
+KV/MLA &amp;\rightarrow&amp; \text{memory}\\
+MoE &amp;\rightarrow&amp; \text{capacity/compute}\\
+MTP &amp;\rightarrow&amp; \text{prediction efficiency}\\
+FP8 &amp;\rightarrow&amp; \text{numerical efficiency}\\
+DDP/Pipeline/DualPipe &amp;\rightarrow&amp; \text{scale}\\
+GRPO/RLVR &amp;\rightarrow&amp; \text{reasoning}\\
+Distillation &amp;\rightarrow&amp; \text{deployment}
+\end{array}}
+</div>
+<p>That is far more useful than memorizing eight isolated definitions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-32">31. One important source distinction</h4>
+<p>There is a subtle difference between the <strong>lecture slide framing</strong> and the more detailed book implementation.</p>
+<p>The R1 slide presents R1-Zero very cleanly as:</p>
+<div class="math block">
+V3\text{-Base}
++
+GRPO
++
+\text{final-answer correctness reward}
+</div>
+<p>with no human reasoning demonstrations and no learned reward model. <em>(Source: deepseek-r1-slides)</em></p>
+<p>The book then expands the later engineering story, including formatting/language-consistency considerations and the hybrid rewards of final R1. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So don't collapse all these into one reward definition.</p>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{R1-Zero experimental setup}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{full R1 production-oriented pipeline}}
+</div>
+<p>as separate concepts.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-8-i125-33">32. What you should now be capable of doing</h4>
+<p>At this point, an interview question such as:</p>
+<blockquote>
+<p>“Why does DeepSeek use MLA, MoE, MTP, FP8, DualPipe, GRPO and distillation?”</p>
+</blockquote>
+<p>should not produce seven disconnected definitions.</p>
+<p>You should answer:</p>
+<blockquote>
+<p>MLA addresses attention/KV-memory efficiency; MoE increases model capacity with sparse activation; MTP provides additional future-token prediction objectives and can support faster inference; FP8 improves training efficiency; distributed/pipeline/DualPipe techniques make large-scale training practical, especially under MoE communication; GRPO provides the reasoning-oriented RL mechanism used by R1; and distillation transfers the resulting reasoning behavior into smaller models.</p>
+</blockquote>
+<p>That is the <strong>architectural story</strong>.</p>
+<hr />
+<hr />
+</section>

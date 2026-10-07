@@ -1,0 +1,1588 @@
+<section class="chunk" id="chunk-les-step-5-38-i79" data-id="les-step-5-38-i79"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-38-i79"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-38-i79" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-37-i78">← Previous lesson</a> · <a href="#chunk-les-step-5-39-i80">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p><p><strong>This lesson:</strong> Step 5.38 — DeepSeek Mixture-of-Experts (MoE): From Dense FFN to Sparse Routing</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-38-i79"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-38-i79-1">Step 5.38 — DeepSeek Mixture-of-Experts (MoE): From Dense FFN to Sparse Routing</h3>
+<p><em>Plan node: A2 · chat order #79</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We now start the <strong>second major DeepSeek architectural innovation</strong>:</p>
+<div class="math block">
+\boxed{\text{Mixture-of-Experts (MoE)}}
+</div>
+<p>The source presents MoE as the mechanism that allows the model to have a very large <strong>total parameter count</strong> while activating only a small subset of those parameters for each token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The core progression is:</p>
+<div class="math block">
+\boxed{
+\text{Dense FFN}
+\rightarrow
+\text{many expert FFNs}
+\rightarrow
+\text{router}
+\rightarrow
+\text{Top-K}
+\rightarrow
+\text{weighted expert outputs}
+}
+</div>
+<p>Today we will build the <strong>basic MoE mechanism first</strong>. The harder problems—expert imbalance, fine-grained segmentation, shared experts, and auxiliary-loss-free balancing—come after the foundation is solid.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-2">5.38.1 First: remember where FFN sits in a Transformer</h4>
+<p>A Transformer block has roughly:</p>
+<div class="math block">
+\boxed{
+\text{Attention}
+\rightarrow
+\text{FFN}
+}
+</div>
+<p>The attention layer lets tokens exchange information.</p>
+<p>The FFN performs nonlinear transformation <strong>independently at each token position</strong>.</p>
+<p>A standard dense FFN is:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+W_1
+\rightarrow
+\text{activation}
+\rightarrow
+W_2
+\rightarrow
+y
+}
+</div>
+<p>The source describes the FFN as an expansion-contraction MLP. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-3">5.38.2 Standard dense FFN mathematically</h4>
+<p>Let:</p>
+<div class="math block">
+x\in\mathbb R^{d_{\text{model}}}.
+</div>
+<p>Choose hidden dimension:</p>
+<div class="math block">
+d_{\text{hidden}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+h=xW_1
+</div>
+<p>where:</p>
+<div class="math block">
+W_1\in
+\mathbb R^{d_{\text{model}}\times d_{\text{hidden}}}.
+</div>
+<p>Apply activation:</p>
+<div class="math block">
+z=\operatorname{GELU}(h).
+</div>
+<p>Then:</p>
+<div class="math block">
+y=zW_2
+</div>
+<p>with:</p>
+<div class="math block">
+W_2\in
+\mathbb R^{d_{\text{hidden}}\times d_{\text{model}}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+y=
+\operatorname{GELU}(xW_1)W_2
+}
+</div>
+<p>in the simplified source-style representation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-4">5.38.3 Why does a dense FFN become expensive?</h4>
+<p>Suppose:</p>
+<div class="math block">
+d_{\text{model}}=4096
+</div>
+<p>and:</p>
+<div class="math block">
+d_{\text{hidden}}=16384.
+</div>
+<p>Then <span class="math inline">W_1</span> alone contains:</p>
+<div class="math block">
+4096\times16384
+=
+\boxed{67,108,864}
+</div>
+<p>parameters.</p>
+<p><span class="math inline">W_2</span> contains the same number.</p>
+<p>Total:</p>
+<div class="math block">
+2(67,108,864)
+=
+\boxed{134,217,728}
+</div>
+<p>parameters.</p>
+<p>And every token activates <strong>all</strong> of them.</p>
+<p>The source identifies exactly this issue: dense FFNs activate all of their parameters for every token and therefore become a major computational bottleneck. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-5">5.38.4 The natural idea</h4>
+<p>Instead of one giant FFN:</p>
+<div class="math block">
+\boxed{
+FFN
+}
+</div>
+<p>create many smaller FFNs:</p>
+<div class="math block">
+\boxed{
+E_1,E_2,\ldots,E_N
+}
+</div>
+<p>where each:</p>
+<div class="math block">
+E_i
+</div>
+<p>is called an:</p>
+<div class="math block">
+\boxed{\text{expert}}.
+</div>
+<p>The source explicitly defines each expert as essentially a standard two-layer FFN/MLP. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-6">5.38.5 Why call them “experts”?</h4>
+<p>The intuition is:</p>
+<div class="math block">
+\boxed{
+\text{different experts can specialize}
+}
+</div>
+<p>during training.</p>
+<p>For example, the source gives conceptual examples such as:</p>
+<div class="math block">
+\text{punctuation expert}
+</div>
+<div class="math block">
+\text{verb expert}
+</div>
+<div class="math block">
+\text{Python/code expert}.
+</div>
+<p>These examples are illustrative descriptions of specialization, not a claim that every trained MoE literally develops exactly those named experts. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-7">5.38.6 The apparent problem</h4>
+<p>Suppose we replace one FFN with:</p>
+<div class="math block">
+8
+</div>
+<p>experts.</p>
+<p>It may seem that computation becomes:</p>
+<div class="math block">
+8\times
+</div>
+<p>more expensive.</p>
+<p>But this ignores the key idea:</p>
+<div class="math block">
+\boxed{\text{sparsity}}.
+</div>
+<p>We don't execute every expert for every token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-8">5.38.7 Sparse activation</h4>
+<p>For each token, only:</p>
+<div class="math block">
+\boxed{k}
+</div>
+<p>experts are activated.</p>
+<p>Usually:</p>
+<div class="math block">
+k\ll N.
+</div>
+<p>For example:</p>
+<div class="math block">
+N=8,\qquad k=2.
+</div>
+<p>Then each token sees:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>experts instead of:</p>
+<div class="math block">
+8.
+</div>
+<p>The source's basic example uses:</p>
+<div class="math block">
+\boxed{k=2}
+</div>
+<p>out of three available experts. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-9">5.38.8 Computational intuition</h4>
+<p>Dense model:</p>
+<div class="math block">
+\boxed{
+1\text{ token}
+\rightarrow
+8\text{ experts}
+}
+</div>
+<p>Sparse MoE:</p>
+<div class="math block">
+\boxed{
+1\text{ token}
+\rightarrow
+2\text{ experts}
+}
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\frac{2}{8}
+=
+\boxed{25\%}
+</div>
+<p>of the expert computations are activated per token, ignoring router/dispatch overhead and shared components.</p>
+<p>This is why we can have:</p>
+<div class="math block">
+\boxed{
+\text{large total parameter capacity}
+}
+</div>
+<p>without paying the full dense computation for every token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-10">5.38.9 Total parameters vs active parameters</h4>
+<p>This distinction is fundamental.</p>
+<p>Suppose:</p>
+<div class="math block">
+N=16
+</div>
+<p>experts, each with:</p>
+<div class="math block">
+100\text{M}
+</div>
+<p>parameters.</p>
+<p>Then total expert parameters:</p>
+<div class="math block">
+16\times100M
+=
+\boxed{1.6B}.
+</div>
+<p>But suppose:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Then a token activates:</p>
+<div class="math block">
+2\times100M
+=
+\boxed{200M}
+</div>
+<p>expert parameters.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+1.6B\text{ total}
+\quad\text{but}\quad
+200M\text{ expert parameters active for a token}
+}
+</div>
+<p>under this simplified model.</p>
+<p>This is one of the most important MoE ideas.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-11">5.38.10 Important caveat</h4>
+<p>“Active parameters” does not mean:</p>
+<div class="math block">
+\boxed{\text{the rest of the model doesn't exist}}
+</div>
+<p>The inactive experts still have parameters stored somewhere.</p>
+<p>They simply are not involved in that token's expert computation.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{total model memory}
+\neq
+\text{per-token active compute}
+}
+</div>
+<p>This distinction will become extremely important when we later connect MoE to DeepSeek-R1's:</p>
+<div class="math block">
+671B
+</div>
+<p>total parameters but approximately:</p>
+<div class="math block">
+37B
+</div>
+<p>active parameters per token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-12">5.38.11 Now we need a router</h4>
+<p>We have many experts.</p>
+<p>But who decides which experts receive a token?</p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{Router}}
+</div>
+<p>The source calls the router a small learnable linear mechanism that generates scores for the experts. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-13">5.38.12 Router input and output</h4>
+<p>Suppose:</p>
+<div class="math block">
+x\in\mathbb R^{d_{\text{model}}}
+</div>
+<p>and there are:</p>
+<div class="math block">
+N
+</div>
+<p>experts.</p>
+<p>The router has parameters:</p>
+<div class="math block">
+W_R\in
+\mathbb R^{d_{\text{model}}\times N}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+r=xW_R
+}
+</div>
+<p>where:</p>
+<div class="math block">
+r\in\mathbb R^N.
+</div>
+<p>So for each token, the router produces one score per expert.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-14">5.38.13 Example</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=4.
+</div>
+<p>The router outputs:</p>
+<div class="math block">
+\boxed{
+r=[1.2,\;0.3,\;2.1,\;1.4]
+}
+</div>
+<p>for a token.</p>
+<p>Interpretation:</p>
+<div class="math block">
+E_1:1.2
+</div>
+<div class="math block">
+E_2:0.3
+</div>
+<div class="math block">
+E_3:2.1
+</div>
+<div class="math block">
+E_4:1.4.
+</div>
+<p>These are raw router scores/logits.</p>
+<p>They are <strong>not yet expert weights</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-15">5.38.14 Why aren't they weights yet?</h4>
+<p>Because they can be:</p>
+<div class="math block">
+\text{negative}
+</div>
+<p>or:</p>
+<div class="math block">
+&gt;1.
+</div>
+<p>For example:</p>
+<div class="math block">
+[1.2,0.3,2.1,1.4]
+</div>
+<p>does not sum to:</p>
+<div class="math block">
+1.
+</div>
+<p>We need normalized gating weights.</p>
+<p>The basic source pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{router logits}
+\rightarrow
+\text{Top-K}
+\rightarrow
+\text{softmax}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-16">5.38.15 Step 1 — Router logits</h4>
+<p>Formally:</p>
+<div class="math block">
+\boxed{
+L=xW_R
+}
+</div>
+<p>For an entire batch:</p>
+<div class="math block">
+X\in\mathbb R^{T\times d_{\text{model}}}
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+L\in\mathbb R^{T\times N}
+}
+</div>
+<p>where <span class="math inline">T</span> is the number of tokens being routed.</p>
+<p>This tensor-shape question is extremely exam-important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-17">5.38.16 Numerical shape question</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=4
+</div>
+<p>sequences,</p>
+<div class="math block">
+S=128
+</div>
+<p>tokens each.</p>
+<p>Then:</p>
+<div class="math block">
+T=B\times S
+=
+4\times128
+=
+\boxed{512}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+d_{\text{model}}=4096
+</div>
+<p>and:</p>
+<div class="math block">
+N=64
+</div>
+<p>experts.</p>
+<p>Then:</p>
+<div class="math block">
+X\in\mathbb R^{512\times4096}.
+</div>
+<p>Router matrix:</p>
+<div class="math block">
+W_R\in\mathbb R^{4096\times64}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L=XW_R
+</div>
+<p>has shape:</p>
+<div class="math block">
+\boxed{
+512\times64
+}.
+</div>
+<p>So we have:</p>
+<div class="math block">
+\boxed{
+512\text{ tokens}\times64\text{ expert scores}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-18">5.38.17 Step 2 — Top-K expert selection</h4>
+<p>Now suppose:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Our logits:</p>
+<div class="math block">
+[1.2,0.3,2.1,1.4].
+</div>
+<p>The two largest values are:</p>
+<div class="math block">
+2.1
+</div>
+<p>and:</p>
+<div class="math block">
+1.4.
+</div>
+<p>Therefore selected experts are:</p>
+<div class="math block">
+\boxed{E_3,E_4}.
+</div>
+<p>The others:</p>
+<div class="math block">
+E_1,E_2
+</div>
+<p>are dormant for this token.</p>
+<p>This is the source's core sparse-routing operation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-19">5.38.18 Important: Top-K happens before softmax</h4>
+<p>This ordering matters.</p>
+<p>We do:</p>
+<div class="math block">
+\boxed{
+\text{logits}
+\rightarrow
+\text{Top-K}
+\rightarrow
+\text{softmax on selected logits}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\text{softmax all experts}
+\rightarrow
+\text{Top-K}.
+</div>
+<p>The source implementation explicitly does:</p>
+<pre><code class="language-text">topk_logits, topk_idx = torch.topk(...)
+gate = softmax(topk_logits)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-20">5.38.19 Step 3 — Softmax the selected logits</h4>
+<p>Our selected logits are:</p>
+<div class="math block">
+[2.1,1.4].
+</div>
+<p>Compute:</p>
+<div class="math block">
+e^{2.1}\approx8.166
+</div>
+<p>and:</p>
+<div class="math block">
+e^{1.4}\approx4.055.
+</div>
+<p>Sum:</p>
+<div class="math block">
+8.166+4.055
+=
+12.221.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+w_3=
+\frac{8.166}{12.221}
+\approx
+\boxed{0.668}.
+</div>
+<p>And:</p>
+<div class="math block">
+w_4=
+\frac{4.055}{12.221}
+\approx
+\boxed{0.332}.
+</div>
+<p>Check:</p>
+<div class="math block">
+0.668+0.332=1.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+E_3:66.8\%
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E_4:33.2\%
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-21">5.38.20 Why softmax after Top-K?</h4>
+<p>The model is not saying:</p>
+<blockquote>
+<p>“Use two experts equally.”</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{which experts}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{how much each selected expert contributes}
+}
+</div>
+<p>are two separate decisions.</p>
+<p>Top-K answers:</p>
+<div class="math block">
+\boxed{\text{WHO?}}
+</div>
+<p>Softmax answers:</p>
+<div class="math block">
+\boxed{\text{HOW MUCH?}}
+</div>
+<p>This is a very useful mental model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-22">5.38.21 Step 4 — Send the token to selected experts</h4>
+<p>Suppose the token representation is:</p>
+<div class="math block">
+x.
+</div>
+<p>It is sent only to:</p>
+<div class="math block">
+E_3
+</div>
+<p>and:</p>
+<div class="math block">
+E_4.
+</div>
+<p>So:</p>
+<div class="math block">
+y_3=E_3(x)
+</div>
+<p>and:</p>
+<div class="math block">
+y_4=E_4(x).
+</div>
+<p>The other outputs:</p>
+<div class="math block">
+E_1(x),E_2(x)
+</div>
+<p>are never computed.</p>
+<p>That is the actual source of sparse computation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-23">5.38.22 Step 5 — Weighted aggregation</h4>
+<p>Now compute:</p>
+<div class="math block">
+\boxed{
+y=
+w_3y_3+w_4y_4
+}
+</div>
+<p>with:</p>
+<div class="math block">
+w_3=0.668
+</div>
+<p>and:</p>
+<div class="math block">
+w_4=0.332.
+</div>
+<p>The source gives exactly this concept: selected expert outputs are multiplied by their gate weights and summed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-24">5.38.23 Complete vector example</h4>
+<p>Suppose:</p>
+<div class="math block">
+y_3=
+\begin{bmatrix}
+2\\
+4
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+y_4=
+\begin{bmatrix}
+6\\
+1
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+y
+=
+0.668
+\begin{bmatrix}
+2\\
+4
+\end{bmatrix}
++
+0.332
+\begin{bmatrix}
+6\\
+1
+\end{bmatrix}.
+</div>
+<p>First component:</p>
+<div class="math block">
+0.668(2)+0.332(6)
+</div>
+<div class="math block">
+=
+1.336+1.992
+</div>
+<div class="math block">
+=
+\boxed{3.328}.
+</div>
+<p>Second:</p>
+<div class="math block">
+0.668(4)+0.332(1)
+</div>
+<div class="math block">
+=
+2.672+0.332
+</div>
+<div class="math block">
+=
+\boxed{3.004}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+y=
+\begin{bmatrix}
+3.328\\
+3.004
+\end{bmatrix}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-25">5.38.24 Why is the output shape unchanged?</h4>
+<p>Suppose:</p>
+<div class="math block">
+x\in\mathbb R^{d}.
+</div>
+<p>Each expert maps:</p>
+<div class="math block">
+\mathbb R^d\rightarrow\mathbb R^d.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+y_i\in\mathbb R^d.
+</div>
+<p>The weighted sum:</p>
+<div class="math block">
+\sum_{i\in TopK}w_i y_i
+</div>
+<p>also belongs to:</p>
+<div class="math block">
+\boxed{\mathbb R^d}.
+</div>
+<p>Thus the MoE layer preserves the Transformer residual-stream dimension.</p>
+<p>The source demonstrates this with a toy input/output matrix of shape:</p>
+<div class="math block">
+\boxed{4\times8}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-26">5.38.25 Batch-level shape</h4>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}.
+</div>
+<p>Flatten:</p>
+<div class="math block">
+X_{\text{flat}}
+\in
+\mathbb R^{(BS)\times D}.
+</div>
+<p>Router:</p>
+<div class="math block">
+L=
+X_{\text{flat}}W_R
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{
+(BS)\times N.
+}
+</div>
+<p>After selecting <span class="math inline">k</span> experts:</p>
+<div class="math block">
+\boxed{
+(BS)\times k
+}
+</div>
+<p>expert indices and gating weights are retained.</p>
+<p>After dispatch and aggregation:</p>
+<div class="math block">
+\boxed{
+(BS)\times D
+}
+</div>
+<p>is restored.</p>
+<p>Then reshape:</p>
+<div class="math block">
+\boxed{
+B\times S\times D.
+}
+</div>
+<p>This is exactly the structure visible in the source implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-27">5.38.26 Now we can write the complete basic MoE equation</h4>
+<p>For token <span class="math inline">x</span>:</p>
+<div class="math block">
+L=Wx+b
+</div>
+<p>router logits.</p>
+<p>Then:</p>
+<div class="math block">
+I(x)=TopK(L,k)
+</div>
+<p>selected experts.</p>
+<p>Then:</p>
+<div class="math block">
+w_i=
+\frac{e^{L_i}}
+{\sum_{j\in I(x)}e^{L_j}},
+\qquad
+i\in I(x).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+MoE(x)=
+\sum_{i\in I(x)}
+w_iE_i(x)
+}
+</div>
+<p>This compactly captures the entire basic sparse-routing mechanism.</p>
+<p>The exact source implementation additionally contains DeepSeek's dynamic bias; we will add that in the load-balancing step. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-28">5.38.27 Compare dense FFN and sparse MoE</h4>
+<h5 id="v3-heading-chunk-les-step-5-38-i79-29">Dense FFN</h5>
+<div class="math block">
+\boxed{
+y=FFN(x)
+}
+</div>
+<p>Every token executes the entire FFN.</p>
+<h5 id="v3-heading-chunk-les-step-5-38-i79-30">MoE</h5>
+<div class="math block">
+\boxed{
+y=\sum_{i\in TopK(x)}w_iE_i(x)
+}
+</div>
+<p>Only selected experts execute.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Dense}
+=
+\text{all parameters active}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+=
+\text{large total capacity + sparse activation}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-31">5.38.28 Parameter-count numerical</h4>
+<p>Suppose a dense FFN has:</p>
+<div class="math block">
+100M
+</div>
+<p>parameters.</p>
+<p>Now create:</p>
+<div class="math block">
+16
+</div>
+<p>experts, each with:</p>
+<div class="math block">
+25M
+</div>
+<p>parameters.</p>
+<p>Total expert parameters:</p>
+<div class="math block">
+16\times25M
+=
+\boxed{400M}.
+</div>
+<p>If:</p>
+<div class="math block">
+k=2,
+</div>
+<p>then each token activates:</p>
+<div class="math block">
+2\times25M
+=
+\boxed{50M}
+</div>
+<p>expert parameters.</p>
+<p>So compared with the dense model:</p>
+<div class="math block">
+\boxed{4\times}
+</div>
+<p>the total expert parameter capacity exists:</p>
+<div class="math block">
+400/100=4.
+</div>
+<p>Yet only half the dense FFN's parameters are activated per token:</p>
+<div class="math block">
+50/100=0.5.
+</div>
+<p>This illustrates the core MoE scaling idea.</p>
+<p>These numbers are illustrative.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-32">5.38.29 Compute intuition</h4>
+<p>Ignoring routing overhead, suppose one expert costs:</p>
+<div class="math block">
+C.
+</div>
+<p>Dense equivalent with one FFN:</p>
+<div class="math block">
+C.
+</div>
+<p>An MoE with <span class="math inline">N=16</span> experts and <span class="math inline">k=2</span>:</p>
+<div class="math block">
+\boxed{
+2C
+}
+</div>
+<p>expert compute per token.</p>
+<p>But the model stores:</p>
+<div class="math block">
+16\times
+</div>
+<p>the number of expert networks.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{total capacity}\uparrow
+}
+</div>
+<p>much faster than:</p>
+<div class="math block">
+\boxed{
+\text{per-token expert computation}\uparrow
+}.
+</div>
+<p>That is the fundamental sparsity advantage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-33">5.38.30 But there is a hidden danger</h4>
+<p>Suppose the router always chooses:</p>
+<div class="math block">
+E_1,E_2.
+</div>
+<p>Then:</p>
+<div class="math block">
+E_1,E_2
+</div>
+<p>receive enormous amounts of training.</p>
+<p>The other experts receive almost nothing.</p>
+<p>This creates:</p>
+<div class="math block">
+\boxed{\text{imbalanced routing}}.
+</div>
+<p>The source describes exactly this failure mode. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-34">5.38.31 Why does imbalance create a feedback loop?</h4>
+<p>Suppose early in training:</p>
+<div class="math block">
+E_1
+</div>
+<p>happens to perform slightly better.</p>
+<p>Then the router favors:</p>
+<div class="math block">
+E_1.
+</div>
+<p>So:</p>
+<div class="math block">
+E_1
+\rightarrow
+\text{more tokens}
+\rightarrow
+\text{more training}
+\rightarrow
+\text{becomes even better}
+\rightarrow
+\text{router favors }E_1\text{ even more}.
+</div>
+<p>This is:</p>
+<div class="math block">
+\boxed{
+\text{positive feedback}
+}
+</div>
+<p>The source explicitly describes this self-reinforcing behavior. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-35">5.38.32 Why are unused experts a problem?</h4>
+<p>An expert that is rarely selected receives few updates.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{expert utilization}\downarrow
+}
+</div>
+<p>leads to:</p>
+<div class="math block">
+\boxed{
+\text{expert learning}\downarrow.
+}
+</div>
+<p>Eventually it can become effectively:</p>
+<div class="math block">
+\boxed{\text{dead weight}}.
+</div>
+<p>The source uses exactly this idea. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-36">5.38.33 Why are overloaded experts a problem?</h4>
+<p>Suppose:</p>
+<div class="math block">
+E_1
+</div>
+<p>receives almost all tokens.</p>
+<p>Then even though the other experts are idle:</p>
+<div class="math block">
+E_1
+</div>
+<p>becomes a computational bottleneck.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{some hardware/expert capacity overloaded}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{other capacity wasted}
+}.
+</div>
+<p>This is both a utilization and systems problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-37">5.38.34 Numerical routing example</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=12
+</div>
+<p>tokens,</p>
+<div class="math block">
+N=4
+</div>
+<p>experts,</p>
+<p>and:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Total routed assignments:</p>
+<div class="math block">
+T\times k
+=
+12\times2
+=
+\boxed{24}.
+</div>
+<p>Perfectly balanced load would be:</p>
+<div class="math block">
+\frac{24}{4}
+=
+\boxed{6}
+</div>
+<p>assignments per expert.</p>
+<p>Suppose actual counts are:</p>
+<div class="math block">
+[10,8,4,2].
+</div>
+<p>Total:</p>
+<div class="math block">
+10+8+4+2
+=
+24.
+</div>
+<p>So Expert 1 is heavily overloaded, while Expert 4 is underused.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-38">5.38.35 This is why “tokens per expert” matters</h4>
+<p>The raw token count is not enough.</p>
+<p>For top-<span class="math inline">k</span> routing, each token can contribute:</p>
+<div class="math block">
+k
+</div>
+<p>assignments.</p>
+<p>So if:</p>
+<div class="math block">
+T=1000
+</div>
+<p>and:</p>
+<div class="math block">
+k=2,
+</div>
+<p>then total expert assignments are:</p>
+<div class="math block">
+\boxed{2000}.
+</div>
+<p>With:</p>
+<div class="math block">
+N=8,
+</div>
+<p>ideal average:</p>
+<div class="math block">
+2000/8
+=
+\boxed{250}
+</div>
+<p>assignments per expert.</p>
+<p>That is the baseline against which imbalance can be judged.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-39">5.38.36 The source's simple example</h4>
+<p>The book gives a three-expert example where:</p>
+<ul>
+<li>Expert 1 receives 2 tokens,</li>
+<li>Expert 2 receives 2,</li>
+<li>Expert 3 receives 4.</li>
+</ul>
+<p>Thus:</p>
+<div class="math block">
+2+2+4
+=
+\boxed{8}
+</div>
+<p>total routed assignments.</p>
+<p>Average:</p>
+<div class="math block">
+8/3
+=
+\boxed{2.67}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So relative to the average:</p>
+<div class="math block">
+E_1:2-2.67=-0.67
+</div>
+<div class="math block">
+E_2:2-2.67=-0.67
+</div>
+<div class="math block">
+E_3:4-2.67=+1.33.
+</div>
+<p>This tells us:</p>
+<div class="math block">
+\boxed{
+E_1,E_2\text{ underloaded}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E_3\text{ overloaded}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-40">5.38.37 Another key concept: expert capacity</h4>
+<p>Before we discuss DeepSeek's balancing method, understand the older hard constraint.</p>
+<p>Each expert can be given a maximum number of tokens it is allowed to process in a batch.</p>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{Expert Capacity}}.
+</div>
+<p>If more tokens are routed to an expert than its capacity:</p>
+<div class="math block">
+\boxed{\text{excess tokens are dropped for that forward pass}}
+</div>
+<p>in the traditional scheme. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-41">5.38.38 Capacity formula</h4>
+<p>The source describes capacity conceptually as:</p>
+<div class="math block">
+\boxed{
+\text{capacity}
+=
+\text{fair-share tokens}
+\times
+\text{capacity factor}
+}
+</div>
+<p>where fair share is:</p>
+<div class="math block">
+\frac{\text{tokens per batch}\times k}
+{\text{number of experts}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+C
+=
+\frac{T\,k}{N}
+\times CF
+}
+</div>
+<p>where <span class="math inline">CF</span> is the capacity factor.</p>
+<p>The exact details can vary by implementation; this is the formula structure given in the source discussion.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-42">5.38.39 Numerical capacity example</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=1000
+</div>
+<div class="math block">
+k=2
+</div>
+<div class="math block">
+N=8
+</div>
+<p>and:</p>
+<div class="math block">
+CF=1.25.
+</div>
+<p>Fair share:</p>
+<div class="math block">
+\frac{1000\times2}{8}
+=
+250.
+</div>
+<p>Capacity:</p>
+<div class="math block">
+250\times1.25
+=
+\boxed{312.5}.
+</div>
+<p>In an implementation requiring integer capacity, this would need an appropriate rounding convention.</p>
+<p>The important idea is:</p>
+<div class="math block">
+\boxed{
+\text{capacity factor gives a buffer above ideal balance}
+}.
+</div>
+<p>The source specifically emphasizes that <span class="math inline">CF&gt;1</span> gives flexibility for moderate imbalance. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-43">5.38.40 Why is capacity only a partial solution?</h4>
+<p>Because it says:</p>
+<blockquote>
+<p>“Don't process more than this many tokens.”</p>
+</blockquote>
+<p>It does <strong>not</strong> directly teach the router:</p>
+<blockquote>
+<p>“Please distribute tokens more evenly.”</p>
+</blockquote>
+<p>So capacity is:</p>
+<div class="math block">
+\boxed{\text{hard guardrail}}
+</div>
+<p>whereas load-balancing losses/biases are:</p>
+<div class="math block">
+\boxed{\text{routing-control mechanisms}}.
+</div>
+<p>The source explicitly distinguishes these. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-44">5.38.41 Complete basic MoE forward pass</h4>
+<p>Now we can finally write it as one sequence.</p>
+<p>Given:</p>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-45">Step 1 — Flatten</h6>
+<div class="math block">
+X_f\in
+\mathbb R^{BS\times D}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-46">Step 2 — Router</h6>
+<div class="math block">
+L=X_fW_R
+</div>
+<p>giving:</p>
+<div class="math block">
+BS\times N.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-47">Step 3 — Select</h6>
+<div class="math block">
+I=TopK(L,k).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-48">Step 4 — Normalize</h6>
+<div class="math block">
+G=\operatorname{softmax}(L_I).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-49">Step 5 — Dispatch</h6>
+<p>Send each token only to its selected experts.</p>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-50">Step 6 — Expert computation</h6>
+<div class="math block">
+Y_i=E_i(X_i).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-51">Step 7 — Weighted combine</h6>
+<div class="math block">
+Y_t=
+\sum_{i\in I_t}
+G_{t,i}Y_{t,i}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-52">Step 8 — Reshape</h6>
+<div class="math block">
+Y\in
+\mathbb R^{B\times S\times D}.
+</div>
+<p>This is the complete basic sparse MoE mechanism described in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-53">5.38.42 Where DeepSeek's architecture will eventually modify this</h4>
+<p>The basic MoE is not yet <strong>DeepSeek-MoE</strong> in its full form.</p>
+<p>The source adds three major innovations:</p>
+<div class="math block">
+\boxed{
+\text{1. Fine-Grained Expert Segmentation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{2. Shared Expert Isolation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{3. Auxiliary-Loss-Free Load Balancing}
+}
+</div>
+<p>The source identifies these as the three main DeepSeek innovations, with the third introduced in DeepSeek-V3.</p>
+<p>We will derive each separately rather than mixing them into the basic routing mechanism.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-54">5.38.43 Why the first innovation is necessary: knowledge hybridity</h4>
+<p>Suppose we only have:</p>
+<div class="math block">
+8
+</div>
+<p>experts.</p>
+<p>The training data contains:</p>
+<div class="math block">
+\text{Python}
++
+\text{law}
++
+\text{history}
++
+\text{mathematics}
++
+\text{conversation}.
+</div>
+<p>One expert may receive tokens from all of these domains.</p>
+<p>So its parameters have to become a mixture of:</p>
+<div class="math block">
+\boxed{
+\text{many unrelated competencies}
+}.
+</div>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{Knowledge Hybridity}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-55">5.38.44 Why the second problem is the opposite: redundancy</h4>
+<p>Suppose:</p>
+<div class="math block">
+E_1
+</div>
+<p>specializes in Python and:</p>
+<div class="math block">
+E_2
+</div>
+<p>specializes in medicine.</p>
+<p>Both still need:</p>
+<div class="math block">
+\text{basic language grammar}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{common foundational knowledge}.
+</div>
+<p>So both experts may redundantly learn the same common knowledge.</p>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{Knowledge Redundancy}}.
+</div>
+<p>Therefore the two problems are:</p>
+<div class="math block">
+\boxed{
+\text{too much mixing}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{too much duplication}.
+}
+</div>
+<p>This motivates the next DeepSeek-MoE innovations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-56">5.38.45 One very important systems-level interpretation</h4>
+<p>A dense model asks:</p>
+<div class="math block">
+\boxed{
+\text{How do I give every token the same computational pathway?}
+}
+</div>
+<p>An ordinary MoE asks:</p>
+<div class="math block">
+\boxed{
+\text{Which specialized pathway should this token use?}
+}
+</div>
+<p>DeepSeek-MoE goes further and asks:</p>
+<div class="math block">
+\boxed{
+\text{How do I make experts truly specialized while still preserving common knowledge and balanced hardware utilization?}
+}
+</div>
+<p>That is the research problem behind the next stage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-57">5.38.46 Exam master formulas</h4>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-58">Router logits</h6>
+<div class="math block">
+\boxed{
+L=XW_R
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-59">Top-K</h6>
+<div class="math block">
+\boxed{
+I_t=TopK(L_t,k)
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-60">Gate weights</h6>
+<div class="math block">
+\boxed{
+g_{t,i}
+=
+\frac{e^{L_{t,i}}}
+{\sum_{j\in I_t}e^{L_{t,j}}}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-61">Sparse MoE output</h6>
+<div class="math block">
+\boxed{
+y_t=
+\sum_{i\in I_t}
+g_{t,i}E_i(x_t)
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-62">Total routed assignments</h6>
+<div class="math block">
+\boxed{
+T\times k
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-63">Ideal average assignments/expert</h6>
+<div class="math block">
+\boxed{
+\frac{T k}{N}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-64">Traditional capacity</h6>
+<div class="math block">
+\boxed{
+C
+\approx
+\frac{Tk}{N}\times CF
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-65">5.38.47 Numerical bank</h4>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-66">Level 1</h6>
+<div class="math block">
+N=8,\quad k=2,\quad T=1000
+</div>
+<p>Total routed assignments:</p>
+<div class="math block">
+\boxed{2000}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-67">Level 2</h6>
+<p>Ideal expert load:</p>
+<div class="math block">
+2000/8
+=
+\boxed{250}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-68">Level 3</h6>
+<p>Given logits:</p>
+<div class="math block">
+[1.2,0.3,2.1,1.4]
+</div>
+<p>with <span class="math inline">k=2</span>:</p>
+<div class="math block">
+\boxed{E_3,E_4}.
+</div>
+<p>Gate weights:</p>
+<div class="math block">
+\boxed{0.668,\ 0.332}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-69">Level 4</h6>
+<p>Expert outputs:</p>
+<div class="math block">
+[2,4]
+</div>
+<p>and:</p>
+<div class="math block">
+[6,1].
+</div>
+<p>Weighted result:</p>
+<div class="math block">
+\boxed{[3.328,\ 3.004]}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-38-i79-70">Level 5</h6>
+<p>For:</p>
+<div class="math block">
+d_{\text{model}}=4096,\quad
+d_{\text{hidden}}=16384,
+</div>
+<p>a two-matrix dense FFN has:</p>
+<div class="math block">
+\boxed{134,217,728}
+</div>
+<p>weights before considering biases/implementation details.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-38-i79-71">5.38.48 Final mental model</h4>
+<p>The entire basic MoE mechanism is:</p>
+<div class="math block">
+\boxed{
+x
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Router}
+}
+</div>
+<p>produces:</p>
+<div class="math block">
+\boxed{
+\text{one score per expert}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Top-K}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\boxed{\text{which experts}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Softmax}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\boxed{\text{how much each selected expert contributes}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Sparse dispatch}
+}
+</div>
+<p>only selected experts execute.</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Weighted sum}
+}
+</div>
+<p>produces the token's output.</p>
+<p>So the central equation is:</p>
+<div class="math block">
+\boxed{
+MoE(x)
+=
+\sum_{i\in TopK(x)}
+g_iE_i(x)
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>But the basic mechanism creates a critical problem:</p>
+<div class="math block">
+\boxed{
+\text{Who keeps the experts balanced?}
+}
+</div>
+<p>Because if one expert receives most of the tokens:</p>
+<div class="math block">
+\boxed{
+\text{training becomes inefficient}
++
+\text{some experts become under-trained}
++
+\text{hardware becomes imbalanced}.
+}
+</div>
+<hr />
+</section>

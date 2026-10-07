@@ -1,0 +1,1323 @@
+<section class="chunk" id="chunk-les-step-5-40-i81" data-id="les-step-5-40-i81"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-40-i81"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-40-i81" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-39-i80">← Previous lesson</a> · <a href="#chunk-les-step-5-41-i82">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-39-i80">Step 5.39 — MoE Load Balancing: Why Routing Must Be Controlled</a></p><p><strong>This lesson:</strong> Step 5.40 — DeepSeek-MoE Innovation #1 and #2</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-40-i81"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-40-i81-1">Step 5.40 — DeepSeek-MoE Innovation #1 and #2</h3>
+<p><em>Plan node: A2 · chat order #81</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-40-i81-2">Fine-Grained Expert Segmentation + Shared Expert Isolation</h5>
+<p>We have solved the <strong>routing imbalance</strong> problem conceptually. Now we address the two architectural problems that ordinary MoE still has:</p>
+<div class="math block">
+\boxed{\text{Knowledge Hybridity}}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\text{Knowledge Redundancy}}
+</div>
+<p>DeepSeek addresses them with:</p>
+<div class="math block">
+\boxed{
+\text{Fine-Grained Expert Segmentation}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Shared Expert Isolation}
+}
+</div>
+<p>The source presents these as the first two major DeepSeek-MoE innovations. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-3">5.40.1 First, remember what ordinary MoE gave us</h4>
+<p>Suppose we start with a conventional MoE:</p>
+<div class="math block">
+\boxed{16\text{ experts}}
+</div>
+<p>and each expert has hidden dimension:</p>
+<div class="math block">
+\boxed{4096}.
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+E_1,E_2,\ldots,E_{16}
+</div>
+<p>are sixteen relatively large FFNs.</p>
+<p>A router chooses, say:</p>
+<div class="math block">
+k=2
+</div>
+<p>for each token.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+16\text{ available experts}
+\rightarrow
+2\text{ active experts/token}
+}
+</div>
+<p>This is efficient.</p>
+<p>But the source asks:</p>
+<blockquote>
+<p>Are 16 large experts really the best way to divide knowledge?</p>
+</blockquote>
+<p>The answer is no.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-4">5.40.2 Problem #1 — Knowledge Hybridity</h4>
+<p>Imagine the training data contains:</p>
+<div class="math block">
+\text{Python}
++
+\text{Mathematics}
++
+\text{Law}
++
+\text{History}
++
+\text{Conversational text}.
+</div>
+<p>With only a few large experts, an individual expert may receive tokens belonging to several unrelated domains.</p>
+<p>So instead of becoming:</p>
+<div class="math block">
+\boxed{\text{Python specialist}}
+</div>
+<p>it becomes something like:</p>
+<div class="math block">
+\boxed{
+\text{Python}
++
+\text{law}
++
+\text{grammar}
++
+\text{history}
++\cdots
+}
+</div>
+<p>That is what the source calls:</p>
+<div class="math block">
+\boxed{\text{Knowledge Hybridity}}.
+</div>
+<p>The source's intuition is that with too few experts, each expert becomes a “jack-of-all-trades,” preventing deep specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-5">5.40.3 The obvious idea</h4>
+<p>Instead of:</p>
+<div class="math block">
+16
+</div>
+<p>large experts, create many smaller experts.</p>
+<p>For example:</p>
+<div class="math block">
+\boxed{64\text{ experts}}
+</div>
+<p>with a smaller hidden dimension:</p>
+<div class="math block">
+\boxed{1024}.
+</div>
+<p>So:</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-6">Conventional</h6>
+<div class="math block">
+16\times4096
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-7">Fine-grained</h6>
+<div class="math block">
+64\times1024
+</div>
+<p>The source deliberately gives this exact example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-8">5.40.4 First numerical observation</h4>
+<p>Conventional expert capacity:</p>
+<div class="math block">
+16\times4096
+=
+\boxed{65,536}.
+</div>
+<p>Fine-grained expert capacity:</p>
+<div class="math block">
+64\times1024
+=
+\boxed{65,536}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+16\times4096
+=
+64\times1024
+}
+</div>
+<p>The total hidden-dimension capacity is unchanged.</p>
+<p>This is the key trick.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-9">5.40.5 What actually changed?</h4>
+<p>We did <strong>not</strong> necessarily make the model larger.</p>
+<p>We changed:</p>
+<div class="math block">
+\boxed{\text{number of containers}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{size of each container}}.
+</div>
+<p>Before:</p>
+<div class="math block">
+16\text{ large containers}
+</div>
+<p>After:</p>
+<div class="math block">
+64\text{ smaller containers}.
+</div>
+<p>So the same overall capacity is divided more finely.</p>
+<p>The source explicitly says the total number of expert parameters and activated parameters can remain the same while the knowledge is divided into a larger number of more specialized containers. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-10">5.40.6 Why does this improve specialization?</h4>
+<p>Suppose the model has only 4 broad experts:</p>
+<div class="math block">
+E_1,E_2,E_3,E_4.
+</div>
+<p>A single expert may have to represent:</p>
+<div class="math block">
+\text{code + legal + mathematics}.
+</div>
+<p>But with 64 experts, the routing space is much finer.</p>
+<p>The source's conceptual examples include possibilities such as a specialist for:</p>
+<div class="math block">
+\text{Python syntax}
+</div>
+<p>another for:</p>
+<div class="math block">
+\text{legal terminology}
+</div>
+<p>another for:</p>
+<div class="math block">
+\text{poetic language}.
+</div>
+<p>These are illustrative descriptions of possible specialization, not a guarantee that the learned experts acquire exactly those labels. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-11">5.40.7 Why “fine-grained”?</h4>
+<p>Because the routing granularity changes.</p>
+<p>Think of conventional MoE as having broad bins:</p>
+<div class="math block">
+\boxed{
+\text{Bin A}
+\quad
+\text{Bin B}
+\quad
+\text{Bin C}
+\quad
+\text{Bin D}
+}
+</div>
+<p>while fine-grained MoE has:</p>
+<div class="math block">
+\boxed{
+64\text{ narrower bins}
+}
+</div>
+<p>The router gets more choices.</p>
+<p>Therefore the token-to-expert mapping can become more precise.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-12">5.40.8 The subtle point about Top-K</h4>
+<p>Suppose conventional MoE uses:</p>
+<div class="math block">
+N=16,\quad k=2.
+</div>
+<p>Then a token gets:</p>
+<div class="math block">
+2/16
+</div>
+<p>of the expert choices activated.</p>
+<p>Now fine-grained MoE uses:</p>
+<div class="math block">
+N=64.
+</div>
+<p>If we still use:</p>
+<div class="math block">
+k=2,
+</div>
+<p>then the token sees two of sixty-four experts.</p>
+<p>This creates a much narrower routing decision.</p>
+<p>But there is another important design possibility:</p>
+<p>increase <span class="math inline">N</span> while also changing expert size and <span class="math inline">k</span> so that <strong>total activated parameters</strong> remain approximately comparable.</p>
+<p>The source explicitly notes that the total expert parameters and activated parameters can remain the same under the fine-grained construction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So don't memorize:</p>
+<blockquote>
+<p>“Fine-grained always means more experts and the exact same <span class="math inline">k</span>.”</p>
+</blockquote>
+<p>The deeper principle is:</p>
+<div class="math block">
+\boxed{
+\text{more experts}
++
+\text{smaller experts}
+}
+</div>
+<p>with capacity controlled appropriately.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-13">5.40.9 Parameter-count derivation</h4>
+<p>Let an expert FFN have:</p>
+<div class="math block">
+d_{\text{model}}=D
+</div>
+<p>and hidden dimension:</p>
+<div class="math block">
+H.
+</div>
+<p>Ignoring biases, a two-layer FFN has approximately:</p>
+<div class="math block">
+DH+HD
+</div>
+<p>parameters:</p>
+<div class="math block">
+\boxed{
+2DH
+}.
+</div>
+<p>For <span class="math inline">N</span> experts:</p>
+<div class="math block">
+\boxed{
+P_{\text{experts}}
+\approx
+2NDH
+}.
+</div>
+<p>Now suppose we increase experts from:</p>
+<div class="math block">
+N
+</div>
+<p>to:</p>
+<div class="math block">
+aN
+</div>
+<p>and reduce hidden dimension from:</p>
+<div class="math block">
+H
+</div>
+<p>to:</p>
+<div class="math block">
+\frac{H}{a}.
+</div>
+<p>Then:</p>
+<div class="math block">
+P'_{\text{experts}}
+=
+2(aN)D\left(\frac Ha\right).
+</div>
+<p>Cancel <span class="math inline">a</span>:</p>
+<div class="math block">
+\boxed{
+P'_{\text{experts}}
+=
+2NDH
+}.
+</div>
+<p>So total expert parameters remain approximately unchanged.</p>
+<p>This is the mathematical reason the source's example works.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-14">5.40.10 Exam numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=2048.
+</div>
+<p>Conventional MoE:</p>
+<div class="math block">
+N=8,\quad H=4096.
+</div>
+<p>Expert parameters:</p>
+<div class="math block">
+2(8)(2048)(4096)
+</div>
+<div class="math block">
+=
+\boxed{134,217,728}.
+</div>
+<p>Now create:</p>
+<div class="math block">
+N'=32
+</div>
+<p>experts and:</p>
+<div class="math block">
+H'=1024.
+</div>
+<p>Then:</p>
+<div class="math block">
+2(32)(2048)(1024)
+</div>
+<div class="math block">
+=
+\boxed{134,217,728}.
+</div>
+<p>Same total expert parameter count.</p>
+<p>But instead of 8 broad experts:</p>
+<div class="math block">
+\boxed{32\text{ narrower experts}}.
+</div>
+<p>That is fine-grained segmentation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-15">5.40.11 Activated-parameter numerical</h4>
+<p>Suppose the original model has:</p>
+<div class="math block">
+N=16,\qquad H=4096
+</div>
+<p>and activates:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Activated expert parameters per token are approximately:</p>
+<div class="math block">
+2\times2D(4096)
+=
+4D(4096).
+</div>
+<p>Now split into:</p>
+<div class="math block">
+N=64,\qquad H=1024
+</div>
+<p>and suppose the architecture chooses:</p>
+<div class="math block">
+k'=8
+</div>
+<p>to preserve the same activated capacity.</p>
+<p>Then:</p>
+<div class="math block">
+8\times2D(1024)
+=
+16D(1024)
+=
+4D(4096).
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+k'H'=kH
+}
+</div>
+<p>is the key relation for preserving approximately the same activated FFN capacity.</p>
+<p>This is an exam-style inference from the parameter formulas; the source's exact discussion states that activated parameters can remain the same, but does not prescribe this exact symbolic derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-16">5.40.12 This solves one problem—but not the other</h4>
+<p>Fine-grained experts address:</p>
+<div class="math block">
+\boxed{\text{Knowledge Hybridity}}
+</div>
+<p>because experts can become narrower specialists.</p>
+<p>But now consider this:</p>
+<p>Every specialized expert still needs foundational knowledge.</p>
+<p>For example:</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-17">Python expert</h6>
+<p>needs:</p>
+<div class="math block">
+\text{basic grammar}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-18">Medical expert</h6>
+<p>needs:</p>
+<div class="math block">
+\text{basic grammar}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-19">Legal expert</h6>
+<p>needs:</p>
+<div class="math block">
+\text{basic grammar}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-20">Mathematics expert</h6>
+<p>needs:</p>
+<div class="math block">
+\text{basic language understanding}.
+</div>
+<p>So common information gets duplicated across experts.</p>
+<p>That is:</p>
+<div class="math block">
+\boxed{\text{Knowledge Redundancy}}.
+</div>
+<p>The source explicitly uses this reasoning to motivate the second innovation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-21">5.40.13 Why redundancy is expensive</h4>
+<p>Suppose each specialized expert has:</p>
+<div class="math block">
+100M
+</div>
+<p>parameters.</p>
+<p>If every expert spends:</p>
+<div class="math block">
+20M
+</div>
+<p>parameters learning shared/common information, then with:</p>
+<div class="math block">
+64
+</div>
+<p>experts:</p>
+<div class="math block">
+64\times20M
+=
+\boxed{1.28B}
+</div>
+<p>parameters are being used for repeated common knowledge.</p>
+<p>That capacity could instead be devoted to specialized knowledge.</p>
+<p>This numerical example is illustrative; the source's point is qualitative: duplicated foundational knowledge consumes expert capacity and hinders specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-22">5.40.14 DeepSeek's second idea</h4>
+<p>Instead of asking every routed expert to relearn common knowledge:</p>
+<div class="math block">
+\boxed{\text{create dedicated shared experts}}
+</div>
+<p>These are a small set of dense experts.</p>
+<p>So now we divide the MoE layer into:</p>
+<div class="math block">
+\boxed{
+\text{Shared Experts}
++
+\text{Routed Experts}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-23">5.40.15 Routed experts</h4>
+<p>These are our fine-grained specialists.</p>
+<p>Each token is sent only to:</p>
+<div class="math block">
+k
+</div>
+<p>of them.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{Routed Experts}
+=
+\text{sparse}
+}
+</div>
+<p>For a token:</p>
+<div class="math block">
+x_t,
+</div>
+<p>the router determines:</p>
+<div class="math block">
+TopK(x_t)
+</div>
+<p>and only those experts execute.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-24">5.40.16 Shared experts</h4>
+<p>The shared experts are completely different.</p>
+<p>Every token passes through:</p>
+<div class="math block">
+\boxed{\text{all shared experts}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Shared Experts}
+=
+\text{dense}
+}
+</div>
+<p>This is explicitly stated in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-25">5.40.17 Why should every token see shared experts?</h4>
+<p>Because they store common knowledge.</p>
+<p>Think of the division as:</p>
+<div class="math block">
+\boxed{
+\text{Shared path}
+=
+\text{general knowledge}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Routed path}
+=
+\text{specialized knowledge}
+}.
+</div>
+<p>Therefore the routed experts don't have to waste as much capacity learning the same fundamentals.</p>
+<p>The source describes the shared experts as the central repository for common foundational knowledge, while routed experts are freed to focus on narrower domains. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-26">5.40.18 Simple analogy</h4>
+<p>Imagine a hospital.</p>
+<p>Every patient first receives care from:</p>
+<div class="math block">
+\boxed{\text{general physician}}
+</div>
+<p>for common medical needs.</p>
+<p>Then the patient is routed to:</p>
+<div class="math block">
+\boxed{\text{cardiologist}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{neurologist}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{orthopedic specialist}}.
+</div>
+<p>The general physician handles:</p>
+<div class="math block">
+\text{common knowledge}.
+</div>
+<p>The specialist handles:</p>
+<div class="math block">
+\text{specific knowledge}.
+</div>
+<p>That is a useful conceptual analogy for:</p>
+<div class="math block">
+\boxed{
+\text{shared experts + routed experts}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-27">5.40.19 Mathematical architecture</h4>
+<p>Let:</p>
+<div class="math block">
+x
+</div>
+<p>be a token representation.</p>
+<p>Shared expert outputs:</p>
+<div class="math block">
+S_j(x),\qquad j=1,\ldots,N_s.
+</div>
+<p>The dense shared output is:</p>
+<div class="math block">
+\boxed{
+S(x)=\sum_{j=1}^{N_s}S_j(x)
+}
+</div>
+<p>for the source-style simplified implementation.</p>
+<p>Now the routed path:</p>
+<div class="math block">
+R(x)
+=
+\sum_{i\in TopK(x)}
+g_iE_i(x).
+</div>
+<p>So the MoE result becomes:</p>
+<div class="math block">
+\boxed{
+y=
+x+S(x)+R(x)
+}
+</div>
+<p>in the source's complete implementation, where the direct <span class="math inline">x</span> term is the residual path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-28">5.40.20 Why is the residual <span class="math inline">x</span> included?</h4>
+<p>The source's complete architecture has three parallel paths:</p>
+<div class="math block">
+\boxed{
+\text{Residual}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Shared experts}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Routed experts}
+}
+</div>
+<p>and sums:</p>
+<div class="math block">
+\boxed{
+x+shared\_out+routed\_out
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The residual path preserves the original representation and maintains the Transformer residual-stream structure.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-29">5.40.21 Full data flow</h4>
+<p>Now the architecture looks like this:</p>
+<div class="math block">
+\boxed{x}
+</div>
+<p>splits into two computational branches.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-30">Branch A</h6>
+<div class="math block">
+x
+\rightarrow
+\boxed{\text{Shared Expert 1}}
+</div>
+<div class="math block">
+x
+\rightarrow
+\boxed{\text{Shared Expert 2}}
+</div>
+<div class="math block">
+\cdots
+</div>
+<p>All tokens pass through them.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-31">Branch B</h6>
+<div class="math block">
+x
+\rightarrow
+\boxed{\text{Router}}
+</div>
+<div class="math block">
+\rightarrow
+\boxed{\text{Top-K}}
+</div>
+<div class="math block">
+\rightarrow
+\boxed{\text{selected routed experts only}}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+y=x+shared+routed
+}
+</div>
+<p>This is the architectural picture you should have in your mind.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-32">5.40.22 The three responsibilities</h4>
+<p>This gives us a beautiful division:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Main responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shared experts</td>
+<td>Common/foundational knowledge</td>
+</tr>
+<tr>
+<td>Routed experts</td>
+<td>Specialized knowledge</td>
+</tr>
+<tr>
+<td>Router</td>
+<td>Select which specialists to activate</td>
+</tr>
+</tbody>
+</table>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Shared = generalist}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Routed = specialist}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Router = dispatcher}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-33">5.40.23 Why shared experts do not destroy sparsity</h4>
+<p>A common confusion is:</p>
+<blockquote>
+<p>“If shared experts process every token, haven't we lost MoE sparsity?”</p>
+</blockquote>
+<p>No.</p>
+<p>Only the <strong>shared path</strong> is dense.</p>
+<p>The large pool of routed experts remains sparse.</p>
+<p>Suppose:</p>
+<div class="math block">
+N_r=64
+</div>
+<p>routed experts and:</p>
+<div class="math block">
+k=8.
+</div>
+<p>Every token executes:</p>
+<div class="math block">
+8
+</div>
+<p>routed experts, not 64.</p>
+<p>Then suppose:</p>
+<div class="math block">
+N_s=2
+</div>
+<p>shared experts.</p>
+<p>Every token executes those 2 shared experts as well.</p>
+<p>So total expert executions per token:</p>
+<div class="math block">
+\boxed{2+8=10}
+</div>
+<p>rather than:</p>
+<div class="math block">
+66.
+</div>
+<p>This is the key architectural balance.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-34">5.40.24 Parameter numerical: shared + routed</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=2048.
+</div>
+<p>Each routed expert has:</p>
+<div class="math block">
+H_r=1024.
+</div>
+<p>There are:</p>
+<div class="math block">
+64
+</div>
+<p>routed experts.</p>
+<p>Total routed parameters:</p>
+<div class="math block">
+2(64)(2048)(1024)
+</div>
+<div class="math block">
+=
+\boxed{268,435,456}.
+</div>
+<p>Now create:</p>
+<div class="math block">
+2
+</div>
+<p>shared experts of hidden dimension:</p>
+<div class="math block">
+1024.
+</div>
+<p>Their total parameters:</p>
+<div class="math block">
+2(2)(2048)(1024)
+=
+\boxed{8,388,608}.
+</div>
+<p>Total expert parameters:</p>
+<div class="math block">
+268,435,456+8,388,608
+=
+\boxed{276,824,064}.
+</div>
+<p>But per token, only:</p>
+<div class="math block">
+8
+</div>
+<p>routed experts are active plus the:</p>
+<div class="math block">
+2
+</div>
+<p>shared experts.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{10\text{ expert computations/token}}
+</div>
+<p>instead of:</p>
+<div class="math block">
+66.
+</div>
+<p>Again, these numbers are illustrative.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-35">5.40.25 Why this creates better specialization</h4>
+<p>Before:</p>
+<div class="math block">
+E_i
+=
+\boxed{\text{specialized knowledge + common knowledge}}
+</div>
+<p>After shared isolation:</p>
+<div class="math block">
+\boxed{
+E_i
+\approx
+\text{specialized knowledge}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+S_j
+\approx
+\text{common knowledge}
+}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{routed experts can spend more capacity on specialization}
+}.
+</div>
+<p>This is exactly the conceptual benefit the source attributes to shared expert isolation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-36">5.40.26 Connecting both innovations</h4>
+<p>Now notice how the two ideas solve two different problems.</p>
+<h5 id="v3-heading-chunk-les-step-5-40-i81-37">Innovation 1</h5>
+<p>Fine-grained segmentation:</p>
+<div class="math block">
+\boxed{
+\text{Many small experts}
+}
+</div>
+<p>solves:</p>
+<div class="math block">
+\boxed{
+\text{Knowledge Hybridity}
+}
+</div>
+<p>because each expert has a narrower role.</p>
+<h5 id="v3-heading-chunk-les-step-5-40-i81-38">Innovation 2</h5>
+<p>Shared expert isolation:</p>
+<div class="math block">
+\boxed{
+\text{Small dense generalist path}
+}
+</div>
+<p>solves:</p>
+<div class="math block">
+\boxed{
+\text{Knowledge Redundancy}
+}
+</div>
+<p>because common knowledge is centralized.</p>
+<p>Together:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained specialists}
++
+\text{shared generalists}
+}
+</div>
+<p>produce the DeepSeek specialization strategy.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-39">5.40.27 A compact comparison</h4>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-40">Conventional MoE</h6>
+<div class="math block">
+\boxed{
+\text{few large routed experts}
+}
+</div>
+<p>Potential issue:</p>
+<div class="math block">
+\text{knowledge hybridity}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{redundancy}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-41">DeepSeek-style</h6>
+<div class="math block">
+\boxed{
+\text{many small routed experts}
++
+\text{few shared dense experts}
+}
+</div>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+\text{narrow specialists}
++
+\text{common foundation}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-42">5.40.28 Now combine it with Step 5.39</h4>
+<p>Remember our loss-free balancing:</p>
+<div class="math block">
+L'=L+b.
+</div>
+<p>Now the routed path becomes:</p>
+<div class="math block">
+L'
+\rightarrow TopK
+\rightarrow softmax
+\rightarrow specialized experts.
+</div>
+<p>Thus all three DeepSeek innovations now fit together:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained experts}
+}
+</div>
+<p>give specialization.</p>
+<div class="math block">
+\boxed{
+\text{Shared experts}
+}
+</div>
+<p>give common knowledge.</p>
+<div class="math block">
+\boxed{
+\text{Dynamic bias}
+}
+</div>
+<p>keeps routing balanced.</p>
+<p>This is why these innovations are much more meaningful <strong>together</strong> than individually.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-43">5.40.29 Complete DeepSeek-MoE conceptual equation</h4>
+<p>A source-style simplified expression is:</p>
+<div class="math block">
+\boxed{
+y_t
+=
+x_t
++
+\sum_{j=1}^{N_s}S_j(x_t)
++
+\sum_{i\in TopK_t}g_{t,i}E_i(x_t)
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">x_t</span>: original token representation,</li>
+<li><span class="math inline">S_j</span>: shared expert <span class="math inline">j</span>,</li>
+<li><span class="math inline">E_i</span>: routed expert <span class="math inline">i</span>,</li>
+<li><span class="math inline">TopK_t</span>: selected routed experts for token <span class="math inline">t</span>,</li>
+<li><span class="math inline">g_{t,i}</span>: routing weight.</li>
+</ul>
+<p>And before selecting routed experts:</p>
+<div class="math block">
+\boxed{
+L_t'=L_t+b
+}
+</div>
+<p>where <span class="math inline">b</span> is the dynamically adjusted expert bias.</p>
+<p>The source's implementation follows precisely this three-path structure.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-44">5.40.30 Tensor shapes</h4>
+<p>Suppose:</p>
+<div class="math block">
+X\in\mathbb R^{B\times S\times D}.
+</div>
+<p>Flatten:</p>
+<div class="math block">
+X_f\in\mathbb R^{BS\times D}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+N_r
+</div>
+<p>routed experts.</p>
+<p>Router matrix:</p>
+<div class="math block">
+W_R\in\mathbb R^{D\times N_r}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L=X_fW_R
+</div>
+<p>has:</p>
+<div class="math block">
+\boxed{
+BS\times N_r
+}.
+</div>
+<p>After Top-K:</p>
+<div class="math block">
+\boxed{
+BS\times k
+}
+</div>
+<p>indices and gating weights.</p>
+<p>Routed result:</p>
+<div class="math block">
+\boxed{
+BS\times D
+}.
+</div>
+<p>Shared path:</p>
+<div class="math block">
+\boxed{
+B\times S\times D
+}.
+</div>
+<p>Final:</p>
+<div class="math block">
+\boxed{
+B\times S\times D
+}.
+</div>
+<p>Thus the MoE layer still fits neatly into the Transformer residual stream.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-45">5.40.31 Exam numerical — tensor routing</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=8,
+</div>
+<div class="math block">
+S=1024,
+</div>
+<div class="math block">
+D=4096,
+</div>
+<div class="math block">
+N_r=128,
+</div>
+<div class="math block">
+k=8.
+</div>
+<p>Total tokens:</p>
+<div class="math block">
+8\times1024
+=
+\boxed{8192}.
+</div>
+<p>Router logits:</p>
+<div class="math block">
+\boxed{
+8192\times128
+}.
+</div>
+<p>Top-K indices:</p>
+<div class="math block">
+\boxed{
+8192\times8
+}.
+</div>
+<p>Total routed expert assignments:</p>
+<div class="math block">
+8192\times8
+=
+\boxed{65,536}.
+</div>
+<p>Ideal average assignments per routed expert:</p>
+<div class="math block">
+\frac{65,536}{128}
+=
+\boxed{512}.
+</div>
+<p>Excellent exam question because it combines:</p>
+<div class="math block">
+\text{batch shape}
++
+\text{router}
++
+\text{Top-K}
++
+\text{load balancing}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-46">5.40.32 Exam numerical — fine-grained preservation</h4>
+<p>Conventional:</p>
+<div class="math block">
+N=16,\quad H=4096.
+</div>
+<p>Fine-grained:</p>
+<div class="math block">
+N'=64,\quad H'=1024.
+</div>
+<p>Check:</p>
+<div class="math block">
+16\times4096
+=
+65,536
+</div>
+<p>and:</p>
+<div class="math block">
+64\times1024
+=
+65,536.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{same aggregate expert hidden capacity}
+}.
+</div>
+<p>The expert count increased:</p>
+<div class="math block">
+64/16
+=
+\boxed{4\times}.
+</div>
+<p>The individual expert size decreased:</p>
+<div class="math block">
+1024/4096
+=
+\boxed{1/4}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+4\times\text{ more experts}
+,\quad
+1/4\text{ size per expert}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-47">5.40.33 Exam numerical — specialization reasoning</h4>
+<p>Suppose a conventional MoE has:</p>
+<div class="math block">
+8
+</div>
+<p>experts.</p>
+<p>The dataset effectively contains 8 broad domains.</p>
+<p>In a simplified idealization:</p>
+<div class="math block">
+1\text{ expert/domain}.
+</div>
+<p>Now split into:</p>
+<div class="math block">
+64
+</div>
+<p>experts.</p>
+<p>The router has:</p>
+<div class="math block">
+64/8
+=
+\boxed{8\times}
+</div>
+<p>more expert choices.</p>
+<p>The source's argument is not that there will literally be exactly one expert per semantic category. The point is that the larger pool provides finer routing granularity and therefore more opportunity for specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-48">5.40.34 One subtle but important correction to your mental model</h4>
+<p>Do <strong>not</strong> memorize:</p>
+<div class="math block">
+\boxed{\text{one expert = one topic}}
+</div>
+<p>That is too simplistic.</p>
+<p>A trained expert's function is learned from optimization.</p>
+<p>It may respond to:</p>
+<div class="math block">
+\text{linguistic patterns}
++
+\text{domain patterns}
++
+\text{syntactic structures}
++
+\text{other learned features}.
+</div>
+<p>The source uses “Python specialist,” “legal terminology,” etc. as intuition for specialization, not as a strict partition of the knowledge space. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The correct mental model is:</p>
+<div class="math block">
+\boxed{
+\text{experts tend toward differentiated specialization}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{each expert owns exactly one human-defined subject}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-49">5.40.35 Put everything we've learned together</h4>
+<p>We started with:</p>
+<div class="math block">
+\boxed{\text{Dense FFN}}
+</div>
+<p>↓</p>
+<p>too expensive.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Sparse MoE}}
+</div>
+<p>↓</p>
+<p>only a few experts execute.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Load balancing}}
+</div>
+<p>↓</p>
+<p>prevent expert collapse.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Fine-grained segmentation}}
+</div>
+<p>↓</p>
+<p>more, smaller specialists.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Shared expert isolation}}
+</div>
+<p>↓</p>
+<p>centralize common knowledge.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Auxiliary-loss-free bias}}
+</div>
+<p>↓</p>
+<p>balance the routed specialists without adding a competing balancing loss.</p>
+<p>So the conceptual architecture becomes:</p>
+<div class="math block">
+\boxed{
+\text{Shared Generalists}
++
+\text{Balanced Fine-Grained Specialists}
++
+\text{Sparse Routing}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-50">5.40.36 Final architecture</h4>
+<p>For each token <span class="math inline">x_t</span>:</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-51">Shared path</h6>
+<div class="math block">
+\boxed{
+x_t\rightarrow S_1,S_2,\ldots,S_{N_s}
+}
+</div>
+<p>Every token.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-52">Routed path</h6>
+<div class="math block">
+x_t
+\rightarrow
+L_t
+\rightarrow
+L_t+b
+\rightarrow
+TopK
+\rightarrow
+\text{selected }E_i
+</div>
+<p>Only selected specialists.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-53">Combine</h6>
+<div class="math block">
+\boxed{
+y_t=
+x_t+
+\sum_jS_j(x_t)
++
+\sum_{i\in TopK_t}g_{t,i}E_i(x_t)
+}
+</div>
+<p>This is the most important equation from the entire MoE section so far. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-54">5.40.37 The four questions you should be able to answer in an exam</h4>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-55">Q1. Why does DeepSeek increase the number of experts?</h6>
+<p>Because few large experts create:</p>
+<div class="math block">
+\boxed{\text{knowledge hybridity}}
+</div>
+<p>and many smaller experts provide finer specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-56">Q2. Why reduce expert size when increasing expert count?</h6>
+<p>To preserve approximately the same total expert parameter capacity:</p>
+<div class="math block">
+\boxed{
+N'H'\approx NH
+}
+</div>
+<p>in the source's illustrative construction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-57">Q3. Why add shared experts?</h6>
+<p>To provide common foundational knowledge so routed experts don't redundantly relearn it. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-58">Q4. Are shared experts sparse?</h6>
+<p>No.</p>
+<div class="math block">
+\boxed{
+\text{shared experts are dense}
+}
+</div>
+<p>Every token uses them.</p>
+<p>The routed experts are the sparse part. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-40-i81-59">5.40.38 Final memory trick</h4>
+<p>Remember:</p>
+<div class="math block">
+\boxed{
+\text{MORE}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-60"><strong>M — Many</strong></h6>
+<p>Many small experts.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-61"><strong>O — One common path</strong></h6>
+<p>Shared experts handle common knowledge.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-62"><strong>R — Route sparsely</strong></h6>
+<p>Only a few routed experts per token.</p>
+<h6 id="v3-heading-chunk-les-step-5-40-i81-63"><strong>E — Equalize load</strong></h6>
+<p>Dynamic bias keeps expert utilization balanced.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Many specialists + One shared foundation + Sparse routing + Equalized load}
+}
+</div>
+<p>That is the DeepSeek-MoE story we have built so far.</p>
+<hr />
+</section>

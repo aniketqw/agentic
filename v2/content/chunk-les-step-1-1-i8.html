@@ -1,0 +1,1074 @@
+<section class="chunk" id="chunk-les-step-1-1-i8" data-id="les-step-1-1-i8"><details class="audit-card" id="audit-T01" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T01 — Shifted next-token targets and masked loss</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F10">← Previous audit card</a> · <a href="#audit-T02">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-1-i8-1">Why this matters</h4><p>The target at each input position is the following token. A causal model must not access that target through future input positions.</p><p><strong>Prerequisites:</strong> <a href="#audit-F04">Conditional sequence probability and log likelihood</a>, <a href="#audit-F10">Softmax Jacobian and the CE logit gradient</a></p><h4 id="v3-heading-chunk-les-step-1-1-i8-2">Symbols, shapes and assumptions</h4><p>Token stream length T+1 gives T input/target pairs. Logits have shape B×T×V; targets B×T. A loss mask and an attention mask serve different purposes.</p><h4 id="v3-heading-chunk-les-step-1-1-i8-3">Derivation or mechanism</h4><ol><li>Take tokens[:-1] as the input window.</li><li>Take tokens[1:] as targets.</li><li>Select each target log probability, then average over the valid target count.</li></ol><div class="math block" data-tex="L=-\frac{\sum_{b,t}m_{bt}\log p(x_{b,t+1}\mid x_{b,\leq t})}{\sum_{b,t}m_{bt}}">L=-\frac{\sum_{b,t}m_{bt}\log p(x_{b,t+1}\mid x_{b,\leq t})}{\sum_{b,t}m_{bt}}</div><h4 id="v3-heading-chunk-les-step-1-1-i8-4">Worked numerical</h4><p>Stream [2,0,1,2] becomes inputs [2,0,1] and targets [0,1,2]. If two positions share F10 logits and only the first is valid, with targets [2,-100] and mask [1,0], the mean loss is log 2, not log 2 divided by 2. The ignored target is never indexed.</p><h4 id="v3-heading-chunk-les-step-1-1-i8-5">Edge cases and limits</h4><ul><li>An all-ignored batch has no denominator; the companion rejects it.</li><li>Padding is not automatically removed merely because its token ID exists.</li><li>This example uses binary masks; weighted losses have another normalization contract.</li></ul><h4 id="v3-heading-chunk-les-step-1-1-i8-6">Connections</h4><ul><li>T05 supplies the causal attention constraint.</li><li>Later SFT, distillation and ReTool need task-specific loss masks.</li></ul><h4 id="v3-heading-chunk-les-step-1-1-i8-7">Source support</h4><ul><li>transformers-slides(1).pdf · physical PDF pages 3, 9 · Slide syllabus</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 314, 324, 325, 326 · §5.1</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-1-i8-8">Executable companion and checking evidence</h4><p>Functions: <code>shifted_targets</code>, <code>masked_token_loss</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T01-shift, T01-loss-mask. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-1-i8"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-1-i8" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-0-6-i7">← Previous lesson</a> · <a href="#chunk-les-step-1-2-i9">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-1-i2">STEP 0.1 — SCALARS, VECTORS AND MATRICES</a>, <a href="#chunk-les-step-0-2-i3">STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</a></p><p><strong>This lesson:</strong> Step 1.1 — What Exactly Is a Language Model?</p><p><strong>Source references:</strong> <a href="#source-13">Understanding_Attention_Handbook_01</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-1-i8"></a></p>
+<h2>Step 1.1 — What Exactly Is a Language Model?</h2>
+<p><em>Plan node: I1 · chat order #8</em></p>
+<p>We have finished the mathematical foundation. Now we move from <strong>mathematics → the actual objective of an LLM</strong>.</p>
+<p>This is the most important conceptual transition in the whole course because almost everything that comes later—Transformer attention, decoding, fine-tuning, RL, GRPO, reasoning models—builds on this basic objective.</p>
+<p>Your Transformer slides explicitly define the training goal as <strong>predicting the probability of the next token given all previous tokens</strong>.</p>
+<p>Raschka's book gives the same foundation from the LLM perspective: an LLM is trained on large amounts of text, with parameters optimized to predict the next word/token and thereby learn context, structure, and relationships in language.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-9">1.1.1 First: What is a Language Model?</h3>
+<p>Imagine that I give you:</p>
+<blockquote>
+<p><code>The cat is sitting on the</code></p>
+</blockquote>
+<p>What should come next?</p>
+<p>Possible tokens might be:</p>
+<div class="math block">
+\{\text{mat},\text{floor},\text{chair},\text{roof},...\}
+</div>
+<p>A language model does <strong>not</strong> simply say:</p>
+<blockquote>
+<p>&quot;The answer is mat.&quot;</p>
+</blockquote>
+<p>Instead, its fundamental output is a <strong>probability distribution</strong>:</p>
+<div class="math block">
+P(x_{t+1}\mid x_1,x_2,\ldots,x_t)
+</div>
+<p>For example:</p>
+<table>
+<thead>
+<tr>
+<th>Next token</th>
+<th style="text-align:right">Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mat</td>
+<td style="text-align:right">0.55</td>
+</tr>
+<tr>
+<td>floor</td>
+<td style="text-align:right">0.20</td>
+</tr>
+<tr>
+<td>chair</td>
+<td style="text-align:right">0.10</td>
+</tr>
+<tr>
+<td>roof</td>
+<td style="text-align:right">0.01</td>
+</tr>
+<tr>
+<td>...</td>
+<td style="text-align:right">...</td>
+</tr>
+</tbody>
+</table>
+<p>So:</p>
+<blockquote>
+<p><strong>A language model is fundamentally a function that maps previous tokens to a probability distribution over possible next tokens.</strong></p>
+</blockquote>
+<p>That is the central idea.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-10">1.1.2 Why &quot;Language Model&quot; Instead of &quot;Next-Token Predictor&quot;?</h3>
+<p>Because predicting the next token lets us model the probability of an <strong>entire sequence</strong>.</p>
+<p>Suppose:</p>
+<div class="math block">
+x_1,x_2,x_3,x_4
+</div>
+<p>is</p>
+<blockquote>
+<p><code>I love machine learning</code></p>
+</blockquote>
+<p>The model wants to assign a probability to the whole sequence:</p>
+<div class="math block">
+P(x_1,x_2,x_3,x_4)
+</div>
+<p>But directly learning a probability for every possible complete sentence would be absurdly difficult.</p>
+<p>There are an enormous number of possible sequences.</p>
+<p>So we use the <strong>chain rule of probability</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-11">1.1.3 The Chain Rule</h3>
+<p>The chain rule says:</p>
+<div class="math block">
+P(x_1,x_2,\ldots,x_T)
+=
+\prod_{t=1}^{T}P(x_t\mid x_1,\ldots,x_{t-1})
+</div>
+<p>We usually write:</p>
+<div class="math block">
+P(x_{1:T})
+=
+\prod_{t=1}^{T}
+P(x_t\mid x_{&lt;t})
+</div>
+<p>where</p>
+<div class="math block">
+x_{&lt;t} = (x_1,\ldots,x_{t-1})
+</div>
+<p>means:</p>
+<blockquote>
+<p><strong>all tokens before position <span class="math inline">t</span></strong>.</p>
+</blockquote>
+<p>Your Transformer slides explicitly use this autoregressive factorization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-12">1.1.4 Let's Understand This Equation Slowly</h3>
+<p>Take:</p>
+<blockquote>
+<p><code>I love deep learning</code></p>
+</blockquote>
+<p>Let</p>
+<div class="math block">
+x_1=\text{I}
+</div>
+<div class="math block">
+x_2=\text{love}
+</div>
+<div class="math block">
+x_3=\text{deep}
+</div>
+<div class="math block">
+x_4=\text{learning}
+</div>
+<p>Then:</p>
+<div class="math block">
+P(\text{I, love, deep, learning})
+</div>
+<p>becomes</p>
+<div class="math block">
+P(\text{I})
+\cdot
+P(\text{love}\mid\text{I})
+\cdot
+P(\text{deep}\mid\text{I,love})
+\cdot
+P(\text{learning}\mid\text{I,love,deep})
+</div>
+<p>This is incredibly important.</p>
+<p>The model doesn't need to learn:</p>
+<blockquote>
+<p>&quot;What is the probability of this entire sentence?&quot;</p>
+</blockquote>
+<p>Instead, it learns a sequence of next-token predictions.</p>
+<p>That is what makes language modeling tractable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-13">1.1.5 Why Is This Called &quot;Autoregressive&quot;?</h3>
+<p>Because every prediction depends on what came before.</p>
+<p>At position <span class="math inline">t</span>:</p>
+<div class="math block">
+P(x_t\mid x_{&lt;t})
+</div>
+<p>The model uses the previous tokens to predict the current token.</p>
+<p>So information flows:</p>
+<div class="math block">
+x_1
+\rightarrow x_2
+\rightarrow x_3
+\rightarrow x_4
+\rightarrow \cdots
+</div>
+<p>Conceptually:</p>
+<pre><code class="language-text">&quot;I&quot;
+ ↓
+&quot;I love&quot;
+ ↓
+&quot;I love deep&quot;
+ ↓
+&quot;I love deep learning&quot;
+</code></pre>
+<p>At generation time, the newly generated token becomes part of the context for the next prediction.</p>
+<p>That is why it is called <strong>autoregressive</strong>:</p>
+<blockquote>
+<p>the model uses its own previous outputs as part of the input for future outputs.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-14">1.1.6 The Crucial Distinction: Training vs Generation</h3>
+<p>This is one of the things you must understand before going further.</p>
+<h4 id="v3-heading-chunk-les-step-1-1-i8-15">During training</h4>
+<p>Suppose the training text is:</p>
+<blockquote>
+<p><code>I love deep learning</code></p>
+</blockquote>
+<p>We already know the complete sequence.</p>
+<p>So we can create:</p>
+<pre><code class="language-text">Input:   I     love    deep
+Target:  love  deep    learning
+</code></pre>
+<p>The model performs many next-token predictions simultaneously.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">I          → predict love
+I love     → predict deep
+I love deep → predict learning
+</code></pre>
+<p>The future tokens are known to us because this is training data.</p>
+<p>But the model is prevented from <strong>looking at them when computing the prediction</strong>. That is where causal masking will become essential in Step 1.8.</p>
+<p>The slides explicitly connect causal masking with the next-token training objective. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-16">1.1.7 During Generation</h3>
+<p>Now imagine that the user gives:</p>
+<blockquote>
+<p><code>I love</code></p>
+</blockquote>
+<p>The model predicts:</p>
+<div class="math block">
+P(x_3\mid x_1,x_2)
+</div>
+<p>Suppose it chooses:</p>
+<blockquote>
+<p><code>deep</code></p>
+</blockquote>
+<p>Now the input becomes:</p>
+<blockquote>
+<p><code>I love deep</code></p>
+</blockquote>
+<p>Then it predicts:</p>
+<div class="math block">
+P(x_4\mid x_1,x_2,x_3)
+</div>
+<p>Suppose it chooses:</p>
+<blockquote>
+<p><code>learning</code></p>
+</blockquote>
+<p>Now:</p>
+<blockquote>
+<p><code>I love deep learning</code></p>
+</blockquote>
+<p>This continues one token at a time.</p>
+<p>Raschka's generation procedure describes exactly this loop: encode the prompt, run the model, select a next token, append it to the sequence, and repeat.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-17">1.1.8 The Most Important Picture So Far</h3>
+<p>Think of an LLM as this pipeline:</p>
+<pre><code class="language-text">TEXT
+  ↓
+TOKENS
+  ↓
+TOKEN IDs
+  ↓
+EMBEDDINGS
+  ↓
+TRANSFORMER
+  ↓
+LOGITS
+  ↓
+SOFTMAX
+  ↓
+NEXT-TOKEN PROBABILITIES
+</code></pre>
+<p>The Transformer is <strong>not itself the probability distribution</strong>.</p>
+<p>It produces representations and ultimately <strong>logits</strong>.</p>
+<p>Then softmax converts those logits into probabilities.</p>
+<p>The slides explicitly separate:</p>
+<ul>
+<li>logits,</li>
+<li>softmax,</li>
+<li>probability assigned to the actual token,</li>
+<li>sequence loss.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-18">1.1.9 What Are Logits?</h3>
+<p>Suppose the vocabulary contains only five tokens:</p>
+<div class="math block">
+V=\{\text{cat},\text{dog},\text{car},\text{tree},\text{book}\}
+</div>
+<p>The model might produce:</p>
+<div class="math block">
+z=
+\begin{bmatrix}
+2.5\\
+1.2\\
+0.1\\
+-1.0\\
+0.4
+\end{bmatrix}
+</div>
+<p>These are <strong>logits</strong>.</p>
+<p>They are raw scores.</p>
+<p>They are <strong>not probabilities</strong>.</p>
+<p>Notice:</p>
+<ul>
+<li>they can be negative,</li>
+<li>they do not sum to 1,</li>
+<li>they do not need to lie between 0 and 1.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-19">1.1.10 Why Do We Need Softmax?</h3>
+<p>We want:</p>
+<div class="math block">
+P(\text{cat}),P(\text{dog}),\ldots
+</div>
+<p>such that:</p>
+<div class="math block">
+P_i\geq0
+</div>
+<p>and</p>
+<div class="math block">
+\sum_i P_i=1
+</div>
+<p>So we apply:</p>
+<div class="math block">
+\operatorname{softmax}(z_i)
+=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z
+\rightarrow
+\operatorname{softmax}(z)
+\rightarrow
+p
+</div>
+<p>where <span class="math inline">p</span> is a probability distribution.</p>
+<p>Your slide deck explicitly describes softmax as turning the logits into a normalized distribution over the vocabulary.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-20">1.1.11 Tiny Numerical Example</h3>
+<p>Suppose:</p>
+<div class="math block">
+z=[2,1,0]
+</div>
+<p>Compute exponentials:</p>
+<div class="math block">
+e^2\approx7.389
+</div>
+<div class="math block">
+e^1\approx2.718
+</div>
+<div class="math block">
+e^0=1
+</div>
+<p>Sum:</p>
+<div class="math block">
+7.389+2.718+1=11.107
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P_1=\frac{7.389}{11.107}\approx0.665
+</div>
+<div class="math block">
+P_2=\frac{2.718}{11.107}\approx0.245
+</div>
+<div class="math block">
+P_3=\frac{1}{11.107}\approx0.090
+</div>
+<p>So:</p>
+<div class="math block">
+p\approx[0.665,0.245,0.090]
+</div>
+<p>and:</p>
+<div class="math block">
+0.665+0.245+0.090\approx1
+</div>
+<p>Now we have an actual distribution.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-21">1.1.12 From Probability to Loss</h3>
+<p>Suppose the correct next token is token 1.</p>
+<p>The model assigned:</p>
+<div class="math block">
+P(x_t\mid x_{&lt;t})=0.665
+</div>
+<p>How should we measure whether this was good?</p>
+<p>We use negative log-likelihood:</p>
+<div class="math block">
+L_t=-\log P(x_t\mid x_{&lt;t})
+</div>
+<p>Thus:</p>
+<div class="math block">
+L_t=-\log(0.665)
+</div>
+<div class="math block">
+L_t\approx0.408
+</div>
+<p>Smaller is better.</p>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-22">Imagine two models</h5>
+<p>Model A:</p>
+<div class="math block">
+P(\text{correct token})=0.9
+</div>
+<p>Then:</p>
+<div class="math block">
+-\log(0.9)\approx0.105
+</div>
+<p>Model B:</p>
+<div class="math block">
+P(\text{correct token})=0.1
+</div>
+<p>Then:</p>
+<div class="math block">
+-\log(0.1)\approx2.303
+</div>
+<p>So:</p>
+<pre><code class="language-text">Correct probability ↑  → loss ↓
+Correct probability ↓  → loss ↑
+</code></pre>
+<p>This is exactly why the loss teaches the model to increase the probability of the correct token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-23">1.1.13 Sequence Loss</h3>
+<p>For a sequence of <span class="math inline">T</span> tokens:</p>
+<div class="math block">
+L
+=
+-\frac{1}{T}
+\sum_{t=1}^{T}
+\log P(x_t\mid x_{&lt;t})
+</div>
+<p>This is the <strong>average negative log-likelihood</strong> across the sequence.</p>
+<p>Your Transformer slide gives this sequence-level objective directly.</p>
+<p>This equation connects everything we have learned:</p>
+<div class="math block">
+\boxed{
+\text{next-token probability}
+\rightarrow
+\text{log probability}
+\rightarrow
+\text{negative log likelihood}
+\rightarrow
+\text{loss}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-24">1.1.14 Why Does Log Appear?</h3>
+<p>Recall:</p>
+<div class="math block">
+P(x_{1:T})
+=
+\prod_{t=1}^{T}P(x_t\mid x_{&lt;t})
+</div>
+<p>Suppose:</p>
+<div class="math block">
+P_1=0.8,\quad P_2=0.7,\quad P_3=0.9
+</div>
+<p>Then:</p>
+<div class="math block">
+P(x_{1:3})
+=
+0.8\times0.7\times0.9
+=
+0.504
+</div>
+<p>For long sequences, multiplying hundreds or thousands of numbers below 1 can become numerically tiny.</p>
+<p>Use logarithms:</p>
+<div class="math block">
+\log P(x_{1:T})
+=
+\sum_{t=1}^{T}
+\log P(x_t\mid x_{&lt;t})
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\log\left(\prod_t p_t\right)
+=
+\sum_t\log p_t
+}
+</div>
+<p>This is one of the reasons log-probabilities are so important later in:</p>
+<ul>
+<li>decoding,</li>
+<li>sequence scoring,</li>
+<li>knowledge distillation,</li>
+<li>RL,</li>
+<li>GRPO,</li>
+<li>reasoning models.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-25">1.1.15 Cross-Entropy Connection</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+H(p,q)
+=
+-\sum_i p_i\log q_i
+</div>
+<p>For a one-hot target, suppose the correct token is <span class="math inline">k</span>.</p>
+<p>Then:</p>
+<div class="math block">
+p_k=1
+</div>
+<p>and all other entries are zero.</p>
+<p>So:</p>
+<div class="math block">
+H(p,q)
+=
+-\log q_k
+</div>
+<p>That is exactly the next-token loss:</p>
+<div class="math block">
+L_t=-\log P(x_t\mid x_{&lt;t})
+</div>
+<p>Therefore:</p>
+<blockquote>
+<p><strong>Next-token language-model training is a cross-entropy classification problem applied at every token position.</strong></p>
+</blockquote>
+<p>This is a major conceptual connection.</p>
+<p>The model is effectively performing:</p>
+<pre><code class="language-text">At every position:
+        &quot;Which of the |V| vocabulary tokens is correct next?&quot;
+</code></pre>
+<p>So if:</p>
+<div class="math block">
+|V|=50,257
+</div>
+<p>the model performs a 50,257-way classification at every position.</p>
+<p>Raschka's GPT implementation has a final linear layer whose output dimension equals the vocabulary size, producing logits for every vocabulary token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-26">1.1.16 What Exactly Does the Transformer Predict?</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=2
+</div>
+<p>batch size,</p>
+<div class="math block">
+T=5
+</div>
+<p>sequence length,</p>
+<div class="math block">
+d=768
+</div>
+<p>hidden dimension,</p>
+<p>and</p>
+<div class="math block">
+|V|=50,257
+</div>
+<p>vocabulary size.</p>
+<p>After embeddings:</p>
+<div class="math block">
+X\in\mathbb R^{2\times5\times768}
+</div>
+<p>After the Transformer:</p>
+<div class="math block">
+H\in\mathbb R^{2\times5\times768}
+</div>
+<p>Then the output projection maps:</p>
+<div class="math block">
+768\rightarrow50,257
+</div>
+<p>giving:</p>
+<div class="math block">
+Z\in\mathbb R^{2\times5\times50,257}
+</div>
+<p>This means:</p>
+<pre><code class="language-text">batch 1
+ ├── position 1 → 50,257 logits
+ ├── position 2 → 50,257 logits
+ ├── position 3 → 50,257 logits
+ ├── position 4 → 50,257 logits
+ └── position 5 → 50,257 logits
+
+batch 2
+ ├── position 1 → 50,257 logits
+ ...
+</code></pre>
+<p>Raschka's GPT implementation shows the same architectural progression: token embeddings + positional embeddings → Transformer blocks → final normalization → vocabulary projection → logits.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-27">1.1.17 Why Are There Logits at Every Position?</h3>
+<p>This is a subtle but very important point.</p>
+<p>Suppose our input is:</p>
+<pre><code class="language-text">I love deep learning
+</code></pre>
+<p>We can construct:</p>
+<pre><code class="language-text">Input                 Target
+
+I                     love
+I love                 deep
+I love deep            learning
+</code></pre>
+<p>Therefore, every position produces a prediction.</p>
+<p>In matrix form:</p>
+<div class="math block">
+Z=
+\begin{bmatrix}
+z_1\\
+z_2\\
+z_3\\
+z_4
+\end{bmatrix}
+</div>
+<p>where each:</p>
+<div class="math block">
+z_t\in\mathbb R^{|V|}
+</div>
+<p>So the model simultaneously produces:</p>
+<div class="math block">
+P(x_2|x_1)
+</div>
+<div class="math block">
+P(x_3|x_1,x_2)
+</div>
+<div class="math block">
+P(x_4|x_1,x_2,x_3)
+</div>
+<p>and so on.</p>
+<p>This is why training can be highly parallelized across positions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-28">1.1.18 The Input/Target Shift</h3>
+<p>This is worth memorizing.</p>
+<p>Suppose token IDs are:</p>
+<pre><code class="language-text">[10, 25, 17, 42, 91]
+</code></pre>
+<p>We create:</p>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-29">Input</h5>
+<pre><code class="language-text">[10, 25, 17, 42]
+</code></pre>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-30">Target</h5>
+<pre><code class="language-text">[25, 17, 42, 91]
+</code></pre>
+<p>Notice:</p>
+<div class="math block">
+\text{target}_t=\text{input}_{t+1}
+</div>
+<p>So:</p>
+<pre><code class="language-text">Input:    10   25   17   42
+             ↓    ↓    ↓    ↓
+Target:   25   17   42   91
+</code></pre>
+<p>The model learns:</p>
+<pre><code class="language-text">10       → 25
+10,25    → 17
+10,25,17 → 42
+10,25,17,42 → 91
+</code></pre>
+<p>This is commonly called <strong>teacher forcing</strong> in autoregressive training.</p>
+<p>Why?</p>
+<p>Because during training the correct previous tokens come directly from the training sequence rather than from the model's own sampled outputs.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-31">1.1.19 Why Doesn't Training Have to Generate One Token at a Time?</h3>
+<p>This often confuses people.</p>
+<p>Generation:</p>
+<pre><code class="language-text">token 1
+   ↓
+token 2
+   ↓
+token 3
+   ↓
+token 4
+</code></pre>
+<p>must be sequential because token 3 is unknown until token 2 has been generated.</p>
+<p>Training is different.</p>
+<p>The whole sequence is already known:</p>
+<pre><code class="language-text">I love deep learning
+</code></pre>
+<p>Therefore we can feed the entire sequence into the Transformer.</p>
+<p>The causal mask ensures:</p>
+<pre><code class="language-text">position 1 sees: 1
+position 2 sees: 1,2
+position 3 sees: 1,2,3
+position 4 sees: 1,2,3,4
+</code></pre>
+<p>but never:</p>
+<pre><code class="language-text">position 2 → position 3,4
+position 3 → position 4
+</code></pre>
+<p>That allows parallel computation while preserving the autoregressive objective. The attention handbook in your source set explains this distinction explicitly: causal masking permits parallel training across positions, while generation remains sequential because future generated tokens do not yet exist. <em>(Source: Understanding_Attention_Handbook_01)</em></p>
+<p>We will derive exactly how this happens when we reach <strong>Step 1.8 — Causal Mask</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-32">1.1.20 What Does the Model Actually Learn?</h3>
+<p>At the beginning, the model is essentially terrible.</p>
+<p>For example:</p>
+<pre><code class="language-text">&quot;The capital of France is ___&quot;
+
+Paris   → 0.003
+London  → 0.002
+Berlin  → 0.002
+Paris  → ...
+</code></pre>
+<p>During training, the loss generates gradients.</p>
+<p>Earlier we learned:</p>
+<div class="math block">
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L
+</div>
+<p>So the complete learning loop is:</p>
+<pre><code class="language-text">text
+ ↓
+tokens
+ ↓
+Transformer
+ ↓
+logits
+ ↓
+softmax
+ ↓
+probability of correct token
+ ↓
+loss
+ ↓
+backpropagation
+ ↓
+gradients
+ ↓
+update weights
+ ↓
+repeat billions of times
+</code></pre>
+<p>This connects our <strong>Step 0.6 tensor calculus</strong> directly to language-model training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-33">1.1.21 Important: The Model Does Not Store a Dictionary of Sentences</h3>
+<p>A beginner often imagines:</p>
+<blockquote>
+<p>&quot;The model sees 'The capital of France is Paris' many times and memorizes the sentence.&quot;</p>
+</blockquote>
+<p>That is not the fundamental mechanism.</p>
+<p>The model parameters are adjusted so that, across massive numbers of contexts, the network learns statistical patterns that help predict tokens.</p>
+<p>For example:</p>
+<pre><code class="language-text">&quot;The capital of France is&quot;
+            ↓
+representation
+            ↓
+high score for &quot;Paris&quot;
+</code></pre>
+<p>But those predictions arise through the learned neural-network parameters and contextual computation.</p>
+<p>Raschka emphasizes that the model's parameters are optimized during training to perform next-word prediction and that this objective causes the model to learn context, structure, and relationships in language.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-34">1.1.22 The Vocabulary Dimension</h3>
+<p>Suppose:</p>
+<div class="math block">
+|V|=10,000
+</div>
+<p>Then at every position the model must output:</p>
+<div class="math block">
+10,000
+</div>
+<p>scores.</p>
+<p>So:</p>
+<div class="math block">
+z_t\in\mathbb R^{10,000}
+</div>
+<p>After softmax:</p>
+<div class="math block">
+p_t\in\mathbb R^{10,000}
+</div>
+<p>and:</p>
+<div class="math block">
+\sum_{i=1}^{10,000}p_{t,i}=1
+</div>
+<p>The correct token corresponds to one position in this vector.</p>
+<p>For example:</p>
+<pre><code class="language-text">token ID     probability
+0             0.0001
+1             0.0021
+2             0.0003
+...
+713           0.7612  ← correct token
+...
+9999          0.0000
+</code></pre>
+<p>The loss looks only at the probability assigned to token 713 for this particular training example:</p>
+<div class="math block">
+L=-\log(0.7612)
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-35">1.1.23 Training Tensor Shapes — Memorize This</h3>
+<p>For a decoder-only language model:</p>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-36">Token IDs</h5>
+<div class="math block">
+\boxed{[B,T]}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">B</span> = batch size</li>
+<li><span class="math inline">T</span> = sequence length</li>
+</ul>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-37">Embeddings</h5>
+<div class="math block">
+\boxed{[B,T,d]}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">d</span> = model/embedding dimension</li>
+</ul>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-38">Transformer output</h5>
+<div class="math block">
+\boxed{[B,T,d]}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-39">Logits</h5>
+<div class="math block">
+\boxed{[B,T,|V|]}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-40">Target IDs</h5>
+<div class="math block">
+\boxed{[B,T]}
+</div>
+<p>This shape progression is one of the most important pieces of practical understanding:</p>
+<pre><code class="language-text">[B, T]
+   ↓ embedding
+[B, T, d]
+   ↓ Transformer
+[B, T, d]
+   ↓ output projection
+[B, T, V]
+</code></pre>
+<p>Raschka's concrete GPT implementation follows this exact conceptual structure, with the final linear layer projecting each hidden representation into vocabulary-sized logits.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-41">1.1.24 Tiny PyTorch Example</h3>
+<p>Here is the core of next-token training without implementing the Transformer yet:</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+# --------------------------------------------------
+# Example logits
+# Shape: [batch=1, sequence=4, vocab=5]
+# --------------------------------------------------
+logits = torch.tensor([
+    [
+        [2.0, 0.5, 0.1, 0.0, -1.0],  # position 1
+        [0.2, 1.8, 0.4, 0.1, -0.5],  # position 2
+        [0.1, 0.2, 2.5, 0.3, -0.2],  # position 3
+        [0.0, 0.4, 0.2, 2.2, -0.1],  # position 4
+    ]
+], dtype=torch.float32)
+
+# --------------------------------------------------
+# Correct next-token IDs
+# One target for each position
+# Shape: [1, 4]
+# --------------------------------------------------
+targets = torch.tensor([
+    [0, 1, 2, 3]
+])
+
+# --------------------------------------------------
+# Cross entropy expects:
+# logits -&gt; [N, C]
+# targets -&gt; [N]
+# --------------------------------------------------
+loss = F.cross_entropy(
+    logits.reshape(-1, logits.size(-1)),
+    targets.reshape(-1)
+)
+
+print(&quot;Loss:&quot;, loss.item())
+</code></pre>
+<p>The important transformation is:</p>
+<pre><code class="language-text">logits:
+[B, T, V]
+
+reshape:
+
+[B*T, V]
+
+targets:
+[B, T]
+
+reshape:
+
+[B*T]
+</code></pre>
+<p>So PyTorch effectively sees this as:</p>
+<pre><code class="language-text">&quot;B*T classification problems,
+each having V possible classes&quot;
+</code></pre>
+<p>That is exactly what next-token training is.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-42">1.1.25 Now Connect This to the Transformer</h3>
+<p>We can now understand the entire architecture before learning its internal pieces:</p>
+<pre><code class="language-text">Tokens
+   ↓
+Token Embedding
+   ↓
+Position Information
+   ↓
+Transformer Block
+   ├── Attention
+   └── MLP
+   ↓
+Transformer Block
+   ↓
+...
+   ↓
+Final Hidden States
+   ↓
+Linear Output Head
+   ↓
+Logits
+   ↓
+Softmax
+   ↓
+Next-token distribution
+   ↓
+Cross-entropy / NLL
+   ↓
+Backpropagation
+   ↓
+Parameter update
+</code></pre>
+<p>Your Transformer slides summarize the decoder-only architecture as blocks where attention moves information between positions, MLPs process information within a position, and causal masking prevents reading the future.</p>
+<p>And the GPT implementation in your book follows the same high-level flow from token embeddings and positional embeddings through stacked Transformer blocks to vocabulary logits.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-43">1.1.26 Training vs Generation — Final Comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Training</th>
+<th>Generation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full target sequence is known</td>
+<td>Future tokens are unknown</td>
+</tr>
+<tr>
+<td>Uses shifted input/target</td>
+<td>Uses current generated prefix</td>
+</tr>
+<tr>
+<td>Many positions processed in parallel</td>
+<td>New tokens generated sequentially</td>
+</tr>
+<tr>
+<td>Loss is computed</td>
+<td>Tokens are selected/sampled</td>
+</tr>
+<tr>
+<td>Backpropagation occurs</td>
+<td>Usually no gradient computation</td>
+</tr>
+<tr>
+<td>Goal: improve parameters</td>
+<td>Goal: produce text</td>
+</tr>
+</tbody>
+</table>
+<p>During generation, Raschka's implementation takes the logits from the <strong>last position</strong>, turns them into probabilities, chooses the next token, appends it, and repeats.</p>
+<p>This distinction will become extremely important when we study:</p>
+<ul>
+<li>decoding,</li>
+<li>KV caching,</li>
+<li>inference-time scaling,</li>
+<li>reasoning models.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-44">1.1.27 One Very Important Correction in Terminology</h3>
+<p>You will see both:</p>
+<blockquote>
+<p>next-word prediction</p>
+</blockquote>
+<p>and</p>
+<blockquote>
+<p>next-token prediction.</p>
+</blockquote>
+<p>For modern LLMs, <strong>next-token prediction</strong> is the more precise term.</p>
+<p>A token may be:</p>
+<pre><code class="language-text">word
+subword
+punctuation
+number
+part of a word
+special token
+</code></pre>
+<p>For example, tokenization could conceptually produce:</p>
+<pre><code class="language-text">&quot;Transformers are powerful&quot;
+        ↓
+[&quot;Transform&quot;, &quot;ers&quot;, &quot; are&quot;, &quot; powerful&quot;]
+</code></pre>
+<p>The exact tokenizer determines the actual token boundaries.</p>
+<p>So the mathematical objective is:</p>
+<div class="math block">
+\boxed{
+P(x_t\mid x_{&lt;t})
+}
+</div>
+<p>where <span class="math inline">x_t</span> is a <strong>token</strong>, not necessarily an entire word.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-45">1.1.28 The Big Mental Model</h3>
+<p>At this point you should be able to explain an LLM like this:</p>
+<blockquote>
+<p><strong>An autoregressive language model receives a sequence of tokens, transforms them into contextual representations using a decoder-only Transformer, produces vocabulary-sized logits for each position, converts those logits to a probability distribution over the next token, and is trained by minimizing the negative log-likelihood/cross-entropy of the correct next token.</strong></p>
+</blockquote>
+<p>That single sentence contains almost the entire mathematical backbone of the course.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-46">1.1.29 What We Have Built From the Previous Steps</h3>
+<p>Notice how everything connects:</p>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-47">Step 0.1</h5>
+<p>Vectors and matrices:</p>
+<div class="math block">
+XW
+</div>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-48">Step 0.5</h5>
+<p>Expectation and probability:</p>
+<div class="math block">
+P(x_t\mid x_{&lt;t})
+</div>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-49">Step 0.6</h5>
+<p>Gradients:</p>
+<div class="math block">
+\nabla_\theta L
+</div>
+<h5 id="v3-heading-chunk-les-step-1-1-i8-50">Step 1.1</h5>
+<p>Language modeling:</p>
+<div class="math block">
+P(x_{1:T})
+=
+\prod_tP(x_t\mid x_{&lt;t})
+</div>
+<p>and</p>
+<div class="math block">
+L
+=
+-\frac1T
+\sum_t
+\log P(x_t\mid x_{&lt;t})
+</div>
+<p>So the mathematical chain is now:</p>
+<div class="math block">
+\boxed{
+\text{linear algebra}
+\rightarrow
+\text{probability}
+\rightarrow
+\text{language model}
+\rightarrow
+\text{loss}
+\rightarrow
+\text{gradients}
+\rightarrow
+\text{learning}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-1-i8-51">1.1.30 Mini Mastery Check</h3>
+<p>Do these mentally before moving on.</p>
+<p><strong>Q1.</strong> What is the difference between:</p>
+<div class="math block">
+P(x_1,\ldots,x_T)
+</div>
+<p>and</p>
+<div class="math block">
+P(x_t\mid x_{&lt;t})?
+</div>
+<p><strong>Q2.</strong> Why can a next-token predictor represent the probability of a whole sequence?</p>
+<p><strong>Q3.</strong> If:</p>
+<div class="math block">
+B=8,\quad T=128,\quad d=768,\quad |V|=50,000
+</div>
+<p>what are the shapes of:</p>
+<ol>
+<li>input token IDs</li>
+<li>embeddings</li>
+<li>Transformer output</li>
+<li>logits</li>
+<li>targets?</li>
+</ol>
+<p><strong>Q4.</strong> Why are logits not probabilities?</p>
+<p><strong>Q5.</strong> If the model assigns the correct token probability:</p>
+<div class="math block">
+P=0.01
+</div>
+<p>what happens to:</p>
+<div class="math block">
+-\log P
+</div>
+<p>compared with <span class="math inline">P=0.9</span>?</p>
+<p><strong>Q6.</strong> Why can training process many token positions in parallel, while generation cannot simply generate all future tokens in parallel?</p>
+<p><strong>Q7.</strong> Explain this entire chain in your own words:</p>
+<div class="math block">
+\boxed{
+\text{tokens}
+\rightarrow
+\text{embeddings}
+\rightarrow
+\text{Transformer}
+\rightarrow
+\text{logits}
+\rightarrow
+\text{softmax}
+\rightarrow
+\text{loss}
+}
+</div>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-a3">A.3 — Multi-Token Prediction (MTP)</a> — <em>MTP: predicting more than the next token</em></p>
+</blockquote>
+<hr />
+</section>

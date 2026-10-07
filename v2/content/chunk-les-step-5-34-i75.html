@@ -1,0 +1,965 @@
+<section class="chunk" id="chunk-les-step-5-34-i75" data-id="les-step-5-34-i75"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-34-i75"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-34-i75" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-33-i74">← Previous lesson</a> · <a href="#chunk-les-step-5-35-i76">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-33-i74">Step 5.33 — IndicGenBench: Metrics, Resource Gaps, Directionality, and In-Context Learning</a></p><p><strong>This lesson:</strong> Step 5.34 — Transfer Languages, Few-Shot Prompting, and the Failure of Single-Language Specialization</p><p><strong>Source references:</strong> <a href="#source-4">indicgenbench-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-34-i75"></a></p>
+<h2>Step 5.34 — Transfer Languages, Few-Shot Prompting, and the Failure of Single-Language Specialization</h2>
+<p><em>Plan node: I11 · chat order #75</em></p>
+<p>We now connect three experiments that look separate but actually answer one large question:</p>
+<div class="math block">
+\boxed{
+\text{How should an Indic-capable model obtain useful knowledge for a target language?}
+}
+</div>
+<p>The deck studies three possibilities:</p>
+<div class="math block">
+\boxed{\text{English demonstrations}}
+</div>
+<div class="math block">
+\boxed{\text{Hindi demonstrations}}
+</div>
+<div class="math block">
+\boxed{\text{target-language demonstrations}}
+</div>
+<p>and then asks whether simply fine-tuning a model heavily for <strong>one Indic language</strong> causes that ability to transfer to the others.</p>
+<p>The answer to the first question is encouraging:</p>
+<div class="math block">
+\boxed{
+\text{linguistically related demonstrations help}
+}
+</div>
+<p>The answer to the second is much more cautionary:</p>
+<div class="math block">
+\boxed{
+\text{specializing in one Indic language does not automatically transfer to the rest}
+}
+</div>
+<p>Both are explicitly reported in the supplied IndicGenBench deck. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-1">5.34.1 First: what is an “exemplar”?</h3>
+<p>An in-context exemplar is simply a worked example placed inside the prompt.</p>
+<p>Suppose the task is translation.</p>
+<p>Without an example:</p>
+<pre><code class="language-text">Translate:
+English sentence
+</code></pre>
+<p>With one example:</p>
+<pre><code class="language-text">Example:
+English sentence A
+→
+Hindi sentence A
+
+Now translate:
+English sentence B
+</code></pre>
+<p>The model can infer:</p>
+<div class="math block">
+\boxed{
+\text{what the task expects}
+}
+</div>
+<p>from the demonstrated input-output relationship.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-2">5.34.2 Three possible languages for the exemplar</h3>
+<p>Suppose the target test language is:</p>
+<div class="math block">
+\boxed{\text{Punjabi}}.
+</div>
+<p>We could give demonstrations in:</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-3">English</h5>
+<div class="math block">
+\boxed{\text{English exemplars}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-4">Hindi</h5>
+<div class="math block">
+\boxed{\text{Hindi exemplars}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-5">Punjabi</h5>
+<div class="math block">
+\boxed{\text{test-language exemplars}}
+</div>
+<p>The benchmark compares these.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-6">5.34.3 The reported ordering</h3>
+<p>The deck says the prompting order is consistent:</p>
+<div class="math block">
+\boxed{
+\text{test language}
+&gt;
+\text{Hindi}
+&gt;
+\text{English}
+}
+</div>
+<p>and explicitly connects this with linguistic relatedness to the test language. <em>(Source: indicgenbench-slides)</em></p>
+<p>So if Punjabi is the target:</p>
+<div class="math block">
+\boxed{
+\text{Punjabi demonstrations}
+&gt;
+\text{Hindi demonstrations}
+&gt;
+\text{English demonstrations}
+}
+</div>
+<p>in the reported setup.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-7">5.34.4 Why would Hindi beat English?</h3>
+<p>The benchmark's empirical interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{closer linguistic relationship}
+\rightarrow
+\text{more useful demonstrations}
+}
+</div>
+<p>Hindi is itself an Indic language and can therefore provide a more relevant demonstration distribution than English for many Indic targets.</p>
+<p>This is a source-supported interpretation of the reported ordering. <em>(Source: indicgenbench-slides)</em></p>
+<p>We should not turn it into:</p>
+<blockquote>
+<p>Hindi is equally close to every Indic language.</p>
+</blockquote>
+<p>That is not what the source establishes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-8">5.34.5 Why is this surprising?</h3>
+<p>You might initially assume:</p>
+<div class="math block">
+\boxed{
+\text{English is best}
+}
+</div>
+<p>because English is the dominant training/evaluation language for many multilingual benchmarks.</p>
+<p>But the experiment suggests:</p>
+<div class="math block">
+\boxed{
+\text{related-language examples can be more useful than English examples}
+}
+</div>
+<p>for Indic generation.</p>
+<p>This is an important shift in how we think about multilingual prompting.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-9">5.34.6 Small-model effect</h3>
+<p>The deck gives an especially interesting observation:</p>
+<div class="math block">
+\boxed{
+\text{for smaller models, Hindi exemplars can come very close to, and sometimes exceed, target-language exemplars}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>That suggests that a strong bridge language can be particularly valuable when the model has less capacity.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{small model}
++
+\text{related-language demonstrations}
+\rightarrow
+\text{stronger task induction}
+}
+</div>
+<p>in the reported experiments.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-10">5.34.7 Think of the exemplar as a compressed task description</h3>
+<p>An exemplar communicates several things at once:</p>
+<div class="math block">
+\boxed{
+\text{input structure}
++
+\text{output structure}
++
+\text{expected linguistic style}
++
+\text{task mapping}
+}
+</div>
+<p>Suppose the task is QA.</p>
+<p>A Hindi example can simultaneously teach:</p>
+<div class="math block">
+\text{how the question is phrased in an Indic language}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{what the answer format looks like}.
+</div>
+<p>An English example may communicate the task just fine, but it may be less useful for target-language generation.</p>
+<p>This latter explanation is a model-level interpretation rather than a separately quantified claim in the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-11">5.34.8 Numerical example</h3>
+<p>Suppose a model obtains:</p>
+<div class="math block">
+\boxed{45}
+</div>
+<p>with English exemplars,</p>
+<div class="math block">
+\boxed{55}
+</div>
+<p>with Hindi exemplars,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{60}
+</div>
+<p>with target-language exemplars.</p>
+<p>Then the ordering is:</p>
+<div class="math block">
+60&gt;55&gt;45.
+</div>
+<p>English → Hindi improvement:</p>
+<div class="math block">
+55-45
+=
+\boxed{10\text{ points}}.
+</div>
+<p>Hindi → target-language improvement:</p>
+<div class="math block">
+60-55
+=
+\boxed{5\text{ points}}.
+</div>
+<p>These numbers are illustrative; the source provides the qualitative ordering rather than these hypothetical values.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-12">5.34.9 Now ask: is prompting always better than fine-tuning?</h3>
+<p>No.</p>
+<p>The deck directly compares:</p>
+<div class="math block">
+\boxed{\text{fine-tuning}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{few-shot prompting}}.
+</div>
+<p>The interesting result is <strong>task dependent</strong>. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-13">5.34.10 QA behaves differently from long-form generation</h3>
+<p>The deck says:</p>
+<div class="math block">
+\boxed{
+\text{mT5 beats PaLM-2 on QA tasks even when fine-tuned}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{PaLM-2 wins on longer-form CrossSum-IN}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>So model architecture and task type matter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-14">5.34.11 Few-shot vs fine-tuning on QA</h3>
+<p>For QA, the deck reports that:</p>
+<div class="math block">
+\boxed{
+\text{few-shot prompting on PaLM-2-XS can match or beat fine-tuning it}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is an important result.</p>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{training the model further is not always necessary for strong task performance}
+}
+</div>
+<p>at least for the reported QA settings.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-15">5.34.12 But long-form generation is different</h3>
+<p>For:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>the deck says:</p>
+<div class="math block">
+\boxed{
+\text{fine-tuning still wins outright}
+}
+</div>
+<p>and calls long-form generation the setting where extra training data clearly pays off. <em>(Source: indicgenbench-slides)</em></p>
+<p>So we now have:</p>
+<div class="math block">
+\boxed{
+\text{short-span QA}
+\rightarrow
+\text{few-shot can be highly competitive}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{long-form generation}
+\rightarrow
+\text{fine-tuning remains very valuable}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-16">5.34.13 Why is this plausible?</h3>
+<p>QA usually requires a relatively short output:</p>
+<div class="math block">
+\boxed{
+\text{one span / short answer}
+}
+</div>
+<p>while summarization requires:</p>
+<div class="math block">
+\boxed{
+\text{long, coherent generation}
+}.
+</div>
+<p>A few examples can strongly specify a short-answer format.</p>
+<p>Long-form generation requires learning more extensive target-language generation behavior.</p>
+<p>This is a natural explanation, but the source itself reports the empirical distinction rather than proving this causal mechanism.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-17">5.34.14 Numerical example</h3>
+<p>Suppose:</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-18">QA</h5>
+<p>Fine-tuned model:</p>
+<div class="math block">
+70
+</div>
+<p>Few-shot model:</p>
+<div class="math block">
+72.
+</div>
+<p>Then few-shot wins by:</p>
+<div class="math block">
+\boxed{2\text{ points}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-19">Summarization</h5>
+<p>Fine-tuned:</p>
+<div class="math block">
+60
+</div>
+<p>Few-shot:</p>
+<div class="math block">
+48.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{12\text{-point advantage for fine-tuning}}.
+</div>
+<p>These are illustrative examples capturing the source's reported pattern, not its exact table values.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-20">5.34.15 Now we reach the biggest specialization experiment</h3>
+<p>The next question is:</p>
+<blockquote>
+<p>What if we simply train a model mostly on Hindi?</p>
+</blockquote>
+<p>Maybe Hindi is a useful bridge language, so perhaps a Hindi-specialized model will generalize extremely well across Indic languages.</p>
+<p>To test this, the deck examines:</p>
+<div class="math block">
+\boxed{\text{Airavata}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-21">5.34.16 What is Airavata in this experiment?</h3>
+<p>The deck says Airavata is fine-tuned almost exclusively on:</p>
+<div class="math block">
+\boxed{\text{Hindi + English}}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>So its training emphasis is highly concentrated compared with broad multilingual systems such as BLOOMZ.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-22">5.34.17 First result: Hindi improves</h3>
+<p>The deck says Airavata:</p>
+<div class="math block">
+\boxed{
+\text{clearly beats LLaMA on Hindi}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is exactly what we might expect.</p>
+<p>If we specialize the model toward Hindi:</p>
+<div class="math block">
+\text{Hindi performance}
+\uparrow.
+</div>
+<p>So specialization can work very well <strong>for the language it was trained on</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-23">5.34.18 The surprising part: other Indic languages</h3>
+<p>Now test Airavata on:</p>
+<div class="math block">
+\boxed{\text{Bengali}}
+</div>
+<div class="math block">
+\boxed{\text{Punjabi}}
+</div>
+<div class="math block">
+\boxed{\text{Assamese}}
+</div>
+<div class="math block">
+\boxed{\text{Manipuri}}
+</div>
+<div class="math block">
+\boxed{\text{Santali}}.
+</div>
+<p>The deck says Airavata performs <strong>much worse than BLOOMZ</strong> on these other Indic languages. <em>(Source: indicgenbench-slides)</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Hindi specialization}
+\not\Rightarrow
+\text{broad Indic transfer}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-24">5.34.19 This is an extremely important distinction</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+\boxed{
+\text{Hindi exemplars can be useful}
+}
+</div>
+<p>Now we learn:</p>
+<div class="math block">
+\boxed{
+\text{Hindi-only specialization can fail to transfer broadly}
+}
+</div>
+<p>These are <strong>not contradictory</strong>.</p>
+<p>Why?</p>
+<p>Because prompting and training are fundamentally different interventions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-25">5.34.20 Prompting with Hindi</h3>
+<p>The model remains broadly multilingual.</p>
+<p>You are adding:</p>
+<div class="math block">
+\boxed{
+\text{Hindi examples at inference time}
+}
+</div>
+<p>to help guide behavior.</p>
+<p>So the underlying model may retain broad language representations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-26">5.34.21 Fine-tuning heavily on Hindi</h3>
+<p>Now the model parameters are changed toward:</p>
+<div class="math block">
+\boxed{
+P_\theta(\text{Hindi behavior})
+}
+</div>
+<p>and the training distribution is concentrated.</p>
+<p>This can improve Hindi while failing to preserve or develop equally strong behavior for other languages.</p>
+<p>The source's Airavata result demonstrates this experimentally. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-27">5.34.22 Think of the difference as “bridge” vs “destination”</h3>
+<p>Hindi prompting can function as a:</p>
+<div class="math block">
+\boxed{\text{bridge}}
+</div>
+<p>between a general model and another Indic language.</p>
+<p>But Hindi-only model training can create:</p>
+<div class="math block">
+\boxed{\text{specialization}}
+</div>
+<p>rather than universal Indic competence.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{bridge language}
+\neq
+\text{universal replacement language}
+}
+</div>
+<p>This is an important conceptual lesson.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-28">5.34.23 Numerical specialization example</h3>
+<p>Suppose:</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-29">Airavata</h5>
+<p>Hindi:</p>
+<div class="math block">
+85
+</div>
+<p>Bengali:</p>
+<div class="math block">
+50
+</div>
+<p>Punjabi:</p>
+<div class="math block">
+48
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-30">BLOOMZ</h5>
+<p>Hindi:</p>
+<div class="math block">
+80
+</div>
+<p>Bengali:</p>
+<div class="math block">
+65
+</div>
+<p>Punjabi:</p>
+<div class="math block">
+63.
+</div>
+<p>Airavata wins Hindi:</p>
+<div class="math block">
+85&gt;80
+</div>
+<p>but loses Bengali:</p>
+<div class="math block">
+50&lt;65
+</div>
+<p>and Punjabi:</p>
+<div class="math block">
+48&lt;63.
+</div>
+<p>This is an illustrative representation of the qualitative pattern in the deck, not the source's exact numbers.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-31">5.34.24 Why does broad multilingual training help here?</h3>
+<p>The deck's comparison suggests that:</p>
+<div class="math block">
+\boxed{
+\text{broad language coverage}
+}
+</div>
+<p>can be more useful for cross-Indic transfer than:</p>
+<div class="math block">
+\boxed{
+\text{extreme specialization in one Indic language}
+}.
+</div>
+<p>The model still needs some specialization to perform well, but narrowing the training distribution too aggressively can hurt transfer.</p>
+<p>This conclusion is an interpretation grounded in the Airavata/BLOOMZ comparison. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-32">5.34.25 Connect this to the earlier “Hindi exemplar” result</h3>
+<p>Now we can build a very useful framework.</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-33">Strategy A — English exemplars</h5>
+<div class="math block">
+\text{general multilingual model}
++
+\text{English examples}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-34">Strategy B — Hindi exemplars</h5>
+<div class="math block">
+\text{general multilingual model}
++
+\text{Hindi examples}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-35">Strategy C — Hindi-specialized model</h5>
+<div class="math block">
+\text{Hindi-heavy fine-tuning}
+</div>
+<p>The source results indicate:</p>
+<div class="math block">
+\boxed{
+B&gt;A
+}
+</div>
+<p>for the reported few-shot prompting comparison, but:</p>
+<div class="math block">
+\boxed{
+C\text{ does not generalize broadly to other Indic languages}
+}.
+</div>
+<p>That is an extremely useful conceptual distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-36">5.34.26 The mathematical intuition</h3>
+<p>Prompting modifies the <strong>conditioning context</strong>:</p>
+<div class="math block">
+P_\theta(y\mid x)
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+P_\theta(y\mid x,E)
+}
+</div>
+<p>where <span class="math inline">E</span> is the set of exemplars.</p>
+<p>The model parameters:</p>
+<div class="math block">
+\theta
+</div>
+<p>stay fixed.</p>
+<p>Fine-tuning instead changes:</p>
+<div class="math block">
+\boxed{
+\theta
+\rightarrow
+\theta'
+}
+</div>
+<p>by optimizing a training objective over a particular distribution.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{prompting changes context}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{fine-tuning changes parameters}
+}.
+</div>
+<p>This is standard ML notation used here to clarify the source's experimental distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-37">5.34.27 Why specialization can hurt transfer</h3>
+<p>Imagine a model has learned representations shared across:</p>
+<div class="math block">
+L_1,L_2,L_3,\ldots,L_{29}.
+</div>
+<p>Now training overwhelmingly on <span class="math inline">L_1</span> changes the optimization pressure.</p>
+<p>The model is pushed toward:</p>
+<div class="math block">
+\boxed{
+\text{perform extremely well on }L_1
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{maintain broad multilingual generalization}
+}.
+</div>
+<p>This can lead to specialization without broad transfer.</p>
+<p>The source gives empirical evidence of exactly this pattern with Airavata. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-38">5.34.28 An important connection to catastrophic forgetting</h3>
+<p>We should be careful here.</p>
+<p>The supplied deck <strong>does not explicitly analyze Airavata in terms of catastrophic forgetting</strong>, so we should not claim that this experiment proves catastrophic forgetting.</p>
+<p>A reasonable interpretation is that highly concentrated fine-tuning can reduce transfer to other languages, but the source's supported conclusion is simply:</p>
+<div class="math block">
+\boxed{
+\text{single-language specialization does not transfer effectively to the rest}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-39">5.34.29 Resource-tier connection</h3>
+<p>Now connect this to everything from Steps 5.29 and 5.33.</p>
+<p>We already found:</p>
+<div class="math block">
+\boxed{
+\text{High resource}
+&gt;
+\text{Medium}
+&gt;
+\text{Low}
+}
+</div>
+<p>in generation performance. <em>(Source: indicgenbench-slides)</em></p>
+<p>And now:</p>
+<div class="math block">
+\boxed{
+\text{Hindi specialization}
+\not\Rightarrow
+\text{all Indic languages}
+}.
+</div>
+<p>Therefore, solving the low-resource problem is not as simple as:</p>
+<blockquote>
+<p>“Choose one major Indic language and train heavily on it.”</p>
+</blockquote>
+<p>We need:</p>
+<div class="math block">
+\boxed{
+\text{broad language coverage}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{transfer mechanisms}
+}
+</div>
+<p>that preserve performance across many languages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-40">5.34.30 The role of Hindi is therefore nuanced</h3>
+<p>Hindi appears in two different ways.</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-41">As an inference-time exemplar</h5>
+<div class="math block">
+\boxed{
+\text{useful bridge}
+}
+</div>
+<p>because Hindi demonstrations are often better than English demonstrations.</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-42">As a dominant training language</h5>
+<div class="math block">
+\boxed{
+\text{insufficient as a universal substitute}
+}
+</div>
+<p>because a Hindi-heavy model does not generalize well to every other Indic language.</p>
+<p>These two findings together are more informative than either one alone.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-43">5.34.31 Exam-style question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>Does the result “Hindi exemplars outperform English exemplars” imply that a Hindi-specialized LLM should outperform a broad multilingual LLM on all Indic languages?</p>
+</blockquote>
+<div class="math block">
+\boxed{\text{No.}}
+</div>
+<p>The first result concerns <strong>in-context prompting</strong>, while the second experiment concerns <strong>parameter specialization through Hindi/English fine-tuning</strong>. The deck reports that Airavata performs better on Hindi but substantially worse than BLOOMZ on several other Indic languages. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-44">5.34.32 Exam-style numerical question</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{English exemplar score}=40
+</div>
+<p>and Hindi gives:</p>
+<div class="math block">
++7
+</div>
+<p>points.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{47}.
+</div>
+<p>Suppose target-language exemplars add another:</p>
+<div class="math block">
++5.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{52}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+52&gt;47&gt;40
+}
+</div>
+<p>matches the source's qualitative ordering:</p>
+<div class="math block">
+\boxed{
+\text{test language}&gt;\text{Hindi}&gt;\text{English}.
+}
+</div>
+<p>The numbers are illustrative.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-45">5.34.33 Exam-style numerical question — transfer failure</h3>
+<p>Suppose a Hindi-specialized model gets:</p>
+<div class="math block">
+90
+</div>
+<p>on Hindi but:</p>
+<div class="math block">
+45
+</div>
+<p>on Bengali.</p>
+<p>A broad multilingual model gets:</p>
+<div class="math block">
+82
+</div>
+<p>on Hindi and:</p>
+<div class="math block">
+65
+</div>
+<p>on Bengali.</p>
+<p>Hindi specialization gain:</p>
+<div class="math block">
+90-82
+=
+\boxed{+8}
+</div>
+<p>but Bengali loss:</p>
+<div class="math block">
+45-65
+=
+\boxed{-20}.
+</div>
+<p>This illustrates the concept:</p>
+<div class="math block">
+\boxed{
+\text{specialization gain on one language}
+\not\Rightarrow
+\text{cross-language gain}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-46">5.34.34 Master decision framework</h3>
+<p>Suppose the deployment target is an Indic language.</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-47">Scenario 1 — No task-specific training possible</h5>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{few-shot prompting}}
+</div>
+<p>and prefer demonstrations in:</p>
+<div class="math block">
+\boxed{
+\text{target language}
+\rightarrow
+\text{Hindi}
+\rightarrow
+\text{English}
+}
+</div>
+<p>according to the reported ordering. <em>(Source: indicgenbench-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-48">Scenario 2 — Short QA task</h5>
+<p>Few-shot prompting may be highly competitive with fine-tuning. <em>(Source: indicgenbench-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-49">Scenario 3 — Long-form summarization</h5>
+<p>Fine-tuning is more valuable in the reported experiments. <em>(Source: indicgenbench-slides)</em></p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-50">Scenario 4 — Build a model for all Indic languages</h5>
+<p>Do not simply specialize on Hindi.</p>
+<p>The Airavata result shows that broad Indic transfer can suffer. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-51">5.34.35 Connect to tokenizer fertility</h3>
+<p>There is one more important interaction.</p>
+<p>Suppose target-language demonstrations are best.</p>
+<p>But the target language has very high fertility.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{best exemplar language}
+}
+</div>
+<p>may still be constrained by:</p>
+<div class="math block">
+\boxed{
+\text{how many examples fit in the context window}
+}.
+</div>
+<p>So the practical hierarchy becomes:</p>
+<div class="math block">
+\boxed{
+\text{choose useful language for exemplars}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{fit as many useful examples as the tokenizer allows}
+}.
+</div>
+<p>That connects Step 5.34 directly to Step 5.33.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-52">5.34.36 Full conceptual chain</h3>
+<p>We can now put everything together:</p>
+<div class="math block">
+\boxed{
+\text{Target-language exemplars}
+&gt;
+\text{Hindi exemplars}
+&gt;
+\text{English exemplars}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{Hindi-heavy specialization}
+\not\Rightarrow
+\text{strong all-Indic transfer}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{few-shot}
+\approx/\!&gt;
+\text{fine-tuning for some QA settings}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{fine-tuning}
+&gt;
+\text{few-shot for long-form generation}
+}
+</div>
+<p>in the reported experiments. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-53">5.34.37 The deeper lesson</h3>
+<p>There are three different notions of “transfer”:</p>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-54">In-context transfer</h5>
+<div class="math block">
+\boxed{
+\text{examples in another language help the model perform the task}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-55">Cross-lingual model transfer</h5>
+<div class="math block">
+\boxed{
+\text{multilingual pretraining enables one language's knowledge to support another}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-34-i75-56">Parameter specialization</h5>
+<div class="math block">
+\boxed{
+\text{fine-tuning one language changes the model itself}
+}
+</div>
+<p>These should <strong>not</strong> be conflated.</p>
+<p>Hindi can be an excellent:</p>
+<div class="math block">
+\boxed{\text{prompting bridge}}
+</div>
+<p>without being an adequate:</p>
+<div class="math block">
+\boxed{\text{universal training substitute}}
+</div>
+<p>for the entire Indic language family.</p>
+<p>That distinction is one of the most useful conceptual conclusions from this section. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-57">5.34.38 Exam master sheet</h3>
+<div class="math block">
+\boxed{
+\text{Prompting order}
+=
+\text{test language}
+&gt;
+\text{Hindi}
+&gt;
+\text{English}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<div class="math block">
+\boxed{
+\text{QA}
+\rightarrow
+\text{few-shot can match/beat fine-tuning}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{CrossSum long-form}
+\rightarrow
+\text{fine-tuning wins}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<div class="math block">
+\boxed{
+\text{Airavata}
+=
+\text{Hindi/English specialization}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Airavata strong on Hindi}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{poor transfer to other Indic languages relative to BLOOMZ}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-34-i75-58">5.34.39 Final mental model</h3>
+<p>Think of the three strategies as:</p>
+<div class="math block">
+\boxed{
+\text{Prompt with Hindi}
+}
+</div>
+<p>= <strong>borrow a bridge at inference time</strong></p>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{train mostly on Hindi}
+}
+</div>
+<p>= <strong>specialize the parameters</strong></p>
+<p>The first can improve cross-lingual prompting performance.</p>
+<p>The second can improve the target training language but does not guarantee broad transfer.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{related-language prompting}
+\neq
+\text{single-language specialization}
+}
+</div>
+<p>and that distinction is crucial for understanding multilingual LLM behavior.</p>
+<hr />
+</section>

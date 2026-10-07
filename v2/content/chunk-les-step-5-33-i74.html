@@ -1,0 +1,1371 @@
+<section class="chunk" id="chunk-les-step-5-33-i74" data-id="les-step-5-33-i74"><details class="audit-card" id="audit-I01" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> I01 — QA token-F1 and normalization contract</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Partial answer overlap requires a metric contract, not a subjective match.</p><p><strong>Prerequisites:</strong> <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-5-33-i74-1">Notation and assumptions</h4><p>Toy whitespace tokens and multiset overlap; precision/recall use predicted/gold token counts. Actual benchmark normalization is language- and implementation-specific.</p><h4 id="v3-heading-chunk-les-step-5-33-i74-2">Derivation and mechanism</h4><ol><li>Normalize/tokenize with the declared rules.</li><li>Count multiset intersection, precision and recall.</li><li>Take harmonic mean; define empty-answer behavior and multi-reference aggregation.</li></ol><div class="math block">F1={2PR\over P+R}</div><h4 id="v3-heading-chunk-les-step-5-33-i74-3">Worked example</h4><p>Prediction “the red cat”,gold “red cat”:overlap2,precision2/3,recall1,F1=.8. A benchmark that strips articles can give a different result.</p><h4 id="v3-heading-chunk-les-step-5-33-i74-4">Limitations</h4><ul><li>Character metrics and QA token-F1 answer different questions.</li><li>Transliteration, punctuation and answer span alignment need documented handling.</li></ul><h4 id="v3-heading-chunk-les-step-5-33-i74-5">Connections to later concepts</h4><ul><li>T15 tokenizer/normalization conventions can change token overlap, and multilingual benchmark coverage needs language-specific metric contracts.</li></ul><h4 id="v3-heading-chunk-les-step-5-33-i74-6">Source support</h4><ul><li>indicgenbench-slides(1).pdf · physical PDF pages 17 · Metric choices</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-33-i74-7">Executed code and evidence</h4><p>Functions: token_f1. Passed checks: QA-token-F1</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-33-i74"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-33-i74" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-32-i73">← Previous lesson</a> · <a href="#chunk-les-step-5-34-i75">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-32-i73">Step 5.32 — IndicGenBench: Task-by-Task Dataset Construction</a></p><p><strong>This lesson:</strong> Step 5.33 — IndicGenBench: Metrics, Resource Gaps, Directionality, and In-Context Learning</p><p><strong>Source references:</strong> <a href="#source-4">indicgenbench-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-33-i74"></a></p>
+<h2>Step 5.33 — IndicGenBench: Metrics, Resource Gaps, Directionality, and In-Context Learning</h2>
+<p><em>Plan node: I11 · chat order #74</em></p>
+<p>We now move from <strong>how IndicGenBench was constructed</strong> to:</p>
+<div class="math block">
+\boxed{
+\text{How do we score generation quality, and what do the results reveal?}
+}
+</div>
+<p>This step contains some of the most important insights in the Indic material because the benchmark does more than rank models. It exposes <strong>why generation quality breaks down for lower-resource Indic languages</strong>.</p>
+<p>The major chain is:</p>
+<div class="math block">
+\boxed{
+\text{metric choice}
+\rightarrow
+\text{model comparison}
+\rightarrow
+\text{resource-tier gap}
+\rightarrow
+\text{translation asymmetry}
+\rightarrow
+\text{few-shot behavior}
+\rightarrow
+\text{tokenizer bottleneck}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-8">5.33.1 First: why ordinary accuracy is not enough</h3>
+<p>For classification we had:</p>
+<div class="math block">
+x\rightarrow y
+</div>
+<p>so accuracy was natural.</p>
+<p>But generation looks like:</p>
+<div class="math block">
+x\rightarrow \hat y
+</div>
+<p>where many different outputs can be valid.</p>
+<p>Suppose gold:</p>
+<blockquote>
+<p>The mission launched after several delays.</p>
+</blockquote>
+<p>Model:</p>
+<blockquote>
+<p>After being delayed several times, the mission finally launched.</p>
+</blockquote>
+<p>The strings are different, but the meaning is very similar.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{exact string equality is too strict}
+}
+</div>
+<p>for most generation tasks.</p>
+<p>IndicGenBench therefore uses two major metric families:</p>
+<div class="math block">
+\boxed{\text{chrF}}
+</div>
+<p>for summarization/translation, and:</p>
+<div class="math block">
+\boxed{\text{token-level F1}}
+</div>
+<p>for QA. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-9">5.33.2 chrF — Character-level F-score</h3>
+<p>The deck uses:</p>
+<div class="math block">
+\boxed{\text{chrF}}
+</div>
+<p>for:</p>
+<div class="math block">
+\boxed{\text{CrossSum-IN}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}.
+</div>
+<p>The important idea is:</p>
+<div class="math block">
+\boxed{
+\text{compare character-level n-gram overlap rather than token overlap}
+}
+</div>
+<p>The deck specifically motivates this because token-level metrics such as BLEU and ROUGE can be unreliable for low-resource languages when tokenization itself is problematic. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-10">5.33.3 Why character-level evaluation helps</h3>
+<p>Suppose the same word is tokenized differently.</p>
+<p>Language A:</p>
+<div class="math block">
+w\rightarrow[t_1]
+</div>
+<p>Language B:</p>
+<div class="math block">
+w\rightarrow[t_1,t_2,t_3,t_4].
+</div>
+<p>A token-level metric now depends partly on the tokenizer.</p>
+<p>At the character level, we instead compare something closer to:</p>
+<div class="math block">
+\text{c-a-t}
+</div>
+<p>against another string's character sequence.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{evaluation becomes less tied to subword segmentation}
+}
+</div>
+<p>The deck calls this important because tokenization is itself a weakness for some low-resource languages. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-11">5.33.4 Why not say chrF is “perfect”?</h3>
+<p>We should be careful.</p>
+<p>The deck says character-level scoring <strong>sidesteps</strong> the tokenization problem.</p>
+<p>It does not claim that chrF perfectly captures semantics.</p>
+<p>Two sentences can have high character overlap but different meanings, or low overlap while expressing the same meaning.</p>
+<p>So the correct lesson is:</p>
+<div class="math block">
+\boxed{
+\text{chrF reduces one important low-resource evaluation problem}
+}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{
+\text{chrF completely solves generation evaluation}
+}.
+</div>
+<p>That stronger statement is not supported by the slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-12">5.33.5 Token-F1 for QA</h3>
+<p>For:</p>
+<div class="math block">
+\boxed{\text{XQuAD-IN}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{XorQA-IN-EN}}
+</div>
+<div class="math block">
+\boxed{\text{XorQA-IN-XX}},
+</div>
+<p>the benchmark uses SQuAD-style:</p>
+<div class="math block">
+\boxed{\text{token-overlap F1}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>Recall:</p>
+<div class="math block">
+P=\frac{TP}{TP+FP}
+</div>
+<div class="math block">
+R=\frac{TP}{TP+FN}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+F1=\frac{2PR}{P+R}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-13">5.33.6 Numerical QA example</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=0.8
+</div>
+<p>and:</p>
+<div class="math block">
+R=0.6.
+</div>
+<p>Then:</p>
+<div class="math block">
+F1=
+\frac{2(0.8)(0.6)}{0.8+0.6}
+</div>
+<div class="math block">
+=
+\frac{0.96}{1.4}
+</div>
+<div class="math block">
+=
+\boxed{0.6857}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{68.57\%}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-14">5.33.7 Why F1 is appropriate for short answers</h3>
+<p>Suppose gold answer:</p>
+<div class="math block">
+[\text{New Delhi}]
+</div>
+<p>and prediction:</p>
+<div class="math block">
+[\text{Delhi}]
+</div>
+<p>The model is partially correct.</p>
+<p>Accuracy would force a binary:</p>
+<div class="math block">
+0\text{ or }1.
+</div>
+<p>F1 can reflect partial overlap.</p>
+<p>That makes it much more useful for span-based QA.</p>
+<p>The exact normalization/tokenization details are not specified on this deck page, so we shouldn't invent them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-15">5.33.8 Now: do bigger models actually do better?</h3>
+<p>The benchmark asks:</p>
+<div class="math block">
+\boxed{
+\text{Does IndicGenBench distinguish model quality?}
+}
+</div>
+<p>The answer from the deck is:</p>
+<div class="math block">
+\boxed{\text{Yes}}
+</div>
+<p>and several patterns emerge. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-16">5.33.9 Pattern 1 — Larger models within a family generally perform better</h3>
+<p>The deck states:</p>
+<div class="math block">
+\boxed{
+\text{larger models within a family consistently do better}
+}
+</div>
+<p>The reported comparison includes models such as:</p>
+<div class="math block">
+\text{PaLM-2-XXS}
+</div>
+<div class="math block">
+\text{PaLM-2-XS}
+</div>
+<div class="math block">
+\text{PaLM-2-S}
+</div>
+<div class="math block">
+\text{PaLM-2-L}
+</div>
+<p>and LLaMA variants.</p>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is a classic scaling observation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-17">5.33.10 Why is the family comparison useful?</h3>
+<p>Suppose:</p>
+<div class="math block">
+M_1&lt;M_2&lt;M_3
+</div>
+<p>in model size.</p>
+<p>If performance consistently follows:</p>
+<div class="math block">
+P(M_1)&lt;P(M_2)&lt;P(M_3),
+</div>
+<p>then the benchmark has some sensitivity to model capability.</p>
+<p>That doesn't prove size is the <strong>only</strong> factor, because architecture, training data, and training procedure can also differ.</p>
+<p>But within one model family, size comparisons become more informative.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-18">5.33.11 PaLM-2-L</h3>
+<p>The deck reports that:</p>
+<div class="math block">
+\boxed{\text{PaLM-2-L wins on 4 of the 5 tasks}}
+</div>
+<p>among the listed comparisons. <em>(Source: indicgenbench-slides)</em></p>
+<p>So the largest model in that family is very strong, but notably:</p>
+<div class="math block">
+\boxed{
+\text{not necessarily the winner on all five}
+}.
+</div>
+<p>Again:</p>
+<div class="math block">
+\text{larger}
+\not\Rightarrow
+\text{automatic universal dominance}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-19">5.33.12 LLaMA result</h3>
+<p>The slide reports that open-source LLaMA models lag substantially in this benchmark setup.</p>
+<p>It even notes that:</p>
+<div class="math block">
+\boxed{
+\text{LLaMA-65B underperforms the smallest PaLM-2-XXS}
+}
+</div>
+<p>in the reported comparisons. <em>(Source: indicgenbench-slides)</em></p>
+<p>This is extremely important.</p>
+<p>It tells us:</p>
+<div class="math block">
+\boxed{
+\text{parameter count alone does not determine multilingual generation quality}
+}
+</div>
+<p>because a much larger model can still underperform a smaller model from another training family.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-20">5.33.13 BLOOMZ</h3>
+<p>The deck reports:</p>
+<div class="math block">
+\boxed{\text{BLOOMZ wins 3 of 5 tasks}}
+</div>
+<p>among the listed models. <em>(Source: indicgenbench-slides)</em></p>
+<p>The deck describes BLOOMZ as:</p>
+<div class="math block">
+\boxed{
+\text{instruction-tuned + broad multilingual pretraining}
+}.
+</div>
+<p>So multilingual training and instruction tuning can be particularly valuable for this benchmark.</p>
+<p>Again, this doesn't establish a universal ranking outside the reported benchmark.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-21">5.33.14 The biggest result: Indic performance trails English</h3>
+<p>The most important sentence on that results slide is:</p>
+<div class="math block">
+\boxed{
+\text{Every model, even the best, trails its own English performance by 20+ points.}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is a very strong diagnosis.</p>
+<p>The benchmark isn't merely showing:</p>
+<div class="math block">
+\text{different models behave differently}.
+</div>
+<p>It is showing:</p>
+<div class="math block">
+\boxed{
+\text{the same model is substantially weaker when generating Indic languages than when generating English}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-22">5.33.15 Numerical illustration</h3>
+<p>Suppose a model scores:</p>
+<div class="math block">
+85\%
+</div>
+<p>on English.</p>
+<p>If it trails English by 22 points on an Indic task:</p>
+<div class="math block">
+85-22
+=
+\boxed{63\%}.
+</div>
+<p>The source says the gap is 20+ points across the reported models; 22 is just an illustrative example. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-23">5.33.16 Now the resource-tier analysis</h3>
+<p>The next question is:</p>
+<blockquote>
+<p>Is this degradation uniform across all Indic languages?</p>
+</blockquote>
+<p>No.</p>
+<p>The deck reports a clear ordering:</p>
+<div class="math block">
+\boxed{
+\text{High resource}
+&gt;
+\text{Medium resource}
+&gt;
+\text{Low resource}
+}
+</div>
+<p>across <strong>every task</strong>. <em>(Source: indicgenbench-slides)</em></p>
+<p>This is one of the central findings.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-24">5.33.17 What is being measured?</h3>
+<p>For every task, the benchmark groups languages into:</p>
+<div class="math block">
+\boxed{H=\text{Higher}}
+</div>
+<div class="math block">
+\boxed{M=\text{Medium}}
+</div>
+<div class="math block">
+\boxed{L=\text{Low}}.
+</div>
+<p>Then it computes performance by tier.</p>
+<p>So rather than one number:</p>
+<div class="math block">
+P_{\text{all}}
+</div>
+<p>we look at:</p>
+<div class="math block">
+\boxed{
+P_H,\quad P_M,\quad P_L
+}.
+</div>
+<p>The reported pattern is:</p>
+<div class="math block">
+P_H&gt;P_M&gt;P_L.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-25">5.33.18 Why is this stronger than one overall average?</h3>
+<p>Suppose:</p>
+<div class="math block">
+P_H=70
+</div>
+<div class="math block">
+P_M=60
+</div>
+<div class="math block">
+P_L=40.
+</div>
+<p>Overall average could still look respectable:</p>
+<div class="math block">
+\frac{70+60+40}{3}
+=
+\boxed{56.7}.
+</div>
+<p>But that average hides the fact that the lowest-resource languages are far weaker.</p>
+<p>This is why resource-tier breakdown is much more revealing.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-26">5.33.19 Translation direction changes the story</h3>
+<p>Now comes one of the strongest findings in the entire deck.</p>
+<p>Consider:</p>
+<div class="math block">
+\boxed{\text{FLORES-IN}}.
+</div>
+<p>The benchmark evaluates translation in both directions.</p>
+<p>For PaLM-2-L:</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-27">English → target language</h5>
+<p>High:</p>
+<div class="math block">
+56.9
+</div>
+<p>Low:</p>
+<div class="math block">
+41.9.
+</div>
+<p>So the drop is:</p>
+<div class="math block">
+56.9-41.9
+=
+\boxed{15.0\text{ points}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-28">5.33.20 Now reverse the direction</h3>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-29">Target language → English</h5>
+<p>High:</p>
+<div class="math block">
+68.2
+</div>
+<p>Low:</p>
+<div class="math block">
+62.6.
+</div>
+<p>Drop:</p>
+<div class="math block">
+68.2-62.6
+=
+\boxed{5.6\text{ points}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+15.0\text{ points}
+}
+</div>
+<p>vs:</p>
+<div class="math block">
+\boxed{
+5.6\text{ points}
+}.
+</div>
+<p>That is a huge difference.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-30">5.33.21 Calculate the ratio</h3>
+<div class="math block">
+\frac{15.0}{5.6}
+\approx
+\boxed{2.68}.
+</div>
+<p>So the resource-tier degradation reported for PaLM-2-L is roughly 2.7 times larger in the:</p>
+<div class="math block">
+\boxed{
+\text{English}\rightarrow\text{target}
+}
+</div>
+<p>direction than in:</p>
+<div class="math block">
+\boxed{
+\text{target}\rightarrow\text{English}
+}.
+</div>
+<p>This ratio is our calculation from the source numbers. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-31">5.33.22 This reveals a major asymmetry</h3>
+<p>The deck's interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{current LLMs are better at understanding low-resource languages than generating them}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>Think about the direction:</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-32">Understanding low-resource language</h5>
+<div class="math block">
+\text{Low-resource language}
+\rightarrow
+\text{English}
+</div>
+<p>The model receives the difficult language and produces English.</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-33">Generating low-resource language</h5>
+<div class="math block">
+\text{English}
+\rightarrow
+\text{Low-resource language}
+</div>
+<p>Now the model has to produce target-language text.</p>
+<p>The second is much more fragile.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-34">5.33.23 Why is generation harder?</h3>
+<p>The source reports the empirical asymmetry, but does not give a single definitive mathematical cause.</p>
+<p>A reasonable interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{understanding requires recognizing patterns}
+}
+</div>
+<p>whereas generation requires:</p>
+<div class="math block">
+\boxed{
+\text{reliably producing those patterns}
+}.
+</div>
+<p>The model may have enough representation to understand some low-resource input but insufficient learned generation statistics to produce fluent target-language output.</p>
+<p>This explanatory distinction is model reasoning/inference, not a direct formula from the slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-35">5.33.24 Exam question: directionality</h3>
+<p>Suppose:</p>
+<div class="math block">
+P_{H}^{EN\rightarrow Indic}=60
+</div>
+<div class="math block">
+P_{L}^{EN\rightarrow Indic}=40.
+</div>
+<p>Drop:</p>
+<div class="math block">
+20.
+</div>
+<p>For reverse direction:</p>
+<div class="math block">
+P_H^{Indic\rightarrow EN}=70
+</div>
+<div class="math block">
+P_L^{Indic\rightarrow EN}=65.
+</div>
+<p>Drop:</p>
+<div class="math block">
+5.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{generation-side resource sensitivity is }4\times\text{ larger}
+}
+</div>
+<p>because:</p>
+<div class="math block">
+20/5=4.
+</div>
+<p>This is an illustrative exam problem modeled on the directionality finding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-36">5.33.25 Now the few-shot question</h3>
+<p>Suppose the model receives:</p>
+<div class="math block">
+0
+</div>
+<p>examples.</p>
+<p>That is:</p>
+<div class="math block">
+\boxed{\text{zero-shot}}.
+</div>
+<p>What happens if we give:</p>
+<div class="math block">
+1
+</div>
+<p>worked example?</p>
+<p>The deck reports that:</p>
+<div class="math block">
+\boxed{
+\text{every model family improves monotonically as in-context examples increase}
+}
+</div>
+<p>and the biggest jump is often:</p>
+<div class="math block">
+\boxed{0\rightarrow1\text{ shot}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-37">5.33.26 The striking example</h3>
+<p>For PaLM-2-XXS on FLORES-IN:</p>
+<div class="math block">
+\boxed{0\text{-shot}=0.8}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{1\text{-shot}=24.0}.
+</div>
+<p>Improvement:</p>
+<div class="math block">
+24.0-0.8
+=
+\boxed{23.2\text{ points}}.
+</div>
+<p>Relative increase:</p>
+<div class="math block">
+\frac{23.2}{0.8}\times100
+=
+\boxed{2900\%}.
+</div>
+<p>This enormous percentage is mathematically correct, but because the original score is tiny, the more meaningful source-friendly statement is:</p>
+<div class="math block">
+\boxed{+23.2\text{ points}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-38">5.33.27 Why does one example help so much?</h3>
+<p>The source reports the phenomenon but does not claim a single mechanism.</p>
+<p>A reasonable interpretation is that one example gives the model:</p>
+<div class="math block">
+\boxed{
+\text{task format}
++
+\text{translation style}
++
+\text{expected output structure}
+}.
+</div>
+<p>So the model does not need to infer the entire task from instructions alone.</p>
+<p>This is an inference from general in-context learning, not a statement explicitly established as a theorem by the slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-39">5.33.28 But “more examples” has a limit</h3>
+<p>The slide title is:</p>
+<div class="math block">
+\boxed{
+\text{More in-context examples help — up to a point}
+}
+</div>
+<p>Why does the improvement stop being straightforward?</p>
+<p>Because every example consumes context.</p>
+<p>And for Indic languages:</p>
+<div class="math block">
+\boxed{
+\text{tokenization itself can become the bottleneck}
+}.
+</div>
+<p>That takes us to the tokenizer section. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-40">5.33.29 Language-specific exemplars</h3>
+<p>Now the benchmark asks:</p>
+<blockquote>
+<p>Which language should the in-context examples be written in?</p>
+</blockquote>
+<p>The reported ordering is:</p>
+<div class="math block">
+\boxed{
+\text{test language}
+&gt;
+\text{Hindi}
+&gt;
+\text{English}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This is a very elegant result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-41">5.33.30 Why is the ordering interesting?</h3>
+<p>Suppose the test language is Punjabi.</p>
+<p>Then the model benefits most from:</p>
+<div class="math block">
+\boxed{\text{Punjabi examples}}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{\text{Hindi examples}}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{\text{English examples}}.
+</div>
+<p>The deck says this matches the order of linguistic relatedness to the test language. <em>(Source: indicgenbench-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{similar-language demonstration}
+&gt;
+\text{distant-language demonstration}
+}
+</div>
+<p>in the reported experiments.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-42">5.33.31 Especially important for smaller models</h3>
+<p>The deck says:</p>
+<div class="math block">
+\boxed{
+\text{for smaller models, Hindi exemplars can come extremely close to, and sometimes beat, test-language exemplars}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This suggests that Hindi can function as a useful <strong>bridge language</strong> in prompting.</p>
+<p>Again, that is a reported empirical finding, not a universal guarantee for every Indic language.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-43">5.33.32 Numerical example</h3>
+<p>Suppose a model scores:</p>
+<div class="math block">
+50
+</div>
+<p>with English exemplars,</p>
+<div class="math block">
+56
+</div>
+<p>with Hindi exemplars,</p>
+<p>and:</p>
+<div class="math block">
+60
+</div>
+<p>with test-language exemplars.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+60&gt;56&gt;50
+}
+</div>
+<p>matching the reported ordering.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-44">5.33.33 Now the biggest hidden bottleneck: tokenizer fertility</h3>
+<p>This is one of the most important technical concepts in the entire IndicGenBench deck.</p>
+<p>The slide defines:</p>
+<div class="math block">
+\boxed{
+\text{Fertility}
+=
+\text{average number of subword tokens per word}
+}
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>This connects directly to everything we learned earlier about tokenization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-45">5.33.34 Example of fertility</h3>
+<p>Suppose a language has 100 words.</p>
+<p>After tokenization, those words become:</p>
+<div class="math block">
+500
+</div>
+<p>subword tokens.</p>
+<p>Then:</p>
+<div class="math block">
+\text{fertility}
+=
+\frac{500}{100}
+=
+\boxed{5}.
+</div>
+<p>So on average:</p>
+<div class="math block">
+\boxed{5\text{ tokens per word}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-46">5.33.35 Reported fertility values</h3>
+<p>The deck says:</p>
+<div class="math block">
+\boxed{\text{English}\approx1}
+</div>
+<p>and among Indic languages:</p>
+<div class="math block">
+\boxed{\text{Pashto}=4.1}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{\text{Tibetan}=19.9}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<p>The important consequence is:</p>
+<blockquote>
+<p>one Tibetan word can consume roughly 20 tokens under the evaluated tokenizer.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-47">5.33.36 Why is this not a statement about the language itself?</h3>
+<p>The slide makes this explicit.</p>
+<p>High fertility is:</p>
+<div class="math block">
+\boxed{
+\text{a tokenizer artifact}
+}
+</div>
+<p>and is not a measure of intrinsic language complexity.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{language is not “hard” because fertility is high}
+}
+</div>
+<p>Rather:</p>
+<div class="math block">
+\boxed{
+\text{the chosen tokenizer represents the language inefficiently}
+}.
+</div>
+<p>This distinction is extremely important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-48">5.33.37 Context-window mathematics</h3>
+<p>Suppose the model has a context budget:</p>
+<div class="math block">
+B=1920
+</div>
+<p>tokens.</p>
+<p>For English:</p>
+<div class="math block">
+F_E\approx1.
+</div>
+<p>Suppose an example requires:</p>
+<div class="math block">
+100
+</div>
+<p>words.</p>
+<p>Approximate token cost:</p>
+<div class="math block">
+100\times1
+=
+100.
+</div>
+<p>Now suppose a target language has:</p>
+<div class="math block">
+F=10.
+</div>
+<p>The same 100 words consume approximately:</p>
+<div class="math block">
+100\times10
+=
+\boxed{1000}
+</div>
+<p>tokens.</p>
+<p>So the same semantic amount of text consumes:</p>
+<div class="math block">
+\boxed{10\times}
+</div>
+<p>more context.</p>
+<p>This is a conceptual calculation directly based on the fertility definition.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-49">5.33.38 Why does this hurt few-shot prompting?</h3>
+<p>Suppose each demonstration has:</p>
+<div class="math block">
+200
+</div>
+<p>words.</p>
+<p>For a language with fertility:</p>
+<div class="math block">
+F=1,
+</div>
+<p>rough estimate:</p>
+<div class="math block">
+200\text{ tokens}.
+</div>
+<p>Five examples:</p>
+<div class="math block">
+5\times200
+=
+1000.
+</div>
+<p>Easy to fit in:</p>
+<div class="math block">
+1920.
+</div>
+<p>Now fertility:</p>
+<div class="math block">
+F=8.
+</div>
+<p>Each example costs:</p>
+<div class="math block">
+200\times8
+=
+1600.
+</div>
+<p>Even <strong>one</strong> demonstration consumes most of the budget.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{high fertility}
+\rightarrow
+\text{fewer demonstrations fit}
+}.
+</div>
+<p>That is the central mechanism highlighted by the deck. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-50">5.33.39 The actual 1920-token result</h3>
+<p>At:</p>
+<div class="math block">
+\boxed{1920\text{ tokens}}
+</div>
+<p>of context budget:</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-51">English</h5>
+<p>The deck reports that English still fits:</p>
+<div class="math block">
+\boxed{5\text{ in-context examples}}
+</div>
+<p>for more than:</p>
+<div class="math block">
+\boxed{80\%}
+</div>
+<p>of its test set.</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-52">Oriya and Punjabi</h5>
+<p>The deck reports that these high-fertility languages fall to nearly:</p>
+<div class="math block">
+\boxed{0\%}
+</div>
+<p>of test cases being able to fit the required examples by only:</p>
+<div class="math block">
+\boxed{2-3\text{ examples}}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-53">5.33.40 This creates a hidden disadvantage</h3>
+<p>Suppose two languages have identical model reasoning capability.</p>
+<p>Language A can fit:</p>
+<div class="math block">
+5
+</div>
+<p>examples.</p>
+<p>Language B can fit:</p>
+<div class="math block">
+1
+</div>
+<p>example.</p>
+<p>Then even if the model would benefit equally from demonstrations, language B receives less usable prompting support.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{measured performance}
+=
+\text{model capability}
++
+\text{context/tokenizer effects}
+}
+</div>
+<p>conceptually.</p>
+<p>The second equation is a general inference; the source's direct point is that fertility causes some languages to fit fewer worked examples. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-54">5.33.41 Why this changes how we interpret low-resource performance</h3>
+<p>Earlier we might conclude:</p>
+<blockquote>
+<p>Low-resource language models perform poorly because they understand the language poorly.</p>
+</blockquote>
+<p>The tokenizer analysis adds another layer:</p>
+<div class="math block">
+\boxed{
+\text{they may also receive fewer effective in-context examples}
+}
+</div>
+<p>because their text consumes more tokens.</p>
+<p>So the gap may contain both:</p>
+<div class="math block">
+\boxed{\text{representation/understanding difficulty}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{context-budget inefficiency}}.
+</div>
+<p>The deck explicitly connects the high-fertility result to the low-resource in-context performance gap. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-55">5.33.42 Numerical exam question — fertility</h3>
+<p>A language has:</p>
+<div class="math block">
+F=4.1.
+</div>
+<p>A document contains:</p>
+<div class="math block">
+500
+</div>
+<p>words.</p>
+<p>Approximate token cost:</p>
+<div class="math block">
+500\times4.1
+=
+\boxed{2050\text{ tokens}}.
+</div>
+<p>If the context budget is:</p>
+<div class="math block">
+1920,
+</div>
+<p>the document alone exceeds the budget under this simplified calculation.</p>
+<p>This is an illustrative estimate using the source's fertility concept and Pashto value; real token counts vary from word to word.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-56">5.33.43 Numerical exam question — Tibetan</h3>
+<p>Suppose:</p>
+<div class="math block">
+F=19.9
+</div>
+<p>and:</p>
+<div class="math block">
+200
+</div>
+<p>words need to be included.</p>
+<p>Approximate token count:</p>
+<div class="math block">
+200\times19.9
+=
+\boxed{3980}.
+</div>
+<p>So a 1920-token context cannot even hold that 200-word text under this average-based approximation.</p>
+<p>This illustrates why fertility can become a severe practical bottleneck.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-57">5.33.44 The full causal chain now becomes visible</h3>
+<p>We began with:</p>
+<div class="math block">
+\boxed{
+\text{Low-resource language}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{less training data}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{weaker learned generation}
+}
+</div>
+<p>But there is another path:</p>
+<div class="math block">
+\boxed{
+\text{high tokenizer fertility}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{same content consumes more tokens}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{fewer in-context examples fit}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{less prompting support}
+}
+</div>
+<p>Thus the low-resource challenge isn't only a <strong>data quantity</strong> problem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-58">5.33.45 Another surprising result: fine-tuning vs few-shot</h3>
+<p>The deck compares:</p>
+<div class="math block">
+\boxed{\text{mT5}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{PaLM-2}}
+</div>
+<p>under fine-tuning and few-shot prompting. <em>(Source: indicgenbench-slides)</em></p>
+<p>The reported pattern is:</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-59">QA</h5>
+<p>mT5 performs very strongly because it is purpose-built for short-span generation.</p>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-60">CrossSum</h5>
+<p>PaLM-2 performs better on the longer-form generation task.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{PaLM-2-XS few-shot}
+\approx
+\text{or exceeds its fine-tuned performance on QA}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{fine-tuning remains clearly better for long-form generation}
+}.
+</div>
+<p><em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-61">5.33.46 Why is this distinction useful?</h3>
+<p>It tells us:</p>
+<div class="math block">
+\boxed{
+\text{there is no universally best adaptation method}
+}
+</div>
+<p>The task structure matters.</p>
+<p>For short-span QA:</p>
+<div class="math block">
+\boxed{\text{few-shot prompting can be surprisingly competitive}}
+</div>
+<p>For long-form summarization:</p>
+<div class="math block">
+\boxed{\text{additional training data is more valuable}}
+</div>
+<p>in the reported experiments.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-62">5.33.47 Exam-style conceptual question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>Why can few-shot prompting beat fine-tuning on some QA tasks but not on long-form summarization?</p>
+</blockquote>
+<p>The reported benchmark suggests that short-span QA can be performed very effectively through in-context examples, while long-form generation benefits more strongly from task-specific fine-tuning. The result is task-dependent rather than a universal rule. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-63">5.33.48 Master comparison of the major findings</h3>
+<table>
+<thead>
+<tr>
+<th>Phenomenon</th>
+<th>Reported finding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Larger model within family</td>
+<td>Generally better</td>
+</tr>
+<tr>
+<td>PaLM-2-L</td>
+<td>Wins 4/5 listed tasks</td>
+</tr>
+<tr>
+<td>BLOOMZ</td>
+<td>Wins 3/5</td>
+</tr>
+<tr>
+<td>LLaMA-65B</td>
+<td>Can underperform smaller PaLM-2 model</td>
+</tr>
+<tr>
+<td>Indic vs English</td>
+<td>Every model trails English by 20+ points</td>
+</tr>
+<tr>
+<td>Resource tiers</td>
+<td>High &gt; Medium &gt; Low across every task</td>
+</tr>
+<tr>
+<td>EN → Low-resource</td>
+<td>Large drop</td>
+</tr>
+<tr>
+<td>Low-resource → EN</td>
+<td>Much smaller drop</td>
+</tr>
+<tr>
+<td>In-context examples</td>
+<td>More helps, especially 0→1</td>
+</tr>
+<tr>
+<td>Example language</td>
+<td>Test language &gt; Hindi &gt; English</td>
+</tr>
+<tr>
+<td>Tokenizer fertility</td>
+<td>Can strongly restrict context usage</td>
+</tr>
+<tr>
+<td>QA adaptation</td>
+<td>Few-shot can match/beat fine-tuning</td>
+</tr>
+<tr>
+<td>Long-form generation</td>
+<td>Fine-tuning remains stronger</td>
+</tr>
+</tbody>
+</table>
+<p>All of these are directly grounded in the supplied IndicGenBench results slides. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-64">5.33.49 The deepest takeaway</h3>
+<p>The benchmark reveals that poor Indic generation is <strong>not one single problem</strong>.</p>
+<p>There are multiple interacting factors:</p>
+<div class="math block">
+\boxed{
+\text{resource availability}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{model/training quality}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{generation direction}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{tokenizer fertility}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{available in-context demonstrations}
+}
+</div>
+<p>all affect observed performance.</p>
+<p>That is why a simple statement such as:</p>
+<blockquote>
+<p>“The model is bad at low-resource languages”</p>
+</blockquote>
+<p>is too coarse.</p>
+<p>The deck gives us a more detailed diagnosis.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-65">5.33.50 The most important chain for the exam</h3>
+<p>Remember this sequence:</p>
+<div class="math block">
+\boxed{
+\text{Low-resource language}
+\rightarrow
+\text{high fertility}
+\rightarrow
+\text{more tokens per word}
+\rightarrow
+\text{context budget fills faster}
+\rightarrow
+\text{fewer demonstrations fit}
+\rightarrow
+\text{lower few-shot support}
+}
+</div>
+<p>and independently:</p>
+<div class="math block">
+\boxed{
+\text{low-resource training}
+\rightarrow
+\text{weaker generation}
+}
+</div>
+<p>Together:</p>
+<div class="math block">
+\boxed{
+\text{data scarcity + generation difficulty + tokenizer inefficiency}
+}
+</div>
+<p>help explain the benchmark's observed low-resource gap.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-66">5.33.51 Final numerical bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-67">1. CrossSum size</h5>
+<div class="math block">
+700\times29
+=
+\boxed{20,300}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-68">2. FLORES size</h5>
+<div class="math block">
+2009\times29
+=
+\boxed{58,261}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-69">3. PaLM-2-L EN→target low-resource drop</h5>
+<div class="math block">
+56.9-41.9
+=
+\boxed{15.0}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-70">4. PaLM-2-L target→English low-resource drop</h5>
+<div class="math block">
+68.2-62.6
+=
+\boxed{5.6}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-71">5. Difference between the drops</h5>
+<div class="math block">
+15.0-5.6
+=
+\boxed{9.4\text{ points}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-72">6. 0→1 shot FLORES improvement</h5>
+<div class="math block">
+24.0-0.8
+=
+\boxed{23.2\text{ points}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-73">7. Pashto fertility</h5>
+<div class="math block">
+\boxed{4.1\text{ tokens/word}}
+</div>
+<p>so 500 words approximately:</p>
+<div class="math block">
+500(4.1)
+=
+\boxed{2050\text{ tokens}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-33-i74-74">8. Tibetan fertility</h5>
+<div class="math block">
+200(19.9)
+=
+\boxed{3980\text{ tokens}}.
+</div>
+<p>All source values used in these calculations are from the IndicGenBench deck; the word-count examples are illustrative. <em>(Source: indicgenbench-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-33-i74-75">5.33.52 Final mental model</h3>
+<p>The complete IndicGenBench evaluation story is now:</p>
+<div class="math block">
+\boxed{
+\text{Generation quality}
+}
+</div>
+<p>is measured with metrics adapted to low-resource conditions:</p>
+<div class="math block">
+\boxed{
+\text{chrF for translation/summarization}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{token-F1 for QA}
+}.
+</div>
+<p>Then the benchmark reveals:</p>
+<div class="math block">
+\boxed{
+\text{larger models usually improve}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{every model still has a large Indic-vs-English gap}
+}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{High resource}&gt;\text{Medium}&gt;\text{Low}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{understanding low-resource language}
+&gt;
+\text{generating low-resource language}
+}
+</div>
+<p>in the reported FLORES direction comparison. <em>(Source: indicgenbench-slides)</em></p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+\text{few-shot examples help}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{tokenizer fertility controls how many examples can physically fit}
+}.
+</div>
+<p>That last connection is particularly important because it links <strong>tokenization</strong>, which we studied at the beginning of the course, directly to <strong>multilingual benchmark performance</strong>.</p>
+<hr />
+</section>

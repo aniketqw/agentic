@@ -1,0 +1,54 @@
+<section class="chunk" id="chunk-g-quantization-p7" data-id="g-quantization-p7"><div class="v3-note" data-v3="added"><a href="#v3-floats">Read the teaching bridge for this source page</a> · syllabus 04.06. Original source image and extract follow.</div><p><a id="g-quantization-p7"></a></p>
+<h3 id="v3-heading-chunk-g-quantization-p7-1">Slide 7 — Subnormal numbers: the other reserved exponent</h3>
+<p><img loading="lazy" decoding="async" width="1180" height="556" src="assets/cb411c3cca6c8174b61e.png" alt="quantization-slides slide 7: Subnormal numbers: the other reserved exponent" /></p>
+<details><summary>Slide text (extracted)</summary>
+<pre><code class="language-text">Subnormal numbers: the other reserved exponent
+Just as all-1s exponent bits are reserved (for ±∞/NaN), all-0s exponent bits are reserved too — for numbers smaller than any normal number can represent. When
+
+E = 0, the format switches formulas: the implicit leading 1 disappears, and the exponent freezes at the smallest normal's value instead of continuing to shrink:
+NORMAL (E ≠ 0)
+
+SUBNORMAL (E = 0, F ≠ 0)
+
+(−1)S × 21−bias × F
+
+(−1)S × 2E−bias × (1 + F )
+
+F — the mantissa read as a plain fraction (F = ∑ Fk 2−k , no added 1). Dropping the implicit 1 is what lets these values shrink past the normal floor — each step
+​
+
+down the mantissa halves the value instead of barely denting it, so precision degrades gracefully instead of the format jumping straight from its smallest normal
+number to exactly 0 (gradual underflow). If E = 0 and F = 0 too, the value is exactly 0.
+B IT PAT T E R N ( S E F )
+
+CO M P U TATI O N
+
+VA LU E
+
+0 00000 1000000000
+
+21−15 × (512/1024)
+
+3.0518 × 10−5
+
+0 00000 0000000001
+
+21−15 × (1/1024)
+
+5.9605 × 10−8 (smallest subnormal)
+
+0 00001 0000000000
+
+21−15 × (1 + 0)
+
+6.1035 × 10−5 (smallest normal)
+
+So FP16's true floor isn't 6.1 × 10−5 — it's 5.96 × 10−8 , once subnormals are counted. A value can still be too small even for that: 1.8 × 10−42 , coming up shortly,
+is far below even this subnormal floor, which is why it underflows all the way to 0.0 rather than landing on a subnormal.
+S U B N O R M A L S A R E N OT &quot; E V E RY T H I N G B E LOW 1 &quot;
+
+Almost all of (0, 1) — 0.5, 0.1, 0.001, down to about 6.1 × 10−5 — is still normal, just with a negative exponent (0.1 = 2−4 × 1.6, e.g.). Subnormals only take
+over in the last, extremely thin sliver right before zero.
+</code></pre>
+</details>
+</section>

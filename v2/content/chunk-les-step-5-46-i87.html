@@ -1,0 +1,1579 @@
+<section class="chunk" id="chunk-les-step-5-46-i87" data-id="les-step-5-46-i87"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-46-i87"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-46-i87" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-6-i102">← Previous lesson</a> · <a href="#chunk-les-step-5-47-i88">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-6-i7">STEP 0.6 — TENSOR / MATRIX CALCULUS</a></p><p><strong>This lesson:</strong> Step 5.46 — Distributed MoE: Expert Parallelism, All-to-All Communication, Pipeline Bubbles, and DualPipe</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-46-i87"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-46-i87-1">Step 5.46 — Distributed MoE: Expert Parallelism, All-to-All Communication, Pipeline Bubbles, and DualPipe</h3>
+<p><em>Plan node: A5 · chat order #87</em></p>
+<p>We have finished the <strong>single-GPU mathematical view</strong> of MoE.</p>
+<p>Now we have to answer the much harder systems question:</p>
+<blockquote>
+<p>What happens when the 64, 128, or hundreds of experts do not live on the same GPU?</p>
+</blockquote>
+<p>This is where MoE changes from primarily a neural-network idea into a <strong>distributed-systems problem</strong>.</p>
+<p>The source explicitly explains that large MoE models introduce an expensive <strong>All-to-All token exchange</strong>, because selected experts are distributed across devices. It then motivates DeepSeek's <strong>DualPipe</strong> as a scheduling strategy that overlaps this communication with useful computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-2">5.46.1 First understand the problem</h4>
+<p>Suppose we have four GPUs:</p>
+<pre><code class="language-text">GPU 0 → Experts E1 E2
+GPU 1 → Experts E3 E4
+GPU 2 → Experts E5 E6
+GPU 3 → Experts E7 E8
+</code></pre>
+<p>Now suppose a token is currently on:</p>
+<div class="math block">
+GPU_0
+</div>
+<p>but the router selects:</p>
+<div class="math block">
+E_7.
+</div>
+<p>Expert 7 is on:</p>
+<div class="math block">
+GPU_3.
+</div>
+<p>Therefore the token representation must move:</p>
+<div class="math block">
+\boxed{
+GPU_0\rightarrow GPU_3
+}
+</div>
+<p>before Expert 7 can process it.</p>
+<p>After Expert 7 computes the result, the result must be associated with the original token again.</p>
+<p>That is the fundamental communication problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-3">5.46.2 Why can't every GPU simply contain every expert?</h4>
+<p>It could, conceptually.</p>
+<p>But then each GPU would store:</p>
+<div class="math block">
+\boxed{\text{the entire MoE expert pool}}
+</div>
+<p>which largely defeats the memory advantage of distributing experts.</p>
+<p>Remember the DeepSeek-R1 example:</p>
+<div class="math block">
+671B
+</div>
+<p>total parameters.</p>
+<p>A single GPU cannot simply replicate all of those weights.</p>
+<p>So we distribute the experts across devices.</p>
+<p>This is the motivation for:</p>
+<div class="math block">
+\boxed{\text{Expert Parallelism}}
+</div>
+<p>in large MoE systems.</p>
+<p>The source explicitly identifies the combination of <strong>Expert Parallelism + DualPipe-style scheduling</strong> as the approach used to train massive MoE systems efficiently. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-4">5.46.3 What is Expert Parallelism?</h4>
+<p>The basic idea is:</p>
+<div class="math block">
+\boxed{
+\text{different GPUs own different experts}
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+N=64
+</div>
+<p>experts and:</p>
+<div class="math block">
+P=8
+</div>
+<p>GPUs.</p>
+<p>If distributed evenly:</p>
+<div class="math block">
+64/8
+=
+\boxed{8}
+</div>
+<p>experts per GPU.</p>
+<p>So:</p>
+<pre><code class="language-text">GPU 0 → E1 ... E8
+GPU 1 → E9 ... E16
+GPU 2 → E17 ... E24
+...
+GPU 7 → E57 ... E64
+</code></pre>
+<p>The exact production mapping can be more sophisticated, but this is the core concept.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-5">5.46.4 Why expert parallelism is attractive</h4>
+<p>Without expert parallelism:</p>
+<div class="math block">
+\text{every GPU}
+\rightarrow
+\text{all experts}.
+</div>
+<p>With expert parallelism:</p>
+<div class="math block">
+\text{GPU}
+\rightarrow
+\text{its local subset of experts}.
+</div>
+<p>Therefore expert weights can be partitioned across GPUs.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{model memory per GPU decreases}
+}
+</div>
+<p>for the expert portion.</p>
+<p>But the price is:</p>
+<div class="math block">
+\boxed{
+\text{communication between GPUs}.
+}
+</div>
+<p>This is the recurring pattern of distributed deep learning:</p>
+<div class="math block">
+\boxed{
+\text{split memory}
+\Rightarrow
+\text{introduce communication}.
+}
+</div>
+<p>The source explicitly describes communication as a primary source of overhead in parallel computing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-6">5.46.5 Let's return to our token routing example</h4>
+<p>Suppose the current GPU has four tokens:</p>
+<div class="math block">
+T_1,T_2,T_3,T_4.
+</div>
+<p>Router decisions:</p>
+<div class="math block">
+T_1\rightarrow E_1,E_3
+</div>
+<div class="math block">
+T_2\rightarrow E_5,E_6
+</div>
+<div class="math block">
+T_3\rightarrow E_2,E_8
+</div>
+<div class="math block">
+T_4\rightarrow E_7,E_8.
+</div>
+<p>Suppose:</p>
+<pre><code class="language-text">E1,E2 → GPU 0
+E3,E4 → GPU 1
+E5,E6 → GPU 2
+E7,E8 → GPU 3
+</code></pre>
+<p>Then:</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-7"><span class="math inline">T_1</span></h6>
+<p>local:</p>
+<div class="math block">
+E_1
+</div>
+<p>remote:</p>
+<div class="math block">
+E_3
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-8"><span class="math inline">T_2</span></h6>
+<p>remote:</p>
+<div class="math block">
+E_5,E_6
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-9"><span class="math inline">T_3</span></h6>
+<p>local:</p>
+<div class="math block">
+E_2
+</div>
+<p>remote:</p>
+<div class="math block">
+E_8
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-10"><span class="math inline">T_4</span></h6>
+<p>remote:</p>
+<div class="math block">
+E_7,E_8.
+</div>
+<p>So many token activations need to leave the current GPU.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-11">5.46.6 The communication happens because routing is dynamic</h4>
+<p>The router computes:</p>
+<div class="math block">
+TopK(x_t).
+</div>
+<p>The selected experts depend on:</p>
+<div class="math block">
+x_t.
+</div>
+<p>Therefore the system does <strong>not know in advance</strong> that every token belongs to GPU 2 or GPU 3.</p>
+<p>The dispatch pattern changes with the data.</p>
+<p>So communication is:</p>
+<div class="math block">
+\boxed{\text{dynamic}}
+</div>
+<p>rather than a fixed tensor partition.</p>
+<p>That makes MoE more complicated than ordinary layer-based model parallelism.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-12">5.46.7 What does All-to-All mean?</h4>
+<p>Suppose we have:</p>
+<div class="math block">
+P
+</div>
+<p>GPUs.</p>
+<p>Each GPU may hold tokens that need experts on multiple other GPUs.</p>
+<p>So one communication phase logically looks like:</p>
+<div class="math block">
+\boxed{
+\text{every GPU sends data to every other relevant GPU}
+}
+</div>
+<p>and each GPU receives token representations destined for its local experts.</p>
+<p>This is an <strong>All-to-All communication pattern</strong>.</p>
+<p>The source identifies MoE token shuffling between expert devices as an expensive cross-GPU data exchange and specifically calls out All-to-All communication. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-13">5.46.8 Two-stage mental model</h4>
+<p>Think of distributed MoE as:</p>
+<div class="math block">
+\boxed{
+\text{Dispatch All-to-All}
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{
+\text{Local expert computation}
+}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{
+\text{Combine / return communication}
+}
+</div>
+<p>So:</p>
+<pre><code class="language-text">Tokens
+  ↓
+Router
+  ↓
+Top-K
+  ↓
+DISPATCH
+All-to-All
+  ↓
+Tokens grouped by destination GPU
+  ↓
+Local Expert FFNs
+  ↓
+COMBINE
+Return results to original token locations
+</code></pre>
+<p>This is the distributed extension of the <code>index_add_</code> logic we learned earlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-14">5.46.9 Communication is not the same as router computation</h4>
+<p>This is important.</p>
+<p>Router computation:</p>
+<div class="math block">
+XW_R
+</div>
+<p>is arithmetic.</p>
+<p>Communication:</p>
+<div class="math block">
+GPU_i\leftrightarrow GPU_j
+</div>
+<p>is data movement.</p>
+<p>You can have a very cheap router and still have a very expensive MoE system because:</p>
+<div class="math block">
+\boxed{
+\text{communication latency/bandwidth}
+}
+</div>
+<p>can dominate.</p>
+<p>The source explicitly says the MoE All-to-All operation can be more time-consuming than the pipeline bubble itself. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-15">5.46.10 A simple communication-volume derivation</h4>
+<p>Suppose:</p>
+<div class="math block">
+T
+</div>
+<p>tokens are processed.</p>
+<p>Each token has hidden dimension:</p>
+<div class="math block">
+D.
+</div>
+<p>Each token selects:</p>
+<div class="math block">
+k
+</div>
+<p>experts.</p>
+<p>So the total number of routed token representations is:</p>
+<div class="math block">
+Tk.
+</div>
+<p>Each representation contains:</p>
+<div class="math block">
+D
+</div>
+<p>numbers.</p>
+<p>If each number occupies:</p>
+<div class="math block">
+s
+</div>
+<p>bytes, then the total volume of routed representation data is approximately:</p>
+<div class="math block">
+\boxed{
+TkDs
+}
+</div>
+<p>bytes.</p>
+<p>This is the <strong>gross routed-data volume</strong> before accounting for whether some expert assignments are local, and before accounting for communication protocol overhead.</p>
+<p>This formula is derived from the tensor dimensions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-16">5.46.11 Numerical communication example</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=8192
+</div>
+<p>tokens,</p>
+<div class="math block">
+k=8,
+</div>
+<div class="math block">
+D=4096,
+</div>
+<p>and FP16:</p>
+<div class="math block">
+s=2\text{ bytes}.
+</div>
+<p>Then:</p>
+<div class="math block">
+T k
+=
+8192\times8
+=
+65,536
+</div>
+<p>routed representations.</p>
+<p>Each is:</p>
+<div class="math block">
+4096\times2
+=
+8192
+</div>
+<p>bytes.</p>
+<p>Therefore gross data volume:</p>
+<div class="math block">
+65,536\times8192
+</div>
+<div class="math block">
+=
+\boxed{536,870,912\text{ bytes}}
+</div>
+<p>approximately:</p>
+<div class="math block">
+\boxed{512\text{ MiB}}.
+</div>
+<p>That is a lot of data movement for one routing event in this illustrative example.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-17">5.46.12 Important qualification</h4>
+<p>The:</p>
+<div class="math block">
+512\text{ MiB}
+</div>
+<p>is not automatically the exact amount sent across the network.</p>
+<p>Some assignments may remain on the same GPU.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{network volume}
+\le
+TkDs
+}
+</div>
+<p>in an ideal accounting.</p>
+<p>Actual traffic can also include:</p>
+<div class="math block">
+\text{metadata}
++
+\text{headers}
++
+\text{padding}
++
+\text{collective-operation overhead}
+</div>
+<p>depending on implementation.</p>
+<p>The source does not provide a single universal communication-volume formula, so this calculation is our systems derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-18">5.46.13 Why load balancing suddenly becomes even more important</h4>
+<p>Previously, load imbalance meant:</p>
+<div class="math block">
+\boxed{
+E_1\text{ has too many tokens}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+E_2\text{ has too few}.
+</div>
+<p>In distributed MoE, it additionally means:</p>
+<div class="math block">
+\boxed{
+\text{GPU containing }E_1\text{ becomes a communication/computation hotspot}
+}.
+</div>
+<p>So bad routing causes:</p>
+<div class="math block">
+\text{expert imbalance}
+</div>
+<div class="math block">
+\Downarrow
+</div>
+<div class="math block">
+\text{GPU imbalance}
+</div>
+<div class="math block">
+\Downarrow
+</div>
+<div class="math block">
+\text{communication/compute bottleneck}.
+</div>
+<p>That's why load balancing is both a machine-learning and systems concern.</p>
+<p>The source's figures explicitly contrast hotspot experts in standard MoE with more balanced DeepSeek-MoE routing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-19">5.46.14 Example</h4>
+<p>Suppose four GPUs receive routed token assignments:</p>
+<div class="math block">
+[4000,4000,4000,4000].
+</div>
+<p>Perfect.</p>
+<p>Now suppose:</p>
+<div class="math block">
+[7000,5000,2000,2000].
+</div>
+<p>GPU 0 and GPU 1 carry significantly more expert work.</p>
+<p>Even if total work remains:</p>
+<div class="math block">
+16,000,
+</div>
+<p>the system's throughput can become limited by the busiest devices.</p>
+<p>This is why:</p>
+<div class="math block">
+\boxed{
+\text{average load}
+}
+</div>
+<p>is not enough.</p>
+<p>We also care about:</p>
+<div class="math block">
+\boxed{
+\text{maximum load}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-20">5.46.15 Now connect to the pipeline</h4>
+<p>Suppose the Transformer has:</p>
+<div class="math block">
+8
+</div>
+<p>pipeline stages.</p>
+<p>These stages are spread across GPUs.</p>
+<p>The source calls a group of layers on one GPU a <strong>stage</strong> and describes activations flowing from one stage to the next like an assembly line. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For example:</p>
+<pre><code class="language-text">GPU 0 → Layers 1–10
+GPU 1 → Layers 11–20
+GPU 2 → Layers 21–30
+GPU 3 → Layers 31–40
+GPU 4 → Layers 41–50
+GPU 5 → Layers 51–60
+GPU 6 → Layers 61–70
+GPU 7 → Layers 71–80
+</code></pre>
+<p>That's pipeline parallelism.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-21">5.46.16 What is the pipeline bubble?</h4>
+<p>At the beginning:</p>
+<div class="math block">
+GPU_0
+</div>
+<p>starts computing.</p>
+<p>But:</p>
+<div class="math block">
+GPU_1
+</div>
+<p>cannot compute until GPU 0 sends its activation.</p>
+<p>Then GPU 2 waits for GPU 1.</p>
+<p>And so on.</p>
+<p>Likewise at the end, GPUs may become idle while the remaining gradients drain through the pipeline.</p>
+<p>That idle region is:</p>
+<div class="math block">
+\boxed{\text{pipeline bubble}}.
+</div>
+<p>The source defines the bubble as GPU idle time while waiting for required data or gradients. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-22">5.46.17 Naive GPipe</h4>
+<p>Suppose:</p>
+<div class="math block">
+P=4
+</div>
+<p>pipeline stages and:</p>
+<div class="math block">
+M=8
+</div>
+<p>micro-batches.</p>
+<p>GPipe essentially fills the pipeline with forward passes and then drains it with backward passes.</p>
+<p>The source explains that this creates significant idle time at fill/drain boundaries. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-23">5.46.18 Pipeline efficiency formula</h4>
+<p>The source gives the illustrative theoretical efficiency:</p>
+<div class="math block">
+\boxed{
+\eta_{\text{pipeline}}
+\approx
+\frac{M}{M+(P-1)}
+}
+</div>
+<p>for the simplified equal-time setting used in its discussion.</p>
+<p>For:</p>
+<div class="math block">
+M=8,\quad P=4:
+</div>
+<div class="math block">
+\eta=
+\frac8{8+3}
+=
+\frac8{11}
+</div>
+<div class="math block">
+\approx
+\boxed{72.7\%}.
+</div>
+<p>The source explicitly gives this example as approximately 73%. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-24">5.46.19 What reduces the bubble?</h4>
+<p>Increase:</p>
+<div class="math block">
+M
+</div>
+<p>the number of micro-batches.</p>
+<p>For example:</p>
+<div class="math block">
+M=8
+</div>
+<p>gives:</p>
+<div class="math block">
+8/11\approx72.7\%.
+</div>
+<p>If:</p>
+<div class="math block">
+M=32,
+</div>
+<p>then:</p>
+<div class="math block">
+\frac{32}{32+3}
+=
+\frac{32}{35}
+\approx
+\boxed{91.4\%}.
+</div>
+<p>So:</p>
+<div class="math block">
+M\uparrow
+\Rightarrow
+\text{bubble fraction}\downarrow.
+</div>
+<p>The source explicitly explains this relationship. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-25">5.46.20 Why not simply increase micro-batches forever?</h4>
+<p>Because activations must be stored for backward computation.</p>
+<p>The source explains:</p>
+<ul>
+<li>GPipe holds activations for many micro-batches during the forward phase.</li>
+<li>1F1B reduces this memory pressure by running backward sooner and freeing activations earlier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></li>
+</ul>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{more micro-batches}
+}
+</div>
+<p>helps efficiency but can increase activation-memory requirements.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-26">5.46.21 1F1B schedule</h4>
+<p>The idea is:</p>
+<blockquote>
+<p>Don't wait until all forwards finish before starting backwards.</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+1F1B
+=
+\text{one forward, one backward}
+}
+</div>
+<p>in the steady state.</p>
+<p>The source describes the three phases:</p>
+<div class="math block">
+\boxed{\text{warm-up}}
+</div>
+<div class="math block">
+\boxed{\text{steady state}}
+</div>
+<div class="math block">
+\boxed{\text{cool-down}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-27">5.46.22 Why 1F1B is better for memory</h4>
+<p>Suppose a micro-batch's forward activation is stored.</p>
+<p>Under naive GPipe:</p>
+<div class="math block">
+\text{many micro-batches}
+\rightarrow
+\text{many stored activations}.
+</div>
+<p>Under 1F1B:</p>
+<div class="math block">
+\text{forward}(m_i)
+\rightarrow
+\text{soon backward}(m_i)
+\rightarrow
+\text{free activation}.
+</div>
+<p>So peak activation memory is lower.</p>
+<p>This is why 1F1B allows more micro-batches in practice even though its theoretical bubble efficiency for a fixed <span class="math inline">M,P</span> can be similar to GPipe. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-28">5.46.23 But 1F1B meets a new problem with MoE</h4>
+<p>Here's the critical chain:</p>
+<div class="math block">
+\boxed{
+1F1B
+}
+</div>
+<p>solves:</p>
+<div class="math block">
+\text{pipeline bubble}.
+</div>
+<p>Then we add:</p>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<p>which introduces:</p>
+<div class="math block">
+\boxed{\text{All-to-All communication}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{GPU can still become idle while waiting for expert communication}
+}.
+</div>
+<p>The source explicitly says the All-to-All communication can be even more time-consuming than the pipeline bubble. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-29">5.46.24 This is the engineering progression</h4>
+<p>Think:</p>
+<div class="math block">
+\boxed{
+\text{Pipeline parallelism}
+}
+</div>
+<p>solves:</p>
+<div class="math block">
+\text{model too large}.
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{GPipe}
+}
+</div>
+<p>but creates:</p>
+<div class="math block">
+\text{bubble}.
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+1F1B
+}
+</div>
+<p>reduces:</p>
+<div class="math block">
+\text{bubble}.
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+}
+</div>
+<p>introduces:</p>
+<div class="math block">
+\text{All-to-All communication}.
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{DualPipe}
+}
+</div>
+<p>tries to hide:</p>
+<div class="math block">
+\boxed{\text{communication inside computation}}.
+</div>
+<p>This is one of the most important engineering stories in the entire DeepSeek architecture.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-30">5.46.25 Now understand DualPipe</h4>
+<p>The key idea is:</p>
+<div class="math block">
+\boxed{
+\text{Don't let communication happen while compute waits}
+}
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{communication for one micro-batch}
+\parallel
+\text{computation for another}
+}.
+</div>
+<p>The source explicitly says DualPipe schedules communication-heavy All-to-All operations alongside compute-heavy attention/expert operations. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-31">5.46.26 Simple timeline</h4>
+<p>Imagine:</p>
+<pre><code class="language-text">Time →
+────────────────────────────────────────────
+
+Micro-batch A:
+        All-to-All
+
+Micro-batch B:
+               Expert Compute
+
+Micro-batch C:
+                      Attention
+
+Micro-batch D:
+                             All-to-All
+</code></pre>
+<p>Instead of:</p>
+<pre><code class="language-text">All-to-All
+    ↓
+WAIT
+    ↓
+Expert
+    ↓
+WAIT
+    ↓
+Attention
+</code></pre>
+<p>we try to overlap them:</p>
+<pre><code class="language-text">All-to-All A
+      +
+Expert B
+      +
+Attention C
+</code></pre>
+<p>The GPU's compute resources and communication/network resources can work concurrently.</p>
+<p>That is the central DualPipe idea in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-32">5.46.27 Why this works</h4>
+<p>Different operations stress different resources.</p>
+<p>Conceptually:</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-33">Expert/attention computation</h6>
+<p>uses:</p>
+<div class="math block">
+\boxed{\text{GPU compute}}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-34">Network communication</h6>
+<p>uses:</p>
+<div class="math block">
+\boxed{\text{network/interconnect}}
+</div>
+<p>If the hardware can progress them concurrently, then:</p>
+<div class="math block">
+T_{\text{total}}
+</div>
+<p>can approach the larger of the two costs rather than their sum.</p>
+<p>Suppose:</p>
+<div class="math block">
+T_C=8\text{ ms}
+</div>
+<p>computation,</p>
+<p>and:</p>
+<div class="math block">
+T_{Comm}=6\text{ ms}
+</div>
+<p>communication.</p>
+<p>Sequential:</p>
+<div class="math block">
+8+6
+=
+\boxed{14\text{ ms}}.
+</div>
+<p>Perfect overlap:</p>
+<div class="math block">
+\max(8,6)
+=
+\boxed{8\text{ ms}}.
+</div>
+<p>Potential hidden communication:</p>
+<div class="math block">
+14-8
+=
+\boxed{6\text{ ms}}.
+</div>
+<p>The source uses the qualitative idea of “hiding” communication rather than providing this exact numerical formula. This is our systems derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-35">5.46.28 What does “hide communication” actually mean?</h4>
+<p>It does <strong>not</strong> mean:</p>
+<div class="math block">
+\boxed{\text{communication takes zero time}}.
+</div>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{communication time overlaps with useful computation}
+}
+</div>
+<p>so less of its latency appears on the critical path.</p>
+<p>This distinction is extremely important in interviews.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-36">5.46.29 Fine-grained scheduling</h4>
+<p>The source says DualPipe doesn't merely interleave whole forward and backward passes.</p>
+<p>It breaks computation into smaller components such as:</p>
+<div class="math block">
+\boxed{\text{Attention}}
+</div>
+<div class="math block">
+\boxed{\text{MLP/Expert}}
+</div>
+<div class="math block">
+\boxed{\text{All-to-All communication}}
+</div>
+<p>and schedules them carefully. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{fine-grained overlap}
+}
+</div>
+<p>is a major part of the innovation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-37">5.46.30 Why the scheduler is complicated</h4>
+<p>Because dependencies must still be respected.</p>
+<p>For example:</p>
+<div class="math block">
+\text{routing}
+\rightarrow
+\text{dispatch}
+\rightarrow
+\text{expert compute}
+</div>
+<p>must occur in the correct logical order.</p>
+<p>You cannot arbitrarily reorder:</p>
+<div class="math block">
+\text{Expert compute}
+</div>
+<p>before the token has arrived.</p>
+<p>So the scheduler has to identify operations that are:</p>
+<div class="math block">
+\boxed{\text{independent enough to overlap}}
+</div>
+<p>while preserving:</p>
+<div class="math block">
+\boxed{\text{data dependencies}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-38">5.46.31 DualPipe and backward computation</h4>
+<p>The source describes blocks such as:</p>
+<div class="math block">
+\boxed{\text{Forward}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Backward for weights}}
+</div>
+<p>being overlapped with communication and with computation from another micro-batch. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So a simplified picture is:</p>
+<pre><code class="language-text">Micro-batch A:
+    communication
+
+Micro-batch B:
+    forward compute
+
+Micro-batch C:
+    backward compute
+
+Micro-batch D:
+    expert compute
+</code></pre>
+<p>The scheduler interleaves these at a fine granularity.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-39">5.46.32 Pipeline folding</h4>
+<p>DualPipe introduces another idea:</p>
+<div class="math block">
+\boxed{\text{folding the pipeline}}
+</div>
+<p>Instead of:</p>
+<pre><code class="language-text">GPU 0 → Stage 0
+GPU 1 → Stage 1
+GPU 2 → Stage 2
+GPU 3 → Stage 3
+GPU 4 → Stage 4
+GPU 5 → Stage 5
+GPU 6 → Stage 6
+GPU 7 → Stage 7
+</code></pre>
+<p>the folded arrangement puts two distant stages on each GPU.</p>
+<p>For eight stages and four GPUs, the source gives:</p>
+<div class="math block">
+GPU_0:\ Stage\ 0,\ Stage\ 7
+</div>
+<div class="math block">
+GPU_1:\ Stage\ 1,\ Stage\ 6
+</div>
+<div class="math block">
+GPU_2:\ Stage\ 2,\ Stage\ 5
+</div>
+<div class="math block">
+GPU_3:\ Stage\ 3,\ Stage\ 4.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-40">5.46.33 Why this creates a V-shape</h4>
+<p>Suppose a micro-batch travels:</p>
+<div class="math block">
+Stage\ 0
+\rightarrow
+Stage\ 1
+\rightarrow
+Stage\ 2
+\rightarrow
+Stage\ 3
+</div>
+<p>then turns:</p>
+<div class="math block">
+Stage\ 4
+</div>
+<p>on the same physical GPU that owns Stage 3.</p>
+<p>Then:</p>
+<div class="math block">
+Stage\ 4
+\rightarrow
+Stage\ 5
+\rightarrow
+Stage\ 6
+\rightarrow
+Stage\ 7.
+</div>
+<p>So physically it travels:</p>
+<div class="math block">
+\boxed{
+Down
+\rightarrow
+Turn
+\rightarrow
+Up
+}
+</div>
+<p>forming a:</p>
+<div class="math block">
+\boxed{V}.
+</div>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{DualPipeV / V-shape / cut-in-half}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-41">5.46.34 Why is this useful?</h4>
+<p>The source says the V-shaped variant can run an:</p>
+<div class="math block">
+N\text{-stage pipeline}
+</div>
+<p>using only:</p>
+<div class="math block">
+\boxed{N/2}
+</div>
+<p>physical GPUs.</p>
+<p>So:</p>
+<div class="math block">
+8\text{ stages}
+\rightarrow
+4\text{ GPUs}.
+</div>
+<p>But there is an explicit trade-off:</p>
+<p>each GPU holds:</p>
+<div class="math block">
+\boxed{2\times}
+</div>
+<p>the parameter memory of a conventional one-stage-per-GPU layout.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-42">5.46.35 Numerical: folded pipeline</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=16
+</div>
+<p>stages.</p>
+<p>DualPipeV can, in the source's simplified description, use:</p>
+<div class="math block">
+16/2
+=
+\boxed{8\text{ physical GPUs}}.
+</div>
+<p>But each GPU holds two stages.</p>
+<p>Therefore parameter memory per GPU is approximately:</p>
+<div class="math block">
+\boxed{2\times}
+</div>
+<p>the standard one-stage-per-GPU arrangement.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{GPU count}\downarrow
+\quad\text{but}\quad
+\text{per-GPU parameter memory}\uparrow
+}.
+</div>
+<p>This is a deliberate trade-off.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-43">5.46.36 Why would DeepSeek accept that trade-off?</h4>
+<p>Because the source says other techniques already help reduce per-GPU parameter memory, including:</p>
+<div class="math block">
+\boxed{\text{FP8}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Expert Parallelism}}.
+</div>
+<p>So the system can trade additional parameter memory for:</p>
+<div class="math block">
+\boxed{
+\text{better utilization}
++
+\text{better communication hiding}
+}.
+</div>
+<p>The source explicitly frames this as an engineering trade-off. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-44">5.46.37 Full distributed-training stack</h4>
+<p>At this point we can see several parallelism mechanisms.</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-45">Gradient Accumulation</h6>
+<p>Splits a large effective batch into smaller physical batches.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{batch memory}}
+</div>
+<p>The source derives:</p>
+<div class="math block">
+B_{\text{effective}}
+=
+b_{\text{physical}}\times N_{\text{accumulation}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-46-i87-46">Data Parallelism</h6>
+<p>Replicates the model across GPUs and splits the data.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{training time}}
+</div>
+<p>but the whole model must fit on every GPU. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-46-i87-47">Pipeline Parallelism</h6>
+<p>Splits model layers across GPUs.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{model too large}}
+</div>
+<p>but creates pipeline bubbles. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-46-i87-48">Expert Parallelism</h6>
+<p>Splits MoE experts across GPUs.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{expert parameter memory}}
+</div>
+<p>but creates:</p>
+<div class="math block">
+\boxed{\text{All-to-All communication}}.
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-46-i87-49">1F1B</h6>
+<p>Interleaves forward/backward work.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{pipeline bubble}}
+</div>
+<p>but MoE communication remains problematic. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-5-46-i87-50">DualPipe</h6>
+<p>Overlaps:</p>
+<div class="math block">
+\boxed{
+\text{communication}
++
+\text{computation}
+}
+</div>
+<p>and uses a folded/V-shaped organization.</p>
+<p>Problem solved:</p>
+<div class="math block">
+\boxed{\text{MoE communication bottleneck + pipeline utilization}}
+</div>
+<p>with a parameter-memory trade-off. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-51">5.46.38 One very useful table</h4>
+<table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>What is split/replicated?</th>
+<th>Main problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gradient accumulation</td>
+<td>Batch</td>
+<td>VRAM for large batch</td>
+</tr>
+<tr>
+<td>Data parallelism</td>
+<td>Data</td>
+<td>Training throughput</td>
+</tr>
+<tr>
+<td>Pipeline parallelism</td>
+<td>Layers</td>
+<td>Model memory</td>
+</tr>
+<tr>
+<td>Expert parallelism</td>
+<td>Experts</td>
+<td>MoE model memory</td>
+</tr>
+<tr>
+<td>1F1B</td>
+<td>Schedule</td>
+<td>Pipeline bubble</td>
+</tr>
+<tr>
+<td>DualPipe</td>
+<td>Schedule + folded stages</td>
+<td>MoE communication / idle time</td>
+</tr>
+</tbody>
+</table>
+<p>The source presents these techniques as complementary rather than mutually exclusive. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-52">5.46.39 An important conceptual distinction</h4>
+<p>A common mistake is to say:</p>
+<blockquote>
+<p>“Pipeline parallelism and expert parallelism are alternatives.”</p>
+</blockquote>
+<p>Not necessarily.</p>
+<p>They solve different dimensions of the problem.</p>
+<p>A real large-scale system can combine:</p>
+<div class="math block">
+\boxed{
+\text{Data Parallelism}
++
+\text{Pipeline Parallelism}
++
+\text{Expert Parallelism}
+}
+</div>
+<p>plus:</p>
+<div class="math block">
+\boxed{\text{tensor/model sharding and scheduling}}.
+</div>
+<p>The source explicitly emphasizes that modern LLM training uses these techniques in combination to overcome both time and hardware constraints. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-53">5.46.40 End-to-end large MoE training picture</h4>
+<p>Now imagine a large DeepSeek-style training cluster.</p>
+<pre><code class="language-text">                         GLOBAL TRAINING JOB
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+         DATA SHARDS          DATA SHARDS        DATA SHARDS
+              │                  │                  │
+              ▼                  ▼                  ▼
+       PIPELINE STAGES     PIPELINE STAGES     PIPELINE STAGES
+              │                  │                  │
+              ▼                  ▼                  ▼
+         MLA / ATTENTION       MLA / ATTENTION
+              │                  │
+              ▼                  ▼
+             MoE                MoE
+              │                  │
+           ROUTER              ROUTER
+              │                  │
+            Top-K              Top-K
+              │                  │
+              └─────── ALL-TO-ALL ───────┐
+                                          │
+                              EXPERT GPUs
+                                          │
+                               Expert computation
+                                          │
+                              Combine / return
+                                          │
+                               Pipeline continues
+</code></pre>
+<p>And then DualPipe tries to make:</p>
+<div class="math block">
+\boxed{
+\text{communication}
+}
+</div>
+<p>overlap with:</p>
+<div class="math block">
+\boxed{
+\text{attention/expert/backward computation}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-54">5.46.41 Exam numerical — communication volume</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=4096,
+</div>
+<div class="math block">
+k=2,
+</div>
+<div class="math block">
+D=2048,
+</div>
+<p>FP16:</p>
+<div class="math block">
+s=2.
+</div>
+<p>Gross routed-data volume:</p>
+<div class="math block">
+TkDs
+</div>
+<div class="math block">
+=
+4096\times2\times2048\times2.
+</div>
+<p>Compute:</p>
+<div class="math block">
+4096\times2=8192
+</div>
+<div class="math block">
+2048\times2=4096
+</div>
+<p>therefore:</p>
+<div class="math block">
+8192\times4096
+=
+\boxed{33,554,432\text{ bytes}}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{32\text{ MiB}}.
+</div>
+<p>This is the total token-representation volume before accounting for locality and communication overhead.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-55">5.46.42 Exam numerical — pipeline efficiency</h4>
+<p>Suppose:</p>
+<div class="math block">
+P=8
+</div>
+<p>pipeline stages and:</p>
+<div class="math block">
+M=32
+</div>
+<p>micro-batches.</p>
+<p>Using the source's simplified formula:</p>
+<div class="math block">
+\eta=
+\frac{M}{M+(P-1)}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\eta=
+\frac{32}{32+7}
+=
+\frac{32}{39}.
+</div>
+<div class="math block">
+\boxed{\eta\approx82.05\%}.
+</div>
+<p>So bubble overhead is:</p>
+<div class="math block">
+1-0.8205
+=
+\boxed{17.95\%}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-56">5.46.43 Exam numerical — perfect overlap</h4>
+<p>Suppose:</p>
+<div class="math block">
+T_{\text{compute}}=10\text{ ms}
+</div>
+<p>and:</p>
+<div class="math block">
+T_{\text{communication}}=7\text{ ms}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-57">Sequential</h6>
+<div class="math block">
+10+7
+=
+\boxed{17\text{ ms}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-58">Ideal full overlap</h6>
+<div class="math block">
+\max(10,7)
+=
+\boxed{10\text{ ms}}.
+</div>
+<p>Potential time hidden:</p>
+<div class="math block">
+\boxed{7\text{ ms}}.
+</div>
+<p>Potential speedup:</p>
+<div class="math block">
+17/10
+=
+\boxed{1.7\times}.
+</div>
+<p>This assumes perfect overlap and no additional synchronization or resource contention.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-59">5.46.44 Exam numerical — DualPipeV GPU count</h4>
+<p>Suppose a pipeline has:</p>
+<div class="math block">
+N=20
+</div>
+<p>stages.</p>
+<p>Source-style DualPipeV:</p>
+<div class="math block">
+N/2
+=
+20/2
+=
+\boxed{10\text{ GPUs}}.
+</div>
+<p>Each GPU holds two stages.</p>
+<p>So if a normal layout used one stage per GPU:</p>
+<div class="math block">
+20\text{ GPUs},
+</div>
+<p>the folded layout uses:</p>
+<div class="math block">
+\boxed{10\text{ GPUs}}
+</div>
+<p>but approximately doubles per-GPU parameter storage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-60">5.46.45 The critical trade-off graph in your mind</h4>
+<p>You should now mentally understand this progression:</p>
+<div class="math block">
+\boxed{
+\text{Less GPU memory per model replica}
+}
+</div>
+<p>often comes from:</p>
+<div class="math block">
+\text{more partitioning}.
+</div>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{more partitioning}
+\Rightarrow
+\text{more communication}
+}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{more communication}
+\Rightarrow
+\text{need better scheduling}
+}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{better scheduling}
+\Rightarrow
+\text{overlap communication with computation}
+}.
+</div>
+<p>That is the systems philosophy behind DualPipe.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-61">5.46.46 Why this belongs after MoE</h4>
+<p>Notice how naturally the concepts connect:</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-62">MoE</h6>
+<div class="math block">
+\text{token}\rightarrow\text{expert}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-63">Expert Parallelism</h6>
+<div class="math block">
+\text{expert}\rightarrow\text{GPU}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{token}\rightarrow\text{GPU}
+}
+</div>
+<p>must sometimes happen dynamically.</p>
+<p>That creates:</p>
+<div class="math block">
+\boxed{\text{communication}}.
+</div>
+<p>Then pipeline parallelism introduces:</p>
+<div class="math block">
+\boxed{\text{another scheduling constraint}}.
+</div>
+<p>DualPipe addresses the interaction between those constraints.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-64">5.46.47 Complete DeepSeek scaling story so far</h4>
+<p>We started with:</p>
+<div class="math block">
+\boxed{\text{Dense FFN}}
+</div>
+<p>which activated everything.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<p>gave:</p>
+<div class="math block">
+\text{large capacity + sparse computation}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Fine-grained experts}}
+</div>
+<p>gave:</p>
+<div class="math block">
+\text{more specialization}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Shared experts}}
+</div>
+<p>gave:</p>
+<div class="math block">
+\text{common knowledge}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Dynamic bias}}
+</div>
+<p>gave:</p>
+<div class="math block">
+\text{load balancing}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Expert Parallelism}}
+</div>
+<p>distributed the experts across GPUs.</p>
+<p>That introduced:</p>
+<div class="math block">
+\boxed{\text{All-to-All communication}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{1F1B}}
+</div>
+<p>reduced pipeline bubbles, but MoE communication still caused idle time.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{\text{DualPipe}}
+</div>
+<p>uses fine-grained scheduling and pipeline folding to overlap communication with computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-65">5.46.48 Master exam sheet</h4>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-66">Expert Parallelism</h6>
+<div class="math block">
+\boxed{
+\text{experts distributed across GPUs}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-67">Routed assignments</h6>
+<div class="math block">
+\boxed{
+Tk
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-68">Gross routed activation volume</h6>
+<div class="math block">
+\boxed{
+TkDs
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-69">Dense FFN compute</h6>
+<div class="math block">
+\boxed{
+\sim2DH
+}
+</div>
+<p>MACs/token.</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-70">Routed MoE expert compute</h6>
+<div class="math block">
+\boxed{
+\sim2kDH_e
+}
+</div>
+<p>MACs/token.</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-71">Router compute</h6>
+<div class="math block">
+\boxed{
+\sim DN
+}
+</div>
+<p>MACs/token.</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-72">Pipeline efficiency</h6>
+<div class="math block">
+\boxed{
+\eta\approx
+\frac{M}{M+P-1}
+}
+</div>
+<p>in the source's simplified equal-time model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-73">DualPipe principle</h6>
+<div class="math block">
+\boxed{
+T_{\text{overlap}}
+\approx
+\max(T_{\text{compute}},T_{\text{communication}})
+}
+</div>
+<p>under an idealized perfect-overlap model.</p>
+<h6 id="v3-heading-chunk-les-step-5-46-i87-74">DualPipeV</h6>
+<div class="math block">
+\boxed{
+N\text{ stages}\rightarrow N/2\text{ physical GPUs}
+}
+</div>
+<p>in the source's folded description, at roughly <span class="math inline">2\times</span> parameter-memory per GPU. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-46-i87-75">5.46.49 The deepest takeaway</h4>
+<p>At the algorithm level:</p>
+<div class="math block">
+\boxed{
+\text{MoE says “don't compute every expert.”}
+}
+</div>
+<p>At the hardware level:</p>
+<div class="math block">
+\boxed{
+\text{Expert Parallelism says “don't store every expert on every GPU.”}
+}
+</div>
+<p>But that creates:</p>
+<div class="math block">
+\boxed{
+\text{“move the token to the expert.”}
+}
+</div>
+<p>That creates:</p>
+<div class="math block">
+\boxed{
+\text{All-to-All communication.}
+}
+</div>
+<p>And then DeepSeek's scheduling insight becomes:</p>
+<div class="math block">
+\boxed{
+\text{Don't wait for communication—do useful computation while communication is happening.}
+}
+</div>
+<p>That is the conceptual bridge from <strong>MoE mathematics</strong> to <strong>large-scale distributed training</strong>.</p>
+<hr />
+</section>

@@ -1,0 +1,1615 @@
+<section class="chunk" id="chunk-les-step-1-10-i17" data-id="les-step-1-10-i17"><details class="audit-card" id="audit-T18" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> T18 — SwiGLU gate, up and down projections</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Use one learned feature stream to modulate another before projecting back to model width.</p><p><strong>Prerequisites:</strong> <a href="#audit-T10">Positionwise MLP and GELU variants</a></p><h4 id="v3-heading-chunk-les-step-1-10-i17-1">Notation and assumptions</h4><p>Row input X:T×d; gate/up:d×f; down:f×d. SiLU(a)=a·sigmoid(a). No biases in this fixture.</p><h4 id="v3-heading-chunk-les-step-1-10-i17-2">Derivation and mechanism</h4><ol><li>Compute G=XWgate and U=XWup.</li><li>Apply SiLU to G, multiply elementwise by U.</li><li>Project the f features with Wdown.</li></ol><div class="math block">Y=(\mathrm{SiLU}(XW_g)\odot XW_u)W_d</div><h4 id="v3-heading-chunk-les-step-1-10-i17-3">Worked example</h4><p>X=[1,2], gate=identity, up=[[2,1],[0,1]], down=identity gives G=[1,2], U=[2,3], output=[2/(1+e^-1),6/(1+e^-2)]≈[1.462117,5.284782].</p><h4 id="v3-heading-chunk-les-step-1-10-i17-4">Limitations</h4><ul><li>A gated FFN has three weight matrices rather than two.</li><li>An empirical advantage of a variant is specific to a training/evaluation setting.</li></ul><h4 id="v3-heading-chunk-les-step-1-10-i17-5">Connections to later concepts</h4><ul><li>T19 counts the third gated projection. A02 substitutes selected expert FFNs for a single dense FFN.</li></ul><h4 id="v3-heading-chunk-les-step-1-10-i17-6">Source support</h4><ul><li><a href="https://arxiv.org/html/2002.05202v1" rel="noopener noreferrer">§2 SwiGLU definition</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-1-10-i17-7">Executed code and evidence</h4><p>Functions: swiglu. Passed checks: SwiGLU</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><details class="audit-card" id="audit-T08" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> T08 — LayerNorm: variance, epsilon, and affine parameters</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-T07">← Previous audit card</a> · <a href="#audit-T09">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-1-10-i17-8">Why this matters</h4><p>Normalize a token across its feature dimensions while keeping token positions separate.</p><p><strong>Prerequisites:</strong> <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-1-10-i17-9">Symbols, shapes and assumptions</h4><p>μ and variance use the feature population denominator d. The normalized variance is σ²/(σ²+ε). Learned gamma/beta can change the final mean and variance.</p><h4 id="v3-heading-chunk-les-step-1-10-i17-10">Derivation or mechanism</h4><ol><li>Compute μ and σ² over one token feature row.</li><li>Divide centered features by √(σ²+ε).</li><li>Apply per-feature gamma and beta.</li></ol><div class="math block" data-tex="y_j=\gamma_j\frac{x_j-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta_j">y_j=\gamma_j\frac{x_j-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta_j</div><h4 id="v3-heading-chunk-les-step-1-10-i17-11">Worked numerical</h4><p>For [1,3], μ=2 and σ²=1. With ε=0, gamma=1, beta=0, the output is [-1,1]. With ε=1 it becomes [-1/√2,1/√2], whose variance is 1/2. With ε=0, gamma=[2,3] and beta=[1,-1], the output is [-1,2]. For [4,4], positive epsilon gives [0,0].</p><h4 id="v3-heading-chunk-les-step-1-10-i17-12">Edge cases and limits</h4><ul><li>Unit variance is an approximation when epsilon is positive, before an unrestricted affine step.</li><li>Sample variance with denominator d-1 changes the operation.</li><li>RMSNorm is a separate method and is not certified by these LayerNorm checks.</li></ul><h4 id="v3-heading-chunk-les-step-1-10-i17-13">Connections</h4><ul><li>T12 normalizes before each sublayer in a pre-norm block.</li></ul><h4 id="v3-heading-chunk-les-step-1-10-i17-14">Source support</h4><ul><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 244, 245, 246, 247, 248 · §4.2</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-1-10-i17-15">Executable companion and checking evidence</h4><p>Functions: <code>layer_norm</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: T08-layernorm, T08-constant. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-1-10-i17"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-1-10-i17" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-1-9-i16">← Previous lesson</a> · <a href="#chunk-les-step-1-11-i18">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-9-i16">Step 1.9 — Complete Multi-Head Attention: Numerical Example From Start to Finish</a></p><p><strong>This lesson:</strong> Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-12">Step1_Transformers_Mathematical_Cheatsheet</a>; <a href="#source-14">transformers-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-1-10-i17"></a></p>
+<h2>Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</h2>
+<p><em>Plan node: I1 · chat order #17</em></p>
+<p>We have now built the attention part:</p>
+<div class="math block">
+X
+\rightarrow Q,K,V
+\rightarrow \text{attention}
+\rightarrow \text{MHA}
+</div>
+<p>But a Transformer block does <strong>not</strong> consist only of attention.</p>
+<p>There is another major computation:</p>
+<div class="math block">
+\boxed{\text{Feed-Forward Network / MLP}}
+</div>
+<p>The Transformer slides make an important division:</p>
+<div class="math block">
+\boxed{
+\text{Attention = information mixing across positions}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{MLP = nonlinear processing within each position}
+}
+</div>
+<p><em>(Source: transformers-slides)</em></p>
+<p>This distinction is fundamental.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-16">1.10.1 Why Do We Need an MLP After Attention?</h3>
+<p>Let's first understand the problem.</p>
+<p>Suppose we have:</p>
+<pre><code class="language-text">The cat is sleeping
+</code></pre>
+<p>Attention allows the representation of <code>&quot;is&quot;</code> to gather information from:</p>
+<pre><code class="language-text">The
+cat
+is
+</code></pre>
+<p>So attention answers:</p>
+<blockquote>
+<p><strong>What information should this token gather from other positions?</strong></p>
+</blockquote>
+<p>But after gathering the information, the model still needs to <strong>process and transform</strong> the resulting vector.</p>
+<p>That is the job of the MLP.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{Attention: gather information}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{MLP: process that information}
+}
+</div>
+<p>The slides phrase this as attention deciding what information to gather while the MLP performs nonlinear processing of that information. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-17">1.10.2 The Most Important Difference From Attention</h3>
+<p>Attention mixes information between tokens.</p>
+<p>For example:</p>
+<div class="math block">
+x_3
+</div>
+<p>can receive information from:</p>
+<div class="math block">
+x_1,x_2,x_3.
+</div>
+<p>Therefore attention involves interactions like:</p>
+<div class="math block">
+x_i \leftrightarrow x_j.
+</div>
+<p>The MLP does <strong>not</strong> do that.</p>
+<p>For each token separately:</p>
+<div class="math block">
+x_i\rightarrow \operatorname{FFN}(x_i).
+</div>
+<p>There is no:</p>
+<div class="math block">
+x_i\leftrightarrow x_j
+</div>
+<p>inside that MLP operation.</p>
+<p>So if:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+x_1\\
+x_2\\
+x_3
+\end{bmatrix},
+</div>
+<p>the FFN conceptually does:</p>
+<div class="math block">
+\begin{bmatrix}
+x_1\\
+x_2\\
+x_3
+\end{bmatrix}
+\rightarrow
+\begin{bmatrix}
+FFN(x_1)\\
+FFN(x_2)\\
+FFN(x_3)
+\end{bmatrix}.
+</div>
+<p>Each token is processed independently using the <strong>same learned weights</strong>.</p>
+<p>That is why it is called:</p>
+<div class="math block">
+\boxed{\text{position-wise FFN}}
+</div>
+<p>The slides explicitly state that it is applied identically and independently to every token position. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-18">1.10.3 The FFN Formula</h3>
+<p>The basic equation is:</p>
+<div class="math block">
+\boxed{
+FFN(x)
+=
+W_2\phi(W_1x+b_1)+b_2
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">x</span> = input token representation</li>
+<li><span class="math inline">W_1</span> = first linear transformation</li>
+<li><span class="math inline">b_1</span> = first bias</li>
+<li><span class="math inline">\phi</span> = nonlinear activation</li>
+<li><span class="math inline">W_2</span> = second linear transformation</li>
+<li><span class="math inline">b_2</span> = second bias.</li>
+</ul>
+<p>The Transformer slides give this exact structure. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-19">1.10.4 Why Two Linear Layers?</h3>
+<p>Look carefully:</p>
+<div class="math block">
+x
+\rightarrow
+W_1x+b_1
+\rightarrow
+\phi
+\rightarrow
+W_2(\cdot)+b_2.
+</div>
+<p>The first layer <strong>expands</strong> the representation.</p>
+<p>The activation introduces <strong>nonlinearity</strong>.</p>
+<p>The second layer <strong>compresses</strong> it back.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+d
+\rightarrow
+d_{ff}
+\rightarrow
+d
+}
+</div>
+<p>The source describes this as:</p>
+<blockquote>
+<p>expansion → GELU → contraction.</p>
+</blockquote>
+<p>For the GPT-style example in Raschka:</p>
+<div class="math block">
+768\rightarrow3072\rightarrow768.
+</div>
+<p><em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-20">1.10.5 Why Expand First?</h3>
+<p>This is a very important conceptual question.</p>
+<p>Suppose:</p>
+<div class="math block">
+x\in\mathbb{R}^{768}.
+</div>
+<p>If we only applied another <span class="math inline">768\rightarrow768</span> linear transformation, we would have a much more limited computational bottleneck.</p>
+<p>Instead, the first transformation creates a richer hidden representation:</p>
+<div class="math block">
+768\rightarrow3072.
+</div>
+<p>Then GELU introduces nonlinear processing in this larger space.</p>
+<p>Then:</p>
+<div class="math block">
+3072\rightarrow768.
+</div>
+<p>This gives the MLP a larger intermediate computational space.</p>
+<p>Raschka explicitly describes the expansion as allowing the model to explore a richer representation space. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-21">1.10.6 Tensor Shapes</h3>
+<p>Let:</p>
+<div class="math block">
+x\in\mathbb{R}^{d}.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_1\in\mathbb{R}^{d_{ff}\times d}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W_1x
+</div>
+<p>has shape:</p>
+<div class="math block">
+d_{ff}.
+</div>
+<p>After activation:</p>
+<div class="math block">
+a=\phi(W_1x+b_1)
+</div>
+<p>still has shape:</p>
+<div class="math block">
+d_{ff}.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_2\in\mathbb{R}^{d\times d_{ff}}.
+</div>
+<p>So:</p>
+<div class="math block">
+W_2a
+</div>
+<p>has shape:</p>
+<div class="math block">
+d.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+d
+\rightarrow
+d_{ff}
+\rightarrow
+d
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-22">1.10.7 Matrix Version</h3>
+<p>For the entire sequence:</p>
+<div class="math block">
+X\in\mathbb{R}^{n\times d}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Z=XW_1+b_1.
+</div>
+<p>The shape is:</p>
+<div class="math block">
+(n\times d)(d\times d_{ff})
+=
+n\times d_{ff}.
+</div>
+<p>Then:</p>
+<div class="math block">
+A=\phi(Z)
+</div>
+<p>still:</p>
+<div class="math block">
+n\times d_{ff}.
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=AW_2+b_2
+</div>
+<p>gives:</p>
+<div class="math block">
+(n\times d_{ff})(d_{ff}\times d)
+=
+n\times d.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+X:n\times d
+\rightarrow
+Z:n\times d_{ff}
+\rightarrow
+A:n\times d_{ff}
+\rightarrow
+Y:n\times d
+}
+</div>
+<p>The output and input width match, which is necessary for the later residual addition.</p>
+<p>The mathematical cheatsheet explicitly records these shapes. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-23">1.10.8 The Batch Version</h3>
+<p>In a real Transformer:</p>
+<div class="math block">
+X\in\mathbb{R}^{B\times n\times d}.
+</div>
+<p>Then:</p>
+<div class="math block">
+XW_1
+</div>
+<p>produces:</p>
+<div class="math block">
+\boxed{
+B\times n\times d_{ff}
+}
+</div>
+<p>and the final output is:</p>
+<div class="math block">
+\boxed{
+B\times n\times d.
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+B=2,\quad n=3,\quad d=8,\quad d_{ff}=32.
+</div>
+<p>Then:</p>
+<div class="math block">
+X:
+2\times3\times8
+</div>
+<p>becomes:</p>
+<div class="math block">
+2\times3\times32
+</div>
+<p>and finally:</p>
+<div class="math block">
+2\times3\times8.
+</div>
+<p>Raschka's implementation likewise demonstrates that the FFN input/output tensor shape remains unchanged, e.g. <code>[2, 3, 768] → [2, 3, 768]</code>. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-24">1.10.9 Why Is <span class="math inline">d_{ff}</span> Usually Larger Than <span class="math inline">d</span>?</h3>
+<p>The slides use the common GPT-style relationship:</p>
+<div class="math block">
+\boxed{
+d_{ff}=4d
+}
+</div>
+<p><em>(Source: transformers-slides)</em></p>
+<p>So if:</p>
+<div class="math block">
+d=768,
+</div>
+<p>then:</p>
+<div class="math block">
+d_{ff}=4(768)=3072.
+</div>
+<p>Hence:</p>
+<div class="math block">
+768\rightarrow3072\rightarrow768.
+</div>
+<p>This is one of the easiest things to turn into an exam numerical.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-25">Numerical 1 — Direct Calculation</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=512
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=4d.
+</div>
+<p>Then:</p>
+<div class="math block">
+d_{ff}=4(512)=2048.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+512\rightarrow2048\rightarrow512
+}
+</div>
+<p>So each token's representation temporarily expands from 512 dimensions to 2048 dimensions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-26">1.10.10 Now the Most Important Part: GELU</h3>
+<p>The activation is typically:</p>
+<div class="math block">
+\boxed{\phi=\operatorname{GELU}}
+</div>
+<p>in the slide formulation.</p>
+<p>The slide gives:</p>
+<div class="math block">
+\boxed{
+GELU(x)=x\Phi(x)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\Phi(x)
+</div>
+<p>is the standard normal cumulative distribution function. <em>(Source: transformers-slides)</em></p>
+<p>So:</p>
+<div class="math block">
+FFN(x)
+=
+W_2\,GELU(W_1x+b_1)+b_2.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-27">1.10.11 What Does GELU Actually Do?</h3>
+<p>A common first intuition is:</p>
+<blockquote>
+<p>&quot;It is basically ReLU.&quot;</p>
+</blockquote>
+<p>Not exactly.</p>
+<p>ReLU:</p>
+<div class="math block">
+ReLU(x)=\max(0,x).
+</div>
+<p>So:</p>
+<div class="math block">
+ReLU(-2)=0
+</div>
+<div class="math block">
+ReLU(2)=2.
+</div>
+<p>GELU behaves more smoothly.</p>
+<p>It does not sharply set all negative values to zero.</p>
+<p>The Transformer slides explicitly distinguish it from ReLU by noting that GELU smoothly damps negative values instead of sharply zeroing them. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-28">1.10.12 Exact GELU Formula</h3>
+<div class="math block">
+\boxed{
+GELU(x)=x\Phi(x)
+}
+</div>
+<p>For a standard Gaussian:</p>
+<div class="math block">
+\Phi(x)
+=
+\int_{-\infty}^{x}
+\frac{1}{\sqrt{2\pi}}
+e^{-u^2/2}\,du.
+</div>
+<p>Thus:</p>
+<div class="math block">
+GELU(x)
+=
+x
+\int_{-\infty}^{x}
+\frac{1}{\sqrt{2\pi}}
+e^{-u^2/2}\,du.
+</div>
+<p>The cheatsheet you generated includes both the exact formula and the common approximation. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-29">Numerical 2 — GELU at <span class="math inline">x=1</span></h3>
+<p>We know:</p>
+<div class="math block">
+\Phi(1)\approx0.8413.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+GELU(1)
+=
+1(0.8413)
+</div>
+<div class="math block">
+\boxed{
+GELU(1)\approx0.8413
+}
+</div>
+<p>Compare:</p>
+<div class="math block">
+ReLU(1)=1.
+</div>
+<p>So GELU does not simply copy the positive value unchanged.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-30">Numerical 3 — GELU at <span class="math inline">x=-1</span></h3>
+<p>We know:</p>
+<div class="math block">
+\Phi(-1)\approx0.1587.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+GELU(-1)
+=
+(-1)(0.1587)
+</div>
+<div class="math block">
+\boxed{
+GELU(-1)\approx-0.1587
+}
+</div>
+<p>Compare:</p>
+<div class="math block">
+ReLU(-1)=0.
+</div>
+<p>So GELU keeps a small negative contribution.</p>
+<p>This is one reason the activation is smoother.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-31">1.10.13 Now Do an Entire FFN Numerically</h3>
+<p>Let's choose a tiny example.</p>
+<p>Let:</p>
+<div class="math block">
+d=2
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=3.
+</div>
+<p>Take:</p>
+<div class="math block">
+x=
+\begin{bmatrix}
+1\\
+-1
+\end{bmatrix}.
+</div>
+<p>Choose:</p>
+<div class="math block">
+W_1=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+b_1=
+\begin{bmatrix}
+0\\
+0\\
+0
+\end{bmatrix}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-32">1.10.14 First Linear Layer</h3>
+<p>Calculate:</p>
+<div class="math block">
+z=W_1x+b_1.
+</div>
+<p>So:</p>
+<div class="math block">
+z=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1\\
+1&amp;1
+\end{bmatrix}
+\begin{bmatrix}
+1\\
+-1
+\end{bmatrix}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+z=
+\begin{bmatrix}
+1\\
+-1\\
+0
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+z=[1,-1,0]^T
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-33">1.10.15 Apply GELU</h3>
+<p>We know approximately:</p>
+<div class="math block">
+GELU(1)=0.8413
+</div>
+<div class="math block">
+GELU(-1)=-0.1587
+</div>
+<p>and:</p>
+<div class="math block">
+GELU(0)=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+a=
+\begin{bmatrix}
+0.8413\\
+-0.1587\\
+0
+\end{bmatrix}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+a=
+GELU(z)
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-34">1.10.16 Second Linear Layer</h3>
+<p>Now choose:</p>
+<div class="math block">
+W_2=
+\begin{bmatrix}
+1&amp;1&amp;0\\
+0&amp;1&amp;1
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+b_2=
+\begin{bmatrix}
+0\\
+0
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+y=W_2a+b_2.
+</div>
+<p>First component:</p>
+<div class="math block">
+y_1
+=
+1(0.8413)+1(-0.1587)+0(0)
+</div>
+<div class="math block">
+=0.6826.
+</div>
+<p>Second component:</p>
+<div class="math block">
+y_2
+=
+0(0.8413)+1(-0.1587)+1(0)
+</div>
+<div class="math block">
+=-0.1587.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+FFN(x)\approx
+\begin{bmatrix}
+0.6826\\
+-0.1587
+\end{bmatrix}
+}
+</div>
+<p>Notice what happened:</p>
+<div class="math block">
+\boxed{
+2\rightarrow3\rightarrow2
+}
+</div>
+<p>The FFN temporarily expanded the representation, performed nonlinear processing, and returned to the original dimension.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-35">1.10.17 Why Is the Nonlinearity Essential?</h3>
+<p>Imagine removing GELU.</p>
+<p>Then:</p>
+<div class="math block">
+FFN(x)=W_2(W_1x+b_1)+b_2.
+</div>
+<p>Ignoring biases for intuition:</p>
+<div class="math block">
+FFN(x)=W_2W_1x.
+</div>
+<p>That is still fundamentally a <strong>linear transformation</strong>.</p>
+<p>Stacking multiple linear transformations without nonlinear activations can collapse into another linear transformation.</p>
+<p>The nonlinear activation prevents the entire FFN from behaving like just one giant linear transformation.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+W_1 + GELU + W_2
+}
+</div>
+<p>is much more expressive than:</p>
+<div class="math block">
+\boxed{
+W_2W_1
+}
+</div>
+<p>alone.</p>
+<p>This is why the nonlinear function is a key part of the MLP.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-36">1.10.18 Why Doesn't the FFN Need a Mask?</h3>
+<p>Because the FFN does not compare different positions.</p>
+<p>Suppose:</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+x_1\\
+x_2\\
+x_3
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+FFN(X)
+=
+\begin{bmatrix}
+FFN(x_1)\\
+FFN(x_2)\\
+FFN(x_3)
+\end{bmatrix}.
+</div>
+<p>There is no:</p>
+<div class="math block">
+x_1x_2^T
+</div>
+<p>or:</p>
+<div class="math block">
+x_2x_3^T.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{No token-token communication}
+}
+</div>
+<p>and hence no causal mask is needed inside the basic FFN.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-37">1.10.19 Attention vs MLP</h3>
+<p>This distinction is extremely exam-worthy.</p>
+<table>
+<thead>
+<tr>
+<th>Attention</th>
+<th>MLP / FFN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mixes information across positions</td>
+<td>Processes each position independently</td>
+</tr>
+<tr>
+<td>Uses Q/K/V</td>
+<td>Uses linear layers + activation</td>
+</tr>
+<tr>
+<td>Produces attention weights</td>
+<td>No attention weights</td>
+</tr>
+<tr>
+<td>Uses token-to-token interactions</td>
+<td>No token-to-token interaction inside FFN</td>
+</tr>
+<tr>
+<td>Needs causal mask in decoder</td>
+<td>No causal mask inside FFN</td>
+</tr>
+<tr>
+<td>Main operation is <span class="math inline">AV</span></td>
+<td>Main operation is <span class="math inline">W_2\phi(W_1x+b_1)+b_2</span></td>
+</tr>
+</tbody>
+</table>
+<p>The slides explicitly summarize this division of labor. <em>(Source: transformers-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-38">1.10.20 Numerical Track — Parameter Count</h3>
+<p>Now we enter the kind of numerical question that can easily appear in an exam.</p>
+<p>For:</p>
+<div class="math block">
+W_1\in\mathbb{R}^{d_{ff}\times d}
+</div>
+<p>the number of weights is:</p>
+<div class="math block">
+d_{ff}d.
+</div>
+<p>For:</p>
+<div class="math block">
+W_2\in\mathbb{R}^{d\times d_{ff}}
+</div>
+<p>the number is:</p>
+<div class="math block">
+dd_{ff}.
+</div>
+<p>Therefore the two weight matrices together contain:</p>
+<div class="math block">
+\boxed{
+2dd_{ff}
+}
+</div>
+<p>parameters.</p>
+<p>The cheatsheet explicitly gives:</p>
+<div class="math block">
+FFN\approx2dd_{ff}.
+</div>
+<p><em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-39">Numerical 4 — FFN Parameter Count</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=768
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=3072.
+</div>
+<p>Then:</p>
+<div class="math block">
+W_1:
+3072\times768
+</div>
+<p>so:</p>
+<div class="math block">
+3072(768)=2,359,296.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+W_2:
+768\times3072
+</div>
+<p>also:</p>
+<div class="math block">
+2,359,296.
+</div>
+<p>Therefore total weights:</p>
+<div class="math block">
+2,359,296+2,359,296
+</div>
+<div class="math block">
+\boxed{
+4,718,592
+}
+</div>
+<p>If biases are included:</p>
+<div class="math block">
+b_1:3072
+</div>
+<p>and:</p>
+<div class="math block">
+b_2:768.
+</div>
+<p>Total biases:</p>
+<div class="math block">
+3072+768=3840.
+</div>
+<p>Hence:</p>
+<div class="math block">
+4,718,592+3,840
+=
+\boxed{
+4,722,432
+}
+</div>
+<p>FFN parameters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-40">1.10.21 Important Complexity Numerical</h3>
+<p>For one token:</p>
+<div class="math block">
+W_1x
+</div>
+<p>costs roughly:</p>
+<div class="math block">
+O(dd_{ff})
+</div>
+<p>and:</p>
+<div class="math block">
+W_2a
+</div>
+<p>also costs:</p>
+<div class="math block">
+O(dd_{ff}).
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+FFN\text{ compute}\approx O(2dd_{ff})
+}
+</div>
+<p>per token up to constant/convention details.</p>
+<p>With:</p>
+<div class="math block">
+d_{ff}=4d,
+</div>
+<p>we get:</p>
+<div class="math block">
+2d(4d)
+=
+8d^2.
+</div>
+<p>The cheatsheet explicitly records:</p>
+<div class="math block">
+\boxed{
+FFN\approx8d^2
+\quad\text{when }d_{ff}=4d.
+}
+</div>
+<p><em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-41">Numerical 5 — Compare FFN and Attention Projection Parameters</h3>
+<p>Suppose:</p>
+<div class="math block">
+d=768.
+</div>
+<p>The four major attention projections are approximately:</p>
+<div class="math block">
+W_Q,W_K,W_V,W_O
+</div>
+<p>each around:</p>
+<div class="math block">
+768\times768.
+</div>
+<p>So:</p>
+<div class="math block">
+4d^2
+</div>
+<p>parameters.</p>
+<p>Calculate:</p>
+<div class="math block">
+d^2=768^2=589,824.
+</div>
+<p>Thus:</p>
+<div class="math block">
+4d^2
+=
+2,359,296.
+</div>
+<p>The FFN has approximately:</p>
+<div class="math block">
+8d^2
+</div>
+<p>weights under:</p>
+<div class="math block">
+d_{ff}=4d.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+8(589,824)
+=
+\boxed{
+4,718,592.
+}
+</div>
+<p>So in this simplified comparison:</p>
+<div class="math block">
+\boxed{
+FFN\text{ weights}\approx2\times\text{attention projection weights}.
+}
+</div>
+<p>This is an important architectural numerical insight captured in the cheatsheet. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-42">1.10.22 Why Is This Important?</h3>
+<p>You may initially think:</p>
+<blockquote>
+<p>&quot;Attention must dominate the model because it is the complicated part.&quot;</p>
+</blockquote>
+<p>But parameter-count-wise, the FFN can be extremely large.</p>
+<p>For the common:</p>
+<div class="math block">
+d_{ff}=4d
+</div>
+<p>configuration:</p>
+<div class="math block">
+FFN\approx8d^2
+</div>
+<p>while:</p>
+<div class="math block">
+Q/K/V/O\approx4d^2.
+</div>
+<p>So the FFN has roughly twice as many projection parameters.</p>
+<p>This will matter later when we study:</p>
+<ul>
+<li>model size,</li>
+<li>computational cost,</li>
+<li>MoE architectures,</li>
+<li>inference optimization,</li>
+<li>quantization,</li>
+<li>parameter-efficient fine-tuning.</li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-43">1.10.23 A Very Important Conceptual Boundary</h3>
+<p>Attention operates across positions:</p>
+<div class="math block">
+\boxed{
+[n\times d]
+\rightarrow
+[n\times n]
+\rightarrow
+[n\times d_v].
+}
+</div>
+<p>The <span class="math inline">n\times n</span> matrix is the key clue.</p>
+<p>The FFN does not construct an:</p>
+<div class="math block">
+n\times n
+</div>
+<p>interaction matrix.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+[n\times d]
+\rightarrow
+[n\times d_{ff}]
+\rightarrow
+[n\times d].
+}
+</div>
+<p>This is a fantastic exam trick.</p>
+<p>If a question asks:</p>
+<blockquote>
+<p>Which component allows token-to-token information interaction?</p>
+</blockquote>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{Attention}}
+</div>
+<p>If it asks:</p>
+<blockquote>
+<p>Which component independently transforms each position through a nonlinear function?</p>
+</blockquote>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{FFN/MLP}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-44">1.10.24 Position-Wise Does Not Mean Sequential</h3>
+<p>Another common misunderstanding:</p>
+<p>&quot;Position-wise&quot; does not mean the MLP processes token 1, then token 2, then token 3 sequentially.</p>
+<p>It means the same function is independently applied to every position.</p>
+<p>So mathematically:</p>
+<div class="math block">
+FFN(x_1),FFN(x_2),\ldots,FFN(x_n)
+</div>
+<p>can all be computed in parallel as one tensor operation.</p>
+<p>That is:</p>
+<div class="math block">
+\boxed{
+\text{independent across positions}
+\neq
+\text{sequential across positions}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-45">1.10.25 Now Insert FFN Into the Transformer Block</h3>
+<p>We previously had the MHA sublayer:</p>
+<div class="math block">
+h=
+x+\operatorname{MHA}(\operatorname{Norm}(x)).
+</div>
+<p>Now the FFN follows:</p>
+<div class="math block">
+\boxed{
+y=
+h+\operatorname{FFN}(\operatorname{Norm}(h)).
+}
+</div>
+<p>So the complete pre-normalization block is:</p>
+<div class="math block">
+\boxed{
+h=x+\operatorname{MHA}(\operatorname{LN}(x))
+}
+</div>
+<div class="math block">
+\boxed{
+y=h+\operatorname{FFN}(\operatorname{LN}(h)).
+}
+</div>
+<p>The Transformer cheatsheet you generated contains exactly this block formulation. <em>(Source: Step1_Transformers_Mathematical_Cheatsheet)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-46">1.10.26 The Entire Decoder Block Is Now Visible</h3>
+<p>We started with:</p>
+<div class="math block">
+X
+</div>
+<p>then:</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-47">Normalize</h5>
+<div class="math block">
+LN(X)
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-48">Multi-head causal attention</h5>
+<div class="math block">
+MHA(LN(X))
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-49">Residual</h5>
+<div class="math block">
+H=
+X+MHA(LN(X)).
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-50">Normalize again</h5>
+<div class="math block">
+LN(H)
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-51">Feed-forward</h5>
+<div class="math block">
+FFN(LN(H))
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-52">Residual</h5>
+<div class="math block">
+Y=
+H+FFN(LN(H)).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Y=
+H+FFN(LN(H))
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\boxed{
+H=X+MHA(LN(X)).
+}
+</div>
+<p>This is the fundamental Transformer block architecture we have been building piece by piece.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-53">1.10.27 The Big Picture</h3>
+<p>The two sublayers have different jobs:</p>
+<pre><code class="language-text">                 Token representations
+                         │
+                         ▼
+                     Normalize
+                         │
+                         ▼
+              Multi-Head Attention
+                         │
+              &quot;Gather information&quot;
+                         │
+                         ▼
+                    + Residual
+                         │
+                         ▼
+                     Normalize
+                         │
+                         ▼
+                       FFN
+                &quot;Process information&quot;
+                         │
+                         ▼
+                    + Residual
+                         │
+                         ▼
+                Output of block
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Attention = communication}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{FFN = computation}
+}
+</div>
+<p>This is one of the most useful mental models for understanding Transformers.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-54">1.10.28 Numerical Track — Full Tiny Transformer Block</h3>
+<p>Let's combine things.</p>
+<p>Suppose:</p>
+<div class="math block">
+d=4
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=16.
+</div>
+<p>For:</p>
+<div class="math block">
+n=5
+</div>
+<p>tokens and:</p>
+<div class="math block">
+B=2
+</div>
+<p>examples:</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-55">Input</h5>
+<div class="math block">
+\boxed{
+X:2\times5\times4
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-56">MHA output</h5>
+<div class="math block">
+\boxed{
+2\times5\times4
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-57">Residual</h5>
+<div class="math block">
+\boxed{
+2\times5\times4
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-58">FFN first layer</h5>
+<div class="math block">
+4\rightarrow16
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+2\times5\times16
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-59">GELU</h5>
+<p>still:</p>
+<div class="math block">
+\boxed{
+2\times5\times16
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-60">FFN second layer</h5>
+<div class="math block">
+16\rightarrow4
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+2\times5\times4
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-61">Final residual</h5>
+<p>still:</p>
+<div class="math block">
+\boxed{
+2\times5\times4.
+}
+</div>
+<p>Therefore the entire Transformer block preserves:</p>
+<div class="math block">
+\boxed{
+B\times n\times d.
+}
+</div>
+<p>That shape preservation is what allows us to stack many blocks one after another.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-62">1.10.29 Exam Numerical #1 — Dimension Flow</h3>
+<p><strong>Question</strong></p>
+<p>A Transformer has:</p>
+<div class="math block">
+d=256
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=4d.
+</div>
+<p>A batch contains:</p>
+<div class="math block">
+B=8
+</div>
+<p>sequences of length:</p>
+<div class="math block">
+n=32.
+</div>
+<p>Find the shape after:</p>
+<ol>
+<li>FFN first linear layer</li>
+<li>GELU</li>
+<li>FFN second linear layer</li>
+</ol>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-63">Solution</h5>
+<p>First:</p>
+<div class="math block">
+d_{ff}=4(256)=1024.
+</div>
+<p>Input:</p>
+<div class="math block">
+8\times32\times256.
+</div>
+<p>After <span class="math inline">W_1</span>:</p>
+<div class="math block">
+\boxed{
+8\times32\times1024
+}
+</div>
+<p>After GELU:</p>
+<div class="math block">
+\boxed{
+8\times32\times1024
+}
+</div>
+<p>After <span class="math inline">W_2</span>:</p>
+<div class="math block">
+\boxed{
+8\times32\times256
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-64">1.10.30 Exam Numerical #2 — Parameter Count</h3>
+<p><strong>Question</strong></p>
+<p>An FFN has:</p>
+<div class="math block">
+d=512
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=2048.
+</div>
+<p>Ignoring biases, how many trainable parameters are in the two FFN linear layers?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-65">Solution</h5>
+<div class="math block">
+W_1:2048\times512
+</div>
+<div class="math block">
+W_2:512\times2048.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+2(2048)(512)
+</div>
+<div class="math block">
+=2,097,152.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+2,097,152
+}
+</div>
+<p>parameters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-66">1.10.31 Exam Numerical #3 — Conceptual Numerical</h3>
+<p><strong>Question</strong></p>
+<p>A Transformer uses:</p>
+<div class="math block">
+d=768,\quad h=12,\quad d_{ff}=3072.
+</div>
+<p>Which is wider?</p>
+<ul>
+<li>attention head dimension</li>
+<li>FFN hidden dimension</li>
+</ul>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-67">Solution</h5>
+<p>Attention head dimension:</p>
+<div class="math block">
+d_k=\frac{768}{12}=64.
+</div>
+<p>FFN hidden dimension:</p>
+<div class="math block">
+3072.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{3072}{64}=48.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+d_{ff}\text{ is }48\times\text{ wider than one attention head's }d_k.
+}
+</div>
+<p>This is an excellent example of why we must keep the three different dimensions straight:</p>
+<div class="math block">
+\boxed{
+d,\quad d_k,\quad d_{ff}
+}
+</div>
+<p>They are not interchangeable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-68">1.10.32 Common Mistakes</h3>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-69">Mistake 1</h5>
+<p>Thinking:</p>
+<div class="math block">
+FFN
+</div>
+<p>mixes information across tokens.</p>
+<p>It doesn't.</p>
+<p>Attention does that.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-10-i17-70">Mistake 2</h5>
+<p>Thinking:</p>
+<div class="math block">
+d_{ff}=d.
+</div>
+<p>Typically:</p>
+<div class="math block">
+d_{ff}&gt;d,
+</div>
+<p>with the slide formulation using:</p>
+<div class="math block">
+d_{ff}=4d.
+</div>
+<p><em>(Source: transformers-slides)</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-10-i17-71">Mistake 3</h5>
+<p>Forgetting the nonlinearity.</p>
+<p>Without:</p>
+<div class="math block">
+\phi
+</div>
+<p>the two linear layers collapse conceptually into a larger linear mapping.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-10-i17-72">Mistake 4</h5>
+<p>Thinking GELU completely eliminates negative values.</p>
+<p>It doesn't.</p>
+<p>For example:</p>
+<div class="math block">
+GELU(-1)\approx-0.1587.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-1-10-i17-73">Mistake 5</h5>
+<p>Getting the <span class="math inline">W_1</span> shape backwards.</p>
+<p>For:</p>
+<div class="math block">
+x\in\mathbb{R}^{d},
+</div>
+<p>we need:</p>
+<div class="math block">
+\boxed{
+W_1\in\mathbb{R}^{d_{ff}\times d}
+}
+</div>
+<p>so that:</p>
+<div class="math block">
+W_1x\in\mathbb{R}^{d_{ff}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-74">1.10.33 Master Formula Sheet for This Step</h3>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-75">First projection</h5>
+<div class="math block">
+\boxed{
+z=W_1x+b_1
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-76">Activation</h5>
+<div class="math block">
+\boxed{
+a=GELU(z)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-77">Second projection</h5>
+<div class="math block">
+\boxed{
+y=W_2a+b_2
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+FFN(x)=W_2GELU(W_1x+b_1)+b_2
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+W_1:d_{ff}\times d
+}
+</div>
+<div class="math block">
+\boxed{
+W_2:d\times d_{ff}
+}
+</div>
+<p>and commonly:</p>
+<div class="math block">
+\boxed{
+d_{ff}=4d.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-78">1.10.34 Numerical Formula Sheet</h3>
+<p>For exam numericals:</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-79">FFN hidden dimension</h5>
+<div class="math block">
+\boxed{
+d_{ff}=4d
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-80">First-layer weights</h5>
+<div class="math block">
+\boxed{
+|W_1|=dd_{ff}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-81">Second-layer weights</h5>
+<div class="math block">
+\boxed{
+|W_2|=dd_{ff}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-82">Total weights</h5>
+<div class="math block">
+\boxed{
+2dd_{ff}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-83">With <span class="math inline">d_{ff}=4d</span></h5>
+<div class="math block">
+\boxed{
+2d(4d)=8d^2
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-84">Shape</h5>
+<div class="math block">
+\boxed{
+B\times n\times d
+\rightarrow
+B\times n\times d_{ff}
+\rightarrow
+B\times n\times d
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-85">1.10.35 The Core Understanding</h3>
+<p>At this point, the architecture has a very clean division:</p>
+<div class="math block">
+\boxed{
+\text{Attention}
+=
+\text{Who should I get information from?}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{FFN}
+=
+\text{What nonlinear computation should I perform on the information I now have?}
+}
+</div>
+<p>This is a conceptual simplification, not a literal internal verbal process, but it is an excellent way to remember the architecture.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-1-10-i17-86">Master Check — Step 1.10</h3>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-87">Q1</h5>
+<p>Why is the FFN called <strong>position-wise</strong>?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-88">Q2</h5>
+<p>Given:</p>
+<div class="math block">
+d=384,
+</div>
+<p>and:</p>
+<div class="math block">
+d_{ff}=4d,
+</div>
+<p>calculate <span class="math inline">d_{ff}</span>.</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-89">Q3</h5>
+<p>What are the shapes of <span class="math inline">W_1</span> and <span class="math inline">W_2</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-90">Q4</h5>
+<p>Given:</p>
+<div class="math block">
+B=4,\quad n=20,\quad d=128,\quad d_{ff}=512,
+</div>
+<p>what is the tensor shape immediately after <span class="math inline">W_1</span>?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-91">Q5</h5>
+<p>What does GELU contribute that a purely linear <span class="math inline">W_2W_1x</span> transformation would not?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-92">Q6</h5>
+<p>Calculate:</p>
+<div class="math block">
+GELU(1)
+</div>
+<p>approximately.</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-93">Q7</h5>
+<p>Calculate the number of FFN weights for:</p>
+<div class="math block">
+d=256,\quad d_{ff}=1024.
+</div>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-94">Q8</h5>
+<p>Why doesn't the FFN need the causal mask?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-95">Q9</h5>
+<p>Which component mixes information across positions: attention or FFN?</p>
+<h5 id="v3-heading-chunk-les-step-1-10-i17-96">Q10</h5>
+<p>Complete the Transformer block:</p>
+<div class="math block">
+H=
+X+\boxed{?}
+</div>
+<div class="math block">
+Y=
+H+\boxed{?}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-1-10-i17-97">What We Have Built</h4>
+<p>We can now see the entire Transformer block instead of isolated formulas:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+LN
+\rightarrow
+MHA
+\rightarrow
++\text{Residual}
+\rightarrow
+LN
+\rightarrow
+FFN
+\rightarrow
++\text{Residual}
+}
+</div>
+<p>And our numerical understanding now includes:</p>
+<div class="math block">
+\boxed{
+Q/K/V\text{ projections}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{attention score calculations}
+}
+</div>
+<div class="math block">
+\boxed{
+\sqrt{d_k}\text{ scaling}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{causal masking}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{softmax probabilities}
+}
+</div>
+<div class="math block">
+\boxed{
+AV\text{ weighted aggregation}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{multi-head splitting/concatenation}
+}
+</div>
+<div class="math block">
+\boxed{
+FFN\ d\rightarrow d_{ff}\rightarrow d
+}
+</div>
+<div class="math block">
+\boxed{
+\text{parameter-count numericals}
+}
+</div>
+<p>and from now on <strong>every subsequent topic will have the same numerical treatment</strong>.</p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-a2">A.2 — Mixture-of-Experts (MoE)</a> — <em>Mixture-of-Experts replaces the dense FFN</em></p>
+</blockquote>
+<hr />
+</section>

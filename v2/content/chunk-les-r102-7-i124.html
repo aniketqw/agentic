@@ -1,0 +1,731 @@
+<section class="chunk" id="chunk-les-r102-7-i124" data-id="les-r102-7-i124"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-7-i124"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-7-i124" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r102-6-i123">← Previous lesson</a> · <a href="#chunk-les-r102-8-i125">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r102-6-i123">R102.6 — Implementing Knowledge Distillation: From Equations to PyTorch</a></p><p><strong>This lesson:</strong> R102.7 — The Empirical Proof: Why Distillation Can Beat Direct RL</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-7-i124"></a></p>
+<h3 id="v3-heading-chunk-les-r102-7-i124-1">R102.7 — The Empirical Proof: Why Distillation Can Beat Direct RL</h3>
+<p><em>Plan node: B3 · chat order #124</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-4-3-i35">Step 4.3 — Building the Complete Classical Knowledge-Distillation Loss</a> · <a href="#les-step-4-9-i41">Step 4.9 — Limits of Distillation and How to Choose the Student</a> · <a href="#les-step-5-19-i60">Step 5.19 — Limits of Distillation + Future Directions</a></p>
+</blockquote>
+<p>Now we move from:</p>
+<div class="math block">
+\text{“We think distillation should work”}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{\text{“What actually happened in the experiments?”}}
+</div>
+<p>This is the most important part of Chapter 8 because the experiments reveal <strong>why the teacher-student approach is so powerful</strong>.</p>
+<p>The central experiment is especially striking:</p>
+<div class="math block">
+\boxed{
+\text{same 32B architecture}
++
+\text{different training method}
+}
+</div>
+<p>and the distilled model wins by a very large margin. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-2">1. First result — the 1.5B model</h4>
+<p>The headline result in the source is:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1-Distill-Qwen-1.5B}}
+</div>
+<p>with:</p>
+<div class="math block">
+1.5B\ \text{parameters}
+</div>
+<p>achieving:</p>
+<div class="math block">
+\boxed{28.9\%}
+</div>
+<p>on AIME 2024.</p>
+<p>The source compares this with GPT-4o at:</p>
+<div class="math block">
+9.3\%.
+</div>
+<p>It also reports:</p>
+<div class="math block">
+83.9\%
+</div>
+<p>on MATH-500 for the 1.5B distilled model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The point is not that a 1.5B model is universally stronger than a frontier model.</p>
+<p>The point is:</p>
+<div class="math block">
+\boxed{
+\text{a tiny model can inherit surprisingly strong reasoning capability}
+}
+</div>
+<p>through carefully constructed teacher-generated data.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-3">2. Look at the complete benchmark table</h4>
+<p>The source reports:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">Params</th>
+<th style="text-align:right">AIME 2024</th>
+<th style="text-align:right">MATH-500</th>
+<th style="text-align:right">GPQA Diamond</th>
+<th style="text-align:right">LiveCodeBench</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-4o</td>
+<td style="text-align:right">~1.8T</td>
+<td style="text-align:right">9.3%</td>
+<td style="text-align:right">74.6%</td>
+<td style="text-align:right">49.9%</td>
+<td style="text-align:right">32.9%</td>
+</tr>
+<tr>
+<td>Claude-3.5-Sonnet</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">16.0%</td>
+<td style="text-align:right">78.3%</td>
+<td style="text-align:right">65.0%</td>
+<td style="text-align:right">38.9%</td>
+</tr>
+<tr>
+<td>o1-mini</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">63.6%</td>
+<td style="text-align:right">90.0%</td>
+<td style="text-align:right">60.0%</td>
+<td style="text-align:right">53.8%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-1.5B</td>
+<td style="text-align:right">1.5B</td>
+<td style="text-align:right">28.9%</td>
+<td style="text-align:right">83.9%</td>
+<td style="text-align:right">33.8%</td>
+<td style="text-align:right">16.9%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-7B</td>
+<td style="text-align:right">7B</td>
+<td style="text-align:right">55.5%</td>
+<td style="text-align:right">92.8%</td>
+<td style="text-align:right">49.1%</td>
+<td style="text-align:right">37.6%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-14B</td>
+<td style="text-align:right">14B</td>
+<td style="text-align:right">69.7%</td>
+<td style="text-align:right">93.9%</td>
+<td style="text-align:right">59.1%</td>
+<td style="text-align:right">53.1%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-32B</td>
+<td style="text-align:right">32B</td>
+<td style="text-align:right">72.6%</td>
+<td style="text-align:right">94.3%</td>
+<td style="text-align:right">62.1%</td>
+<td style="text-align:right">57.2%</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-8B</td>
+<td style="text-align:right">8B</td>
+<td style="text-align:right">50.4%</td>
+<td style="text-align:right">89.1%</td>
+<td style="text-align:right">49.0%</td>
+<td style="text-align:right">39.6%</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-70B</td>
+<td style="text-align:right">70B</td>
+<td style="text-align:right">70.0%</td>
+<td style="text-align:right">94.5%</td>
+<td style="text-align:right">65.2%</td>
+<td style="text-align:right">57.5%</td>
+</tr>
+<tr>
+<td>DeepSeek-R1</td>
+<td style="text-align:right">671B</td>
+<td style="text-align:right">79.8%</td>
+<td style="text-align:right">97.3%</td>
+<td style="text-align:right">71.5%</td>
+<td style="text-align:right">65.9%</td>
+</tr>
+</tbody>
+</table>
+<p>These are the figures presented in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-4">3. First observation — reasoning scales with student size</h4>
+<p>Look only at the Qwen distilled models:</p>
+<div class="math block">
+1.5B\rightarrow7B\rightarrow14B\rightarrow32B
+</div>
+<p>Their AIME scores are:</p>
+<div class="math block">
+28.9\rightarrow55.5\rightarrow69.7\rightarrow72.6.
+</div>
+<p>So the general pattern is:</p>
+<div class="math block">
+\boxed{
+\text{larger student}
+\Rightarrow
+\text{better ability to absorb teacher behavior}
+}
+</div>
+<p>The source calls this <strong>smooth scaling</strong> and notes that performance improves steadily with model size. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-5">4. But something more interesting happens</h4>
+<p>The 32B model gets:</p>
+<div class="math block">
+72.6\%\ \text{AIME}.
+</div>
+<p>The 70B Llama distilled model gets:</p>
+<div class="math block">
+70.0\%.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+32B\ \text{Qwen}
+&gt;
+70B\ \text{Llama}
+}
+</div>
+<p>on the reported AIME result.</p>
+<p>Therefore parameter count isn't the only variable.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-6">5. Base model matters</h4>
+<p>The source compares:</p>
+<div class="math block">
+\text{Qwen-7B}=55.5\%
+</div>
+<p>with:</p>
+<div class="math block">
+\text{Llama-8B}=50.4\%.
+</div>
+<p>Despite the Llama model being slightly larger, Qwen performs better on AIME. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This tells us:</p>
+<div class="math block">
+\boxed{
+\text{final student capability}
+=
+f(\text{student size},\text{base-model capability},\text{distillation data})
+}
+</div>
+<p>Distillation doesn't erase the student's starting point.</p>
+<p>The student already has pretrained knowledge.</p>
+<p>The R1 data builds reasoning capability on top of that base.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-7">6. Why does the base matter?</h4>
+<p>The source specifically attributes some of the Qwen advantage to the characteristics of the Qwen2.5-Math bases used for the smaller variants. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So imagine two students of approximately similar scale:</p>
+<pre><code class="language-text">Base A
+  +
+R1 reasoning data
+  ↓
+Student A
+
+Base B
+  +
+R1 reasoning data
+  ↓
+Student B
+</code></pre>
+<p>Even though the <strong>teacher data is the same</strong>, the students may end up different because their pretrained representations and capabilities differ.</p>
+<p>This is a very important lesson:</p>
+<div class="math block">
+\boxed{\text{Distillation quality depends on both teacher and student}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-8">7. The really important experiment — same architecture</h4>
+<p>Now we get to the most revealing experiment.</p>
+<p>The question was:</p>
+<blockquote>
+<p>Suppose I have a Qwen2.5-32B model. Should I train it with large-scale RL, or distill it from a much larger reasoning teacher?</p>
+</blockquote>
+<p>This gives us a controlled comparison because the model architecture is held constant.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-9">8. The three relevant 32B models</h4>
+<p>The source discusses:</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-10">QwQ-32B</h6>
+<p>A Qwen2.5-32B-based reasoning model trained with large-scale RL, included as an independent reference.</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-11">DS-R1-Zero-32B</h6>
+<p>The same 32B base subjected to DeepSeek's RL-from-scratch style.</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-12">DS-R1-Distill-32B</h6>
+<p>The same general 32B architecture trained from R1's generated reasoning data with only SFT. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<pre><code class="language-text">                Qwen2.5-32B base
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+       RL path       RL path     Distill path
+          │            │            │
+       QwQ-32B     R1-Zero-32B   R1-Distill-32B
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-13">9. The result</h4>
+<p>The AIME results:</p>
+<div class="math block">
+\boxed{47.0\%}
+</div>
+<p>for the RL-trained 32B model,</p>
+<p>versus:</p>
+<div class="math block">
+\boxed{72.6\%}
+</div>
+<p>for the distilled 32B model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Difference:</p>
+<div class="math block">
+72.6-47.0
+=
+\boxed{25.6\text{ percentage points}}
+</div>
+<p>That is an enormous gap.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-14">10. And this wasn't just AIME</h4>
+<p>The source reports:</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-15">MATH-500</h6>
+<div class="math block">
+94.3\%
+\quad\text{vs}\quad
+91.6\%
+</div>
+<h6 id="v3-heading-chunk-les-r102-7-i124-16">GPQA Diamond</h6>
+<div class="math block">
+62.1\%
+\quad\text{vs}\quad
+55.0\%
+</div>
+<h6 id="v3-heading-chunk-les-r102-7-i124-17">LiveCodeBench</h6>
+<div class="math block">
+57.2\%
+\quad\text{vs}\quad
+40.2\%
+</div>
+<p>in favor of the distilled model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So this isn't one benchmark anomaly.</p>
+<p>The source says the distilled model wins across all the reported benchmarks.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-18">11. Why is this result so surprising?</h4>
+<p>Because the two models have essentially the same:</p>
+<div class="math block">
+\boxed{\text{architecture}}
+</div>
+<p>same:</p>
+<div class="math block">
+\boxed{\text{parameter count}}
+</div>
+<p>same:</p>
+<div class="math block">
+\boxed{\text{layer structure}}
+</div>
+<p>same:</p>
+<div class="math block">
+\boxed{\text{attention mechanism}}
+</div>
+<p>The major difference is:</p>
+<div class="math block">
+\boxed{\text{training procedure}}
+</div>
+<p>One model spends large compute trying to <strong>discover reasoning</strong> itself.</p>
+<p>The other receives demonstrations of reasoning discovered by a much stronger teacher.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-19">12. Direct RL is doing exploration</h4>
+<p>Think about the RL-trained 32B model.</p>
+<p>It starts from the base model and must discover useful reasoning strategies through trial and error.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Problem
+   ↓
+Generate attempt
+   ↓
+Reward
+   ↓
+Update policy
+   ↓
+Generate another attempt
+   ↓
+...
+   ↓
+discover useful strategy
+</code></pre>
+<p>This requires many iterations.</p>
+<p>The source says the direct RL experiment involved more than:</p>
+<div class="math block">
+\boxed{10,000\ \text{policy-gradient update steps}}
+</div>
+<p>for the 32B comparison. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-20">13. Distillation skips that discovery phase</h4>
+<p>The teacher has already performed the difficult exploration.</p>
+<p>So the student receives:</p>
+<pre><code class="language-text">Problem
+   ↓
+Teacher
+   ↓
+successful reasoning trace
+   ↓
+Student SFT
+</code></pre>
+<p>The student doesn't have to independently discover:</p>
+<blockquote>
+<p>“This is the right way to break this problem down.”</p>
+</blockquote>
+<p>It is shown the strategy directly.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-21">14. Exploration versus imitation</h4>
+<p>This is the deepest conceptual lesson from the source:</p>
+<div class="math block">
+\boxed{
+\text{Exploration requires capacity}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{imitation can be much easier}
+}
+</div>
+<p>The source argues that a large 671B teacher has enough capacity to explore, fail, recover, and ultimately discover effective strategies through RL.</p>
+<p>A smaller student may not have enough capacity to discover those strategies independently.</p>
+<p>But once the successful strategy is converted into training examples, the student only has to learn to reproduce it. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-22">15. Why does this create such a big difference?</h4>
+<p>We can think of the search space as enormous:</p>
+<div class="math block">
+\boxed{\text{possible reasoning trajectories}}
+</div>
+<p>Direct RL must search that space.</p>
+<p>Distillation gives the student a filtered subset:</p>
+<div class="math block">
+\boxed{\text{successful trajectories}}
+</div>
+<p>Therefore the learning problem changes from:</p>
+<div class="math block">
+\text{search}
+</div>
+<p>to:</p>
+<div class="math block">
+\text{learn from demonstrations}.
+</div>
+<p>That is why:</p>
+<div class="math block">
+\boxed{
+\text{Distillation can be dramatically more compute-efficient}
+}
+</div>
+<p>for small models.</p>
+<p>This is the source's interpretation of the experiment. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-23">16. But don't conclude “RL is useless”</h4>
+<p>That would be the wrong lesson.</p>
+<p>The source explicitly says the conclusion is <strong>not</strong> that DeepSeek's RL is weak.</p>
+<p>Rather, the important observation is that:</p>
+<div class="math block">
+\boxed{
+32B\text{ capacity can become a constraint for RL-from-scratch}
+}
+</div>
+<p>while distillation provides a way around that limitation by transferring strategies discovered by a much larger teacher. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the roles are different:</p>
+<div class="math block">
+\boxed{
+\text{Large RL}
+\rightarrow
+\text{discover}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Distillation}
+\rightarrow
+\text{transfer}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-24">17. Then why do we need a huge teacher at all?</h4>
+<p>Because someone still needs to discover the strong reasoning strategies.</p>
+<p>The large model effectively pays the exploration cost.</p>
+<p>Then the resulting behavior becomes reusable training data.</p>
+<p>So the overall economic structure becomes:</p>
+<pre><code class="language-text">            Large expensive teacher
+                     │
+                  RL cost
+                     │
+                     ▼
+            strong reasoning
+                     │
+             data generation
+                     │
+                     ▼
+             reusable dataset
+                /    |    \
+               /     |     \
+              ▼      ▼      ▼
+             1.5B    7B     32B
+              SFT    SFT      SFT
+</code></pre>
+<p>The source explicitly highlights this reusability as one of distillation's strongest economic properties. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-25">18. One teacher can serve many students</h4>
+<p>This is extremely important operationally.</p>
+<p>Suppose you spend heavily to create the R1-generated dataset.</p>
+<p>After the dataset exists:</p>
+<div class="math block">
+D_{\text{R1}}
+</div>
+<p>you can train:</p>
+<div class="math block">
+1.5B,\ 7B,\ 14B,\ 32B,\ 70B,\ldots
+</div>
+<p>students on the same data.</p>
+<p>The teacher doesn't need to be rerun during each student's SFT.</p>
+<p>The source describes this as a one-time data-generation investment that can support many students. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-26">19. Scaling behavior</h4>
+<p>The source observes:</p>
+<div class="math block">
+1.5B\rightarrow28.9\%
+</div>
+<div class="math block">
+7B\rightarrow55.5\%
+</div>
+<div class="math block">
+14B\rightarrow69.7\%
+</div>
+<div class="math block">
+32B\rightarrow72.6\%.
+</div>
+<p>So the general relationship is:</p>
+<div class="math block">
+\boxed{\text{student capacity}\uparrow
+\Rightarrow
+\text{distilled performance}\uparrow}
+</div>
+<p>although the improvement is not linear.</p>
+<p>The gains become smaller as the student gets larger.</p>
+<p>That's an important intuition:</p>
+<div class="math block">
+\text{1.5B}\rightarrow7B
+</div>
+<p>provides a huge improvement, while:</p>
+<div class="math block">
+14B\rightarrow32B
+</div>
+<p>provides a smaller improvement.</p>
+<p>The source describes the trend as smooth scaling rather than a linear law. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-27">20. Teacher ceiling</h4>
+<p>Even the best distilled model does not reach the teacher.</p>
+<p>Source:</p>
+<div class="math block">
+\text{R1}=79.8\%\ \text{AIME}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{R1-Distill-Qwen-32B}=72.6\%.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{distillation is powerful but lossy}
+}
+</div>
+<p>Some capability is inevitably lost during compression. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-28">21. Capacity gap</h4>
+<p>This leads directly to the next concept.</p>
+<p>Suppose:</p>
+<div class="math block">
+T=\text{very powerful teacher}
+</div>
+<p>and:</p>
+<div class="math block">
+S=\text{tiny student}.
+</div>
+<p>The student cannot represent everything the teacher knows.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Teacher capability}
+&gt;
+\text{Student capacity}
+}
+</div>
+<p>creates a:</p>
+<div class="math block">
+\boxed{\text{capacity gap}}.
+</div>
+<p>The source uses the 1.5B results to demonstrate this very clearly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-29">22. Why math compresses better than coding</h4>
+<p>The source gives a concrete example.</p>
+<p>1.5B model:</p>
+<div class="math block">
+83.9\%\ \text{MATH}
+</div>
+<p>but:</p>
+<div class="math block">
+16.9\%\ \text{LiveCodeBench}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The source's explanation is that mathematical reasoning often has more structured, recurring solution patterns.</p>
+<p>Coding has a much broader space involving:</p>
+<div class="math block">
+\text{syntax}
++
+\text{APIs}
++
+\text{design patterns}
++
+\text{error handling}
++
+\text{implementation diversity}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{some knowledge compresses more easily than other knowledge}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-30">23. Knowledge frontier</h4>
+<p>There is an even deeper limit.</p>
+<p>Suppose the teacher can't solve problem <span class="math inline">X</span>.</p>
+<p>Then rejection sampling does not produce a correct successful trace for <span class="math inline">X</span>.</p>
+<p>Therefore the student doesn't magically learn the solution.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{distillation cannot transfer what the teacher doesn't possess}
+}
+</div>
+<p>The source describes this as the <strong>knowledge frontier</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is why the book says advancing beyond the teacher's capability can still require:</p>
+<div class="math block">
+\boxed{\text{stronger base models + large-scale RL}}
+</div>
+<p>rather than distillation alone.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-31">24. This gives us the complete division of labor</h4>
+<p>Now the whole DeepSeek strategy becomes very elegant.</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-32">Large model</h6>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{scale + RL + exploration}}
+</div>
+<p>to discover powerful behaviors.</p>
+<h6 id="v3-heading-chunk-les-r102-7-i124-33">Small model</h6>
+<p>Use:</p>
+<div class="math block">
+\boxed{\text{teacher demonstrations + SFT}}
+</div>
+<p>to imitate those behaviors.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Discovery happens at the frontier}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{transfer happens downstream}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-34">25. Why the 32B experiment is more important than the 1.5B headline</h4>
+<p>The 1.5B result is exciting because it demonstrates <strong>compression</strong>.</p>
+<p>But the 32B controlled experiment teaches us <strong>why compression works</strong>.</p>
+<p>Because the same architecture gets:</p>
+<div class="math block">
+47.0\%
+</div>
+<p>through direct RL,</p>
+<p>but:</p>
+<div class="math block">
+72.6\%
+</div>
+<p>through distillation.</p>
+<p>Thus the experiment isolates:</p>
+<div class="math block">
+\boxed{
+\text{training method}
+}
+</div>
+<p>as the major difference.</p>
+<p>That's the real scientific lesson.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-35">26. Put the entire argument together</h4>
+<p>We can now derive the story from first principles:</p>
+<pre><code class="language-text">Large model
+   │
+   ├── has high capacity
+   │
+   ▼
+RL exploration
+   │
+   ├── tries many strategies
+   ├── fails
+   ├── recovers
+   └── discovers strong reasoning
+   │
+   ▼
+Successful reasoning traces
+   │
+   ▼
+Rejection sampling
+   │
+   ▼
+High-quality dataset
+   │
+   ▼
+Small pretrained model
+   │
+   ▼
+SFT
+   │
+   └── learns demonstrated strategies
+   ▼
+Strong small reasoning model
+</code></pre>
+<p>This is the central mechanism behind the empirical results reported in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-36">27. The entire Chapter 8 in one equation</h4>
+<p>At a conceptual level:</p>
+<div class="math block">
+\boxed{
+\underbrace{
+\text{Large-scale RL}
+}_{\text{discover}}
+\rightarrow
+\underbrace{
+\text{reasoning traces}
+}_{\text{artifact}}
+\rightarrow
+\underbrace{
+\text{rejection sampling}
+}_{\text{select}}
+\rightarrow
+\underbrace{
+\text{SFT}
+}_{\text{transfer}}
+\rightarrow
+\underbrace{
+\text{small model}
+}_{\text{deploy}}
+}
+</div>
+<p>This is why the book calls distillation a bridge between frontier-scale intelligence and practical deployment. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-7-i124-37">R102.7 checkpoint</h4>
+<p>There are five facts you should now be able to explain without memorizing the table:</p>
+<p><strong>1. Why can a 1.5B model be strong at reasoning?</strong></p>
+<p>Because it is learning from high-quality reasoning behavior generated by a much stronger teacher rather than having to discover everything itself. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>2. Why does 32B distillation beat 32B direct RL?</strong></p>
+<p>The source reports <span class="math inline">72.6\%</span> AIME for the distilled model versus <span class="math inline">47.0\%</span> for the RL-trained model, suggesting that small-model RL-from-scratch is constrained by exploration/capacity, while distillation transfers strategies already discovered by the large teacher. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>3. Why doesn't a larger student always win?</strong></p>
+<p>Because the student's pretrained base matters too; the source reports Qwen variants outperforming similarly sized Llama variants on the cited reasoning benchmark. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>4. Why does the 1.5B model perform much better on math than coding?</strong></p>
+<p>Because the source argues that mathematical reasoning patterns are more compressible than the much broader knowledge and implementation space required for coding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>5. Can distillation exceed the teacher?</strong></p>
+<p>The source's framing is no: distillation transfers the teacher's existing capability and is lossy; pushing beyond the teacher's frontier requires stronger models and/or further large-scale RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

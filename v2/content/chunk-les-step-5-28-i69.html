@@ -1,0 +1,1579 @@
+<section class="chunk" id="chunk-les-step-5-28-i69" data-id="les-step-5-28-i69"><aside class="audit-card" data-continuation="added" id="audit-finding-E03-chunk-les-step-5-28-i69"><h3 id="v3-heading-chunk-les-step-5-28-i69-1">IndicQA count inconsistency exists in the primary table</h3><p>Status: primary_table_and_arithmetic_checked; released_data_count_pending</p><p>The two reported subtotals sum to18,575, four short of the reported total. ACL2023 paper Table7, physicalPDFpage15/printed12416, contains the same inconsistent total row. Its displayed per-language rows also do not reconcile with all totals. This is a source inconsistency, not a reason to invent four questions or silently change the denominator.</p><p><a href="https://aclanthology.org/2023.acl-long.693.pdf">Primary/official source</a> · AppendixE, Table7, physicalPDFpage15; supplied IndicXTREME slide16</p><p>Remaining evidence: Count the version-pinned released dataset by language/answerability and identify any later erratum.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-28-i69"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-28-i69" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-27-i68">← Previous lesson</a> · <a href="#chunk-les-step-5-29-i70">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-27-i68">Step 5.27 — IndicCorp v2: Building the Indic Pretraining Corpus</a></p><p><strong>This lesson:</strong> Step 5.28 — IndicXTREME Benchmark Architecture</p><p><strong>Source references:</strong> <a href="#source-3">indicxtreme-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-28-i69"></a></p>
+<h2>Step 5.28 — IndicXTREME Benchmark Architecture</h2>
+<p><em>Plan node: I10 · chat order #69</em></p>
+<p>We now move from <strong>“how was IndicCorp built?”</strong> to:</p>
+<div class="math block">
+\boxed{
+\text{How do we actually measure an Indic-language model?}
+}
+</div>
+<p>This is the purpose of <strong>IndicXTREME</strong>.</p>
+<p>The benchmark is designed around:</p>
+<div class="math block">
+\boxed{
+9\text{ tasks}
+\quad+\quad
+4\text{ task categories}
+}
+</div>
+<p>The four categories are:</p>
+<div class="math block">
+\boxed{
+\text{Classification}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Structure Prediction}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Question Answering}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Retrieval}
+}
+</div>
+<p>The supplied task-suite slide lists <strong>5 classification tasks, 2 structure-prediction tasks, 1 QA task, and 1 retrieval task</strong>, for <strong>105 evaluation sets across languages/tasks</strong>, with 52 being new contributions. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-2">5.28.1 First understand why there are multiple tasks</h3>
+<p>Suppose a model gets:</p>
+<div class="math block">
+90\%
+</div>
+<p>on sentiment.</p>
+<p>Does that mean the model understands an Indic language?</p>
+<p>Not necessarily.</p>
+<p>It could be good at:</p>
+<div class="math block">
+\text{classification}
+</div>
+<p>but weak at:</p>
+<div class="math block">
+\text{NER}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{question answering}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{retrieval}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{causal reasoning}.
+</div>
+<p>So IndicXTREME intentionally evaluates multiple capabilities.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{language ability}
+\approx
+\text{many different downstream capabilities}
+}
+</div>
+<p>This is why the benchmark is a <strong>task suite</strong>, not one single test. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-3">5.28.2 The 9 tasks</h3>
+<p>The benchmark table gives:</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-4">Classification — 5</h5>
+<div class="math block">
+\boxed{\text{IndicSentiment}}
+</div>
+<div class="math block">
+\boxed{\text{IndicXNLI}}
+</div>
+<div class="math block">
+\boxed{\text{IndicCOPA}}
+</div>
+<div class="math block">
+\boxed{\text{IndicPara}}
+</div>
+<div class="math block">
+\boxed{\text{M-Intent}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-5">Structure Prediction — 2</h5>
+<div class="math block">
+\boxed{\text{Naamapadam}}
+</div>
+<div class="math block">
+\boxed{\text{M-SlotFill}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-6">QA — 1</h5>
+<div class="math block">
+\boxed{\text{IndicQA}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-7">Retrieval — 1</h5>
+<div class="math block">
+\boxed{\text{FLORES}}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>Let's understand them sequentially.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-8">Step 5.28.3 Task 1 — IndicSentiment</h3>
+<p>The first task is:</p>
+<div class="math block">
+\boxed{\text{IndicSentiment}}
+</div>
+<p>Its purpose is sentiment classification.</p>
+<p>The model receives a review and predicts its sentiment category.</p>
+<p>For example:</p>
+<pre><code class="language-text">&quot;The product looks excellent and works perfectly.&quot;
+</code></pre>
+<p>The model might predict:</p>
+<div class="math block">
+\boxed{\text{Positive}}
+</div>
+<p>while:</p>
+<pre><code class="language-text">&quot;The material is poor and the product broke quickly.&quot;
+</code></pre>
+<p>might be:</p>
+<div class="math block">
+\boxed{\text{Negative}}.
+</div>
+<p>The benchmark table lists:</p>
+<ul>
+<li>13 languages,</li>
+<li>1,000 test examples,</li>
+<li>accuracy as the metric,</li>
+<li>product reviews as the domain. <em>(Source: indicxtreme-slides)</em></li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-9">5.28.4 Why is sentiment useful?</h3>
+<p>Sentiment appears simple, but multilingual sentiment is not merely:</p>
+<div class="math block">
+\text{translate English words}
+\rightarrow
+\text{predict polarity}.
+</div>
+<p>A model has to understand the actual Indic-language input.</p>
+<p>The deck's later creation slide also deliberately makes IndicSentiment harder than ordinary polarized review datasets by constructing reviews around specific product aspects rather than using only strongly positive/negative generic reviews. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-10">5.28.5 Important creation detail</h3>
+<p>The supplied deck says IndicSentiment was built by:</p>
+<ol>
+<li>curating products from 15 popular categories on Amazon, Flipkart, and Myntra;</li>
+<li>identifying product aspects;</li>
+<li>asking annotators to write positive/negative reviews around particular aspects;</li>
+<li>translating the English reviews into 13 Indic languages manually.</li>
+</ol>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>This is important because it attempts to create a more nuanced sentiment task.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-11">5.28.6 Metric: Accuracy</h3>
+<p>For classification:</p>
+<div class="math block">
+\boxed{
+\text{Accuracy}
+=
+\frac{\text{correct predictions}}
+{\text{total predictions}}
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+N=1000
+</div>
+<p>test examples.</p>
+<p>If the model gets:</p>
+<div class="math block">
+850
+</div>
+<p>correct:</p>
+<div class="math block">
+\text{Accuracy}
+=
+\frac{850}{1000}
+=
+\boxed{85\%}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-12">5.28.7 Exam numerical</h3>
+<p>A model gets 920 correct out of 1,000 IndicSentiment examples.</p>
+<div class="math block">
+\frac{920}{1000}\times100
+=
+\boxed{92\%}.
+</div>
+<p>Very straightforward, but this type of calculation should be automatic for you.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-13">Step 5.28.8 Task 2 — IndicXNLI</h3>
+<p>Next:</p>
+<div class="math block">
+\boxed{\text{IndicXNLI}}
+</div>
+<p>This is the <strong>Natural Language Inference (NLI)</strong> task.</p>
+<p>The input is typically:</p>
+<div class="math block">
+\boxed{
+\text{Premise}
++
+\text{Hypothesis}
+}
+</div>
+<p>and the model determines their relationship.</p>
+<p>Conceptually, the classes are:</p>
+<div class="math block">
+\boxed{
+\text{Entailment}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Contradiction}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Neutral}
+}
+</div>
+<p>The benchmark table lists:</p>
+<div class="math block">
+\boxed{12\text{ languages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{5010\text{ test examples}}.
+</div>
+<p>The table marks its construction as machine-translated (MT), while the later deck explains that the resulting test set is being manually re-verified and corrected. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-14">5.28.9 Example of NLI</h3>
+<p>Premise:</p>
+<blockquote>
+<p>“Rahul went to the market and bought vegetables.”</p>
+</blockquote>
+<p>Hypothesis:</p>
+<blockquote>
+<p>“Rahul bought vegetables.”</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Entailment}}
+</div>
+<p>because the premise supports the hypothesis.</p>
+<p>Hypothesis:</p>
+<blockquote>
+<p>“Rahul did not buy anything.”</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Contradiction}}.
+</div>
+<p>Hypothesis:</p>
+<blockquote>
+<p>“Rahul went to the market on Sunday.”</p>
+</blockquote>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{Neutral}}
+</div>
+<p>unless the premise supplies that information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-15">5.28.10 Why is IndicXNLI interesting for multilingual evaluation?</h3>
+<p>Because the original XNLI-style setup is based on cross-lingual transfer.</p>
+<p>The important benchmark question becomes:</p>
+<div class="math block">
+\boxed{
+\text{Can a model learn the inference task from English and transfer it to an Indic language?}
+}
+</div>
+<p>That question becomes central to the <strong>zero-shot evaluation protocol</strong> we'll study later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-16">5.28.11 Metric</h3>
+<p>Again:</p>
+<div class="math block">
+\boxed{\text{Accuracy}}
+</div>
+<p>Suppose 5,010 test cases exist and the model gets 3,758 correct.</p>
+<p>Then:</p>
+<div class="math block">
+\frac{3758}{5010}\times100
+\approx
+\boxed{74. \! \  \text{?}}
+</div>
+<p>Let's calculate carefully:</p>
+<div class="math block">
+3758/5010\approx0.7501.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\approx75.0\%}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-17">5.28.12 Task 3 — IndicCOPA</h3>
+<p>Now we get to a much more reasoning-oriented task:</p>
+<div class="math block">
+\boxed{\text{IndicCOPA}}
+</div>
+<p>COPA stands for:</p>
+<div class="math block">
+\boxed{\text{Choice of Plausible Alternatives}}
+</div>
+<p>It tests <strong>causal commonsense reasoning</strong>.</p>
+<p>The model receives:</p>
+<div class="math block">
+\boxed{\text{premise}}
+</div>
+<p>and two possible alternatives.</p>
+<p>It must choose which alternative is the more plausible:</p>
+<div class="math block">
+\boxed{\text{cause}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{effect}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-18">5.28.13 Example</h3>
+<p>Premise:</p>
+<blockquote>
+<p>“The road became extremely slippery.”</p>
+</blockquote>
+<p>Question:</p>
+<blockquote>
+<p>What was the likely cause?</p>
+</blockquote>
+<p>Options:</p>
+<p>A. It had rained heavily.</p>
+<p>B. The shop opened late.</p>
+<p>Correct:</p>
+<div class="math block">
+\boxed{A}
+</div>
+<p>The model needs causal commonsense rather than simple keyword matching.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-19">5.28.14 How IndicCOPA was constructed</h3>
+<p>The deck gives a very interesting anti-bias procedure.</p>
+<p>The English COPA test set is manually translated into:</p>
+<div class="math block">
+\boxed{18\text{ Indic languages}}.
+</div>
+<p>But before translation:</p>
+<div class="math block">
+\boxed{
+\text{premise + option 1 + option 2}
+}
+</div>
+<p>are randomized and reassigned across translators.</p>
+<p>That means one translator does not see the entire original item. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-20">5.28.15 Why randomize the pieces?</h3>
+<p>Suppose a translator sees the whole item.</p>
+<p>They might unconsciously preserve:</p>
+<div class="math block">
+\text{sentence length}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{word choice}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{stylistic cues}
+</div>
+<p>that reveal the answer.</p>
+<p>Then the benchmark could contain a translation artifact.</p>
+<p>The bias-guard procedure attempts to prevent this.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{randomization}
+\rightarrow
+\text{reduced translation leakage}
+}
+</div>
+<p>This is directly from the dataset-construction description. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-21">5.28.16 Important training detail</h3>
+<p>COPA itself has no training split.</p>
+<p>Therefore fine-tuning uses:</p>
+<div class="math block">
+\boxed{\text{English Social IQA}}
+</div>
+<p>according to the slide.</p>
+<p>This is another example of the benchmark's cross-lingual transfer idea. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-22">5.28.17 Task 4 — IndicPara</h3>
+<p>Next:</p>
+<div class="math block">
+\boxed{\text{IndicPara}}
+</div>
+<p>This is a <strong>paraphrase/equivalence classification</strong> task.</p>
+<p>The question is:</p>
+<div class="math block">
+\boxed{
+\text{Do two sentences express essentially the same meaning?}
+}
+</div>
+<p>The benchmark table lists:</p>
+<div class="math block">
+\boxed{10\text{ languages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{2002\text{ test instances}}.
+</div>
+<p>Metric:</p>
+<div class="math block">
+\boxed{\text{Accuracy}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-23">5.28.18 Example</h3>
+<p>Sentence A:</p>
+<blockquote>
+<p>“The boy fell and injured himself.”</p>
+</blockquote>
+<p>Sentence B:</p>
+<blockquote>
+<p>“The boy was hurt when he fell.”</p>
+</blockquote>
+<p>These can be:</p>
+<div class="math block">
+\boxed{\text{Paraphrase}}
+</div>
+<p>because the meaning is substantially equivalent.</p>
+<p>But:</p>
+<blockquote>
+<p>“The girl pushed the boy and he fell.”</p>
+</blockquote>
+<p>is not equivalent.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-24">5.28.19 How IndicXParaphrase was created</h3>
+<p>The deck says:</p>
+<div class="math block">
+\boxed{1001}
+</div>
+<p>English sentences of at least 10 words were machine-translated into:</p>
+<div class="math block">
+\boxed{10\text{ languages}}.
+</div>
+<p>Annotators then:</p>
+<ul>
+<li>verified/corrected translations,</li>
+<li>wrote one paraphrase,</li>
+<li>wrote one non-paraphrase.</li>
+</ul>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-25">5.28.20 The important anti-shortcut rule</h3>
+<p>For paraphrases, annotators were instructed to minimize word overlap.</p>
+<p>They could use:</p>
+<div class="math block">
+\text{synonyms}
+</div>
+<div class="math block">
+\text{active/passive changes}
+</div>
+<div class="math block">
+\text{temporal phrase restructuring}.
+</div>
+<p>For non-paraphrases, they could change things like:</p>
+<div class="math block">
+\text{named entities}
+</div>
+<div class="math block">
+\text{pronouns}
+</div>
+<div class="math block">
+\text{adjectives}
+</div>
+<div class="math block">
+\text{adverbs}.
+</div>
+<p>The goal is:</p>
+<div class="math block">
+\boxed{
+\text{meaning}
+&gt;
+\text{surface word overlap}
+}
+</div>
+<p>The deck explicitly contrasts this construction with PAWS-X and says it did not use back-translation or noisy alignment to manufacture non-paraphrases. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-26">5.28.21 Task 5 — M-Intent</h3>
+<p>The fifth classification task is:</p>
+<div class="math block">
+\boxed{\text{M-Intent}}
+</div>
+<p>This is intent classification over spoken/user-query data.</p>
+<p>The benchmark table lists:</p>
+<div class="math block">
+\boxed{7\text{ languages}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{2974\text{ test examples}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Accuracy}}
+</div>
+<p>as the metric.</p>
+<p>Its domain is:</p>
+<div class="math block">
+\boxed{\text{spoken queries}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-27">5.28.22 Example of intent classification</h3>
+<p>Suppose the user says:</p>
+<blockquote>
+<p>“Set an alarm for seven tomorrow morning.”</p>
+</blockquote>
+<p>Possible intents:</p>
+<div class="math block">
+\text{weather}
+</div>
+<div class="math block">
+\text{alarm}
+</div>
+<div class="math block">
+\text{music}
+</div>
+<div class="math block">
+\text{navigation}.
+</div>
+<p>Correct:</p>
+<div class="math block">
+\boxed{\text{alarm}}
+</div>
+<p>This tests whether the model can map multilingual natural-language input to the correct user intent.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-28">5.28.23 Why does this task matter?</h3>
+<p>Because intent recognition tests a practical capability:</p>
+<div class="math block">
+\boxed{
+\text{understand what the user wants}
+}
+</div>
+<p>rather than just:</p>
+<div class="math block">
+\boxed{
+\text{understand what the sentence literally says}
+}.
+</div>
+<p>It is particularly relevant to spoken-agent systems.</p>
+<p>The dataset comes from the MASSIVE resource, whose 7-language Indic subset is taken as-is according to the deck. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-29">5.28.24 Now classification is complete</h3>
+<p>We have:</p>
+<div class="math block">
+\boxed{
+\text{IndicSentiment}
+}
+</div>
+<p>sentiment.</p>
+<div class="math block">
+\boxed{
+\text{IndicXNLI}
+}
+</div>
+<p>inference.</p>
+<div class="math block">
+\boxed{
+\text{IndicCOPA}
+}
+</div>
+<p>causal commonsense reasoning.</p>
+<div class="math block">
+\boxed{
+\text{IndicPara}
+}
+</div>
+<p>semantic equivalence.</p>
+<div class="math block">
+\boxed{
+\text{M-Intent}
+}
+</div>
+<p>intent recognition.</p>
+<p>So the five tasks probe very different abilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-30">5.28.25 Numerical classification-bank</h3>
+<p>Suppose we get:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Correct</th>
+<th style="text-align:right">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentiment</td>
+<td style="text-align:right">920</td>
+<td style="text-align:right">1000</td>
+</tr>
+<tr>
+<td>NLI</td>
+<td style="text-align:right">3758</td>
+<td style="text-align:right">5010</td>
+</tr>
+<tr>
+<td>COPA</td>
+<td style="text-align:right">410</td>
+<td style="text-align:right">500</td>
+</tr>
+<tr>
+<td>Paraphrase</td>
+<td style="text-align:right">1750</td>
+<td style="text-align:right">2002</td>
+</tr>
+<tr>
+<td>Intent</td>
+<td style="text-align:right">2600</td>
+<td style="text-align:right">2974</td>
+</tr>
+</tbody>
+</table>
+<p>Their individual accuracies are:</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-31">Sentiment</h5>
+<div class="math block">
+92.0\%.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-32">NLI</h5>
+<div class="math block">
+75.01\%\approx75.0\%.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-33">COPA</h5>
+<div class="math block">
+82.0\%.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-34">Paraphrase</h5>
+<div class="math block">
+\frac{1750}{2002}\times100
+\approx
+\boxed{87.4\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-35">Intent</h5>
+<div class="math block">
+\frac{2600}{2974}\times100
+\approx
+\boxed{87.4\%}.
+</div>
+<p>These numbers are illustrative calculations, not reported model results.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-36">Step 5.28.26 Category 2 — Structure Prediction</h3>
+<p>Now classification ends.</p>
+<p>We move to:</p>
+<div class="math block">
+\boxed{\text{Structure Prediction}}
+</div>
+<p>There are:</p>
+<div class="math block">
+\boxed{2\text{ tasks}}
+</div>
+<p>in this category:</p>
+<div class="math block">
+\boxed{\text{Naamapadam}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{M-SlotFill}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>The fundamental difference is:</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-37">Classification</h5>
+<p>One label for the whole example.</p>
+<div class="math block">
+x\rightarrow y
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-38">Structure prediction</h5>
+<p>Labels are assigned to parts of the input.</p>
+<div class="math block">
+x_1,x_2,\ldots,x_n
+\rightarrow
+y_1,y_2,\ldots,y_n.
+</div>
+<p>This is a major conceptual shift.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-39">5.28.27 Task 6 — Naamapadam</h3>
+<p>Naamapadam is the:</p>
+<div class="math block">
+\boxed{\text{Named Entity Recognition (NER)}}
+</div>
+<p>task.</p>
+<p>Suppose:</p>
+<pre><code class="language-text">Aniket studies at BITS Pilani.
+</code></pre>
+<p>The model should identify entities such as:</p>
+<div class="math block">
+\boxed{\text{Aniket}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{BITS Pilani}}.
+</div>
+<p>This is not one label for the sentence.</p>
+<p>Instead, we assign a label to each relevant token/span.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-40">5.28.28 IOB2 representation</h3>
+<p>The deck says Naamapadam uses:</p>
+<div class="math block">
+\boxed{\text{IOB2 format}}
+</div>
+<p>after projecting tags and then having annotators verify/correct them. <em>(Source: indicxtreme-slides)</em></p>
+<p>IOB2 means:</p>
+<div class="math block">
+B=\text{Beginning of entity}
+</div>
+<div class="math block">
+I=\text{Inside entity}
+</div>
+<div class="math block">
+O=\text{Outside entity}.
+</div>
+<p>Example:</p>
+<pre><code class="language-text">Aniket       B-PER
+studies      O
+at           O
+BITS         B-ORG
+Pilani       I-ORG
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{token sequence}
+\rightarrow
+\text{structured label sequence}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-41">5.28.29 How Naamapadam is constructed</h3>
+<p>The deck describes this pipeline:</p>
+<div class="math block">
+\boxed{
+\text{English sentence}
+\rightarrow
+\text{off-the-shelf NER}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{project tags onto Indic sentence using word alignment}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{human verification + correction}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>This is a classic example of:</p>
+<div class="math block">
+\boxed{
+\text{automatic generation}
++
+\text{human quality control}
+}
+</div>
+<p>rather than blindly trusting projection.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-42">5.28.30 Metric: F1</h3>
+<p>Because NER is structured prediction, the benchmark uses:</p>
+<div class="math block">
+\boxed{F1}
+</div>
+<p>rather than simple accuracy.</p>
+<p>Recall:</p>
+<div class="math block">
+Precision=
+\frac{TP}{TP+FP}
+</div>
+<div class="math block">
+Recall=
+\frac{TP}{TP+FN}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+F1=
+\frac{2PR}{P+R}
+}
+</div>
+<p>where <span class="math inline">P</span> is precision and <span class="math inline">R</span> is recall.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-43">5.28.31 Numerical NER example</h3>
+<p>Suppose:</p>
+<div class="math block">
+TP=80,\quad FP=20,\quad FN=10.
+</div>
+<p>Then:</p>
+<div class="math block">
+P=\frac{80}{80+20}=0.8.
+</div>
+<div class="math block">
+R=\frac{80}{80+10}
+=
+0.8889.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+F1=
+\frac{2(0.8)(0.8889)}
+{0.8+0.8889}
+</div>
+<div class="math block">
+\approx
+\boxed{0.8421}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{84.21\%}.
+</div>
+<p>This is an exam-style F1 calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-44">5.28.32 Task 7 — M-SlotFill</h3>
+<p>The second structure-prediction task is:</p>
+<div class="math block">
+\boxed{\text{M-SlotFill}}
+</div>
+<p>It comes from the MASSIVE family and evaluates slot filling.</p>
+<p>Think:</p>
+<div class="math block">
+\boxed{
+\text{Intent}
++
+\text{Slot values}
+}
+</div>
+<p>For example:</p>
+<blockquote>
+<p>“Play Arijit Singh songs tomorrow evening.”</p>
+</blockquote>
+<p>Potential structure:</p>
+<div class="math block">
+\text{intent}=\text{play music}
+</div>
+<div class="math block">
+\text{artist}=\text{Arijit Singh}
+</div>
+<div class="math block">
+\text{time}=\text{tomorrow evening}.
+</div>
+<p>The model must identify spans and assign slot types.</p>
+<p>The benchmark table lists:</p>
+<div class="math block">
+\boxed{7\text{ languages}}
+</div>
+<p>and evaluates it with:</p>
+<div class="math block">
+\boxed{F1}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-45">5.28.33 Why F1 again?</h3>
+<p>Because a slot-filling system can:</p>
+<ul>
+<li>miss an entity,</li>
+<li>produce an incorrect span,</li>
+<li>assign the wrong slot.</li>
+</ul>
+<p>Accuracy would be a poor fit because the output is structured.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Precision + Recall}
+\rightarrow
+F1
+}
+</div>
+<p>is more appropriate.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-46">Step 5.28.34 Category 3 — Question Answering</h3>
+<p>Now:</p>
+<div class="math block">
+\boxed{\text{QA}}
+</div>
+<p>has one task:</p>
+<div class="math block">
+\boxed{\text{IndicQA}}.
+</div>
+<p>Its task type is:</p>
+<div class="math block">
+\boxed{\text{Span Extraction}}
+</div>
+<p>and its metric is:</p>
+<div class="math block">
+\boxed{F1}.
+</div>
+<p>The table lists:</p>
+<div class="math block">
+\boxed{11\text{ languages}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-47">5.28.35 What is span extraction?</h3>
+<p>Suppose context says:</p>
+<blockquote>
+<p>“Rabindranath Tagore was born in Kolkata.”</p>
+</blockquote>
+<p>Question:</p>
+<blockquote>
+<p>Where was Rabindranath Tagore born?</p>
+</blockquote>
+<p>The answer is a span from the context:</p>
+<div class="math block">
+\boxed{\text{Kolkata}}.
+</div>
+<p>So the model must identify:</p>
+<div class="math block">
+\boxed{
+[start,end]
+}
+</div>
+<p>of the answer span.</p>
+<p>This is fundamentally different from classification.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-48">5.28.36 IndicQA was built differently</h3>
+<p>This is a particularly important dataset-construction idea.</p>
+<p>The deck says IndicQA was created <strong>from scratch</strong>, without an English-source translation pipeline. <em>(Source: indicxtreme-slides)</em></p>
+<p>The researchers first identify topics connected to Indic:</p>
+<div class="math block">
+\text{history}
+</div>
+<div class="math block">
+\text{monuments}
+</div>
+<div class="math block">
+\text{authors}
+</div>
+<div class="math block">
+\text{politicians}
+</div>
+<div class="math block">
+\text{festivals}
+</div>
+<p>etc.</p>
+<p>They then rank topics according to the number of Indic-language Wikipedia articles available and remove topics whose articles average fewer than 10 sentences. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-49">5.28.37 Why is this important?</h3>
+<p>Because the benchmark is trying to test:</p>
+<div class="math block">
+\boxed{
+\text{actual Indic-language reading comprehension}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{translation of an English QA task}
+}.
+</div>
+<p>That is a crucial benchmark-design distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-50">5.28.38 The clever anti-leakage trick</h3>
+<p>IndicQA has a two-phase process.</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-51">Phase 1 — Write question</h5>
+<p>The context is split into:</p>
+<div class="math block">
+\boxed{\text{larger first part}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{smaller second part}}
+</div>
+<p>of 2–3 sentences.</p>
+<p>These are machine-translated into English, and the annotator writes Indic-language questions from the English translation.</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-52">Phase 2 — Mark answer</h5>
+<p>A different annotator sees only the original Indic first part and marks the answer span.</p>
+<p>Questions based on the withheld second part become naturally:</p>
+<div class="math block">
+\boxed{\text{unanswerable}}
+</div>
+<p>for the visible context. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a very clever way of generating both:</p>
+<div class="math block">
+\boxed{\text{answerable}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{unanswerable}}
+</div>
+<p>questions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-53">5.28.39 IndicQA annotation rules</h3>
+<p>The deck specifies:</p>
+<div class="math block">
+\boxed{\ge 2\text{ questions per paragraph}}
+</div>
+<p>answer span:</p>
+<div class="math block">
+\boxed{\le5\text{ continuous words}}
+</div>
+<p>and:</p>
+<ul>
+<li>answer must be in one sentence;</li>
+<li>never use an entire sentence as an answer;</li>
+<li>never use a pronoun;</li>
+<li>minimize phrase overlap;</li>
+<li>choose the relevant occurrence if the answer string appears more than once.</li>
+</ul>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>These constraints are designed to make the 11 independently annotated languages comparable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-54">5.28.40 Numerical QA example</h3>
+<p>Suppose the gold answer span is:</p>
+<div class="math block">
+[\text{Kolkata}]
+</div>
+<p>and the model outputs:</p>
+<div class="math block">
+[\text{Kolkata city}].
+</div>
+<p>Token overlap:</p>
+<div class="math block">
+1
+</div>
+<p>of:</p>
+<div class="math block">
+1
+</div>
+<p>gold token.</p>
+<p>Precision:</p>
+<div class="math block">
+P=\frac{1}{2}=0.5
+</div>
+<p>Recall:</p>
+<div class="math block">
+R=\frac{1}{1}=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+F1=
+\frac{2(0.5)(1)}{0.5+1}
+=
+\boxed{0.667}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{66.7\%}.
+</div>
+<p>The benchmark's reported metric is F1, though the exact implementation details of tokenization/normalization are not specified on this slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-55">Step 5.28.41 Category 4 — Retrieval</h3>
+<p>The final category is:</p>
+<div class="math block">
+\boxed{\text{Retrieval}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{FLORES}}.
+</div>
+<p>The task is:</p>
+<div class="math block">
+\boxed{\text{Sentence Retrieval}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{1012}
+</div>
+<p>test sentences and:</p>
+<div class="math block">
+\boxed{18\text{ Indic languages}}.
+</div>
+<p>The table lists:</p>
+<div class="math block">
+\boxed{\text{Accuracy}}
+</div>
+<p>as the metric. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-56">5.28.42 What does sentence retrieval mean?</h3>
+<p>Conceptually, suppose we have:</p>
+<div class="math block">
+q
+</div>
+<p>a query sentence.</p>
+<p>And a collection:</p>
+<div class="math block">
+D=\{d_1,d_2,\ldots,d_N\}.
+</div>
+<p>The model must find the correct corresponding sentence:</p>
+<div class="math block">
+\boxed{
+d^*
+}
+</div>
+<p>for the query.</p>
+<p>A retrieval system therefore computes some notion of:</p>
+<div class="math block">
+\text{similarity}(q,d_i)
+</div>
+<p>and selects the best candidate.</p>
+<p>The exact retrieval model architecture is not specified by this slide; this is the general retrieval formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-57">5.28.43 Why FLORES is useful</h3>
+<p>The deck says FLORES is already an:</p>
+<div class="math block">
+\boxed{n\text{-way parallel, human-translated dataset}}
+</div>
+<p>and the benchmark directly incorporates it for sentence-retrieval evaluation. <em>(Source: indicxtreme-slides)</em></p>
+<p>So unlike some newly constructed datasets:</p>
+<div class="math block">
+\boxed{
+\text{no new translation creation pipeline is required here}
+}
+</div>
+<p>because the resource already exists.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-58">5.28.44 Complete task-suite map</h3>
+<p>Now we can finally see the whole benchmark:</p>
+<div class="math block">
+\boxed{
+\text{IndicXTREME}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-59">Classification</h5>
+<div class="math block">
+\boxed{
+\begin{aligned}
+&amp;\text{IndicSentiment}\\
+&amp;\text{IndicXNLI}\\
+&amp;\text{IndicCOPA}\\
+&amp;\text{IndicPara}\\
+&amp;\text{M-Intent}
+\end{aligned}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-60">Structure Prediction</h5>
+<div class="math block">
+\boxed{
+\begin{aligned}
+&amp;\text{Naamapadam}\\
+&amp;\text{M-SlotFill}
+\end{aligned}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-61">QA</h5>
+<div class="math block">
+\boxed{
+\text{IndicQA}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-62">Retrieval</h5>
+<div class="math block">
+\boxed{
+\text{FLORES}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-63">5.28.45 Why the metrics differ</h3>
+<p>This is very important for the exam.</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-64">Classification</h5>
+<div class="math block">
+\boxed{\text{Accuracy}}
+</div>
+<p>because the output is a class.</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-65">NER / slot filling / QA</h5>
+<div class="math block">
+\boxed{F1}
+</div>
+<p>because outputs involve structured spans/tags.</p>
+<h5 id="v3-heading-chunk-les-step-5-28-i69-66">Retrieval</h5>
+<div class="math block">
+\boxed{\text{Accuracy}}
+</div>
+<p>in the benchmark table because the correct retrieval target is evaluated as a discrete outcome.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{Metric depends on output structure}
+}
+</div>
+<p>not simply on whether the task is “hard” or “easy.”</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-67">5.28.46 Human annotation vs machine translation</h3>
+<p>Another key table dimension is:</p>
+<div class="math block">
+\boxed{HA=\text{Human Annotated}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{MT=\text{Machine Translated}}.
+</div>
+<p>The benchmark table marks, for example:</p>
+<div class="math block">
+\text{IndicSentiment}\rightarrow HA
+</div>
+<div class="math block">
+\text{IndicXNLI}\rightarrow MT
+</div>
+<div class="math block">
+\text{IndicCOPA}\rightarrow HA
+</div>
+<p>and other tasks accordingly. <em>(Source: indicxtreme-slides)</em></p>
+<p>But don't misinterpret <code>MT</code>.</p>
+<p>It does <strong>not</strong> mean:</p>
+<div class="math block">
+\boxed{
+\text{“No humans involved.”}
+}
+</div>
+<p>The later slide explicitly emphasizes:</p>
+<div class="math block">
+\boxed{
+\text{every IndicXTREME evaluation set contains a human-supervision step}
+}
+</div>
+<p>through translation, post-editing, creation, verification, or correction. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-68">5.28.47 The four construction pathways</h3>
+<p>The deck summarizes four broad paths:</p>
+<div class="math block">
+\boxed{\text{translated from scratch}}
+</div>
+<div class="math block">
+\boxed{\text{built without any English source}}
+</div>
+<div class="math block">
+\boxed{\text{machine-translated then verified}}
+</div>
+<div class="math block">
+\boxed{\text{tag-projected then corrected}}
+</div>
+<p>Yet all retain human supervision. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a fundamental benchmark-quality principle.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-69">5.28.48 Why benchmark construction itself matters</h3>
+<p>Suppose benchmark translations contain systematic artifacts.</p>
+<p>Then a model can exploit:</p>
+<div class="math block">
+\boxed{\text{translation artifacts}}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{\text{actual language understanding}}.
+</div>
+<p>Therefore benchmark design is itself part of model evaluation.</p>
+<p>This is why IndicXTREME spends so much attention on:</p>
+<div class="math block">
+\text{human verification}
+</div>
+<div class="math block">
+\text{bias guards}
+</div>
+<div class="math block">
+\text{anti-overlap rules}
+</div>
+<div class="math block">
+\text{natural Indic-language content}.
+</div>
+<p>The individual examples of these mechanisms are documented across the dataset-construction slides. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-70">5.28.49 Numerical benchmark-total question</h3>
+<p>Suppose the benchmark has:</p>
+<div class="math block">
+5
+</div>
+<p>classification tasks,</p>
+<div class="math block">
+2
+</div>
+<p>structure tasks,</p>
+<div class="math block">
+1
+</div>
+<p>QA task,</p>
+<div class="math block">
+1
+</div>
+<p>retrieval task.</p>
+<p>Then:</p>
+<div class="math block">
+5+2+1+1
+=
+\boxed{9}.
+</div>
+<p>Exactly as stated by the deck. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-71">5.28.50 Another exam numerical</h3>
+<p>There are:</p>
+<div class="math block">
+105
+</div>
+<p>evaluation sets in total.</p>
+<p>Of these:</p>
+<div class="math block">
+52
+</div>
+<p>are brand-new contributions.</p>
+<p>Then reused/adapted evaluation sets:</p>
+<div class="math block">
+105-52
+=
+\boxed{53}.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\frac{52}{105}\times100
+=
+\boxed{49.5\%}
+</div>
+<p>of the evaluation sets are new.</p>
+<p>The 105 and 52 figures are source-derived; the percentage is our calculation. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-72">5.28.51 The key structural difference among tasks</h3>
+<p>This is an excellent way to organize the material:</p>
+<div class="math block">
+\boxed{
+\text{Classification}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>Which label?</p>
+</blockquote>
+<div class="math block">
+x\rightarrow y
+</div>
+<hr />
+<div class="math block">
+\boxed{
+\text{Structure prediction}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>What label/span belongs to each piece?</p>
+</blockquote>
+<div class="math block">
+x_1,\ldots,x_n
+\rightarrow
+y_1,\ldots,y_n
+</div>
+<hr />
+<div class="math block">
+\boxed{
+\text{QA}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>Which span answers the question?</p>
+</blockquote>
+<div class="math block">
+(q,c)\rightarrow[a,b]
+</div>
+<hr />
+<div class="math block">
+\boxed{
+\text{Retrieval}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>Which candidate is the correct match?</p>
+</blockquote>
+<div class="math block">
+q\rightarrow d^*.
+</div>
+<p>This is the conceptual framework to remember.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-73">5.28.52 Why IndicXTREME is more than a leaderboard</h3>
+<p>The benchmark is simultaneously testing:</p>
+<div class="math block">
+\boxed{
+\text{semantic understanding}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{reasoning}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{sequence labeling}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{reading comprehension}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{retrieval}
+}
+</div>
+<p>across languages with different resource levels.</p>
+<p>So a model's performance is a <strong>profile</strong>, not a single scalar capability.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-74">5.28.53 Master table for memorization</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Task</th>
+<th>Main capability</th>
+<th>Metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Classification</td>
+<td>IndicSentiment</td>
+<td>Sentiment</td>
+<td>Accuracy</td>
+</tr>
+<tr>
+<td>Classification</td>
+<td>IndicXNLI</td>
+<td>NLI</td>
+<td>Accuracy</td>
+</tr>
+<tr>
+<td>Classification</td>
+<td>IndicCOPA</td>
+<td>Causal reasoning</td>
+<td>Accuracy</td>
+</tr>
+<tr>
+<td>Classification</td>
+<td>IndicPara</td>
+<td>Paraphrase/equivalence</td>
+<td>Accuracy</td>
+</tr>
+<tr>
+<td>Classification</td>
+<td>M-Intent</td>
+<td>Intent</td>
+<td>Accuracy</td>
+</tr>
+<tr>
+<td>Structure</td>
+<td>Naamapadam</td>
+<td>NER</td>
+<td>F1</td>
+</tr>
+<tr>
+<td>Structure</td>
+<td>M-SlotFill</td>
+<td>Slot filling</td>
+<td>F1</td>
+</tr>
+<tr>
+<td>QA</td>
+<td>IndicQA</td>
+<td>Span extraction</td>
+<td>F1</td>
+</tr>
+<tr>
+<td>Retrieval</td>
+<td>FLORES</td>
+<td>Sentence retrieval</td>
+<td>Accuracy</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-75">5.28.54 The deeper lesson</h3>
+<p>IndicXTREME isn't designed merely to ask:</p>
+<div class="math block">
+\boxed{
+\text{“Can a model process Hindi?”}
+}
+</div>
+<p>Instead it asks:</p>
+<div class="math block">
+\boxed{
+\text{“Can a model transfer multiple NLP capabilities into many Indic languages?”}
+}
+</div>
+<p>That is a much more demanding question.</p>
+<p>And this is why the benchmark must combine:</p>
+<div class="math block">
+\boxed{
+\text{many tasks}
++
+\text{many languages}
++
+\text{careful data construction}
++
+\text{controlled transfer protocol}
+}.
+</div>
+<p>The final piece—<strong>controlled transfer protocol</strong>—is what we study next.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-28-i69-76">Step 5.28 checkpoint</h3>
+<p>You should now know:</p>
+<div class="math block">
+\boxed{9\text{ tasks}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{4\text{ categories}}.
+</div>
+<p>And you should remember:</p>
+<div class="math block">
+\boxed{
+5\text{ classification}
++
+2\text{ structure}
++
+1\text{ QA}
++
+1\text{ retrieval}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{Accuracy for classification/retrieval}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{F1 for NER/slot-filling/QA}
+}.
+</div>
+<p>Most importantly, don't memorize the task names independently. Understand what each probes:</p>
+<div class="math block">
+\boxed{
+\text{Sentiment}
+\rightarrow
+\text{NLI}
+\rightarrow
+\text{Causal reasoning}
+\rightarrow
+\text{Paraphrase}
+\rightarrow
+\text{Intent}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{NER}
+\rightarrow
+\text{Slot filling}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Reading comprehension}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Cross-lingual retrieval}
+}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+</section>

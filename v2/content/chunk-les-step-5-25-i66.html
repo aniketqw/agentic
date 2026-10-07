@@ -1,0 +1,980 @@
+<section class="chunk" id="chunk-les-step-5-25-i66" data-id="les-step-5-25-i66"><aside class="audit-card" data-continuation="added" id="audit-finding-E04-chunk-les-step-5-25-i66"><h3 id="v3-heading-chunk-les-step-5-25-i66-1">ReTool ablation deltas and their limits</h3><p>Status: primary_table_checked; experiments_not_reproduced</p><p>ReTool v1 Table1 on AIME2024 lists Qwen2.5-32B-Instruct26.7,ColdStart40.9,textRL40.0 and ReTool67.0. Differences versus base are14.2,13.3 and40.3 percentage points; versus textRL, ReTool gains27.0points. These are reported comparisons, not a reproduced experiment or proof that every use of tools causes a27-point gain.</p><p><a href="https://arxiv.org/html/2504.11536v1">Primary/official source</a> · §3,Table1; supplied ReTool slides10–11</p><p>Remaining evidence: Reproduce sampling, tool sandbox, training budget and evaluator before claiming experimental replication.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-25-i66"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-25-i66" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-24-i65">← Previous lesson</a> · <a href="#chunk-les-step-5-26-i67">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-24-i65">Step 5.24 — What ReTool Actually Discovers During RL</a></p><p><strong>This lesson:</strong> Step 5.25 — ReTool Results and Ablation Logic</p><p><strong>Source references:</strong> <a href="#source-5">retool-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-25-i66"></a></p>
+<h2>Step 5.25 — ReTool Results and Ablation Logic</h2>
+<p><em>Plan node: I9 · chat order #66</em></p>
+<p>Now we will learn <strong>how to read the ReTool results scientifically</strong>.</p>
+<p>Do not just memorize:</p>
+<div class="math block">
+26.7\rightarrow40.9\rightarrow40.0\rightarrow67.0
+</div>
+<p>The important question is:</p>
+<div class="math block">
+\boxed{\text{What does each comparison isolate?}}
+</div>
+<p>That is what an <strong>ablation study</strong> is doing.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-2">5.25.1 First: what is an ablation?</h3>
+<p>Suppose a complete system has components:</p>
+<div class="math block">
+A+B+C.
+</div>
+<p>We want to know which component actually matters.</p>
+<p>So we remove components one at a time:</p>
+<div class="math block">
+A
+</div>
+<div class="math block">
+A+B
+</div>
+<div class="math block">
+A+B+C.
+</div>
+<p>Then compare performance.</p>
+<p>This is an ablation.</p>
+<p>The key logic is:</p>
+<div class="math block">
+\boxed{
+\text{change one important ingredient while keeping the rest comparable}
+}
+</div>
+<p>and observe what happens.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-3">5.25.2 ReTool's four configurations</h3>
+<p>The supplied slide gives this progression on <strong>AIME2024</strong>, using the specified Qwen2.5-32B-Instruct setup: <em>(Source: retool-slides)</em></p>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th style="text-align:right">AIME2024</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base model, no training</td>
+<td style="text-align:right">26.7%</td>
+</tr>
+<tr>
+<td>+ cold-start SFT, no RL</td>
+<td style="text-align:right">40.9%</td>
+</tr>
+<tr>
+<td>+ RL, text-only, no code interpreter</td>
+<td style="text-align:right">40.0%</td>
+</tr>
+<tr>
+<td>+ RL, with code interpreter — ReTool</td>
+<td style="text-align:right">67.0%</td>
+</tr>
+</tbody>
+</table>
+<p>Let's not jump to the conclusion yet.</p>
+<p>We will derive every comparison.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-4">5.25.3 Comparison 1 — Base model → cold-start SFT</h3>
+<p>We start with:</p>
+<div class="math block">
+26.7\%.
+</div>
+<p>After cold-start SFT:</p>
+<div class="math block">
+40.9\%.
+</div>
+<p>Absolute improvement:</p>
+<div class="math block">
+40.9-26.7
+=
+\boxed{14.2\text{ percentage points}}.
+</div>
+<p>This is exactly the <span class="math inline">\Delta</span> shown by the slide. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-5">5.25.4 What does this comparison prove?</h3>
+<p>It shows that:</p>
+<div class="math block">
+\boxed{
+\text{cold-start SFT is useful}
+}
+</div>
+<p>for this setup.</p>
+<p>More specifically, the SFT stage provides a substantial gain before RL begins.</p>
+<p>This is consistent with what we learned earlier:</p>
+<div class="math block">
+\boxed{
+\text{SFT teaches the model the code/interpreter protocol}
+}
+</div>
+<p>so the model can participate in the later RL environment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-6">5.25.5 What does it NOT prove?</h3>
+<p>It does <strong>not</strong> prove:</p>
+<div class="math block">
+\boxed{
+\text{SFT is better than RL generally}
+}
+</div>
+<p>because that isn't the experiment being performed.</p>
+<p>It also does not prove that:</p>
+<div class="math block">
+\boxed{
+\text{SFT alone is sufficient}
+}
+</div>
+<p>because the full ReTool system later improves substantially beyond 40.9%.</p>
+<p>So our scientifically correct statement is:</p>
+<blockquote>
+<p>In this reported setup, cold-start SFT produces a 14.2-point improvement over the untrained base model on AIME2024.</p>
+</blockquote>
+<p>Not:</p>
+<blockquote>
+<p>SFT solves tool-use reasoning.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-7">5.25.6 Comparison 2 — Cold-start SFT vs text-only RL</h3>
+<p>Now compare:</p>
+<div class="math block">
+40.9\%
+</div>
+<p>versus:</p>
+<div class="math block">
+40.0\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+40.0-40.9
+=
+\boxed{-0.9\text{ percentage points}}.
+</div>
+<p>So text-only RL is actually <strong>0.9 points lower</strong> than cold-start SFT in this reported comparison. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-8">5.25.7 This is the surprising result</h3>
+<p>You might have expected:</p>
+<div class="math block">
+\text{SFT}+RL
+&gt;
+\text{SFT}.
+</div>
+<p>But in the reported comparison, the text-only RL configuration reaches:</p>
+<div class="math block">
+40.0\%
+</div>
+<p>while SFT alone reaches:</p>
+<div class="math block">
+40.9\%.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{text-only RL adds almost nothing beyond SFT here}
+}
+</div>
+<p>The slide explicitly emphasizes this interpretation. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-9">5.25.8 Why is this important?</h3>
+<p>Because it isolates something very specific.</p>
+<p>It tells us that:</p>
+<div class="math block">
+\boxed{
+\text{RL by itself is not the source of the giant improvement}
+}
+</div>
+<p>at least in this particular comparison.</p>
+<p>The big gain comes when RL has access to:</p>
+<div class="math block">
+\boxed{
+\text{real code execution}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-10">5.25.9 Comparison 3 — Base → text-only RL</h3>
+<p>The slide also shows:</p>
+<div class="math block">
+26.7\%\rightarrow40.0\%.
+</div>
+<p>So the absolute improvement is:</p>
+<div class="math block">
+40.0-26.7
+=
+\boxed{13.3\text{ points}}.
+</div>
+<p>This is the slide's reported <span class="math inline">\Delta</span>. <em>(Source: retool-slides)</em></p>
+<p>So text-only RL <strong>does improve over the raw base model</strong>.</p>
+<p>But compare:</p>
+<div class="math block">
+13.3
+</div>
+<p>to SFT's:</p>
+<div class="math block">
+14.2.
+</div>
+<p>They are very similar.</p>
+<p>Thus the important conclusion isn't:</p>
+<blockquote>
+<p>text-only RL does nothing.</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{text-only RL helps relative to the raw base, but provides little additional gain over the cold-start SFT baseline in this experiment}
+}
+</div>
+<p>That is a much more precise interpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-11">5.25.10 Comparison 4 — Text-only RL → ReTool</h3>
+<p>Now comes the major jump.</p>
+<p>Text-only RL:</p>
+<div class="math block">
+40.0\%.
+</div>
+<p>ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Improvement:</p>
+<div class="math block">
+67.0-40.0
+=
+\boxed{27.0\text{ percentage points}}.
+</div>
+<p>This is the critical comparison.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-12">5.25.11 Comparison 5 — SFT → ReTool</h3>
+<p>Cold-start SFT:</p>
+<div class="math block">
+40.9\%.
+</div>
+<p>ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Improvement:</p>
+<div class="math block">
+67.0-40.9
+=
+\boxed{26.1\text{ percentage points}}.
+</div>
+<p>So almost the entire extraordinary jump occurs when the system moves from:</p>
+<div class="math block">
+\boxed{
+\text{SFT/text reasoning}
+}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{
+\text{RL + actual code execution}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-13">5.25.12 Comparison 6 — Base → ReTool</h3>
+<p>From:</p>
+<div class="math block">
+26.7\%
+</div>
+<p>to:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Absolute improvement:</p>
+<div class="math block">
+67.0-26.7
+=
+\boxed{40.3\text{ percentage points}}.
+</div>
+<p>That is the slide's reported overall gain. <em>(Source: retool-slides)</em></p>
+<p>So relative to the original base performance:</p>
+<div class="math block">
+\frac{67.0-26.7}{26.7}\times100
+\approx
+\boxed{151.3\%}
+</div>
+<p>relative improvement.</p>
+<p>Be careful:</p>
+<div class="math block">
+\boxed{40.3\text{ points}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{151.3\%\text{ relative improvement}}
+</div>
+<p>are different quantities.</p>
+<p>The slide reports the former; the latter is our arithmetic calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-14">5.25.13 Now identify the actual experimental variable</h3>
+<p>Let's construct the progression:</p>
+<div class="math block">
+26.7
+</div>
+<div class="math block">
+\downarrow +14.2
+</div>
+<div class="math block">
+40.9
+</div>
+<div class="math block">
+\downarrow -0.9
+</div>
+<div class="math block">
+40.0
+</div>
+<div class="math block">
+\downarrow +27.0
+</div>
+<div class="math block">
+67.0.
+</div>
+<p>What changes most dramatically in the last transition?</p>
+<div class="math block">
+\boxed{
+\text{real code-interpreter interaction}
+}
+</div>
+<p>That is why the slide concludes that the gain is specifically associated with learning <strong>when and how to use the tool</strong>, rather than with RL or tools alone. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-15">5.25.14 Why can't we just say “the tool caused everything”?</h3>
+<p>Because that would be too strong.</p>
+<p>ReTool contains multiple ingredients:</p>
+<div class="math block">
+\text{cold-start SFT}
++
+\text{RL}
++
+\text{code interpreter}.
+</div>
+<p>The 67.0% result belongs to the <strong>combination</strong>.</p>
+<p>The ablation demonstrates that the combination performs dramatically better than the text-only variants.</p>
+<p>But a single ablation table cannot establish every possible causal decomposition under every alternative training setup.</p>
+<p>So the careful statement is:</p>
+<div class="math block">
+\boxed{
+\text{In the reported experiment, the large additional gain appears when RL is combined with real tool interaction.}
+}
+</div>
+<p>That is exactly the interpretation supported by the deck. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-16">5.25.15 Why is the “RL without tool” baseline necessary?</h3>
+<p>This is a very important experimental-design principle.</p>
+<p>Suppose the authors only reported:</p>
+<div class="math block">
+40.9\%\rightarrow67.0\%.
+</div>
+<p>Someone could argue:</p>
+<blockquote>
+<p>Maybe RL itself creates the 26-point improvement.</p>
+</blockquote>
+<p>To test that hypothesis, they include:</p>
+<div class="math block">
+\boxed{
+\text{RL without code interpreter}
+}
+</div>
+<p>and obtain:</p>
+<div class="math block">
+40.0\%.
+</div>
+<p>That comparison weakens the explanation:</p>
+<div class="math block">
+\text{“RL alone caused the 27-point jump.”}
+</div>
+<p>Because under this setup:</p>
+<div class="math block">
+\boxed{
+40.0\% \not\approx 67.0\%
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-17">5.25.16 This is how you should read ablations</h3>
+<p>When you see:</p>
+<div class="math block">
+A=40.9
+</div>
+<div class="math block">
+B=40.0
+</div>
+<div class="math block">
+C=67.0
+</div>
+<p>ask:</p>
+<blockquote>
+<p>What changed between A and C?</p>
+</blockquote>
+<p>and:</p>
+<blockquote>
+<p>What changed between B and C?</p>
+</blockquote>
+<p>Here:</p>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-18">A vs C</h5>
+<div class="math block">
+\text{SFT}
+\rightarrow
+\text{SFT + RL + tool interaction}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-19">B vs C</h5>
+<div class="math block">
+\text{text-only RL}
+\rightarrow
+\text{tool-integrated RL}.
+</div>
+<p>The second comparison is especially informative because both involve RL, so it more directly isolates the contribution of adding the tool interaction to the RL setup described in the slide.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-20">5.25.17 A simple causal diagram</h3>
+<p>Conceptually:</p>
+<pre><code class="language-text">             Base model
+                │
+        ┌───────┴────────┐
+        │                │
+       SFT             Text RL
+        │                │
+      40.9              40.0
+        │                │
+        └──────┬─────────┘
+               │
+          + real tool
+               │
+              67.0
+</code></pre>
+<p>The exact experimental paths are those shown in the deck; this diagram is just a visualization of the ablation logic.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-21">5.25.18 ReTool versus external baselines</h3>
+<p>The headline slide reports that on the specified setup:</p>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-22">ReTool</h5>
+<p>AIME2024:</p>
+<div class="math block">
+\boxed{67.0\%}
+</div>
+<p>AIME2025:</p>
+<div class="math block">
+\boxed{49.3\%}.
+</div>
+<p>It says this exceeds every listed baseline, including:</p>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-23">OpenAI o1-preview</h5>
+<div class="math block">
+44.6\% / 37.9\%
+</div>
+<p>and:</p>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-24">Qwen2.5-Math-Instruct-TIR 72B</h5>
+<div class="math block">
+40.0\%
+</div>
+<p>on AIME2024. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-25">5.25.19 But there is another important result</h3>
+<p>The slide says replacing the backbone with:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1-Distill-Qwen-32B}}
+</div>
+<p>raises performance further to:</p>
+<div class="math block">
+\boxed{
+72.5\%\text{ AIME2024}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+54.3\%\text{ AIME2025}.
+}
+</div>
+<p><em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-26">5.25.20 What does this teach us?</h3>
+<p>It reinforces an idea we already encountered during distillation:</p>
+<div class="math block">
+\boxed{
+\text{base-model quality matters}
+}
+</div>
+<p>ReTool isn't independent of the backbone.</p>
+<p>Same broad tool/RL idea:</p>
+<div class="math block">
+\text{different backbone}
+\rightarrow
+\text{different ceiling}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{tool use is an additional capability, not a replacement for model capability}
+}
+</div>
+<p>That broader wording is an inference from the reported comparison; the deck itself simply reports the stronger-backbone result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-27">5.25.21 Let's compare the two backbones numerically</h3>
+<p>Qwen2.5-32B-Instruct ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>DeepSeek-R1-Distill-Qwen-32B backbone:</p>
+<div class="math block">
+72.5\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+72.5-67.0
+=
+\boxed{5.5\text{ points}}.
+</div>
+<p>For AIME2025:</p>
+<div class="math block">
+54.3-49.3
+=
+\boxed{5.0\text{ points}}.
+</div>
+<p>These are arithmetic calculations from the slide's reported numbers. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-28">5.25.22 Training efficiency: why fewer steps matter</h3>
+<p>Now consider the learning curves.</p>
+<p>The slide reports:</p>
+<div class="math block">
+\boxed{
+\text{ReTool plateau }\approx\text{ step }400
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{text-only RL continues past step }1000
+}
+</div>
+<p>and ReTool reaches its higher accuracy using approximately:</p>
+<div class="math block">
+\boxed{37\%}
+</div>
+<p>of the training steps of the text-only RL baseline. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-29">5.25.23 Numerical interpretation</h3>
+<p>Suppose the text-only baseline requires:</p>
+<div class="math block">
+1000
+</div>
+<p>steps.</p>
+<p>Then:</p>
+<div class="math block">
+0.37\times1000
+=
+\boxed{370}
+</div>
+<p>steps.</p>
+<p>The reported plateau around 400 steps is therefore broadly consistent with the approximate 37% statement.</p>
+<p>But notice the wording:</p>
+<div class="math block">
+\boxed{\text{about }37\%}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{around step }400}.
+</div>
+<p>These are approximate empirical observations, not an exact algebraic identity.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-30">5.25.24 Why could tool use make exploration easier?</h3>
+<p>This is the deeper interpretation proposed by the slide.</p>
+<p>Consider text-only RL.</p>
+<p>The model must discover:</p>
+<div class="math block">
+\text{how to reason}
++
+\text{how to calculate}
++
+\text{how to search}
++
+\text{how to verify}.
+</div>
+<p>All inside generated text.</p>
+<p>With a computational tool:</p>
+<div class="math block">
+\boxed{
+\text{computation is delegated to an external mechanism}
+}
+</div>
+<p>so the model can explore higher-level strategies such as:</p>
+<div class="math block">
+\text{what to calculate}
+</div>
+<p>rather than having to manually simulate every arithmetic step in language.</p>
+<p>Thus the slide's interpretation is:</p>
+<div class="math block">
+\boxed{
+\text{tools do not merely increase the final ceiling;}
+\text{they make the exploration problem easier.}
+}
+</div>
+<p><em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-31">5.25.25 Be careful about the word “easier”</h3>
+<p>The slide says:</p>
+<blockquote>
+<p>tool use doesn't just raise the ceiling; it makes the exploration problem itself easier to solve. <em>(Source: retool-slides)</em></p>
+</blockquote>
+<p>This is an interpretation of the observed learning curve.</p>
+<p>It does <strong>not</strong> give a formal theorem that external tools mathematically reduce RL sample complexity in every setting.</p>
+<p>So in an exam:</p>
+<p>Good:</p>
+<div class="math block">
+\boxed{
+\text{The reported learning curve suggests improved exploration efficiency.}
+}
+</div>
+<p>Too strong:</p>
+<div class="math block">
+\boxed{
+\text{Tools always reduce sample complexity.}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-32">5.25.26 Another important numerical comparison</h3>
+<p>Compare:</p>
+<div class="math block">
+67.0
+</div>
+<p>with:</p>
+<div class="math block">
+40.0.
+</div>
+<p>Relative improvement from text-only RL:</p>
+<div class="math block">
+\frac{67.0-40.0}{40.0}\times100
+=
+\boxed{67.5\%}.
+</div>
+<p>So ReTool's AIME2024 accuracy is about 67.5% higher <strong>relative to the text-only RL baseline</strong> in this particular reported comparison.</p>
+<p>Again:</p>
+<div class="math block">
+27\text{ points}
+</div>
+<p>is the source-friendly quantity;</p>
+<div class="math block">
+67.5\%
+</div>
+<p>is our derived relative-improvement calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-33">5.25.27 What exactly do the ablations support?</h3>
+<p>Let's formalize the conclusions.</p>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-34">Conclusion A</h5>
+<div class="math block">
+\boxed{
+\text{Cold-start SFT is useful.}
+}
+</div>
+<p>Evidence:</p>
+<div class="math block">
+26.7\rightarrow40.9.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-35">Conclusion B</h5>
+<div class="math block">
+\boxed{
+\text{Text-only RL does not provide a large additional gain over SFT in this setup.}
+}
+</div>
+<p>Evidence:</p>
+<div class="math block">
+40.9\rightarrow40.0.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-36">Conclusion C</h5>
+<div class="math block">
+\boxed{
+\text{Adding real code interaction to RL produces the major gain.}
+}
+</div>
+<p>Evidence:</p>
+<div class="math block">
+40.0\rightarrow67.0.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-37">Conclusion D</h5>
+<div class="math block">
+\boxed{
+\text{A stronger reasoning backbone can raise the ReTool result further.}
+}
+</div>
+<p>Evidence:</p>
+<div class="math block">
+67.0\rightarrow72.5.
+</div>
+<p><em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-38">5.25.28 What the ablation does NOT prove</h3>
+<p>This is equally important.</p>
+<p>The table does not establish that:</p>
+<div class="math block">
+\boxed{\text{ReTool is universally better than every RL method}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{code interpreters are universally better than other tools}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{67\% is a universal upper bound}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{SFT is unnecessary}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{text-only RL never works}}
+</div>
+<p>Those claims go beyond the supplied evidence.</p>
+<p>The experiment is about the reported setup and comparisons.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-39">5.25.29 Why this matters for research-paper reading</h3>
+<p>A common mistake is:</p>
+<div class="math block">
+\boxed{
+\text{correlation}
+\Rightarrow
+\text{absolute causal claim}
+}
+</div>
+<p>The correct research mindset is:</p>
+<ol>
+<li>Identify the controlled comparison.</li>
+<li>Identify what changed.</li>
+<li>Identify what stayed approximately constant.</li>
+<li>Attribute the result only to what the experiment actually isolates.</li>
+</ol>
+<p>For ReTool, the most informative isolation is:</p>
+<div class="math block">
+\boxed{
+\text{text-only RL}
+\quad\text{vs}\quad
+\text{RL + real code interpreter}
+}
+</div>
+<p>because both are RL variants in the reported ablation. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-40">5.25.30 Exam numerical set</h3>
+<h5 id="v3-heading-chunk-les-step-5-25-i66-41">Question 1</h5>
+<p>Base:</p>
+<div class="math block">
+26.7\%.
+</div>
+<p>ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Find absolute improvement.</p>
+<div class="math block">
+\boxed{40.3\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-42">Question 2</h5>
+<p>SFT:</p>
+<div class="math block">
+40.9\%.
+</div>
+<p>Text-only RL:</p>
+<div class="math block">
+40.0\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+\boxed{-0.9\text{ points}}
+</div>
+<p>So text-only RL is 0.9 points below SFT.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-43">Question 3</h5>
+<p>Text-only RL:</p>
+<div class="math block">
+40.0\%.
+</div>
+<p>ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Absolute gain:</p>
+<div class="math block">
+\boxed{27.0\text{ points}}
+</div>
+<p>Relative gain:</p>
+<div class="math block">
+\frac{27}{40}\times100
+=
+\boxed{67.5\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-44">Question 4</h5>
+<p>Qwen2.5-32B ReTool:</p>
+<div class="math block">
+67.0\%.
+</div>
+<p>Distill-Qwen-32B backbone:</p>
+<div class="math block">
+72.5\%.
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{5.5\text{ points}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-25-i66-45">Question 5</h5>
+<p>Text-only RL uses 1000 steps.</p>
+<p>ReTool uses 37%.</p>
+<div class="math block">
+1000(0.37)
+=
+\boxed{370\text{ steps}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-46">5.25.31 Exam-style reasoning question</h3>
+<p><strong>Question:</strong></p>
+<blockquote>
+<p>An experiment reports 26.7% for a base model, 40.9% after SFT, 40.0% after text-only RL, and 67.0% after RL with a code interpreter. What is the strongest conclusion supported by the ablation?</p>
+</blockquote>
+<p>Correct reasoning:</p>
+<div class="math block">
+40.9\approx40.0
+</div>
+<p>but:</p>
+<div class="math block">
+67.0\gg40.0.
+</div>
+<p>Therefore the reported results indicate that the major gain is associated with <strong>combining RL with real tool interaction</strong>, rather than with text-only RL alone. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-47">5.25.32 The entire result section in one picture</h3>
+<div class="math block">
+\boxed{
+\text{Base}
+=
+26.7
+}
+</div>
+<div class="math block">
+\downarrow
+\quad +14.2
+</div>
+<div class="math block">
+\boxed{
+\text{Cold-start SFT}
+=
+40.9
+}
+</div>
+<div class="math block">
+\downarrow
+\quad -0.9
+</div>
+<div class="math block">
+\boxed{
+\text{Text-only RL}
+=
+40.0
+}
+</div>
+<div class="math block">
+\downarrow
+\quad +27.0
+</div>
+<div class="math block">
+\boxed{
+\text{ReTool}
+=
+67.0
+}
+</div>
+<p>and with the stronger reported backbone:</p>
+<div class="math block">
+\boxed{
+72.5
+}
+</div>
+<p>on AIME2024. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-25-i66-48">5.25.33 The key insight</h3>
+<p>The most important result is <strong>not merely</strong>:</p>
+<div class="math block">
+67\%.
+</div>
+<p>It is the decomposition:</p>
+<div class="math block">
+\boxed{
+\text{SFT helps}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{text-only RL adds little here}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{RL + real tool interaction adds a major gain}
+}
+</div>
+<p>This tells us that ReTool is not simply:</p>
+<div class="math block">
+\boxed{\text{“PPO applied to a math model.”}}
+</div>
+<p>The valuable learned capability is:</p>
+<div class="math block">
+\boxed{
+\text{strategic interaction with an external computational environment}
+}
+</div>
+<p>which is exactly what the preceding six behavioral signals also suggested. <em>(Source: retool-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-25-i66-49">Where ReTool now fits in the full course</h4>
+<p>We can now see the complete conceptual ladder:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMath}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{GRPO learns from relative outcome quality}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{RL strengthens long reasoning chains}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{R1 Distillation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{transfer reasoning into smaller models}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{ReTool}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{learn when/how to interact with an external computational tool}
+}
+</div>
+<p>That is the complete conceptual purpose of this topic.</p>
+<hr />
+</section>

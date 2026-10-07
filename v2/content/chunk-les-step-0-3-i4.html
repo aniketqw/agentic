@@ -1,0 +1,1158 @@
+<section class="chunk" id="chunk-les-step-0-3-i4" data-id="les-step-0-3-i4"><details class="audit-card" id="audit-F05" data-audit="added"><summary><span class="audit-badge">Batch 1 · checked example</span> F05 — Entropy, cross-entropy, KL, and support</summary><p>New teaching capsule and stated examples only; inherited prose/formulas/code remain pending</p><nav aria-label="Audit reading route"><a href="#audit-F04">← Previous audit card</a> · <a href="#audit-F06">Next audit card →</a></nav><h4 id="v3-heading-chunk-les-step-0-3-i4-1">Why this matters</h4><p>These quantities distinguish uncertainty within a distribution from disagreement between distributions.</p><p><strong>Prerequisites:</strong> <a href="#audit-F03">Stable softmax and log-softmax</a>, <a href="#audit-F04">Conditional sequence probability and log likelihood</a></p><h4 id="v3-heading-chunk-les-step-0-3-i4-2">Symbols, shapes and assumptions</h4><p>p and q are normalized distributions over the same support. Natural logs measure nats. Terms with p=0 contribute zero by a limit; p&gt;0 and q=0 require special handling.</p><h4 id="v3-heading-chunk-les-step-0-3-i4-3">Derivation or mechanism</h4><ol><li>Define H(p) as the expectation of -log p under p.</li><li>Define CE(p,q) with -log q but the same p weights.</li><li>Expand log(p/q) to obtain KL(p||q)=CE(p,q)-H(p).</li></ol><div class="math block" data-tex="H(p)=-\sum_i p_i\log p_i">H(p)=-\sum_i p_i\log p_i</div><div class="math block" data-tex="\mathrm{CE}(p,q)=-\sum_i p_i\log q_i">\mathrm{CE}(p,q)=-\sum_i p_i\log q_i</div><div class="math block" data-tex="D_{KL}(p\Vert q)=\sum_i p_i\log(p_i/q_i)=\mathrm{CE}(p,q)-H(p)">D_{KL}(p\Vert q)=\sum_i p_i\log(p_i/q_i)=\mathrm{CE}(p,q)-H(p)</div><h4 id="v3-heading-chunk-les-step-0-3-i4-4">Worked numerical</h4><p>Use p=[0.7,0.25,0.05] and q=[0.4,0.4,0.2]. The exact fixture outputs show H(p), CE(p,q), forward KL≈0.2049154262 and reverse KL≈0.2414140087. Reversing the arguments changes the answer. For p=[1,0], entropy is 0; against q=[0,1], forward KL is infinite.</p><h4 id="v3-heading-chunk-les-step-0-3-i4-5">Edge cases and limits</h4><ul><li>KL is not a symmetric distance metric.</li><li>A zero in q on positive p support cannot be replaced by an arbitrary epsilon without changing the problem.</li><li>Mode-covering and mode-seeking interpretations require a specified student family and optimization setting; those later claims remain separate audit targets.</li></ul><h4 id="v3-heading-chunk-les-step-0-3-i4-6">Connections</h4><ul><li>F10 gives the one-hot CE gradient.</li><li>Later KD/MiniLLM and GRPO cards must preserve this argument order.</li></ul><h4 id="v3-heading-chunk-les-step-0-3-i4-7">Source support</h4><ul><li><a href="https://www.deeplearningbook.org/contents/prob.html" rel="noopener noreferrer">§3.13, information theory</a></li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 324, 325, 326 · §5.1 cross-entropy application</li></ul><p>Starting relations are grounded in the cited passages. The stated teaching calculations and derivations are checked independently; these citations do not certify every inherited claim in the lesson.</p><h4 id="v3-heading-chunk-les-step-0-3-i4-8">Executable companion and checking evidence</h4><p>Functions: <code>distribution</code>, <code>entropy</code>, <code>cross_entropy</code>, <code>kl</code>. <a href="#audit-companion">Read or download the complete Python companion</a>.</p><p>Checks passed: F05-info, F05-identity, F05-support. <a href="#audit-checks">Inspect the check methods</a>.</p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-0-3-i4"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-0-3-i4" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-0-2-i3">← Previous lesson</a> · <a href="#chunk-les-step-0-4-i5">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-2-i3">STEP 0.2 — PROBABILITY → LOG-PROBABILITY → SOFTMAX</a></p><p><strong>This lesson:</strong> STEP 0.3 — ENTROPY → CROSS-ENTROPY → KL DIVERGENCE</p><p><strong>Source references:</strong> <a href="#source-15">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2</a>; <a href="#source-17">minillm-slides</a>; <a href="#source-18">MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs</a>; <a href="#source-19">Hands-On Machine Learning with Scikit-Lear - Aurelien Geron</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-0-3-i4"></a></p>
+<h2>STEP 0.3 — ENTROPY → CROSS-ENTROPY → KL DIVERGENCE</h2>
+<p><em>Plan node: I0 · chat order #4</em></p>
+<p>This is one of the most important mathematical steps in the entire course.</p>
+<p>You already understand:</p>
+<div class="math block">
+\text{logits}\rightarrow\text{softmax}\rightarrow\text{probabilities}
+</div>
+<p>Now we need to answer:</p>
+<blockquote>
+<p><strong>How do we measure whether one probability distribution is good, uncertain, or different from another?</strong></p>
+</blockquote>
+<p>That gives us:</p>
+<div class="math block">
+\boxed{\text{Entropy}}
+</div>
+<div class="math block">
+\boxed{\text{Cross-Entropy}}
+</div>
+<div class="math block">
+\boxed{\text{KL Divergence}}
+</div>
+<p>And these are not isolated formulas. They form a chain that later becomes:</p>
+<div class="math block">
+\text{LM Training}
+\rightarrow
+\text{Knowledge Distillation}
+\rightarrow
+\text{RLHF/RLVR}
+\rightarrow
+\text{PPO/GRPO}
+</div>
+<p>Your master cheatsheet explicitly places entropy, cross-entropy, and KL in the probability/information-theory foundation, and later uses KL directly in distillation and RL. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-9">0.3.1 First question: what is entropy trying to measure?</h3>
+<p>Suppose a model has two possible outcomes.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-10">Distribution A</h5>
+<div class="math block">
+P=[1,0]
+</div>
+<p>The model is completely certain.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-11">Distribution B</h5>
+<div class="math block">
+P=[0.5,0.5]
+</div>
+<p>The model has no preference.</p>
+<p>Intuitively:</p>
+<div class="math block">
+\boxed{\text{Distribution B is more uncertain than Distribution A}}
+</div>
+<p>Entropy gives us a mathematical way to quantify that uncertainty.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-12">0.3.2 Entropy</h3>
+<p>For a discrete distribution:</p>
+<div class="math block">
+\boxed{
+H(P)=-\sum_i p_i\log p_i
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">P</span> = probability distribution</li>
+<li><span class="math inline">p_i</span> = probability of outcome <span class="math inline">i</span></li>
+<li><span class="math inline">H(P)</span> = entropy</li>
+</ul>
+<p>This formula is part of the mathematical foundation in your master cheatsheet. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-13">0.3.3 Why the minus sign?</h3>
+<p>We already learned:</p>
+<div class="math block">
+0&lt;p_i\le1
+</div>
+<p>therefore:</p>
+<div class="math block">
+\log p_i\le0
+</div>
+<p>So:</p>
+<div class="math block">
+p_i\log p_i\le0
+</div>
+<p>Without the minus sign, entropy would generally be negative.</p>
+<p>We want uncertainty to be represented as a nonnegative quantity, so:</p>
+<div class="math block">
+-\sum p_i\log p_i
+</div>
+<p>is used.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-14">0.3.4 Perfect certainty</h3>
+<p>Take:</p>
+<div class="math block">
+P=[1,0]
+</div>
+<p>Then:</p>
+<div class="math block">
+H(P)
+=
+-[1\log1+0\log0]
+</div>
+<p>Since:</p>
+<div class="math block">
+\log1=0
+</div>
+<p>the first term is zero.</p>
+<p>The <span class="math inline">0\log0</span> term is interpreted through its limiting value as zero.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{H(P)=0}
+</div>
+<p>So:</p>
+<blockquote>
+<p>A completely certain distribution has zero entropy.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-15">0.3.5 Maximum uncertainty for two outcomes</h3>
+<p>Now:</p>
+<div class="math block">
+P=[0.5,0.5]
+</div>
+<p>Then:</p>
+<div class="math block">
+H(P)
+=
+-[0.5\log0.5+0.5\log0.5]
+</div>
+<p>Since:</p>
+<div class="math block">
+\log(0.5)\approx-0.6931
+</div>
+<p>we get:</p>
+<div class="math block">
+H(P)\approx0.6931
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+H([0.5,0.5])\approx0.693
+}
+</div>
+<p>which is larger than zero.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{more spread-out distribution}
+\Rightarrow
+\text{higher entropy}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-16">0.3.6 Three outcomes</h3>
+<p>Consider:</p>
+<div class="math block">
+P=[1/3,1/3,1/3]
+</div>
+<p>Entropy:</p>
+<div class="math block">
+H(P)
+=
+-3\left(\frac13\log\frac13\right)
+</div>
+<div class="math block">
+=
+-\log(1/3)
+</div>
+<div class="math block">
+=\log3
+</div>
+<p>Using natural logarithms:</p>
+<div class="math block">
+\boxed{H(P)\approx1.099}
+</div>
+<p>So the maximum entropy increases as more possible outcomes become equally likely.</p>
+<p>For <span class="math inline">V</span> equally likely outcomes:</p>
+<div class="math block">
+\boxed{H_{\max}=\log V}
+</div>
+<p>when using natural logarithms.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-17">0.3.7 The intuition behind entropy</h3>
+<p>Think of entropy as:</p>
+<blockquote>
+<p><strong>How spread out is the probability mass?</strong></p>
+</blockquote>
+<p>Very concentrated:</p>
+<div class="math block">
+[0.99,0.01]
+</div>
+<p>→ low entropy.</p>
+<p>Very spread out:</p>
+<div class="math block">
+[0.5,0.5]
+</div>
+<p>→ high entropy.</p>
+<p>For a vocabulary of 50,000 tokens, a model assigning almost all probability to one token has relatively low entropy, while a model spreading probability broadly across thousands of alternatives has higher entropy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-18">0.3.8 Another interpretation: surprise</h3>
+<p>There is another extremely useful interpretation.</p>
+<p>The surprise of observing event <span class="math inline">i</span> is:</p>
+<div class="math block">
+\boxed{
+I(i)=-\log p_i
+}
+</div>
+<p>Why?</p>
+<p>Because:</p>
+<ul>
+<li>highly likely event → small surprise</li>
+<li>unlikely event → large surprise</li>
+</ul>
+<p>For example:</p>
+<div class="math block">
+p=0.9
+</div>
+<p>gives:</p>
+<div class="math block">
+-\log(0.9)\approx0.105
+</div>
+<p>while:</p>
+<div class="math block">
+p=0.01
+</div>
+<p>gives:</p>
+<div class="math block">
+-\log(0.01)\approx4.605
+</div>
+<p>Entropy is the <strong>expected surprise</strong>:</p>
+<div class="math block">
+\boxed{
+H(P)=E_{x\sim P}[-\log P(x)]
+}
+</div>
+<p>Expanding the expectation gives:</p>
+<div class="math block">
+H(P)
+=
+-\sum_x P(x)\log P(x)
+</div>
+<p>So entropy means:</p>
+<blockquote>
+<p>If outcomes are actually generated according to <span class="math inline">P</span>, how much surprise do we expect on average?</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-19">0.3.9 Now the crucial question: what is cross-entropy?</h3>
+<p>Entropy talks about:</p>
+<blockquote>
+<p><strong>the distribution itself.</strong></p>
+</blockquote>
+<p>Cross-entropy asks:</p>
+<blockquote>
+<p><strong>What happens when the true distribution is <span class="math inline">P</span>, but I use another distribution <span class="math inline">Q</span> to assign probabilities?</strong></p>
+</blockquote>
+<p>The formula is:</p>
+<div class="math block">
+\boxed{
+H(P,Q)
+=
+-\sum_i p_i\log q_i
+}
+</div>
+<p>Your supplied <em>Hands-On Machine Learning</em> text gives this exact definition and explains that cross-entropy is larger than the entropy of the true distribution when the assumed distribution is imperfect. <em>(Source: Hands-On Machine Learning with Scikit-Lear - Aurelien Geron)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-20">0.3.10 Why are there TWO distributions?</h3>
+<p>This is the key conceptual difference.</p>
+<p>Entropy:</p>
+<div class="math block">
+H(P)
+=
+-\sum_i p_i\log p_i
+</div>
+<p>uses:</p>
+<div class="math block">
+P\rightarrow P
+</div>
+<p>Cross-entropy:</p>
+<div class="math block">
+H(P,Q)
+=
+-\sum_i p_i\log q_i
+</div>
+<p>uses:</p>
+<div class="math block">
+P\rightarrow Q
+</div>
+<p>So:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">H(P)</span></td>
+<td>uncertainty inherent in <span class="math inline">P</span></td>
+</tr>
+<tr>
+<td><span class="math inline">H(P,Q)</span></td>
+<td>how costly it is to encode outcomes from <span class="math inline">P</span> using <span class="math inline">Q</span></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-21">0.3.11 Numerical example</h3>
+<p>Let's use:</p>
+<div class="math block">
+P=[0.7,0.2,0.1]
+</div>
+<p>and suppose our model uses:</p>
+<div class="math block">
+Q=[0.6,0.3,0.1]
+</div>
+<p>First calculate entropy of <span class="math inline">P</span>:</p>
+<div class="math block">
+H(P)
+=
+-[0.7\log0.7+0.2\log0.2+0.1\log0.1]
+</div>
+<p>Numerically:</p>
+<div class="math block">
+\boxed{H(P)\approx0.802}
+</div>
+<p>Now cross-entropy:</p>
+<div class="math block">
+H(P,Q)
+=
+-[0.7\log0.6+0.2\log0.3+0.1\log0.1]
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{H(P,Q)\approx0.829}
+</div>
+<p>Notice:</p>
+<div class="math block">
+0.829&gt;0.802
+</div>
+<p>Why?</p>
+<p>Because <span class="math inline">Q</span> isn't exactly <span class="math inline">P</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-22">0.3.12 The beautiful relationship</h3>
+<p>Cross-entropy can be decomposed into:</p>
+<div class="math block">
+\boxed{
+H(P,Q)=H(P)+D_{KL}(P\|Q)
+}
+</div>
+<p>This identity is explicitly used in the supplied MiniLLM material to explain knowledge distillation. <em>(Source: minillm-slides)</em></p>
+<p>This equation is tremendously important.</p>
+<p>Let's understand it rather than memorize it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-23">0.3.13 What is KL divergence?</h3>
+<p>KL divergence measures how different <span class="math inline">Q</span> is from <span class="math inline">P</span>, in an information-theoretic sense:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)
+=
+\sum_i p_i
+\log
+\frac{p_i}{q_i}
+}
+</div>
+<p>Your supplied active-learning material describes KL divergence as measuring the difference between a true distribution <span class="math inline">P</span> and an approximating distribution <span class="math inline">Q</span>, and notes that it is zero when the two distributions match.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-24">0.3.14 Derive the cross-entropy identity</h3>
+<p>Start with KL:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+\sum_i p_i
+\log\frac{p_i}{q_i}
+</div>
+<p>Use:</p>
+<div class="math block">
+\log\frac{a}{b}
+=
+\log a-\log b
+</div>
+<p>Therefore:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+\sum_i p_i\log p_i
+-
+\sum_i p_i\log q_i
+</div>
+<p>Now recall:</p>
+<div class="math block">
+H(P)=-\sum_i p_i\log p_i
+</div>
+<p>and:</p>
+<div class="math block">
+H(P,Q)=-\sum_i p_i\log q_i
+</div>
+<p>So:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+-H(P)+H(P,Q)
+</div>
+<p>Rearrange:</p>
+<div class="math block">
+\boxed{
+H(P,Q)=H(P)+D_{KL}(P\|Q)
+}
+</div>
+<p>There is the identity.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-25">0.3.15 What does this identity actually mean?</h3>
+<p>It says:</p>
+<div class="math block">
+\boxed{
+\text{cross-entropy}
+=
+\text{intrinsic uncertainty}
++
+\text{mismatch penalty}
+}
+</div>
+<p>Specifically:</p>
+<div class="math block">
+H(P)
+</div>
+<p>is unavoidable uncertainty in the original distribution.</p>
+<p>And:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+</div>
+<p>is the additional cost caused by using the wrong distribution <span class="math inline">Q</span>.</p>
+<p>This is a fantastic mental model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-26">0.3.16 What happens when <span class="math inline">P=Q</span>?</h3>
+<p>Suppose:</p>
+<div class="math block">
+Q=P
+</div>
+<p>Then:</p>
+<div class="math block">
+D_{KL}(P\|P)
+=
+\sum_i p_i\log\frac{p_i}{p_i}
+</div>
+<div class="math block">
+=
+\sum_i p_i\log1
+</div>
+<div class="math block">
+=0
+</div>
+<p>Therefore:</p>
+<div class="math block">
+H(P,P)
+=
+H(P)
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{perfect match}
+\Rightarrow
+KL=0
+\Rightarrow
+CE=entropy
+}
+</div>
+<p>This exact idea is demonstrated in the supplied MiniLLM slides: when the student exactly matches the teacher, KL is zero but the distillation cross-entropy remains equal to the teacher's entropy. <em>(Source: minillm-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-27">0.3.17 Let's verify our numerical example</h3>
+<p>We had:</p>
+<div class="math block">
+H(P)\approx0.8018
+</div>
+<p>and:</p>
+<div class="math block">
+H(P,Q)\approx0.8286
+</div>
+<p>Therefore:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+H(P,Q)-H(P)
+</div>
+<div class="math block">
+\approx0.8286-0.8018
+</div>
+<div class="math block">
+\boxed{D_{KL}(P\|Q)\approx0.0268}
+</div>
+<p>So:</p>
+<div class="math block">
+0.8286
+=
+0.8018+0.0268
+</div>
+<p>Exactly.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-28">0.3.18 Important property: KL is nonnegative</h3>
+<p>For valid distributions:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)\ge0
+}
+</div>
+<p>and:</p>
+<div class="math block">
+D_{KL}(P\|Q)=0
+</div>
+<p>only when:</p>
+<div class="math block">
+P=Q
+</div>
+<p>under the usual conditions.</p>
+<p>Therefore:</p>
+<div class="math block">
+H(P,Q)\ge H(P)
+</div>
+<p>This means:</p>
+<blockquote>
+<p>Using the wrong distribution cannot give you lower cross-entropy than the true distribution's own entropy.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-29">0.3.19 But KL is NOT a distance</h3>
+<p>This is a common interview/exam trap.</p>
+<p>People often casually call KL a &quot;distance,&quot; but technically it is a <strong>divergence</strong>, not a metric.</p>
+<p>Why?</p>
+<p>A metric generally requires symmetry:</p>
+<div class="math block">
+d(P,Q)=d(Q,P)
+</div>
+<p>But KL generally does not satisfy this.</p>
+<p>Usually:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)\neq D_{KL}(Q\|P)
+}
+</div>
+<p>This asymmetry becomes extremely important later in <strong>knowledge distillation</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-30">0.3.20 Forward KL vs Reverse KL</h3>
+<p>There are two directions.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-31">Forward KL</h5>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-32">Reverse KL</h5>
+<div class="math block">
+\boxed{
+D_{KL}(Q\|P)
+}
+</div>
+<p>They are not interchangeable.</p>
+<p>Your MiniLLM materials explicitly distinguish these two and discuss their different behavior. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-33">0.3.21 Why direction matters</h3>
+<p>Consider <span class="math inline">P</span> as the teacher and <span class="math inline">Q</span> as the student.</p>
+<p>Forward KL:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+\sum_xP(x)\log\frac{P(x)}{Q(x)}
+</div>
+<p>The teacher's probabilities <span class="math inline">P(x)</span> are used as weights.</p>
+<p>So if the teacher assigns meaningful probability to something and the student gives it almost zero, the student gets heavily penalized.</p>
+<p>This tends toward <strong>covering teacher-supported modes</strong>.</p>
+<p>Your supplied MiniLLM material describes forward KL as strongly penalizing missing teacher-supported modes. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<p>Reverse KL:</p>
+<div class="math block">
+D_{KL}(Q\|P)
+=
+\sum_xQ(x)\log\frac{Q(x)}{P(x)}
+</div>
+<p>Now the student's distribution determines which regions are emphasized.</p>
+<p>It strongly penalizes putting probability mass where the teacher says probability is very low.</p>
+<p>This is associated with <strong>mode-seeking</strong> behavior in the supplied MiniLLM explanation. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<p>We will return to this in depth when we reach <strong>MiniLLM</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-34">0.3.22 Cross-entropy in language-model training</h3>
+<p>Now connect today's mathematics directly to Transformers.</p>
+<p>Suppose vocabulary:</p>
+<div class="math block">
+V=\{\text{the, cat, sat, dog, ran}\}
+</div>
+<p>Correct token:</p>
+<div class="math block">
+y=\text{sat}
+</div>
+<p>One-hot target:</p>
+<div class="math block">
+P=[0,0,1,0,0]
+</div>
+<p>Model distribution:</p>
+<div class="math block">
+Q=[0.05,0.10,0.60,0.05,0.20]
+</div>
+<p>Cross-entropy:</p>
+<div class="math block">
+H(P,Q)
+=
+-\sum_iP_i\log Q_i
+</div>
+<p>Because all <span class="math inline">P_i</span> are zero except the correct token:</p>
+<div class="math block">
+=
+-\log0.60
+</div>
+<div class="math block">
+\boxed{
+H(P,Q)=0.5108
+}
+</div>
+<p>This exact example is in the supplied MiniLLM slides. <em>(Source: minillm-slides)</em></p>
+<p>So ordinary next-token training is just cross-entropy with a one-hot target.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-35">0.3.23 Why does one-hot cross-entropy collapse to <span class="math inline">-\log q_y</span>?</h3>
+<p>Suppose:</p>
+<div class="math block">
+y=[0,0,1,0]
+</div>
+<p>and:</p>
+<div class="math block">
+q=[0.1,0.2,0.6,0.1]
+</div>
+<p>Then:</p>
+<div class="math block">
+-\sum_i y_i\log q_i
+</div>
+<p>becomes:</p>
+<div class="math block">
+-
+[
+0\log0.1+
+0\log0.2+
+1\log0.6+
+0\log0.1
+]
+</div>
+<p>Everything disappears except:</p>
+<div class="math block">
+\boxed{-\log0.6}
+</div>
+<p>This is why the ordinary LM loss focuses on the probability assigned to the observed token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-36">0.3.24 Now the BIG connection: distillation</h3>
+<p>Imagine we replace the hard one-hot target:</p>
+<div class="math block">
+[0,0,1,0,0]
+</div>
+<p>with the teacher's output:</p>
+<div class="math block">
+P_{\text{teacher}}
+=
+[0.02,0.05,0.70,0.03,0.20]
+</div>
+<p>Now the student might predict:</p>
+<div class="math block">
+Q_{\text{student}}
+=
+[0.05,0.10,0.60,0.05,0.20]
+</div>
+<p>The loss becomes:</p>
+<div class="math block">
+\boxed{
+H(P_{\text{teacher}},Q_{\text{student}})
+=
+-\sum_v
+P_{\text{teacher}}(v)
+\log Q_{\text{student}}(v)
+}
+</div>
+<p>Now <strong>every vocabulary item contributes</strong>.</p>
+<p>This is the mathematical reason knowledge distillation carries more information than one-hot supervision.</p>
+<p>The supplied MiniLLM example explicitly shows that the teacher's entire probability shape—not just the true token—is used. <em>(Source: minillm-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-37">0.3.25 Why call this &quot;dark knowledge&quot;?</h3>
+<p>Suppose the teacher says:</p>
+<div class="math block">
+P=
+[0.01,0.02,0.70,0.05,0.22]
+</div>
+<p>A one-hot label only says:</p>
+<blockquote>
+<p><code>sat</code> is correct.</p>
+</blockquote>
+<p>It loses the teacher's relative judgments among wrong answers.</p>
+<p>But the teacher distribution tells us:</p>
+<div class="math block">
+P(\text{sat})=0.70
+</div>
+<div class="math block">
+P(\text{ran})=0.22
+</div>
+<div class="math block">
+P(\text{dog})=0.05
+</div>
+<p>etc.</p>
+<p>So the student learns:</p>
+<blockquote>
+<p><code>sat</code> is preferred, but <code>ran</code> is also somewhat plausible.</p>
+</blockquote>
+<p>That extra structure is what the distillation material refers to as <strong>dark knowledge</strong>. <em>(Source: minillm-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-38">0.3.26 Why temperature enters distillation</h3>
+<p>A teacher may produce:</p>
+<div class="math block">
+[0.999,0.0005,0.0003,\ldots]
+</div>
+<p>That distribution is too sharp to reveal much information about secondary choices.</p>
+<p>Temperature modifies logits before softmax:</p>
+<div class="math block">
+\boxed{
+p_i^{(T)}
+=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<p>With:</p>
+<div class="math block">
+T&gt;1
+</div>
+<p>the distribution becomes softer.</p>
+<p>For example:</p>
+<div class="math block">
+[0.999,0.0005,0.0003]
+</div>
+<p>might become something more informative such as:</p>
+<div class="math block">
+[0.70,0.20,0.10]
+</div>
+<p>The exact numbers depend on the logits, but the conceptual point is:</p>
+<div class="math block">
+\boxed{
+T&gt;1
+\Rightarrow
+\text{more information in the relative alternatives}
+}
+</div>
+<p>The supplied MiniLLM slides explicitly use temperature to soften teacher outputs and expose relative confidence among alternatives. <em>(Source: minillm-slides)</em></p>
+<p>This will become a whole topic later.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-39">0.3.27 The same KL appears later in RL</h3>
+<p>This is where today's lesson becomes much more powerful.</p>
+<p>In reinforcement learning for language models, we often don't want the updated policy to move arbitrarily far from a reference policy.</p>
+<p>So KL divergence appears as a constraint or penalty.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{reward improvement}
+-
+\text{penalty for moving too far}
+}
+</div>
+<p>One common structure is:</p>
+<div class="math block">
+J(\theta)
+=
+E[R]
+-
+\beta D_{KL}(\pi_\theta\|\pi_{\text{ref}})
+</div>
+<p>The exact objective varies by method, but the mathematical idea is the same:</p>
+<div class="math block">
+\boxed{
+KL=\text{distribution mismatch}
+}
+</div>
+<p>Your master cheatsheet explicitly places KL in both knowledge distillation and RL sections. <em>(Source: MASTER_Mathematical_Cheatsheet_All_Lecture_PDFs_v2)</em></p>
+<p>So understanding KL now will make later RL mathematics much easier.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-40">0.3.28 A unifying view</h3>
+<p>We now have:</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-41">Entropy</h5>
+<div class="math block">
+\boxed{
+H(P)=E_{x\sim P}[-\log P(x)]
+}
+</div>
+<p>Interpretation:</p>
+<blockquote>
+<p>How uncertain/spread out is <span class="math inline">P</span>?</p>
+</blockquote>
+<hr />
+<h5 id="v3-heading-chunk-les-step-0-3-i4-42">Cross-entropy</h5>
+<div class="math block">
+\boxed{
+H(P,Q)=E_{x\sim P}[-\log Q(x)]
+}
+</div>
+<p>Interpretation:</p>
+<blockquote>
+<p>How much surprise do I incur when data comes from <span class="math inline">P</span>, but I use <span class="math inline">Q</span> to predict it?</p>
+</blockquote>
+<hr />
+<h5 id="v3-heading-chunk-les-step-0-3-i4-43">KL divergence</h5>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)
+=
+E_{x\sim P}
+\left[
+\log\frac{P(x)}{Q(x)}
+\right]
+}
+</div>
+<p>Interpretation:</p>
+<blockquote>
+<p>How much extra information cost/mismatch arises from using <span class="math inline">Q</span> instead of <span class="math inline">P</span>?</p>
+</blockquote>
+<p>And:</p>
+<div class="math block">
+\boxed{
+H(P,Q)=H(P)+D_{KL}(P\|Q)
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-44">0.3.29 The complete conceptual graph</h3>
+<pre><code class="language-text">Probability distribution
+        │
+        ├───────────────┐
+        ↓               ↓
+    Entropy          Cross-Entropy
+        │               │
+        │               │
+        │               ↓
+        │           KL Divergence
+        │               │
+        └───────┬───────┘
+                ↓
+      Distribution mismatch
+                │
+        ┌───────┴────────┐
+        ↓                ↓
+ Knowledge             RL
+ Distillation       PPO / GRPO
+</code></pre>
+<p>And ordinary language-model training sits underneath:</p>
+<pre><code class="language-text">Logits
+  ↓
+Softmax
+  ↓
+Probability distribution q
+  ↓
+Cross-entropy with target
+  ↓
+Loss
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-45">0.3.30 One subtle but VERY important distinction</h3>
+<p>Do not confuse these:</p>
+<div class="math block">
+H(P)
+</div>
+<p>with:</p>
+<div class="math block">
+H(P,Q)
+</div>
+<p>with:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+</div>
+<p>Their roles are different.</p>
+<table>
+<thead>
+<tr>
+<th>Formula</th>
+<th>What it measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">H(P)</span></td>
+<td>uncertainty of <span class="math inline">P</span> itself</td>
+</tr>
+<tr>
+<td><span class="math inline">H(P,Q)</span></td>
+<td>prediction/encoding cost when true distribution is <span class="math inline">P</span>, model uses <span class="math inline">Q</span></td>
+</tr>
+<tr>
+<td><span class="math inline">D_{KL}(P\Vert Q)</span></td>
+<td>mismatch between <span class="math inline">P</span> and <span class="math inline">Q</span></td>
+</tr>
+</tbody>
+</table>
+<p>And:</p>
+<div class="math block">
+\boxed{
+CE = Entropy + KL
+}
+</div>
+<p>not:</p>
+<div class="math block">
+CE=KL
+</div>
+<p>However, when optimizing <span class="math inline">Q_\theta</span> with <span class="math inline">P</span> fixed:</p>
+<div class="math block">
+H(P)
+</div>
+<p>doesn't depend on <span class="math inline">\theta</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\arg\min_\theta H(P,Q_\theta)
+=
+\arg\min_\theta D_{KL}(P\|Q_\theta)
+}
+</div>
+<p>This is why a distillation cross-entropy objective can be described as equivalent to minimizing forward KL with respect to the student's parameters. The supplied MiniLLM material makes exactly this point. <em>(Source: minillm-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-46">0.3.31 Why this matters for the entire course</h3>
+<p>You've now built a mathematical bridge:</p>
+<div class="math block">
+\boxed{
+\text{Softmax}
+\rightarrow
+\text{probability distribution}
+\rightarrow
+\text{log probability}
+\rightarrow
+\text{entropy}
+\rightarrow
+\text{cross-entropy}
+\rightarrow
+\text{KL}
+}
+</div>
+<p>Later:</p>
+<div class="math block">
+\boxed{
+KL
+\rightarrow
+\text{distillation}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+KL
+\rightarrow
+\text{RLHF/RLVR}
+\rightarrow
+PPO
+\rightarrow
+GRPO
+}
+</div>
+<p>And later still:</p>
+<div class="math block">
+\boxed{
+GRPO
+\rightarrow
+DeepSeekMath
+\rightarrow
+DeepSeek-R1
+}
+</div>
+<p>So this is not a side chapter of information theory.</p>
+<p>It is part of the mathematical spine of the whole curriculum.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-47">0.3.32 MASTER NUMERICAL EXAMPLE</h3>
+<p>Given:</p>
+<div class="math block">
+P=[0.7,0.2,0.1]
+</div>
+<div class="math block">
+Q=[0.6,0.3,0.1]
+</div>
+<p>We found:</p>
+<div class="math block">
+\boxed{H(P)\approx0.8018}
+</div>
+<div class="math block">
+\boxed{H(P,Q)\approx0.8286}
+</div>
+<div class="math block">
+\boxed{D_{KL}(P\|Q)\approx0.0268}
+</div>
+<p>and verify:</p>
+<div class="math block">
+\boxed{
+0.8286\approx0.8018+0.0268
+}
+</div>
+<p>This one example contains the entire relationship.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-48">0.3.33 Code it</h3>
+<pre><code class="language-python">import torch
+
+P = torch.tensor([0.7, 0.2, 0.1])
+Q = torch.tensor([0.6, 0.3, 0.1])
+
+# Entropy H(P)
+entropy = -(P * torch.log(P)).sum()
+
+# Cross-entropy H(P, Q)
+cross_entropy = -(P * torch.log(Q)).sum()
+
+# KL divergence D_KL(P || Q)
+kl_divergence = (P * torch.log(P / Q)).sum()
+
+print(&quot;Entropy:&quot;, entropy.item())
+print(&quot;Cross-entropy:&quot;, cross_entropy.item())
+print(&quot;KL divergence:&quot;, kl_divergence.item())
+print(&quot;Entropy + KL:&quot;, (entropy + kl_divergence).item())
+</code></pre>
+<p>You should observe approximately:</p>
+<pre><code class="language-text">Entropy:          0.8018
+Cross-entropy:    0.8286
+KL divergence:    0.0268
+Entropy + KL:     0.8286
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-49">0.3.34 One more connection to gradients</h3>
+<p>You already learned in the previous lesson that we minimize negative log probability.</p>
+<p>Cross-entropy gives us the same training objective:</p>
+<div class="math block">
+L
+=
+-\sum_i y_i\log q_i
+</div>
+<p>where <span class="math inline">y</span> is the target distribution.</p>
+<p>For a one-hot target:</p>
+<div class="math block">
+L=-\log q_y
+</div>
+<p>And with softmax outputs, the gradient with respect to a class logit has the particularly elegant form:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial z_i}=q_i-y_i
+}
+</div>
+<p>This is one of the reasons softmax + cross-entropy is so convenient for training neural networks. The supplied <em>Hands-On Machine Learning</em> text derives the corresponding softmax-regression gradient in terms of predicted probabilities minus target indicators. <em>(Source: Hands-On Machine Learning with Scikit-Lear - Aurelien Geron)</em></p>
+<p>We will derive this carefully in the <strong>calculus/optimization foundation step</strong>, rather than skipping the derivation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-50">0.3.35 Your mental model should now be</h3>
+<p>When you see:</p>
+<div class="math block">
+-\log p
+</div>
+<p>think:</p>
+<blockquote>
+<p><strong>surprise / penalty for predicting probability <span class="math inline">p</span></strong></p>
+</blockquote>
+<p>When you see:</p>
+<div class="math block">
+H(P)
+</div>
+<p>think:</p>
+<blockquote>
+<p><strong>uncertainty of a distribution</strong></p>
+</blockquote>
+<p>When you see:</p>
+<div class="math block">
+H(P,Q)
+</div>
+<p>think:</p>
+<blockquote>
+<p><strong>how well <span class="math inline">Q</span> predicts outcomes from <span class="math inline">P</span></strong></p>
+</blockquote>
+<p>When you see:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+</div>
+<p>think:</p>
+<blockquote>
+<p><strong>how much <span class="math inline">Q</span> differs from <span class="math inline">P</span>, measured from <span class="math inline">P</span>'s perspective</strong></p>
+</blockquote>
+<p>When you see:</p>
+<div class="math block">
+H(P,Q)=H(P)+D_{KL}(P\|Q)
+</div>
+<p>think:</p>
+<blockquote>
+<p><strong>prediction cost = irreducible uncertainty + mismatch</strong></p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-0-3-i4-51">MASTER CHECK — STEP 0.3</h3>
+<p>Do these before we move forward.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-52">Q1</h5>
+<p>Which distribution is more uncertain?</p>
+<div class="math block">
+P_1=[1,0]
+</div>
+<p>or:</p>
+<div class="math block">
+P_2=[0.5,0.5]
+</div>
+<p>And why?</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-53">Q2</h5>
+<p>Calculate:</p>
+<div class="math block">
+H([0.5,0.5])
+</div>
+<p>using natural logarithms.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-54">Q3</h5>
+<p>What is the conceptual difference between:</p>
+<div class="math block">
+H(P)
+</div>
+<p>and:</p>
+<div class="math block">
+H(P,Q)?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-55">Q4</h5>
+<p>Given:</p>
+<div class="math block">
+P=[0.5,0.5]
+</div>
+<div class="math block">
+Q=[0.8,0.2]
+</div>
+<p>which quantity tells us that <span class="math inline">Q</span> does not perfectly match <span class="math inline">P</span>?</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-56">Q5</h5>
+<p>What happens to:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+</div>
+<p>when:</p>
+<div class="math block">
+P=Q?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-57">Q6</h5>
+<p>Is:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+D_{KL}(Q\|P)
+</div>
+<p>generally true?</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-58">Q7</h5>
+<p>Derive:</p>
+<div class="math block">
+H(P,Q)=H(P)+D_{KL}(P\|Q)
+</div>
+<p>in two or three mathematical steps.</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-59">Q8</h5>
+<p>Why does ordinary LM cross-entropy with a one-hot target reduce to:</p>
+<div class="math block">
+-\log q_y?
+</div>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-60">Q9</h5>
+<p>Why can we optimize cross-entropy and forward KL interchangeably when the teacher distribution <span class="math inline">P</span> is fixed?</p>
+<h5 id="v3-heading-chunk-les-step-0-3-i4-61">Q10 — the big one</h5>
+<p>Explain this entire chain in your own words:</p>
+<div class="math block">
+\boxed{
+\text{Logits}
+\rightarrow
+\text{Softmax}
+\rightarrow
+P
+\rightarrow
+\text{Cross-Entropy}
+\rightarrow
+\text{KL}
+}
+</div>
+<hr />
+</section>

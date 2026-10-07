@@ -1,0 +1,1156 @@
+<section class="chunk" id="chunk-les-step-6-1-1-i104" data-id="les-step-6-1-1-i104"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-6-1-1-i104"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-6-1-1-i104" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-6-1-i103">← Previous lesson</a> · <a href="#chunk-les-step-6-2-1-i105">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-6-1-i103">R100.1 / Step 6.1 — The Data Foundation of Mini-DeepSeek</a></p><p><strong>This lesson:</strong> R100.2 / Step 6.1.1 — Turning the Flat Token Stream into Training Batches</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-6-1-1-i104"></a></p>
+<h3 id="v3-heading-chunk-les-step-6-1-1-i104-1">R100.2 / Step 6.1.1 — Turning the Flat Token Stream into Training Batches</h3>
+<p><em>Plan node: A6 · chat order #104</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We are now at the exact bridge between:</p>
+<div class="math block">
+\boxed{\texttt{train.bin / val.bin}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{the Transformer forward pass}}
+</div>
+<p>The source calls this the <code>get_batch</code> stage of <code>train.py</code>. Its job is to open the memory-mapped token file, choose random starting positions, construct input/target sequences, and move them to the GPU when appropriate. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-2">6.1.1.1 What does the model actually need?</h4>
+<p>The language model was trained earlier conceptually with the objective:</p>
+<div class="math block">
+\boxed{
+\text{predict the next token from previous tokens}
+}
+</div>
+<p>So we cannot simply give it:</p>
+<pre><code class="language-text">[10, 20, 30, 40, 50]
+</code></pre>
+<p>and say “learn this.”</p>
+<p>We need two aligned sequences:</p>
+<div class="math block">
+\boxed{X}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{Y}.
+</div>
+<p>The first is what the model <strong>sees</strong>.</p>
+<p>The second is what the model is <strong>supposed to predict</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-3">6.1.1.2 The crucial one-token shift</h4>
+<p>Suppose the token stream is:</p>
+<div class="math block">
+[10,20,30,40,50,60].
+</div>
+<p>Choose a sequence length:</p>
+<div class="math block">
+T=5.
+</div>
+<p>Then the source constructs:</p>
+<div class="math block">
+X=[10,20,30,40,50]
+</div>
+<p>and:</p>
+<div class="math block">
+Y=[20,30,40,50,60].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+Y_t=X_{t+1}
+}
+</div>
+<p>for every valid position.</p>
+<p>This is the entire next-token prediction mechanism in its simplest form.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-4">6.1.1.3 Why is the shift necessary?</h4>
+<p>Consider:</p>
+<pre><code class="language-text">Input:
+10 20 30 40 50
+
+Target:
+20 30 40 50 60
+</code></pre>
+<p>At position 1, the model receives:</p>
+<div class="math block">
+10
+</div>
+<p>and should predict:</p>
+<div class="math block">
+20.
+</div>
+<p>At position 2:</p>
+<div class="math block">
+10,20
+</div>
+<p>and should predict:</p>
+<div class="math block">
+30.
+</div>
+<p>At position 3:</p>
+<div class="math block">
+10,20,30
+</div>
+<p>and should predict:</p>
+<div class="math block">
+40.
+</div>
+<p>And so on.</p>
+<p>So the training pair is really:</p>
+<div class="math block">
+\boxed{
+(X_1,\ldots,X_T)
+\rightarrow
+(Y_1,\ldots,Y_T)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\boxed{
+Y_i=X_{i+1}.
+}
+</div>
+<p>This is the same causal language-model objective we established earlier; here Chapter 6 finally implements it.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-5">6.1.1.4 The source's exact mechanism</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">x = torch.stack([
+    torch.from_numpy(
+        (data[i:i+block_size]).astype(np.int64)
+    )
+    for i in ix
+])
+
+y = torch.stack([
+    torch.from_numpy(
+        (data[i+1:i+1+block_size]).astype(np.int64)
+    )
+    for i in ix
+])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice the difference:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-6">Input</h6>
+<pre><code class="language-text">data[i : i + block_size]
+</code></pre>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-7">Target</h6>
+<pre><code class="language-text">data[i + 1 : i + 1 + block_size]
+</code></pre>
+<p>That single <code>+1</code> is the heart of next-token training.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-8">6.1.1.5 Let's inspect it numerically</h4>
+<p>Suppose:</p>
+<div class="math block">
+data=
+[100,101,102,103,104,105,106,107].
+</div>
+<p>Let:</p>
+<div class="math block">
+block\_size=4
+</div>
+<p>and:</p>
+<div class="math block">
+i=2.
+</div>
+<p>Then:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-9">Input</h6>
+<div class="math block">
+data[2:6]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{[102,103,104,105]}.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-10">Target</h6>
+<div class="math block">
+data[3:7]
+</div>
+<p>gives:</p>
+<div class="math block">
+\boxed{[103,104,105,106]}.
+</div>
+<p>Therefore:</p>
+<pre><code class="language-text">X = [102, 103, 104, 105]
+Y = [103, 104, 105, 106]
+</code></pre>
+<p>The model is trained to predict:</p>
+<pre><code class="language-text">102 → 103
+103 → 104
+104 → 105
+105 → 106
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-11">6.1.1.6 But our dataset is one giant stream</h4>
+<p>Recall what we built previously:</p>
+<pre><code class="language-text">Story 1 tokens
+EOT
+Story 2 tokens
+EOT
+Story 3 tokens
+EOT
+...
+</code></pre>
+<p>stored as:</p>
+<div class="math block">
+\boxed{\text{one flat array}}.
+</div>
+<p>So <code>get_batch()</code> does <strong>not</strong> need to know anything about stories at this point.</p>
+<p>It simply sees:</p>
+<div class="math block">
+\boxed{
+[t_0,t_1,t_2,\ldots,t_{N-1}]
+}
+</div>
+<p>and extracts contiguous windows.</p>
+<p>The EOT tokens remain inside this stream and tell the model where document boundaries were encoded.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-12">6.1.1.7 Why use random starting positions?</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">ix = torch.randint(
+    len(data) - block_size,
+    (batch_size,)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This means:</p>
+<div class="math block">
+\boxed{
+\text{randomly choose }batch\_size\text{ starting locations}.
+}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+batch\_size=4.
+</div>
+<p>We might get:</p>
+<div class="math block">
+i=[1032, 7811, 22501, 46290].
+</div>
+<p>Then four different chunks are extracted.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-13">6.1.1.8 Why not simply take the first 256 tokens every time?</h4>
+<p>Because then every iteration would see almost the same training example.</p>
+<p>For example:</p>
+<pre><code class="language-text">Iteration 1:
+tokens 0–255
+
+Iteration 2:
+tokens 0–255
+
+Iteration 3:
+tokens 0–255
+</code></pre>
+<p>That would be extremely wasteful.</p>
+<p>Random starting offsets let the model see many different portions of the corpus across training steps.</p>
+<p>The source explicitly says <code>get_batch</code> randomly selects <code>batch_size</code> starting positions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-14">6.1.1.9 What is <code>block_size</code>?</h4>
+<p>This is one of the most important hyperparameters in the data loader.</p>
+<p>The source configuration uses:</p>
+<div class="math block">
+\boxed{
+block\_size=256.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>It means each training example contains:</p>
+<div class="math block">
+\boxed{
+256\text{ input tokens}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+256\text{ target tokens}.
+}
+</div>
+<p>So for one sample:</p>
+<div class="math block">
+X\in\mathbb Z^{256}
+</div>
+<p>and:</p>
+<div class="math block">
+Y\in\mathbb Z^{256}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-15">6.1.1.10 Why <code>block_size</code> matters to the Transformer</h4>
+<p>The Transformer does not normally process the whole corpus at once.</p>
+<p>It sees a context window:</p>
+<div class="math block">
+\boxed{
+T=256
+}
+</div>
+<p>in this source configuration.</p>
+<p>So the model operates on:</p>
+<div class="math block">
+X=
+[x_1,x_2,\ldots,x_{256}].
+</div>
+<p>The model produces logits for all positions:</p>
+<div class="math block">
+Z\in\mathbb R^{256\times V}.
+</div>
+<p>Then the targets are:</p>
+<div class="math block">
+Y=
+[y_1,y_2,\ldots,y_{256}].
+</div>
+<p>And cross-entropy compares:</p>
+<div class="math block">
+Z_t
+</div>
+<p>against:</p>
+<div class="math block">
+Y_t.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-16">6.1.1.11 What is <code>batch_size</code>?</h4>
+<p>The source configuration uses:</p>
+<div class="math block">
+\boxed{
+batch\_size=24.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So we don't train on just one sequence.</p>
+<p>We build:</p>
+<div class="math block">
+24
+</div>
+<p>different random sequences.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb Z^{24\times256}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+Y\in\mathbb Z^{24\times256}.
+}
+</div>
+<p>This is the first major tensor-shape checkpoint.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-17">6.1.1.12 The complete shape transformation</h4>
+<p>We begin with:</p>
+<div class="math block">
+\boxed{
+\text{1-D token stream}
+}
+</div>
+<p>of shape:</p>
+<div class="math block">
+[N].
+</div>
+<p>Randomly choose:</p>
+<div class="math block">
+B=24
+</div>
+<p>starting points.</p>
+<p>Extract:</p>
+<div class="math block">
+T=256
+</div>
+<p>tokens at each point.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[N]
+\rightarrow
+[B,T]
+}
+</div>
+<p>which becomes:</p>
+<div class="math block">
+\boxed{
+[N]
+\rightarrow
+[24,256].
+}
+</div>
+<p>And because targets are shifted by one:</p>
+<div class="math block">
+\boxed{
+X:[24,256]
+}
+</div>
+<div class="math block">
+\boxed{
+Y:[24,256].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-18">6.1.1.13 Why <code>len(data) - block_size</code>?</h4>
+<p>Look closely at:</p>
+<pre><code class="language-python">torch.randint(len(data) - block_size, ...)
+</code></pre>
+<p>Suppose:</p>
+<div class="math block">
+len(data)=1000
+</div>
+<p>and:</p>
+<div class="math block">
+block\_size=256.
+</div>
+<p>A starting position needs enough room for:</p>
+<div class="math block">
+256
+</div>
+<p>input tokens <strong>plus the next-token target</strong>.</p>
+<p>The source's indexing makes the valid-start constraint explicit through the <code>len(data) - block_size</code> bound.</p>
+<p>The important idea is:</p>
+<div class="math block">
+\boxed{
+\text{don't choose a starting point so close to the end that a full training pair cannot be extracted}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-19">6.1.1.14 Why convert from uint16 to int64?</h4>
+<p>This line is interesting:</p>
+<pre><code class="language-python">.astype(np.int64)
+</code></pre>
+<p>The saved dataset is:</p>
+<div class="math block">
+\boxed{uint16}
+</div>
+<p>because that is an efficient storage representation.</p>
+<p>But before constructing the PyTorch training tensor, the source converts those token IDs to:</p>
+<div class="math block">
+\boxed{int64}.
+</div>
+<p>Why?</p>
+<p>Because token IDs are being prepared as integer indices for the model's embedding lookup and later loss computation.</p>
+<p>So we have an important distinction:</p>
+<div class="math block">
+\boxed{
+\text{storage dtype} \neq \text{training tensor dtype}.
+}
+</div>
+<p>Storage:</p>
+<div class="math block">
+uint16
+</div>
+<p>Training token tensor:</p>
+<div class="math block">
+int64.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-20">6.1.1.15 Why not store everything as int64 from the beginning?</h4>
+<p>Because that would waste storage.</p>
+<p>We already established:</p>
+<div class="math block">
+uint16=2\text{ bytes}.
+</div>
+<p>Whereas:</p>
+<div class="math block">
+int64=8\text{ bytes}.
+</div>
+<p>So a billion token IDs would require approximately:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-21">uint16</h6>
+<div class="math block">
+1B\times2
+=
+2\text{ GB}.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-22">int64</h6>
+<div class="math block">
+1B\times8
+=
+8\text{ GB}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{compact storage}
+\rightarrow
+\text{expand only when needed for computation}.
+}
+</div>
+<p>The source explicitly implements this distinction. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-23">6.1.1.16 <code>torch.from_numpy</code></h4>
+<p>The source wraps the NumPy slices with:</p>
+<pre><code class="language-python">torch.from_numpy(...)
+</code></pre>
+<p>This converts the NumPy array representation into a PyTorch tensor representation.</p>
+<p>Then:</p>
+<pre><code class="language-python">torch.stack(...)
+</code></pre>
+<p>combines the individual sequences into a batch.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">sequence 1 → [T]
+sequence 2 → [T]
+sequence 3 → [T]
+...
+sequence B → [T]
+
+        ↓ stack
+
+        [B,T]
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[T]\times B
+\rightarrow
+[B,T].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-24">6.1.1.17 Let's visualize the batch</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=3,\qquad T=5.
+</div>
+<p>We might obtain:</p>
+<pre><code class="language-text">X:
+
+[ 10  20  30  40  50 ]
+[ 72  91  33  14  18 ]
+[201 202 203 204 205 ]
+
+Y:
+
+[ 20  30  40  50  60 ]
+[ 91  33  14  18  19 ]
+[202 203 204 205 206 ]
+</code></pre>
+<p>Each row is an independent training example.</p>
+<p>The model processes all three in parallel.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-25">6.1.1.18 What does the Transformer see?</h4>
+<p>The Transformer receives:</p>
+<div class="math block">
+\boxed{
+X=[B,T]
+}
+</div>
+<p>of integer token IDs.</p>
+<p>For the source configuration:</p>
+<div class="math block">
+\boxed{
+X=[24,256].
+}
+</div>
+<p>The embedding layer then converts:</p>
+<div class="math block">
+[24,256]
+</div>
+<p>into:</p>
+<div class="math block">
+\boxed{
+[24,256,d_{\text{model}}].
+}
+</div>
+<p>For the flagship configuration later in the source:</p>
+<div class="math block">
+d_{\text{model}}=768.
+</div>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+[24,256]
+\rightarrow
+[24,256,768].
+}
+</div>
+<p>That is where the token IDs become continuous vectors.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-26">6.1.1.19 Then the normal Transformer pipeline begins</h4>
+<p>Now our previously learned architecture can finally be connected.</p>
+<pre><code class="language-text">train.bin
+   │
+   ▼
+memmap
+   │
+   ▼
+random starting positions
+   │
+   ▼
+X, Y
+   │
+   ▼
+X: [B,T]
+   │
+   ▼
+Token Embedding
+   │
+   ▼
+[B,T,d_model]
+   │
+   ▼
+DeepSeek Transformer
+   │
+   ├── MLA
+   ├── RoPE
+   ├── MoE
+   └── repeated blocks
+   │
+   ▼
+MTP during training
+   │
+   ▼
+logits
+   │
+   ▼
+cross-entropy
+   │
+   ▼
+loss
+</code></pre>
+<p>The source later confirms that the model's training path receives <code>X</code> and targets <code>Y</code>, computes the main loss and MTP losses, and returns the combined loss. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-27">6.1.1.20 Now let's understand the causal relationship</h4>
+<p>Suppose:</p>
+<div class="math block">
+X=
+[x_1,x_2,x_3,x_4].
+</div>
+<p>Because of causal masking:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-28">Position 1</h6>
+<p>The model can use:</p>
+<div class="math block">
+x_1
+</div>
+<p>to predict:</p>
+<div class="math block">
+y_1=x_2.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-29">Position 2</h6>
+<p>It can use:</p>
+<div class="math block">
+x_1,x_2
+</div>
+<p>to predict:</p>
+<div class="math block">
+y_2=x_3.
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-30">Position 3</h6>
+<p>It can use:</p>
+<div class="math block">
+x_1,x_2,x_3
+</div>
+<p>to predict:</p>
+<div class="math block">
+y_3=x_4.
+</div>
+<p>So the batch construction and the causal mask work together.</p>
+<div class="math block">
+\boxed{
+\text{shifted targets}
++
+\text{causal attention}
+=
+\text{next-token language modeling}.
+}
+</div>
+<p>This is a key connection.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-31">6.1.1.21 What would happen without the shift?</h4>
+<p>Suppose:</p>
+<div class="math block">
+X=[10,20,30]
+</div>
+<p>and incorrectly:</p>
+<div class="math block">
+Y=[10,20,30].
+</div>
+<p>Then the model would be rewarded for reproducing the current token rather than predicting the next one.</p>
+<p>That would no longer implement the intended autoregressive next-token objective.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+Y=X\text{ shifted left by one}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-32">6.1.1.22 What would happen without causal masking?</h4>
+<p>This is equally important.</p>
+<p>Suppose:</p>
+<pre><code class="language-text">X = [10, 20, 30, 40]
+Y = [20, 30, 40, 50]
+</code></pre>
+<p>At position 1, if attention could see all tokens including:</p>
+<div class="math block">
+30,40,
+</div>
+<p>then the model could use future information to help predict 20.</p>
+<p>That creates information leakage.</p>
+<p>So the two mechanisms have different jobs:</p>
+<div class="math block">
+\boxed{
+\text{batch shift}
+\rightarrow
+\text{defines the prediction target}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{causal mask}
+\rightarrow
+\text{prevents seeing future inputs}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-33">6.1.1.23 CPU → GPU</h4>
+<p>The source adds:</p>
+<pre><code class="language-python">if 'cuda' in device:
+    return (
+        x.pin_memory().to(device, non_blocking=True),
+        y.pin_memory().to(device, non_blocking=True)
+    )
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This introduces another systems concept.</p>
+<p>We have:</p>
+<div class="math block">
+\boxed{
+\text{CPU memory}
+\rightarrow
+\text{GPU VRAM}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-34">6.1.1.24 What is pinned memory?</h4>
+<p>The source specifically describes <code>pin_memory()</code> as a performance optimization for transferring data from CPU RAM to GPU VRAM. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<pre><code class="language-text">Normal CPU memory
+      │
+      ▼
+GPU transfer
+      │
+      ▼
+GPU
+
+Pinned CPU memory
+      │
+      │ optimized transfer path
+      ▼
+GPU
+</code></pre>
+<p>It doesn't change the model's mathematical computation.</p>
+<p>It improves the <strong>data movement path</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-35">6.1.1.25 What does <code>non_blocking=True</code> mean here?</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">.to(device, non_blocking=True)
+</code></pre>
+<p>together with pinned memory. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The practical intention is to allow the transfer to be issued without unnecessarily forcing the CPU-side execution to wait synchronously at that point, when the underlying conditions permit asynchronous transfer.</p>
+<p>So this belongs to:</p>
+<div class="math block">
+\boxed{
+\text{performance engineering}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{language-model mathematics}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-36">6.1.1.26 Why does this matter at scale?</h4>
+<p>Imagine:</p>
+<div class="math block">
+1000
+</div>
+<p>training iterations.</p>
+<p>If each iteration spends excessive time waiting for:</p>
+<div class="math block">
+\text{CPU}\rightarrow\text{GPU}
+</div>
+<p>data transfer, the GPU can sit idle.</p>
+<p>The goal is therefore:</p>
+<div class="math block">
+\boxed{
+\text{keep GPU computation busy}.
+}
+</div>
+<p>This is another recurring theme in large-scale ML:</p>
+<div class="math block">
+\boxed{
+\text{computation isn't the only bottleneck; data movement matters too}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-37">6.1.1.27 The complete <code>get_batch()</code> logic</h4>
+<p>Let's now translate the entire source function into plain English.</p>
+<pre><code class="language-python">def get_batch(split):
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Give me one batch from either the training or validation dataset.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">data = np.memmap(
+    os.path.join(data_dir, f'{split}.bin'),
+    dtype=np.uint16,
+    mode='r'
+)
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Open the appropriate binary token stream without loading the entire file into RAM.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">ix = torch.randint(
+    len(data) - block_size,
+    (batch_size,)
+)
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Choose <code>batch_size</code> random starting positions.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">x = ...
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Extract <code>block_size</code> consecutive tokens from each position.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">y = ...
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Extract the immediately shifted sequence so every token becomes the target of the preceding token.</p>
+</blockquote>
+<p>Then:</p>
+<pre><code class="language-python">pin_memory()
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Prepare CPU memory for efficient GPU transfer.</p>
+</blockquote>
+<p>And:</p>
+<pre><code class="language-python">.to(device)
+</code></pre>
+<p>means:</p>
+<blockquote>
+<p>Move the batch to the compute device.</p>
+</blockquote>
+<p>All of this is directly represented in the source's <code>Listing 6.20</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-38">6.1.1.28 One complete example with source configuration</h4>
+<p>The source uses:</p>
+<div class="math block">
+B=24
+</div>
+<p>and:</p>
+<div class="math block">
+T=256.
+</div>
+<p>Therefore one training call produces:</p>
+<div class="math block">
+\boxed{
+X\in\mathbb Z^{24\times256}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+Y\in\mathbb Z^{24\times256}.
+}
+</div>
+<p>Number of token positions processed in one batch:</p>
+<div class="math block">
+24\times256
+=
+\boxed{6,144}
+</div>
+<p>input positions.</p>
+<p>And the same number of target positions.</p>
+<p>This calculation is derived from the source's configuration. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-39">6.1.1.29 But notice something subtle</h4>
+<p>The batch contains:</p>
+<div class="math block">
+24\times256
+</div>
+<p>positions.</p>
+<p>That does <strong>not</strong> mean the model has:</p>
+<div class="math block">
+24\times256=6,144
+</div>
+<p>tokens in one giant sequence.</p>
+<p>Rather, it has:</p>
+<div class="math block">
+\boxed{24\text{ independent sequences}}
+</div>
+<p>each of length:</p>
+<div class="math block">
+\boxed{256}.
+</div>
+<p>So the tensor:</p>
+<div class="math block">
+[24,256]
+</div>
+<p>has two different meanings along its axes:</p>
+<div class="math block">
+\boxed{
+B=\text{batch dimension}
+}
+</div>
+<div class="math block">
+\boxed{
+T=\text{sequence dimension}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-40">6.1.1.30 Why random windows are useful</h4>
+<p>Suppose the token stream is:</p>
+<div class="math block">
+[t_0,t_1,\ldots,t_{N-1}].
+</div>
+<p>A random batch might choose:</p>
+<div class="math block">
+i_1,i_2,\ldots,i_B.
+</div>
+<p>Then:</p>
+<div class="math block">
+X_b
+=
+[t_{i_b},\ldots,t_{i_b+T-1}]
+</div>
+<p>and:</p>
+<div class="math block">
+Y_b
+=
+[t_{i_b+1},\ldots,t_{i_b+T}].
+</div>
+<p>Thus each batch provides many different local contexts.</p>
+<p>This formula is a mathematical expression of the source's slicing code.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-41">6.1.1.31 The entire data-to-loss chain</h4>
+<p>Now we can connect everything:</p>
+<div class="math block">
+\boxed{
+\text{TinyStories}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{GPT-2 BPE}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{uint16 token stream}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+train.bin
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{memmap}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{random positions}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+X,Y
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+[24,256]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{embedding}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+[24,256,d_{\text{model}}]
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Mini-DeepSeek}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{logits}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{cross-entropy + MTP loss}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{backpropagation}
+}
+</div>
+<p>This is the exact conceptual bridge that turns the prepared dataset into something trainable. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-42">6.1.1.32 Exam-style question</h4>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-43">Question</h6>
+<p>A tokenized stream is:</p>
+<div class="math block">
+[5,8,3,9,2,7].
+</div>
+<p>Choose:</p>
+<div class="math block">
+block\_size=4
+</div>
+<p>with starting position:</p>
+<div class="math block">
+i=1.
+</div>
+<p>Find <span class="math inline">X</span> and <span class="math inline">Y</span>.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-44">Step 1 — input</h6>
+<div class="math block">
+X=data[1:5]
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+X=[8,3,9,2].
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-45">Step 2 — target</h6>
+<div class="math block">
+Y=data[2:6]
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+Y=[3,9,2,7].
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+X=[8,3,9,2]
+}
+</div>
+<div class="math block">
+\boxed{
+Y=[3,9,2,7].
+}
+</div>
+<p>The rule is simply:</p>
+<div class="math block">
+\boxed{
+Y=X\text{ shifted by one token}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-46">6.1.1.33 Another exam question</h4>
+<p>Given:</p>
+<div class="math block">
+batch\_size=24
+</div>
+<p>and:</p>
+<div class="math block">
+block\_size=256,
+</div>
+<p>what is the shape of <code>x</code>?</p>
+<div class="math block">
+\boxed{
+[24,256].
+}
+</div>
+<p>What is the shape of <code>y</code>?</p>
+<div class="math block">
+\boxed{
+[24,256].
+}
+</div>
+<p>How many prediction positions exist in the batch?</p>
+<div class="math block">
+24\times256
+=
+\boxed{6144}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-47">6.1.1.34 One very important distinction</h4>
+<p>There are three different lengths you must not confuse:</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-48">Entire dataset</h6>
+<div class="math block">
+\boxed{N}
+</div>
+<p>possibly millions/billions of tokens.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-49">Sequence length</h6>
+<div class="math block">
+\boxed{T=256}
+</div>
+<p>in this source configuration.</p>
+<h6 id="v3-heading-chunk-les-step-6-1-1-i104-50">Batch size</h6>
+<div class="math block">
+\boxed{B=24}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+[N]\rightarrow[B,T]=[24,256].
+}
+</div>
+<p>The dataset is enormous.</p>
+<p>Each training step samples only a small portion.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-1-1-i104-51">6.1.1.35 Why this is efficient</h4>
+<p>We do <strong>not</strong> do:</p>
+<div class="math block">
+\text{entire dataset}
+\rightarrow
+\text{GPU}.
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{disk}
+\rightarrow
+\text{small slices}
+\rightarrow
+\text{CPU}
+\rightarrow
+\text{GPU}
+\rightarrow
+\text{model}.
+}
+</div>
+<p>That's why the earlier choice of <code>memmap</code> matters.</p>
+<p>The two responses are therefore one continuous design:</p>
+<div class="math block">
+\boxed{
+\text{R100.1: efficient storage}
+}
+</div>
+<p>feeds directly into:</p>
+<div class="math block">
+\boxed{
+\text{R100.2: efficient sampling}.
+}
+</div>
+<hr />
+</section>

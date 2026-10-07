@@ -1,0 +1,1000 @@
+<section class="chunk" id="chunk-les-step-5-3-i44" data-id="les-step-5-3-i44"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-3-i44"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-3-i44" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-minillm-evidence">← Previous lesson</a> · <a href="#chunk-les-step-5-4-i45">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-2-i43">Step 5.2 — RL Mathematics From the Ground Up</a></p><p><strong>This lesson:</strong> Step 5.3 — Why GRPO Instead of PPO?</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-8">deepseekmath-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-3-i44"></a></p>
+<h2>Step 5.3 — Why GRPO Instead of PPO?</h2>
+<p><em>Plan node: I6 · chat order #44</em></p>
+<p>We now reach the key algorithmic question:</p>
+<div class="math block">
+\boxed{\text{Why did DeepSeekMath introduce GRPO when PPO already existed?}}
+</div>
+<p>The source gives the central answer:</p>
+<blockquote>
+<p><strong>GRPO removes the separate value model and gets its baseline from multiple sampled responses to the same prompt.</strong></p>
+</blockquote>
+<p>This is the single most important idea in this step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-1">1. First understand what PPO is trying to solve</h3>
+<p>From Step 5.2, we saw:</p>
+<div class="math block">
+\nabla_\theta J(\theta)
+=
+\mathbb E
+\left[
+R\nabla_\theta \log\pi_\theta
+\right].
+</div>
+<p>But using the raw reward <span class="math inline">R</span> can have high variance.</p>
+<p>Imagine two prompts:</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-2">Prompt A</h5>
+<pre><code class="language-text">2 + 2 = ?
+</code></pre>
+<p>Reward:</p>
+<div class="math block">
+R=1
+</div>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-3">Prompt B</h5>
+<pre><code class="language-text">Prove a difficult theorem.
+</code></pre>
+<p>Reward:</p>
+<div class="math block">
+R=1
+</div>
+<p>Both got the same raw reward, but these tasks are not equally informative.</p>
+<p>A more useful question is:</p>
+<div class="math block">
+\boxed{\text{Was this outcome better or worse than what was expected?}}
+</div>
+<p>That quantity is represented by an <strong>advantage</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-4">2. What is advantage?</h3>
+<p>The general intuition is:</p>
+<div class="math block">
+\boxed{
+A = \text{actual outcome} - \text{expected outcome}
+}
+</div>
+<p>In a value-function formulation:</p>
+<div class="math block">
+A_t
+=
+R_t - V_\phi(s_t)
+</div>
+<p>in the simplified form used in the source material.</p>
+<p>Here:</p>
+<ul>
+<li><span class="math inline">R_t</span> = observed return/reward</li>
+<li><span class="math inline">V_\phi(s_t)</span> = value model's estimate of expected outcome</li>
+<li><span class="math inline">\phi</span> = value-model parameters</li>
+</ul>
+<p>The source explicitly describes the value model as predicting how good the current partial response is expected to be. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-5">3. Why does PPO need a value model?</h3>
+<p>The PPO-style setup therefore has two learned components:</p>
+<pre><code class="language-text">                PPO
+                 │
+       ┌─────────┴─────────┐
+       ↓                   ↓
+    Policy              Value model
+    πθ                    Vϕ
+       │                   │
+ generates tokens      predicts expected
+                         reward
+</code></pre>
+<p>The policy answers:</p>
+<blockquote>
+<p>What token should I generate?</p>
+</blockquote>
+<p>The value model answers:</p>
+<blockquote>
+<p>Given where I am, how good should the eventual outcome be?</p>
+</blockquote>
+<p>Then advantage is based on the comparison.</p>
+<p>The source emphasizes that this additional value model is expensive because it adds memory, forward passes, training loss, and engineering complexity. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-6">4. Why this becomes painful for LLMs</h3>
+<p>Suppose your policy is a huge LLM.</p>
+<p>Now you need another large network:</p>
+<div class="math block">
+V_\phi.
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{policy} + \text{value model}
+}
+</div>
+<p>instead of only:</p>
+<div class="math block">
+\boxed{
+\text{policy}
+}
+</div>
+<p>So you pay for:</p>
+<ul>
+<li>extra model memory,</li>
+<li>extra computation,</li>
+<li>value-model training,</li>
+<li>extra optimizer state,</li>
+<li>additional engineering.</li>
+</ul>
+<p>This is exactly the motivation highlighted by the DeepSeekMath and GRPO slides.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-7">5. GRPO asks a different question</h3>
+<p>Instead of asking:</p>
+<blockquote>
+<p>“Can a separate neural network estimate the expected reward?”</p>
+</blockquote>
+<p>GRPO asks:</p>
+<blockquote>
+<p><strong>“Why not simply generate several answers to the same problem and compare them?”</strong></p>
+</blockquote>
+<p>Suppose the prompt is:</p>
+<div class="math block">
+q
+</div>
+<p>and the model generates four responses:</p>
+<div class="math block">
+o_1,o_2,o_3,o_4.
+</div>
+<p>Suppose their rewards are:</p>
+<div class="math block">
+[1,0,1,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+\mu
+=
+\frac{1+0+1+0}{4}
+=
+0.5.
+</div>
+<p>Now:</p>
+<div class="math block">
+R_i-\mu
+=
+[0.5,-0.5,0.5,-0.5].
+</div>
+<p>Immediately we know:</p>
+<pre><code class="language-text">o1 → above group average
+o2 → below group average
+o3 → above group average
+o4 → below group average
+</code></pre>
+<p>No learned value function was required.</p>
+<p>That is the <strong>group relative</strong> idea. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-8">6. Why is the group average a useful baseline?</h3>
+<p>This is the clever part.</p>
+<p>Suppose the model is answering a very easy question.</p>
+<p>Maybe nearly every rollout gets:</p>
+<div class="math block">
+R=1.
+</div>
+<p>Then the model is already good.</p>
+<p>Suppose the model is answering a difficult question.</p>
+<p>Maybe only one out of four attempts succeeds.</p>
+<p>Then a successful rollout is especially valuable relative to its peers.</p>
+<p>So the baseline becomes:</p>
+<div class="math block">
+\boxed{
+\text{What did the model typically achieve on this exact prompt?}
+}
+</div>
+<p>That is much more prompt-specific than a generic global reward expectation.</p>
+<p>The DeepSeekMath slides explicitly frame the group average as replacing the value model's job of estimating the typical reward for the current situation. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-9">7. PPO versus GRPO visually</h3>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-10">PPO</h4>
+<pre><code class="language-text">Prompt
+  ↓
+Policy
+  ↓
+Response
+  ↓
+Reward
+  │
+  └──────→ Value model estimates baseline
+                    ↓
+               Advantage
+</code></pre>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-11">GRPO</h4>
+<pre><code class="language-text">Prompt
+  ↓
+Policy
+  ↓
+Generate multiple responses
+  ↓
+o1   o2   o3   o4
+│    │    │    │
+1    0    1    0   ← rewards
+ \   │    │   /
+    group statistics
+         ↓
+     advantages
+</code></pre>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{PPO baseline}=\text{learned value model}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{GRPO baseline}=\text{empirical group statistics}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-12">8. Why GRPO requires multiple rollouts</h3>
+<p>Now notice an important consequence.</p>
+<p>If:</p>
+<div class="math block">
+G=1
+</div>
+<p>then there is only one response.</p>
+<p>Its reward is:</p>
+<div class="math block">
+R_1.
+</div>
+<p>The group mean is also:</p>
+<div class="math block">
+\mu=R_1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_1-\mu=0.
+</div>
+<p>So there is no meaningful relative comparison.</p>
+<p>Hence GRPO needs:</p>
+<div class="math block">
+\boxed{G&gt;1}
+</div>
+<p>for meaningful group-relative learning.</p>
+<p>The source explicitly notes that GRPO requires multiple completions per prompt so that the group baseline is meaningful. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-13">9. Group-relative advantage formula</h3>
+<p>For a prompt <span class="math inline">q</span>, suppose we sample:</p>
+<div class="math block">
+G
+</div>
+<p>completions.</p>
+<p>Rewards:</p>
+<div class="math block">
+r_1,r_2,\ldots,r_G.
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu
+=
+\frac1G\sum_{j=1}^{G}r_j.
+</div>
+<p>Standard deviation:</p>
+<div class="math block">
+\sigma
+=
+\operatorname{std}(r_1,\ldots,r_G).
+</div>
+<p>Then the simplified group-relative advantage is:</p>
+<div class="math block">
+\boxed{
+A_i
+=
+\frac{r_i-\mu}{\sigma+\epsilon}
+}
+</div>
+<p>where <span class="math inline">\epsilon</span> prevents division by zero. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-14">10. Numerical example — full GRPO advantage calculation</h3>
+<p>Suppose:</p>
+<div class="math block">
+G=4
+</div>
+<p>and:</p>
+<div class="math block">
+r=[1,0,1,0].
+</div>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-15">Step 1: mean</h4>
+<div class="math block">
+\mu=0.5.
+</div>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-16">Step 2: deviations</h4>
+<div class="math block">
+[0.5,-0.5,0.5,-0.5].
+</div>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-17">Step 3: standard deviation</h4>
+<p>Using the sample standard deviation convention used by the source's PyTorch example:</p>
+<div class="math block">
+\sigma\approx0.577.
+</div>
+<h4 id="v3-heading-chunk-les-step-5-3-i44-18">Step 4: normalize</h4>
+<div class="math block">
+A=
+\left[
+\frac{0.5}{0.577},
+\frac{-0.5}{0.577},
+\frac{0.5}{0.577},
+\frac{-0.5}{0.577}
+\right]
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+A\approx[0.866,-0.866,0.866,-0.866]
+}
+</div>
+<p>This is the same type of worked group-relative signal shown in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-19">11. Now connect advantage to policy learning</h3>
+<p>Suppose the generated responses have sequence log probabilities:</p>
+<div class="math block">
+\log p=
+[-7,-8,-15,-16].
+</div>
+<p>Advantages:</p>
+<div class="math block">
+A=
+[0.866,-0.866,0.866,-0.866].
+</div>
+<p>The simplified policy-gradient objective is:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac14
+\sum_{i=1}^{4}
+A_i\log p_i.
+</div>
+<p>So:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac14[
+(0.866)(-7)
++
+(-0.866)(-8)
++
+(0.866)(-15)
++
+(-0.866)(-16)
+].
+</div>
+<p>The important thing is not memorizing the final number.</p>
+<p>The important thing is understanding:</p>
+<div class="math block">
+\boxed{
+A_i
+\text{ determines the direction and strength of the update}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\log p_i
+\text{ tells us how the current policy assigns probability to the sampled response}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-20">12. But PPO and GRPO still share important machinery</h3>
+<p>This is a subtle point.</p>
+<p>GRPO does <strong>not</strong> throw away all PPO ideas.</p>
+<p>The source explicitly says that moving from PPO to GRPO keeps:</p>
+<ul>
+<li>old-policy log probabilities,</li>
+<li>policy ratios,</li>
+<li>clipped objective,</li>
+<li>reference-policy KL.</li>
+</ul>
+<p>The main structural change is the <strong>source of the advantage</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{GRPO is not “PPO with everything removed”}
+}
+</div>
+<p>It is better to think:</p>
+<div class="math block">
+\boxed{
+\text{GRPO}
+=
+\text{policy optimization}
++
+\text{group-derived advantages}
+-
+\text{value model}
+}
+</div>
+<p>with other stabilization machinery retained in the broader formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-21">13. What is the “old policy”?</h3>
+<p>Suppose the current model has parameters:</p>
+<div class="math block">
+\theta.
+</div>
+<p>It generates some rollout.</p>
+<p>After generation, we don't want to keep changing the reference probability used to interpret that sample.</p>
+<p>So we keep an older version:</p>
+<div class="math block">
+\pi_{\theta_{\text{old}}}.
+</div>
+<p>Then compare:</p>
+<div class="math block">
+\pi_\theta
+</div>
+<p>against:</p>
+<div class="math block">
+\pi_{\theta_{\text{old}}}.
+</div>
+<p>This gives the probability ratio:</p>
+<div class="math block">
+\boxed{
+r_i(\theta)
+=
+\frac{
+\pi_\theta(y_i\mid x)
+}{
+\pi_{\theta_{\text{old}}}(y_i\mid x)
+}
+}
+</div>
+<p>The source later computes this using log probabilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-22">14. Why use the ratio?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\pi_{\text{old}}(y)=0.1
+</div>
+<p>and:</p>
+<div class="math block">
+\pi_{\text{new}}(y)=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+r
+=
+\frac{0.2}{0.1}
+=
+\boxed{2}.
+</div>
+<p>So the new model considers that response:</p>
+<div class="math block">
+\boxed{2\times}
+</div>
+<p>as likely as the old model.</p>
+<p>If:</p>
+<div class="math block">
+\pi_{\text{old}}=0.2,
+\qquad
+\pi_{\text{new}}=0.1,
+</div>
+<p>then:</p>
+<div class="math block">
+r=0.5.
+</div>
+<p>The probability was cut in half.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-23">15. Why use log probabilities in implementation?</h3>
+<p>Because:</p>
+<div class="math block">
+\frac{\pi_{\text{new}}}{\pi_{\text{old}}}
+=
+\exp(
+\log\pi_{\text{new}}
+-
+\log\pi_{\text{old}}
+).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+r_i
+=
+\exp(
+\log p_i^{\text{new}}
+-
+\log p_i^{\text{old}}
+)
+}
+</div>
+<p>This is numerically convenient.</p>
+<p>The source uses exactly this construction:</p>
+<pre><code class="language-python">log_ratio = new_logps - old_logps
+ratio = torch.exp(log_ratio)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-24">16. Numerical ratio example</h3>
+<p>Suppose:</p>
+<div class="math block">
+\log p_{\text{new}}=-2
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{old}}=-3.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log r
+=
+-2-(-3)
+=
+1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+r=e^1
+\approx
+\boxed{2.718}.
+</div>
+<p>So the new model assigns about:</p>
+<div class="math block">
+\boxed{2.72\times}
+</div>
+<p>the previous probability to that sampled outcome.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-25">17. Why do we need clipping?</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=1.
+</div>
+<p>And the ratio suddenly becomes:</p>
+<div class="math block">
+r=20.
+</div>
+<p>Without any limitation:</p>
+<div class="math block">
+rA=20.
+</div>
+<p>That gives a huge influence to this rollout.</p>
+<p>A single aggressive update could push the policy far from the policy that produced the samples.</p>
+<p>That can destabilize training.</p>
+<p>The source explicitly motivates clipping as a mechanism for limiting overly large model updates and avoiding instability. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-26">18. Clipping formula</h3>
+<p>Define a clipping range:</p>
+<div class="math block">
+[1-\epsilon,1+\epsilon].
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\operatorname{clip}(r,1-\epsilon,1+\epsilon)
+}
+</div>
+<p>limits the ratio.</p>
+<p>For example, if:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>then:</p>
+<div class="math block">
+r\in[0.8,1.2].
+</div>
+<p>A ratio of:</p>
+<div class="math block">
+1.5
+</div>
+<p>becomes:</p>
+<div class="math block">
+1.2.
+</div>
+<p>A ratio of:</p>
+<div class="math block">
+0.6
+</div>
+<p>becomes:</p>
+<div class="math block">
+0.8.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-27">19. The source's striking example</h3>
+<p>The source uses:</p>
+<div class="math block">
+\epsilon=10.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+1-\epsilon=-9,
+\qquad
+1+\epsilon=11.
+</div>
+<p>Since probability ratios are nonnegative, the practical lower bound is effectively not restrictive here.</p>
+<p>The source's example has:</p>
+<div class="math block">
+r=[20.0855,1.2214,0.1353,1.0].
+</div>
+<p>After clipping:</p>
+<div class="math block">
+\boxed{
+[11.0,1.2214,0.1353,1.0]
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-28">20. Why is this related to PPO?</h3>
+<p>Because clipping is the characteristic PPO idea brought into this GRPO implementation.</p>
+<p>The source explicitly cites the PPO paper as the source of clipped policy ratios used here. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So the lineage is:</p>
+<div class="math block">
+\boxed{
+\text{PPO}
+\rightarrow
+\text{clipped policy ratio}
+\rightarrow
+\text{GRPO uses it}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{PPO}
+\rightarrow
+\text{value model}
+}
+</div>
+<p>is the component GRPO removes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-29">21. GRPO's core simplification</h3>
+<p>Now write this side-by-side:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>PPO</th>
+<th>GRPO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Policy</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Old policy</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Clipped ratio</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Reference policy / KL</td>
+<td>Yes in typical LLM setups</td>
+<td>Yes in the broader GRPO formulation</td>
+</tr>
+<tr>
+<td>Value model</td>
+<td><strong>Yes</strong></td>
+<td><strong>No</strong></td>
+</tr>
+<tr>
+<td>Advantage source</td>
+<td>Value estimate</td>
+<td>Group-relative rewards</td>
+</tr>
+<tr>
+<td>Multiple responses per prompt</td>
+<td>Not fundamentally required</td>
+<td><strong>Required for group baseline</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The source directly emphasizes that the <strong>main code change is the source of the advantage</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-30">22. Why this saves resources</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{policy}=7\text{B parameters}.
+</div>
+<p>A PPO-style setup may require another large value network of comparable scale.</p>
+<p>GRPO removes that requirement.</p>
+<p>Instead of:</p>
+<div class="math block">
+7B + 7B,
+</div>
+<p>you conceptually keep:</p>
+<div class="math block">
+\boxed{7B}
+</div>
+<p>for the main policy plus whatever reference-policy arrangement is used.</p>
+<p>The exact memory footprint in a real implementation depends on parameter sharing, precision, optimizer state, reference handling, etc. The source's claim is architectural: GRPO eliminates the separately trained value model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-31">23. But there is a tradeoff</h3>
+<p>GRPO does not make computation free.</p>
+<p>Instead of spending compute on a value model, we spend compute generating:</p>
+<div class="math block">
+G
+</div>
+<p>different responses.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{less model-side overhead}
+\leftrightarrow
+\text{more rollout generation}
+}
+</div>
+<p>The DeepSeekMath material frames the tradeoff as worthwhile because sampling a few extra responses can be cheaper than training and running another full-size value model. <em>(Source: deepseekmath-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-32">24. One very important conceptual comparison</h3>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-33">PPO asks:</h5>
+<div class="math block">
+\boxed{
+\text{“What reward should I expect from this state?”}
+}
+</div>
+<p>and learns a function:</p>
+<div class="math block">
+V_\phi(s).
+</div>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-34">GRPO asks:</h5>
+<div class="math block">
+\boxed{
+\text{“Among the responses I actually generated for this prompt, which ones did better?”}
+}
+</div>
+<p>and computes a baseline from:</p>
+<div class="math block">
+\mu_{\text{group}}.
+</div>
+<p>That is why it is called:</p>
+<div class="math block">
+\boxed{\text{Group Relative Policy Optimization}}
+</div>
+<p>The phrase <strong>group relative</strong> is not decorative terminology.</p>
+<p>It literally refers to the group of sampled responses.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-35">25. Level 1 numerical</h3>
+<p>Four rollouts produce:</p>
+<div class="math block">
+[1,0,1,0].
+</div>
+<p>Mean reward:</p>
+<div class="math block">
+\boxed{0.5}
+</div>
+<p>Above-average rollouts:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>Below-average rollouts:</p>
+<div class="math block">
+\boxed{2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-36">26. Level 2 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+r=[1,0,1,0]
+</div>
+<p>and:</p>
+<div class="math block">
+\sigma=0.577.
+</div>
+<p>Compute the advantage for the third rollout.</p>
+<p>Since:</p>
+<div class="math block">
+r_3=1,
+</div>
+<div class="math block">
+A_3
+=
+\frac{1-0.5}{0.577}
+\approx
+\boxed{0.866}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-37">27. Level 3 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+\log p_{\text{new}}=-4
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{old}}=-5.
+</div>
+<p>Then:</p>
+<div class="math block">
+r
+=
+e^{-4-(-5)}
+=
+e^1
+=
+\boxed{2.718}.
+</div>
+<p>With:</p>
+<div class="math block">
+\epsilon=0.2,
+</div>
+<p>the clipped ratio is:</p>
+<div class="math block">
+\boxed{1.2}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-38">28. Level 4 numerical — batch shapes</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=16
+</div>
+<p>prompts and:</p>
+<div class="math block">
+G=8
+</div>
+<p>rollouts per prompt.</p>
+<p>Then:</p>
+<div class="math block">
+R\in\mathbb R^{16\times8}.
+</div>
+<p>Advantages:</p>
+<div class="math block">
+A\in\mathbb R^{16\times8}.
+</div>
+<p>Suppose each response has:</p>
+<div class="math block">
+T=512
+</div>
+<p>generated tokens.</p>
+<p>Token-level log probabilities:</p>
+<div class="math block">
+\boxed{
+\log p\in\mathbb R^{16\times8\times512}
+}
+</div>
+<p>Sequence log probabilities after summing over tokens:</p>
+<div class="math block">
+\boxed{
+[16,8]
+}
+</div>
+<p>Then the final mean produces:</p>
+<div class="math block">
+\boxed{\text{scalar loss}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-39">29. Level 5 exam-style numerical</h3>
+<p>You have:</p>
+<div class="math block">
+G=4
+</div>
+<p>responses with rewards:</p>
+<div class="math block">
+[1,0,0,1].
+</div>
+<p>Their sequence log probabilities under the current policy are:</p>
+<div class="math block">
+[-4,-5,-6,-7].
+</div>
+<p>Using:</p>
+<div class="math block">
+\mu=0.5,
+\qquad
+\sigma\approx0.577,
+</div>
+<p>the advantages are:</p>
+<div class="math block">
+[0.866,-0.866,-0.866,0.866].
+</div>
+<p>Compute:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac14
+\sum_i A_i\log p_i.
+</div>
+<p>Products:</p>
+<div class="math block">
+0.866(-4)=-3.464
+</div>
+<div class="math block">
+-0.866(-5)=4.330
+</div>
+<div class="math block">
+-0.866(-6)=5.196
+</div>
+<div class="math block">
+0.866(-7)=-6.062.
+</div>
+<p>Sum:</p>
+<div class="math block">
+-3.464+4.330+5.196-6.062
+\approx0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{L_{\text{PG}}\approx0}
+</div>
+<p>This is a useful exam lesson:</p>
+<blockquote>
+<p>A nonzero advantage vector does <strong>not</strong> guarantee a nonzero aggregate loss; the weighted terms can cancel.</p>
+</blockquote>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-40">30. The complete mental model</h3>
+<p>You should now visualize the algorithm like this:</p>
+<pre><code class="language-text">                 SAME PROMPT q
+                      │
+          ┌───────────┼───────────┐
+          ↓           ↓           ↓
+        rollout 1   rollout 2   ... rollout G
+          │           │               │
+          ↓           ↓               ↓
+        reward 1    reward 2       reward G
+          └───────────┼───────────────┘
+                      ↓
+                group mean/std
+                      ↓
+                  advantages
+                      ↓
+          compare old vs current policy
+                      ↓
+                 policy ratios
+                      ↓
+                   clipping
+                      ↓
+             policy-gradient objective
+                      ↓
+                 KL regularization
+                      ↓
+                  backpropagation
+                      ↓
+                 update the policy
+</code></pre>
+<p>The source's GRPO figure presents essentially this same progression, with the reference policy and KL component included in the complete formulation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-41">31. What you must be able to explain in an exam/interview</h3>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-42">Why PPO?</h5>
+<p>Because policy gradients benefit from an advantage estimate, and PPO uses a learned value model to help construct that learning signal while using clipped policy updates for stability.</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-43">Why GRPO?</h5>
+<p>Because for reasoning tasks, we can sample several answers to the same prompt and use their relative performance as the baseline, eliminating the separate value model.</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-44">What does “group” mean?</h5>
+<p>The multiple completions generated for the <strong>same prompt</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-45">What does “relative” mean?</h5>
+<p>A response is evaluated relative to the group's mean reward.</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-46">What does “policy optimization” mean?</h5>
+<p>Changing the LLM parameters so that desirable sampled responses become more probable.</p>
+<p>These points are directly aligned with the source's PPO-vs-GRPO explanation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-3-i44-47">32. One subtle point to lock in</h3>
+<p>GRPO removes the <strong>value model</strong>.</p>
+<p>It does <strong>not</strong> mean:</p>
+<div class="math block">
+\text{“GRPO has no reference model.”}
+</div>
+<p>Wrong.</p>
+<p>The source explicitly says:</p>
+<div class="math block">
+\boxed{
+\text{GRPO removes the value model, not the reference model}
+}
+</div>
+<p>The frozen reference policy is still used for KL control in the broader formulation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That distinction becomes extremely important in the next steps.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-3-i44-48">Step 5.3 takeaway</h4>
+<p>The entire motivation can be summarized mathematically as:</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-49">PPO</h5>
+<div class="math block">
+\boxed{
+A_i \approx R_i-V_\phi(s_i)
+}
+</div>
+<p>where <span class="math inline">V_\phi</span> is learned.</p>
+<h5 id="v3-heading-chunk-les-step-5-3-i44-50">GRPO</h5>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\operatorname{mean}(R)}
+{\operatorname{std}(R)+\epsilon}
+}
+</div>
+<p>where the baseline comes from <strong>other sampled responses to the same prompt</strong>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{GRPO = relative group comparison instead of a learned value baseline}
+}
+</div>
+<p>while retaining the broader policy-optimization machinery such as old-policy comparison, clipping, and reference-policy KL. <em>(Source: deepseekmath-slides; Build a DeepSeek Model (From Scratch))</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-b1">B.1 — RL for LLMs, PPO and GRPO (book view)</a> — <em>PPO and GRPO (book view)</em></p>
+</blockquote>
+<hr />
+</section>

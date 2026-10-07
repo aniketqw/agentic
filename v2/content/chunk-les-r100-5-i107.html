@@ -1,0 +1,1066 @@
+<section class="chunk" id="chunk-les-r100-5-i107" data-id="les-r100-5-i107"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r100-5-i107"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r100-5-i107" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-6-2-1-i106">← Previous lesson</a> · <a href="#chunk-les-r100-6-i108">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-6-2-1-i106">R100.4 — Step 6.2.1: Implementing RoPE in model.py</a></p><p><strong>This lesson:</strong> R100.5 — DeepSeekAttention: MLA + Decoupled RoPE + KV Cache</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r100-5-i107"></a></p>
+<h3 id="v3-heading-chunk-les-r100-5-i107-1">R100.5 — DeepSeekAttention: MLA + Decoupled RoPE + KV Cache</h3>
+<p><em>Plan node: A6 · chat order #107</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now reach the most important integration point in the Mini-DeepSeek implementation.</p>
+<p>Previously we learned each idea separately:</p>
+<div class="math block">
+\text{MLA} \qquad \text{RoPE} \qquad \text{KV Cache}
+</div>
+<p>Now the source puts them together inside one <code>DeepSeekAttention</code> module.</p>
+<p>The source describes this module as two parallel paths:</p>
+<div class="math block">
+\boxed{\text{Content Path}}
+</div>
+<p>for semantic/content information, and</p>
+<div class="math block">
+\boxed{\text{Position Path}}
+</div>
+<p>for positional information. Their attention scores are added before the normal softmax/context calculation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-2">1. First see the whole thing</h4>
+<p>Before touching code, keep this picture in mind:</p>
+<pre><code class="language-text">                         x
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+          ▼                             ▼
+   CONTENT PATH                  POSITION PATH
+       MLA                            RoPE
+          │                             │
+          │                        q_r, k_r
+          │                             │
+     q_c, c_kv                           │
+          │                              │
+      k_c, v_c                           │
+          │                              │
+          └──────────────┬───────────────┘
+                         ▼
+                attention scores
+                         │
+                         ▼
+              content + position
+                         │
+                         ▼
+                  causal mask
+                         │
+                         ▼
+                      softmax
+                         │
+                         ▼
+                     weights
+                         │
+                         ▼
+                       v_c
+                         │
+                         ▼
+                   context vector
+                         │
+                         ▼
+                       W_o
+                         │
+                         ▼
+                       output
+</code></pre>
+<p>The critical architectural idea is:</p>
+<div class="math block">
+\boxed{
+\text{content and position are represented separately}
+}
+</div>
+<p>and then fused at the <strong>attention-score level</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-3">2. Why do we need this split?</h4>
+<p>This comes from the tension we previously studied.</p>
+<p>MLA wants a highly compressed representation for the KV cache.</p>
+<p>RoPE, however, is inherently position-dependent.</p>
+<p>The source describes the architecture as resolving this tension by keeping:</p>
+<ul>
+<li>content information in a compressed latent cache,</li>
+<li>positional information in a separate RoPE path.</li>
+</ul>
+<p>It explicitly says this allows the cache-friendly MLA design to coexist with position-dependent RoPE. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the conceptual solution is:</p>
+<div class="math block">
+\boxed{
+\text{compress content}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{keep positional information separate}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-4">3. Start with the dimensions</h4>
+<p>Let the model input be:</p>
+<div class="math block">
+x\in\mathbb R^{B\times S\times D}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">B</span> = batch size</li>
+<li><span class="math inline">S</span> = sequence length</li>
+<li><span class="math inline">D=d_{\text{model}}</span></li>
+</ul>
+<p>For the source's default <code>ModelArgs</code>:</p>
+<div class="math block">
+D=512
+</div>
+<div class="math block">
+H=8
+</div>
+<div class="math block">
+d_{\text{latent}}=128
+</div>
+<div class="math block">
+d_{\text{rope}}=32.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+d_{\text{head}}
+=
+\frac{512}{8}
+=
+64.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{x:[B,S,512]}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-5">4. The constructor</h4>
+<p>The source's <code>DeepSeekAttention</code> creates four content-path projections:</p>
+<pre><code class="language-python">self.W_q_content
+self.W_dkv_content
+self.W_uk_content
+self.W_uv_content
+</code></pre>
+<p>and two position-path projections:</p>
+<pre><code class="language-python">self.W_k_pos
+self.W_q_pos
+</code></pre>
+<p>plus the RoPE module and final output projection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The architecture is therefore:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+\begin{cases}
+q_c,\ c_{kv}\\
+q_r,\ k_r
+\end{cases}
+}
+</div>
+<p>This is the first major departure from ordinary MHA.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-6">5. Content Path — Step 1: Query</h4>
+<p>The source does:</p>
+<pre><code class="language-python">q_c = self.W_q_content(x).view(
+    B, S, self.num_heads, self.d_head
+).transpose(1, 2)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>First:</p>
+<div class="math block">
+W_{q,\text{content}}:
+D\rightarrow D.
+</div>
+<p>So:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+[B,S,D].
+</div>
+<p>Then reshape:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+[B,S,H,d_{\text{head}}].
+</div>
+<p>Because:</p>
+<div class="math block">
+D=H\cdot d_{\text{head}}.
+</div>
+<p>Finally:</p>
+<pre><code class="language-python">.transpose(1, 2)
+</code></pre>
+<p>changes:</p>
+<div class="math block">
+[B,S,H,d_{\text{head}}]
+</div>
+<p>into:</p>
+<div class="math block">
+\boxed{
+[B,H,S,d_{\text{head}}].
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+q_c:[B,H,S,d_{\text{head}}].
+}
+</div>
+<p>For the default configuration:</p>
+<div class="math block">
+\boxed{
+q_c:[B,8,S,64].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-7">6. Content Path — Step 2: Compress Key/Value information</h4>
+<p>Now the crucial MLA operation:</p>
+<pre><code class="language-python">c_kv_new = self.W_dkv_content(x)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The projection is:</p>
+<div class="math block">
+W_{dkv}:
+d_{\text{model}}
+\rightarrow
+d_{\text{latent}}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+[B,S,512]
+\rightarrow
+[B,S,128].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+c_{kv,\text{new}}:[B,S,d_{\text{latent}}].
+}
+</div>
+<p>This is the compressed latent representation.</p>
+<p>And this is what gives MLA its cache advantage.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-8">7. Why is this so important?</h4>
+<p>Compare ordinary MHA.</p>
+<p>A conventional cache stores full K and V representations:</p>
+<div class="math block">
+[B,H,S,d_{\text{head}}].
+</div>
+<p>Since:</p>
+<div class="math block">
+H d_{\text{head}}=D,
+</div>
+<p>that's effectively:</p>
+<div class="math block">
+[B,S,D]
+</div>
+<p>for each of K and V.</p>
+<p>MLA instead keeps:</p>
+<div class="math block">
+\boxed{
+c_{kv}:[B,S,d_{\text{latent}}].
+}
+</div>
+<p>With the source configuration:</p>
+<div class="math block">
+512\rightarrow128.
+</div>
+<p>So the stored latent content representation is one quarter of the model dimension.</p>
+<p>That is the central memory-saving mechanism represented in this implementation. The source emphasizes that only the compressed latent tensor is needed for the content portion of the cache. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-9">8. Cached inference changes the latent tensor</h4>
+<p>The source then does:</p>
+<pre><code class="language-python">c_kv = torch.cat(
+    [past_kv[0], c_kv_new],
+    dim=1
+) if past_kv else c_kv_new
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose:</p>
+<div class="math block">
+past\_len=P
+</div>
+<p>and the current input contains:</p>
+<div class="math block">
+S
+</div>
+<p>new tokens.</p>
+<p>Then:</p>
+<div class="math block">
+past_kv[0]
+</div>
+<p>contains:</p>
+<div class="math block">
+[B,P,d_{\text{latent}}]
+</div>
+<p>and:</p>
+<div class="math block">
+c_{kv,\text{new}}
+</div>
+<p>contains:</p>
+<div class="math block">
+[B,S,d_{\text{latent}}].
+</div>
+<p>Concatenating along the sequence dimension gives:</p>
+<div class="math block">
+\boxed{
+c_{kv}:[B,P+S,d_{\text{latent}}].
+}
+</div>
+<p>So the cache grows with the sequence.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-10">9. Then decompress the latent representation</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">k_c = self.W_uk_content(c_kv)
+v_c = self.W_uv_content(c_kv)
+</code></pre>
+<p>and reshapes them into attention heads. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+c_{kv}
+\rightarrow
+k_c
+</div>
+<p>and:</p>
+<div class="math block">
+c_{kv}
+\rightarrow
+v_c.
+</div>
+<p>Dimensionally:</p>
+<div class="math block">
+[B,P+S,128]
+\rightarrow
+[B,P+S,512]
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+[B,H,P+S,64].
+}
+</div>
+<p>So every head can reconstruct its own content Key and Value from the shared latent representation.</p>
+<p>This is the reason the source emphasizes that MLA can retain head diversity even though the cache itself is compressed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-11">10. This is a very important distinction</h4>
+<p>The cache stores:</p>
+<div class="math block">
+\boxed{c_{kv}}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{k_c,v_c}.
+</div>
+<p>But during attention computation, the implementation reconstructs:</p>
+<div class="math block">
+k_c,v_c
+</div>
+<p>from that latent state.</p>
+<p>Therefore:</p>
+<pre><code class="language-text">cache:
+    compact
+
+computation:
+    reconstruct full head-specific K/V
+</code></pre>
+<p>That is MLA's fundamental pattern in this implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-12">11. Position Path — Key and Query</h4>
+<p>Now we move to the second branch.</p>
+<p>The source does:</p>
+<pre><code class="language-python">k_r_unrotated = self.W_k_pos(x).view(
+    B, S, self.num_heads, self.d_rope
+).transpose(1, 2)
+
+q_r_unrotated = self.W_q_pos(x).view(
+    B, S, self.num_heads, self.d_rope
+).transpose(1, 2)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Unlike the content query, these projections have output dimension:</p>
+<div class="math block">
+H\cdot d_{\text{rope}}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+[B,S,H,d_{\text{rope}}]
+\rightarrow
+\boxed{[B,H,S,d_{\text{rope}}]}.
+</div>
+<p>For the default configuration:</p>
+<div class="math block">
+\boxed{
+q_r,k_r:[B,8,S,32].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-13">12. Apply RoPE</h4>
+<p>We already finished the RoPE implementation.</p>
+<p>Now:</p>
+<pre><code class="language-python">k_r_new = self.rope(
+    k_r_unrotated,
+    position_offset=position_offset
+)
+</code></pre>
+<p>and:</p>
+<pre><code class="language-python">q_r = self.rope(
+    q_r_unrotated,
+    position_offset=position_offset
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+q_r^{\text{unrotated}}
+\rightarrow
+q_r
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+k_r^{\text{unrotated}}
+\rightarrow
+k_r.
+}
+</div>
+<p>The positional information exists only in this path.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-14">13. Why is the Key cached?</h4>
+<p>The new positional Key is:</p>
+<div class="math block">
+k_{r,\text{new}}.
+</div>
+<p>The source appends it to the previous positional Key cache:</p>
+<pre><code class="language-python">k_r = torch.cat(
+    [past_kv[1], k_r_new],
+    dim=2
+) if past_kv else k_r_new
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice:</p>
+<pre><code class="language-python">dim=2
+</code></pre>
+<p>because <code>k_r</code> has shape:</p>
+<div class="math block">
+[B,H,S,d_{\text{rope}}].
+</div>
+<p>Dimension 2 is the sequence dimension.</p>
+<p>So:</p>
+<div class="math block">
+[B,H,P,d_{\text{rope}}]
+</div>
+<p>plus:</p>
+<div class="math block">
+[B,H,S,d_{\text{rope}}]
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+[B,H,P+S,d_{\text{rope}}].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-15">14. Therefore the cache has two components</h4>
+<p>This is one of the most important things to memorize.</p>
+<p>The source returns:</p>
+<pre><code class="language-python">new_cache = (c_kv, k_r)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{KV Cache}
+=
+(c_{kv},k_r).
+}
+</div>
+<p>where:</p>
+<div class="math block">
+c_{kv}
+=
+\text{compressed content state}
+</div>
+<p>and:</p>
+<div class="math block">
+k_r
+=
+\text{position-aware Key state}.
+</div>
+<p>This is <strong>not</strong> the ordinary:</p>
+<div class="math block">
+(K,V)
+</div>
+<p>cache of standard MHA.</p>
+<p>That distinction matters enormously.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-16">15. Now calculate content attention scores</h4>
+<p>The source computes:</p>
+<pre><code class="language-python">content_scores = (
+    q_c @ k_c.transpose(-2, -1)
+) / math.sqrt(self.d_head)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We know:</p>
+<div class="math block">
+q_c\in
+\mathbb R^{B\times H\times S\times d_{\text{head}}}
+</div>
+<p>and:</p>
+<div class="math block">
+k_c\in
+\mathbb R^{B\times H\times(P+S)\times d_{\text{head}}}.
+</div>
+<p>Transpose the final two dimensions of <span class="math inline">k_c</span>:</p>
+<div class="math block">
+k_c^T:
+[B,H,d_{\text{head}},P+S].
+</div>
+<p>Then matrix multiplication:</p>
+<div class="math block">
+[S,d_{\text{head}}]
+\times
+[d_{\text{head}},P+S]
+</div>
+<p>gives:</p>
+<div class="math block">
+[S,P+S].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+content\_scores
+\in
+\mathbb R^{B\times H\times S\times(P+S)}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-17">16. Why divide by <span class="math inline">\sqrt{d_{\text{head}}}</span>?</h4>
+<p>This is standard scaled dot-product attention, which we learned earlier.</p>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+\frac{q_ck_c^T}{\sqrt{d_{\text{head}}}}
+}
+</div>
+<p>so that the score magnitude remains controlled as the dimensionality increases.</p>
+<p>Nothing new mathematically is being introduced here.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-18">17. Now positional attention scores</h4>
+<p>The source does:</p>
+<pre><code class="language-python">position_scores = (
+    q_r @ k_r.transpose(-2, -1)
+) / math.sqrt(self.d_rope)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Here:</p>
+<div class="math block">
+q_r:
+[B,H,S,d_{\text{rope}}]
+</div>
+<p>and:</p>
+<div class="math block">
+k_r:
+[B,H,P+S,d_{\text{rope}}].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+position\_scores:
+[B,H,S,P+S].
+}
+</div>
+<p>Notice the denominator is:</p>
+<div class="math block">
+\sqrt{d_{\text{rope}}}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\sqrt{d_{\text{head}}}.
+</div>
+<p>That matches the dimensionality of this separate positional pathway in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-19">18. The central fusion step</h4>
+<p>Now the two paths finally meet.</p>
+<p>The source says:</p>
+<pre><code class="language-python">attn_scores = content_scores + position_scores
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+A
+=
+\frac{q_ck_c^T}{\sqrt{d_{\text{head}}}}
++
+\frac{q_rk_r^T}{\sqrt{d_{\text{rope}}}}
+}
+</div>
+<p>This is the core equation of the decoupled implementation.</p>
+<p>Think of it as:</p>
+<div class="math block">
+\boxed{
+\text{semantic compatibility}
++
+\text{positional compatibility}
+}
+</div>
+<p>producing the final attention score.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-20">19. Why add scores instead of vectors?</h4>
+<p>This is a subtle architectural choice.</p>
+<p>The content path answers:</p>
+<blockquote>
+<p>How relevant is this previous token based on its learned content representation?</p>
+</blockquote>
+<p>The position path answers:</p>
+<blockquote>
+<p>How relevant is it based on positional information?</p>
+</blockquote>
+<p>The architecture combines these <strong>before softmax</strong>:</p>
+<div class="math block">
+\boxed{
+\text{scores}
+\rightarrow
+\text{addition}
+\rightarrow
+\text{softmax}.
+}
+</div>
+<p>So positional information changes the attention distribution itself.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-21">20. Then causal masking</h4>
+<p>After combining the paths, the source applies the causal mask. The earlier implementation shows:</p>
+<pre><code class="language-python">attn_scores = attn_scores.masked_fill(
+    self.mask[:, :, :seq_len, :seq_len],
+    float('-inf')
+)
+</code></pre>
+<p>followed by softmax. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Future positions
+      ↓
+score = -∞
+      ↓
+softmax
+      ↓
+probability ≈ 0
+</code></pre>
+<p>Therefore the model cannot use future tokens.</p>
+<p>This is the same causal mechanism we established during the batch-construction step.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-22">21. Softmax</h4>
+<p>Now:</p>
+<div class="math block">
+\boxed{
+A\rightarrow\operatorname{softmax}(A).
+}
+</div>
+<p>The result is:</p>
+<div class="math block">
+\boxed{
+attn\_weights
+\in
+\mathbb R^{B\times H\times S\times(P+S)}.
+}
+</div>
+<p>Each query position gets a probability distribution over the available keys.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-23">22. The important question: which Value gets used?</h4>
+<p>The answer is:</p>
+<div class="math block">
+\boxed{v_c}.
+</div>
+<p>Not a positional Value.</p>
+<p>The source describes the positional branch as providing positional information in the attention scores, while the resulting attention weights are applied to the content-only Value. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Position path modifies where we attend}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Content path supplies what information is retrieved}.
+}
+</div>
+<p>That is a very useful mental model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-24">23. Context vector</h4>
+<p>The source calculates conceptually:</p>
+<pre><code class="language-python">context_vector = attn_weights @ v_c
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Dimensions:</p>
+<div class="math block">
+[B,H,S,P+S]
+</div>
+<p>times:</p>
+<div class="math block">
+[B,H,P+S,d_{\text{head}}].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[B,H,S,d_{\text{head}}].
+}
+</div>
+<p>Then it transposes and reshapes back to model dimension:</p>
+<div class="math block">
+[B,H,S,d_{\text{head}}]
+\rightarrow
+[B,S,H,d_{\text{head}}]
+\rightarrow
+\boxed{
+[B,S,D].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-25">24. Final output projection</h4>
+<p>Finally:</p>
+<pre><code class="language-python">output = self.W_o(context_vector)
+</code></pre>
+<p>The source defines:</p>
+<div class="math block">
+W_o:
+d_{\text{model}}\rightarrow d_{\text{model}}.
+</div>
+<p>So:</p>
+<div class="math block">
+[B,S,D]
+\rightarrow
+\boxed{[B,S,D]}.
+</div>
+<p>That is the output of the attention sublayer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-26">25. Let's do one complete numerical shape trace</h4>
+<p>Use the source default values:</p>
+<div class="math block">
+B=24
+</div>
+<div class="math block">
+S=256
+</div>
+<div class="math block">
+D=512
+</div>
+<div class="math block">
+H=8
+</div>
+<div class="math block">
+d_{\text{head}}=64
+</div>
+<div class="math block">
+d_{\text{latent}}=128
+</div>
+<div class="math block">
+d_{\text{rope}}=32.
+</div>
+<p>Input:</p>
+<div class="math block">
+\boxed{
+x:[24,256,512]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-27">Content Query</h6>
+<div class="math block">
+\boxed{
+q_c:[24,8,256,64]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-28">Compressed latent</h6>
+<div class="math block">
+\boxed{
+c_{kv}:[24,256,128]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-29">Content Key</h6>
+<div class="math block">
+\boxed{
+k_c:[24,8,256,64]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-30">Content Value</h6>
+<div class="math block">
+\boxed{
+v_c:[24,8,256,64]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-31">Position Query</h6>
+<div class="math block">
+\boxed{
+q_r:[24,8,256,32]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-32">Position Key</h6>
+<div class="math block">
+\boxed{
+k_r:[24,8,256,32]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-33">Content scores</h6>
+<div class="math block">
+\boxed{
+[24,8,256,256]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-34">Position scores</h6>
+<div class="math block">
+\boxed{
+[24,8,256,256]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-35">Final scores</h6>
+<div class="math block">
+\boxed{
+[24,8,256,256]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-36">Attention weights</h6>
+<div class="math block">
+\boxed{
+[24,8,256,256]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-37">Context</h6>
+<div class="math block">
+\boxed{
+[24,8,256,64]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-38">Reshape</h6>
+<div class="math block">
+\boxed{
+[24,256,512]
+}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-39">Output projection</h6>
+<div class="math block">
+\boxed{
+[24,256,512].
+}
+</div>
+<p>This is the complete forward shape flow.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-40">26. Now see what changes during generation</h4>
+<p>Suppose 256 tokens have already been cached.</p>
+<p>Now the model receives:</p>
+<div class="math block">
+S=1
+</div>
+<p>new token.</p>
+<p>Then:</p>
+<div class="math block">
+P=256.
+</div>
+<p>The new query has:</p>
+<div class="math block">
+q_c:
+[B,H,1,64].
+</div>
+<p>But the cached content latent becomes:</p>
+<div class="math block">
+c_{kv}:
+[B,257,128].
+</div>
+<p>The reconstructed keys/values become:</p>
+<div class="math block">
+k_c,v_c:
+[B,8,257,64].
+</div>
+<p>Likewise the positional cache becomes:</p>
+<div class="math block">
+k_r:
+[B,8,257,32].
+</div>
+<p>So the new query compares itself against all 257 available positions:</p>
+<div class="math block">
+[1]\times[257]
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+attention\ scores:[B,8,1,257].
+}
+</div>
+<p>The crucial efficiency point is that we do <strong>not</strong> recompute the entire 257-token history from scratch.</p>
+<p>The history is already represented in the cache.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-41">27. And this connects to <code>position_offset</code></h4>
+<p>For that same example:</p>
+<div class="math block">
+P=256.
+</div>
+<p>The model determines:</p>
+<div class="math block">
+\boxed{
+position\_offset=256.
+}
+</div>
+<p>That value reaches RoPE.</p>
+<p>So the new token is treated as:</p>
+<div class="math block">
+\boxed{\text{absolute position }256}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{\text{position }0}.
+</div>
+<p>At the same time, the cached Keys remain available for attention.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+KV\ Cache
++
+position\_offset
+}
+</div>
+<p>solve two different problems:</p>
+<ul>
+<li>cache → reuse prior attention information</li>
+<li>offset → assign correct absolute positional encoding to newly processed tokens.</li>
+</ul>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-42">28. Why the cache tuple is unusual</h4>
+<p>In ordinary MHA we often think:</p>
+<div class="math block">
+\text{cache}=(K,V).
+</div>
+<p>Here the source has:</p>
+<div class="math block">
+\boxed{
+\text{cache}=(c_{kv},k_r).
+}
+</div>
+<p>Why?</p>
+<p>Because the value-related content information is encoded inside the compressed latent representation:</p>
+<div class="math block">
+c_{kv}.
+</div>
+<p>The positional component requires:</p>
+<div class="math block">
+k_r.
+</div>
+<p>So the cache stores the <strong>minimal representations needed by this decoupled design</strong>.</p>
+<p>The source explicitly highlights these two cached tensors in its architecture discussion. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-43">29. One subtle source distinction</h4>
+<p>The source's explanatory text refers to maintaining the cache-friendly <strong>&quot;absorption trick&quot;</strong> for the content path. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>However, the Chapter 6 code listing we are studying explicitly reconstructs <code>k_c</code> and <code>v_c</code> from <code>c_kv</code> before calculating the score/context.</p>
+<p>So for this teaching sequence, keep the distinction:</p>
+<div class="math block">
+\boxed{
+\text{architectural idea: compressed cache / absorption-friendly MLA}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{this simplified implementation: materialize }k_c,v_c\text{ for the calculation}.
+}
+</div>
+<p>That prevents us from conflating the conceptual optimization with every low-level optimization used by a production implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-44">30. What has actually been integrated now?</h4>
+<p>We started with three independent ideas.</p>
+<h6 id="v3-heading-chunk-les-r100-5-i107-45">MLA</h6>
+<div class="math block">
+x\rightarrow c_{kv}\rightarrow k_c,v_c
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-46">RoPE</h6>
+<div class="math block">
+q_r,k_r\rightarrow\operatorname{RoPE}
+</div>
+<h6 id="v3-heading-chunk-les-r100-5-i107-47">KV Cache</h6>
+<div class="math block">
+past\rightarrow\text{append new states}.
+</div>
+<p>Now the complete structure is:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+x
+&amp;\rightarrow q_c,\ c_{kv}\\
+x
+&amp;\rightarrow q_r,\ k_r\\
+c_{kv}
+&amp;\rightarrow k_c,v_c\\
+q_r,k_r
+&amp;\rightarrow \text{RoPE}\\
+q_ck_c^T
+&amp;\rightarrow \text{content score}\\
+q_rk_r^T
+&amp;\rightarrow \text{position score}\\
+\text{two scores}
+&amp;\rightarrow \text{addition}\\
+&amp;\rightarrow \text{causal mask}\\
+&amp;\rightarrow \text{softmax}\\
+&amp;\rightarrow v_c\\
+&amp;\rightarrow W_o\\
+&amp;\rightarrow output.
+\end{aligned}
+}
+</div>
+<p>That is <strong>DeepSeekAttention in this Mini-DeepSeek implementation</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-48">31. The single most important conceptual takeaway</h4>
+<p>When you see:</p>
+<div class="math block">
+\boxed{
+\text{MLA + Decoupled RoPE}
+}
+</div>
+<p>don't imagine one enormous attention formula.</p>
+<p>Imagine <strong>two questions</strong> being answered separately:</p>
+<div class="math block">
+\boxed{
+\text{Content: &quot;What is relevant?&quot;}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Position: &quot;Where is it relevant?&quot;}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{combine their scores}
+}
+</div>
+<p>and use those combined scores to retrieve content through <span class="math inline">v_c</span>.</p>
+<p>That is the core intuition behind this implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-5-i107-49">32. Current architecture status</h4>
+<p>We have now completed:</p>
+<div class="math block">
+\boxed{\text{Data preparation}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\text{Training windows / }X,Y}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\texttt{ModelArgs}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\text{RoPE implementation}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{\text{DeepSeekAttention}}
+</div>
+<hr />
+</section>

@@ -1,0 +1,1287 @@
+<section class="chunk" id="chunk-les-step-5-49-3-i98" data-id="les-step-5-49-3-i98"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-3-i98"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-3-i98" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-2-i97">← Previous lesson</a> · <a href="#chunk-les-step-5-49-4-i99">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-2-i97">Step 5.49.2 — Pillar 2: Fine-Grained Quantization</a></p><p><strong>This lesson:</strong> Step 5.49.3 — Pillar 3: Increasing Accumulation Precision</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-3-i98"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-3-i98-1">Step 5.49.3 — Pillar 3: Increasing Accumulation Precision</h3>
+<p><em>Plan node: A4 · chat order #98</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We now reach the <strong>third pillar</strong> of DeepSeek's FP8 framework.</p>
+<p>Pillar 1 asked:</p>
+<div class="math block">
+\boxed{\text{Where should FP8 be used?}}
+</div>
+<p>Pillar 2 asked:</p>
+<div class="math block">
+\boxed{\text{How should FP8 values be scaled?}}
+</div>
+<p>Pillar 3 asks:</p>
+<div class="math block">
+\boxed{\text{After multiplying FP8 values, how do we safely add thousands of products together?}}
+</div>
+<p>This is the <strong>accumulation problem</strong>.</p>
+<p>The source's solution is:</p>
+<div class="math block">
+\boxed{
+\text{low-precision Tensor-Core computation}
+\rightarrow
+\text{periodic promotion}
+\rightarrow
+\text{FP32 accumulation}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-2">5.49.3.1 Start with matrix multiplication</h4>
+<p>Everything starts from:</p>
+<div class="math block">
+\boxed{
+Y=WX
+}
+</div>
+<p>For one element of <span class="math inline">Y</span>:</p>
+<div class="math block">
+\boxed{
+Y_{ij}
+=
+\sum_{r=1}^{K}W_{ir}X_{rj}
+}
+</div>
+<p>or explicitly:</p>
+<div class="math block">
+Y_{ij}
+=
+W_{i1}X_{1j}
++
+W_{i2}X_{2j}
++\cdots+
+W_{iK}X_{Kj}.
+</div>
+<p>The source writes this exact dot-product structure before introducing the accumulator problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-3">5.49.3.2 Multiplication is only half the problem</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=4096.
+</div>
+<p>Then one output value requires:</p>
+<div class="math block">
+\boxed{4096\text{ products}}
+</div>
+<p>and then those products have to be added:</p>
+<div class="math block">
+p_1+p_2+\cdots+p_{4096}.
+</div>
+<p>So there are two separate numerical operations:</p>
+<div class="math block">
+\boxed{\text{multiplication}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{accumulation}}.
+</div>
+<p>This distinction is absolutely central.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-4">5.49.3.3 What is an accumulator?</h4>
+<p>Suppose:</p>
+<div class="math block">
+p_1=W_{i1}X_{1j}.
+</div>
+<p>Then:</p>
+<div class="math block">
+a_1=p_1.
+</div>
+<p>Next:</p>
+<div class="math block">
+p_2=W_{i2}X_{2j}
+</div>
+<p>and:</p>
+<div class="math block">
+a_2=a_1+p_2.
+</div>
+<p>Then:</p>
+<div class="math block">
+a_3=a_2+p_3.
+</div>
+<p>And so on:</p>
+<div class="math block">
+\boxed{
+a_r=\sum_{q=1}^{r}p_q.
+}
+</div>
+<p>The register holding the running sum is called the:</p>
+<div class="math block">
+\boxed{\text{accumulator}}.
+</div>
+<p>The source explicitly introduces the accumulator this way. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-5">5.49.3.4 Why can't we just accumulate in FP8?</h4>
+<p>Because the running sum can involve thousands of terms.</p>
+<p>Imagine:</p>
+<div class="math block">
+p_1=1.2
+</div>
+<div class="math block">
+p_2=-1.1
+</div>
+<div class="math block">
+p_3=0.0004
+</div>
+<div class="math block">
+p_4=0.0003
+</div>
+<p>and many more.</p>
+<p>The small contributions can matter to the final answer.</p>
+<p>But low-precision accumulation may not preserve enough information to represent the running total accurately.</p>
+<p>The source describes this as a hardware limitation of low-precision accumulators and connects it to underflow/precision loss for large inner dimensions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-6">5.49.3.5 The source's hardware-specific framing</h4>
+<p>The source says that, for the hardware it discusses, the internal low-precision accumulator can have substantially less precision than FP32; it gives an example of roughly <strong>14 bits</strong> and states that long reductions can therefore suffer significant numerical error, potentially around <strong>2%</strong> in its discussion. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The source's Figure 5.31 illustration labels the Tensor Core side as <strong>16 bit</strong> and the CUDA Core side as <strong>32 bit</strong>, while the prose discusses an example of a lower-precision accumulator around 14 bits. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For our conceptual understanding, the important point is simply:</p>
+<div class="math block">
+\boxed{
+\text{Tensor-Core accumulator precision}
+&lt;
+\text{FP32 precision}.
+}
+</div>
+<p>The exact hardware width should be treated as <strong>source-specific</strong>, rather than as a universal property of every Tensor Core.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-7">5.49.3.6 What happens when precision is too low?</h4>
+<p>Suppose the true sum is:</p>
+<div class="math block">
+1000.0001.
+</div>
+<p>But your low-precision representation can only distinguish values separated by, say, <span class="math inline">0.1</span> at that magnitude.</p>
+<p>Then:</p>
+<div class="math block">
+1000.0001
+</div>
+<p>may effectively become:</p>
+<div class="math block">
+1000.0.
+</div>
+<p>The tiny contribution:</p>
+<div class="math block">
+0.0001
+</div>
+<p>is lost.</p>
+<p>So even if every individual multiplication is reasonable, information can disappear during repeated addition.</p>
+<p>This is the key numerical lesson.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-8">5.49.3.7 A simple accumulation example</h4>
+<p>Suppose the exact products are:</p>
+<div class="math block">
+[0.25,\;0.25,\;0.25,\;0.25].
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=1.0.
+</div>
+<p>No problem.</p>
+<p>Now suppose we have:</p>
+<div class="math block">
+[1,\;1,\;-1,\;0.001].
+</div>
+<p>Exact result:</p>
+<div class="math block">
+1+1-1+0.001
+=
+\boxed{1.001}.
+</div>
+<p>A low-precision accumulator may lose part or all of that <span class="math inline">0.001</span> contribution depending on the precision available.</p>
+<p>The precise error depends on the numerical format and accumulation ordering, so the example is illustrative rather than a claim about one particular Tensor Core.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-9">5.49.3.8 Why does the error get worse for large <span class="math inline">K</span>?</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=4.
+</div>
+<p>We add four products.</p>
+<p>Now suppose:</p>
+<div class="math block">
+K=4096.
+</div>
+<p>We add:</p>
+<div class="math block">
+4096
+</div>
+<p>products.</p>
+<p>More additions mean more opportunities for rounding/precision loss.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+K\uparrow
+\Rightarrow
+\text{accumulation becomes more numerically demanding}.
+}
+</div>
+<p>This is particularly relevant to LLMs because their matrix dimensions commonly involve thousands of elements. The source explicitly highlights inner dimensions such as 4096 or larger. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-10">5.49.3.9 The naive low-precision approach</h4>
+<p>Conceptually:</p>
+<pre><code class="language-text">FP8 W ─┐
+       ├──► Tensor Core ───► low-precision accumulator
+FP8 X ─┘                           │
+                                   ▼
+                              final result
+</code></pre>
+<p>Everything remains inside the low-precision environment.</p>
+<p>The source identifies this as the problem.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-11">5.49.3.10 DeepSeek's idea</h4>
+<p>DeepSeek says:</p>
+<blockquote>
+<p>Don't wait until the entire dot product is finished.</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{accumulate for a while}
+\rightarrow
+\text{promote}
+\rightarrow
+\text{continue accumulating in FP32}.
+}
+</div>
+<p>The source calls this:</p>
+<div class="math block">
+\boxed{\text{promotion to CUDA Cores}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-12">5.49.3.11 The hardware roles</h4>
+<p>The source distinguishes two kinds of GPU compute units.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-13">Tensor Cores</h6>
+<p>Optimized for:</p>
+<div class="math block">
+\boxed{\text{high-throughput matrix multiplication}}
+</div>
+<p>especially low-precision operations.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-14">CUDA Cores</h6>
+<p>More general-purpose and capable of:</p>
+<div class="math block">
+\boxed{\text{full-precision operations}}
+</div>
+<p>such as FP32 accumulation.</p>
+<p>The source's strategy is to exploit both. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-15">5.49.3.12 The key architecture</h4>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{
+\text{Tensor Core only}
+}
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{
+\text{Tensor Core}
+\rightarrow
+\text{CUDA Core}.
+}
+</div>
+<p>More specifically:</p>
+<div class="math block">
+\boxed{
+\text{low-precision partial sum}
+\rightarrow
+\text{FP32 register}
+}
+</div>
+<p>and the FP32 register becomes the reliable long-term running total.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-16">5.49.3.13 What is WGMMA?</h4>
+<p>The source introduces:</p>
+<div class="math block">
+\boxed{\text{WGMMA}}
+</div>
+<p>which stands for:</p>
+<div class="math block">
+\boxed{\text{Warp-Group-level Matrix Multiply-Accumulate}}.
+</div>
+<p>The source describes WGMMA as a low-level optimized GPU instruction used to perform chunks of the matrix multiplication. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For our purposes:</p>
+<div class="math block">
+\boxed{
+WGMMA
+=
+\text{perform a small piece of the large GEMM}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-17">5.49.3.14 Think of WGMMA as chunks</h4>
+<p>Suppose the complete dot product is:</p>
+<div class="math block">
+p_1+p_2+\cdots+p_{4096}.
+</div>
+<p>Rather than doing all 4096 in one conceptual block, imagine:</p>
+<div class="math block">
+\underbrace{p_1+\cdots+p_{128}}_{\text{WGMMA chunk 1}}
+</div>
+<p>then:</p>
+<div class="math block">
+\underbrace{p_{129}+\cdots+p_{256}}_{\text{WGMMA chunk 2}}
+</div>
+<p>and so on.</p>
+<p>This is the intuition behind the source's diagram showing:</p>
+<div class="math block">
+WGMMA_1,\;WGMMA_2,\;WGMMA_3,\;WGMMA_4,\ldots
+</div>
+<p>as sequential pieces of a longer dot product. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-18">5.49.3.15 Now introduce <span class="math inline">N_C</span></h4>
+<p>The source specifies a promotion interval:</p>
+<div class="math block">
+\boxed{
+N_C=128.
+}
+</div>
+<p>After a fixed interval of approximately 128 element-wise operations, the partial sum is promoted from the low-precision environment to an FP32 register. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is important because we already encountered the same:</p>
+<div class="math block">
+\boxed{128}
+</div>
+<p>in Pillar 2.</p>
+<p>But the meanings are slightly different.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-19">5.49.3.16 Why the same <span class="math inline">N_C=128</span> keeps appearing</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-20">Pillar 2</h6>
+<p>For activations:</p>
+<div class="math block">
+\boxed{
+128\text{ channels per quantization group}.
+}
+</div>
+<p>For weights:</p>
+<div class="math block">
+\boxed{
+128\times128\text{ blocks}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-21">Pillar 3</h6>
+<p>The source describes:</p>
+<div class="math block">
+\boxed{
+128\text{ element-wise operations between promotions}.
+}
+</div>
+<p>So the same scale of granularity appears across the design.</p>
+<p>The source's Figure 5.31 specifically uses <span class="math inline">N_C</span> as the promotion interval. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-22">5.49.3.17 Why promote periodically instead of after every multiplication?</h4>
+<p>Because that would destroy much of the efficiency advantage.</p>
+<p>Imagine:</p>
+<div class="math block">
+4096
+</div>
+<p>products.</p>
+<p>If we converted every single product to a high-precision path immediately, we'd spend much more overhead on precision management.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{perform many fast low-precision operations}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{occasionally promote}.
+}
+</div>
+<p>This gives a compromise:</p>
+<div class="math block">
+\boxed{
+\text{speed}
++
+\text{numerical stability}.
+}
+</div>
+<p>That is the source's central design philosophy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-23">5.49.3.18 Numerical example with 4096 products</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=4096
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>Then the number of promotion intervals is:</p>
+<div class="math block">
+\frac{4096}{128}
+=
+\boxed{32}.
+</div>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{32\text{ partial-sum promotions}}
+</div>
+<p>are needed.</p>
+<p>Each promotion represents roughly:</p>
+<div class="math block">
+128
+</div>
+<p>products.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-24">5.49.3.19 Visualize the 4096-element reduction</h4>
+<pre><code class="language-text">4096 products
+──────────────────────────────────────────────
+
+[128 products]
+       ↓
+ Low-precision partial sum
+       ↓
+   PROMOTE
+       ↓
+ FP32 accumulator
+
+[128 products]
+       ↓
+ Low-precision partial sum
+       ↓
+   PROMOTE
+       ↓
+ FP32 accumulator
+
+             ...
+
+[128 products]
+       ↓
+ Low-precision partial sum
+       ↓
+   PROMOTE
+       ↓
+ FP32 accumulator
+</code></pre>
+<p>There are:</p>
+<div class="math block">
+\boxed{32}
+</div>
+<p>such chunks for <span class="math inline">4096/128</span>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-25">5.49.3.20 The FP32 register</h4>
+<p>After promotion, the source says the partial result enters an:</p>
+<div class="math block">
+\boxed{\text{FP32 Register}}.
+</div>
+<p>That register holds the high-precision running total.</p>
+<p>So if:</p>
+<div class="math block">
+A_{FP32}
+</div>
+<p>is the current accumulated value and:</p>
+<div class="math block">
+P_k
+</div>
+<p>is the newly promoted partial sum, then:</p>
+<div class="math block">
+\boxed{
+A_{new}=A_{old}+P_k.
+}
+</div>
+<p>But now:</p>
+<div class="math block">
+A
+</div>
+<p>is held in:</p>
+<div class="math block">
+\boxed{FP32}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-26">5.49.3.21 Numerical FP32 accumulation example</h4>
+<p>Suppose four low-precision chunks produce:</p>
+<div class="math block">
+P_1=12.345
+</div>
+<div class="math block">
+P_2=7.891
+</div>
+<div class="math block">
+P_3=-3.217
+</div>
+<div class="math block">
+P_4=0.004.
+</div>
+<p>The FP32 accumulator performs:</p>
+<div class="math block">
+A_1=12.345
+</div>
+<div class="math block">
+A_2=12.345+7.891=20.236
+</div>
+<div class="math block">
+A_3=20.236-3.217=17.019
+</div>
+<div class="math block">
+A_4=17.019+0.004
+=
+\boxed{17.023}.
+</div>
+<p>The point is that the final accumulation retains substantially more precision than if the long-running sum stayed entirely in a narrower accumulator.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-27">5.49.3.22 What does the CUDA Core do with scaling factors?</h4>
+<p>This connects directly to Pillar 2.</p>
+<p>The source explains that the CUDA Core stage can use the corresponding activation and weight scaling factors during dequantization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Recall:</p>
+<div class="math block">
+X\approx s_XQ_X
+</div>
+<p>and:</p>
+<div class="math block">
+W\approx s_WQ_W.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+WX
+\approx
+s_Xs_W(Q_WQ_X).
+</div>
+<p>So after Tensor-Core computation:</p>
+<div class="math block">
+Q_WQ_X
+</div>
+<p>the scale information is used to restore the magnitude.</p>
+<p>Thus Pillars 2 and 3 work together:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 2: local scaling}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 3: safe accumulation}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-28">5.49.3.23 Full Pillar 2 + Pillar 3 pipeline</h4>
+<pre><code class="language-text">Activation
+   │
+   ├── partition into 128-element groups
+   │
+   ▼
+local scaling
+   │
+   ▼
+FP8 activation
+                Weight
+                  │
+                  ├── partition into 128×128 blocks
+                  │
+                  ▼
+              local scaling
+                  │
+                  ▼
+               FP8 weight
+                  │
+                  └─────────────┐
+                                ▼
+                         Tensor Core
+                           WGMMA chunks
+                                │
+                       low-precision
+                       partial sums
+                                │
+                         every Nc=128
+                                ▼
+                         PROMOTION
+                                │
+                                ▼
+                         CUDA Core
+                                │
+                         FP32 register
+                                │
+                      scale restoration
+                                │
+                                ▼
+                      high-precision output
+</code></pre>
+<p>This is the source's combined mechanism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-29">5.49.3.24 Why is the promotion periodic?</h4>
+<p>This is a systems trade-off.</p>
+<p>Let:</p>
+<div class="math block">
+N_C
+</div>
+<p>be the promotion interval.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-30">Very small <span class="math inline">N_C</span></h6>
+<p>For example:</p>
+<div class="math block">
+N_C=16.
+</div>
+<p>Then promotions happen frequently.</p>
+<p>Benefits:</p>
+<div class="math block">
+\boxed{\text{more frequent precision protection}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{more promotion overhead}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-31">Very large <span class="math inline">N_C</span></h6>
+<p>For example:</p>
+<div class="math block">
+N_C=1024.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{fewer promotions}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{more accumulation in low precision before protection}}.
+</div>
+<p>The source specifies <span class="math inline">N_C=128</span> for its described mechanism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-32">5.49.3.25 Exam numerical — promotion count</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=8192
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+N_{\text{promotions}}
+=
+\frac{8192}{128}
+=
+\boxed{64}.
+</div>
+<p>So the reduction is divided into approximately:</p>
+<div class="math block">
+\boxed{64}
+</div>
+<p>promotion intervals.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-33">5.49.3.26 Exam numerical — incomplete final block</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=1000
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+1000/128=7.8125.
+</div>
+<p>So there are:</p>
+<div class="math block">
+\boxed{8\text{ chunks}}
+</div>
+<p>if the final incomplete chunk is handled separately.</p>
+<p>The first seven contain:</p>
+<div class="math block">
+7\times128=896
+</div>
+<p>products.</p>
+<p>Remaining:</p>
+<div class="math block">
+1000-896
+=
+\boxed{104}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+7\times128+104=1000.
+</div>
+<p>This is a derived implementation-style calculation; the source's conceptual discussion assumes fixed intervals but doesn't spell out the boundary handling for arbitrary <span class="math inline">K</span>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-34">5.49.3.27 Why not just use FP32 for the whole matrix multiplication?</h4>
+<p>Because that would discard much of the performance advantage.</p>
+<p>Recall:</p>
+<div class="math block">
+\boxed{
+FP8
+}
+</div>
+<p>provides extremely compact values and efficient low-precision matrix operations.</p>
+<p>If everything becomes:</p>
+<div class="math block">
+FP32,
+</div>
+<p>we lose much of the benefit.</p>
+<p>So the philosophy is:</p>
+<div class="math block">
+\boxed{
+\text{cheap low precision for the bulk}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{expensive high precision only where it matters}.
+}
+</div>
+<p>This is exactly the recurring mixed-precision philosophy from Pillar 1. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-35">5.49.3.28 Why is this called “promotion”?</h4>
+<p>Because we move:</p>
+<div class="math block">
+\boxed{
+\text{lower precision}
+\rightarrow
+\text{higher precision}.
+}
+</div>
+<p>Specifically:</p>
+<div class="math block">
+\boxed{
+\text{low-precision accumulator}
+\rightarrow
+\text{FP32 register}.
+}
+</div>
+<p>The source calls this periodic movement a <strong>promotion</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-36">5.49.3.29 Promotion is not the same as quantization</h4>
+<p>This distinction matters.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-37">Quantization</h6>
+<p>Moves:</p>
+<div class="math block">
+\boxed{
+\text{high precision}
+\rightarrow
+\text{low precision}
+}
+</div>
+<p>for efficient computation.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-38">Promotion</h6>
+<p>Moves:</p>
+<div class="math block">
+\boxed{
+\text{low precision}
+\rightarrow
+\text{high precision}
+}
+</div>
+<p>to preserve numerical accuracy.</p>
+<p>So DeepSeek's pipeline repeatedly performs:</p>
+<div class="math block">
+\boxed{
+\text{quantize}
+\rightarrow
+\text{compute}
+\rightarrow
+\text{promote/dequantize}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-39">5.49.3.30 Numerical example: why accumulation precision matters</h4>
+<p>Suppose the true partial sums are:</p>
+<div class="math block">
+P_1=1000.1
+</div>
+<div class="math block">
+P_2=0.2
+</div>
+<div class="math block">
+P_3=-0.1
+</div>
+<div class="math block">
+P_4=0.003.
+</div>
+<p>Exact result:</p>
+<div class="math block">
+1000.1+0.2-0.1+0.003
+=
+\boxed{1000.203}.
+</div>
+<p>Suppose a toy low-precision accumulator rounds to one decimal place:</p>
+<div class="math block">
+1000.1+0.2=1000.3
+</div>
+<p>then:</p>
+<div class="math block">
+1000.3-0.1=1000.2
+</div>
+<p>and:</p>
+<div class="math block">
+1000.2+0.003
+\approx1000.2.
+</div>
+<p>So we obtain:</p>
+<div class="math block">
+\boxed{1000.2}
+</div>
+<p>instead of:</p>
+<div class="math block">
+\boxed{1000.203}.
+</div>
+<p>The error is:</p>
+<div class="math block">
+0.003.
+</div>
+<p>This tiny toy example illustrates the basic mechanism. Real FP8/Tensor-Core behavior is format- and hardware-specific and should not be inferred from this decimal-rounding toy model.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-40">5.49.3.31 Why does this matter to a language model?</h4>
+<p>A Transformer performs enormous numbers of matrix multiplications.</p>
+<p>Suppose one layer performs:</p>
+<div class="math block">
+Y=XW.
+</div>
+<p>Then this occurs repeatedly across:</p>
+<ul>
+<li>attention projections,</li>
+<li>FFN/MoE projections,</li>
+<li>MTP Transformer blocks,</li>
+<li>many layers,</li>
+<li>huge token batches.</li>
+</ul>
+<p>A small numerical error repeated across enormous computation can affect the final model output.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{numerical stability becomes a systems-level problem}.
+}
+</div>
+<p>The source explicitly frames accumulation precision as essential to avoiding instability during large-scale FP8 training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-41">5.49.3.32 Connect to the earlier DeepSeek architecture</h4>
+<p>Remember MoE:</p>
+<div class="math block">
+\boxed{
+\text{many expert matrix multiplications}
+}
+</div>
+<p>and MTP:</p>
+<div class="math block">
+\boxed{
+\text{additional Transformer blocks}.
+}
+</div>
+<p>MLA:</p>
+<div class="math block">
+\boxed{
+\text{many matrix operations}.
+}
+</div>
+<p>So the total system contains massive GEMM workloads.</p>
+<p>That's exactly where:</p>
+<div class="math block">
+\boxed{\text{FP8 Tensor-Core computation}}
+</div>
+<p>can provide major efficiency.</p>
+<p>But those GEMMs still need:</p>
+<div class="math block">
+\boxed{\text{numerically reliable accumulation}}.
+</div>
+<p>Hence Pillar 3.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-42">5.49.3.33 The three FP8 pillars so far</h4>
+<p>Now we can distinguish them precisely.</p>
+<h5 id="v3-heading-chunk-les-step-5-49-3-i98-43">Pillar 1 — Mixed Precision</h5>
+<div class="math block">
+\boxed{
+\text{Choose the right precision for each component}.
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-49-3-i98-44">Pillar 2 — Fine-Grained Quantization</h5>
+<div class="math block">
+\boxed{
+\text{Use local scaling so outliers do not destroy precision globally}.
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-49-3-i98-45">Pillar 3 — Increasing Accumulation Precision</h5>
+<div class="math block">
+\boxed{
+\text{Do the bulk multiplication cheaply, but protect long reductions with FP32 accumulation}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{where}
+\rightarrow
+\text{how}
+\rightarrow
+\text{how to accumulate}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-46">5.49.3.34 One integrated numerical problem</h4>
+<p>Suppose:</p>
+<div class="math block">
+K=4096
+</div>
+<p>and the source's promotion interval is:</p>
+<div class="math block">
+N_C=128.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-47">Number of low-precision chunks</h6>
+<div class="math block">
+4096/128
+=
+\boxed{32}.
+</div>
+<p>Suppose each chunk produces a partial sum.</p>
+<p>Then:</p>
+<div class="math block">
+P_1,P_2,\ldots,P_{32}.
+</div>
+<p>The final result is:</p>
+<div class="math block">
+\boxed{
+Y
+\approx
+\sum_{i=1}^{32}
+\text{Dequantize}(P_i,s_X,s_W)
+}
+</div>
+<p>with the accumulated result retained in higher precision.</p>
+<p>The exact hardware ordering and scaling implementation can be more elaborate, but this is the conceptual structure shown in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-48">5.49.3.35 The source's hardware flow</h4>
+<p>The source's Figure 5.31 can be understood as:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-49">Tensor Core</h6>
+<div class="math block">
+\boxed{
+FP8\text{ GEMM inputs}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+WGMMA_1
+}
+</div>
+<p>↓</p>
+<p>low-precision partial accumulation</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+WGMMA_2
+}
+</div>
+<p>↓</p>
+<p>more low-precision accumulation</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\cdots
+}
+</div>
+<p>↓</p>
+<p>after <span class="math inline">N_C</span>:</p>
+<div class="math block">
+\boxed{\text{promotion}}
+</div>
+<p>↓</p>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-50">CUDA Core</h6>
+<div class="math block">
+\boxed{
+FP32\text{ register}
+}
+</div>
+<p>↓</p>
+<p>add next promoted partial sum</p>
+<p>↓</p>
+<p>eventually:</p>
+<div class="math block">
+\boxed{
+\text{final high-precision result}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-51">5.49.3.36 Why the source says this is a “best of both worlds” design</h4>
+<p>Because the two hardware units are optimized for different objectives.</p>
+<p>Tensor Core:</p>
+<div class="math block">
+\boxed{
+\text{throughput}
+}
+</div>
+<p>CUDA Core:</p>
+<div class="math block">
+\boxed{
+\text{precision/flexibility}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Tensor Core}
++
+\text{CUDA Core}
+=
+\text{speed + numerical stability}.
+}
+</div>
+<p>The source explicitly describes the mechanism in those terms. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-52">5.49.3.37 Very important exam distinction</h4>
+<p>A common wrong answer is:</p>
+<blockquote>
+<p>“DeepSeek performs FP32 matrix multiplication.”</p>
+</blockquote>
+<p>No.</p>
+<p>The source's design is:</p>
+<div class="math block">
+\boxed{
+\text{FP8 matrix multiplication}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{high-precision accumulation}.
+}
+</div>
+<p>The multiplication and accumulation are different stages.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-53">5.49.3.38 Another common wrong answer</h4>
+<blockquote>
+<p>“The low-precision partial sum is converted to FP32 only once, at the end.”</p>
+</blockquote>
+<p>According to the source's Pillar 3:</p>
+<div class="math block">
+\boxed{\text{No.}}
+</div>
+<p>The distinctive idea is <strong>periodic promotion</strong> at a fixed interval <span class="math inline">N_C</span>, rather than waiting until the entire dot product has been accumulated. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-54">5.49.3.39 Why periodic promotion is mathematically sensible</h4>
+<p>Suppose:</p>
+<div class="math block">
+S_1=P_1+\cdots+P_{128}.
+</div>
+<p>Then promote:</p>
+<div class="math block">
+S_1\rightarrow FP32.
+</div>
+<p>Then:</p>
+<div class="math block">
+S_2=P_{129}+\cdots+P_{256}.
+</div>
+<p>Then:</p>
+<div class="math block">
+S_2\rightarrow FP32.
+</div>
+<p>Final:</p>
+<div class="math block">
+Y=S_1+S_2+\cdots.
+</div>
+<p>Therefore the long reduction is decomposed into smaller local reductions followed by high-precision combination.</p>
+<p>This limits how long the low-precision accumulator must retain the running sum.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-55">5.49.3.40 Pillar 3 and Pillar 2 are designed together</h4>
+<p>This connection is extremely important.</p>
+<p>Pillar 2 says:</p>
+<div class="math block">
+\boxed{
+\text{scale locally}.
+}
+</div>
+<p>Pillar 3 says:</p>
+<div class="math block">
+\boxed{
+\text{accumulate safely}.
+}
+</div>
+<p>So the overall computation is:</p>
+<div class="math block">
+\boxed{
+\text{local scaling}
+\rightarrow
+\text{FP8 GEMM}
+\rightarrow
+\text{periodic promotion}
+\rightarrow
+\text{FP32 accumulation}.
+}
+</div>
+<p>The source's combined diagram makes exactly this connection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-56">5.49.3.41 Exam-style problem</h4>
+<p>A matrix multiplication has inner dimension:</p>
+<div class="math block">
+K=16384.
+</div>
+<p>DeepSeek's described promotion interval is:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>How many promotion intervals?</p>
+<div class="math block">
+\frac{16384}{128}
+=
+\boxed{128}.
+</div>
+<p>So the computation can be thought of as:</p>
+<div class="math block">
+\boxed{128\text{ local reduction chunks}}
+</div>
+<p>before the corresponding high-precision accumulation of the promoted partial results.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-57">5.49.3.42 Exam-style conceptual question</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-58">Why not simply use FP32 for everything?</h6>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{FP32 computation costs more memory/bandwidth and is slower for the massive GEMMs}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{FP8 provides much higher-throughput low-precision matrix computation}.
+}
+</div>
+<p>DeepSeek therefore reserves higher precision for the parts where numerical accuracy matters most.</p>
+<p>That is the unifying philosophy across all three pillars. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-59">5.49.3.43 The three-pillar architecture so far</h4>
+<pre><code class="language-text">                 FP8 TRAINING
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Pillar 1    Pillar 2    Pillar 3
+       WHERE FP8   HOW FP8     HOW TO
+                               ACCUMULATE
+          │           │           │
+          ▼           ▼           ▼
+     Mixed       Fine-grained   FP32
+    precision     scaling      promotion
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+             stable FP8 training
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-60">5.49.3.44 What you should memorize</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-61">Matrix product</h6>
+<div class="math block">
+\boxed{
+Y_{ij}=\sum_kW_{ik}X_{kj}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-62">Low-precision computation</h6>
+<div class="math block">
+\boxed{
+FP8\times FP8
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-63">Source's promotion interval</h6>
+<div class="math block">
+\boxed{
+N_C=128
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-64">Number of chunks</h6>
+<div class="math block">
+\boxed{
+N_{\text{chunks}}
+\approx
+\left\lceil\frac{K}{N_C}\right\rceil
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-65">Core idea</h6>
+<div class="math block">
+\boxed{
+\text{FP8 Tensor Core partial accumulation}
+\rightarrow
+\text{periodic FP32 promotion}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-3-i98-66">Purpose</h6>
+<div class="math block">
+\boxed{
+\text{avoid precision loss while preserving FP8 throughput}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-3-i98-67">5.49.3.45 One final mental model</h4>
+<p>Think of a worker who must add:</p>
+<div class="math block">
+4096
+</div>
+<p>numbers.</p>
+<p>You give them a tiny notebook and ask them to keep the running total there.</p>
+<p>Eventually the notebook cannot preserve every tiny detail.</p>
+<p>Instead, after every:</p>
+<div class="math block">
+128
+</div>
+<p>entries, they transfer the partial total into a much more precise ledger.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{small notebook}
+=
+\text{low-precision accumulator}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{large ledger}
+=
+\text{FP32 register}.
+}
+</div>
+<p>The fast worker keeps doing the bulk arithmetic; the precise ledger protects the long-term accumulated result.</p>
+<p>That is the intuition behind DeepSeek's <strong>Increasing Accumulation Precision</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-49-3-i98-68">Step 5.49.3 checkpoint</h5>
+<p>At this point the full numerical flow is:</p>
+<div class="math block">
+\boxed{
+\text{BF16/FP32 stored values}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{local scaling}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+FP8
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+FP8\times FP8\text{ on Tensor Cores}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{low-precision partial sums}
+}
+</div>
+<p>↓</p>
+<p>every:</p>
+<div class="math block">
+\boxed{N_C=128}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{promotion to FP32}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{FP32 accumulation + dequantization}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{high-precision result}
+}
+</div>
+<p>and this complements the first two pillars rather than replacing them. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

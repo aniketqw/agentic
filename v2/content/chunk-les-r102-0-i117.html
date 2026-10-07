@@ -1,0 +1,790 @@
+<section class="chunk" id="chunk-les-r102-0-i117" data-id="les-r102-0-i117"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-0-i117"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-0-i117" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r101-0-i112">← Previous lesson</a> · <a href="#chunk-les-r102-1-i118">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a></p><p><strong>This lesson:</strong> R102.0 — Reinforcement Learning for LLMs: From Next-Token Prediction to Decision-Making</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-0-i117"></a></p>
+<h3 id="v3-heading-chunk-les-r102-0-i117-1">R102.0 — Reinforcement Learning for LLMs: From Next-Token Prediction to Decision-Making</h3>
+<p><em>Plan node: B1 · chat order #117</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-5-3-i44">Step 5.3 — Why GRPO Instead of PPO?</a> · <a href="#les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a></p>
+</blockquote>
+<p>We now begin <strong>Chapter 7: Reinforcement Learning — From Policy Gradients to GRPO</strong>.</p>
+<p>This is a major conceptual transition.</p>
+<p>Up to Chapter 6, our Mini-DeepSeek was trained with:</p>
+<div class="math block">
+\boxed{\text{“Here is the correct next token. Predict it.”}}
+</div>
+<p>That is supervised next-token learning.</p>
+<p>Chapter 7 asks a different question:</p>
+<blockquote>
+<p><strong>What if we don't specify every correct token, and instead evaluate the completed response and reward the model when it succeeds?</strong></p>
+</blockquote>
+<p>That is the basic idea of reinforcement learning for LLMs. The source explicitly frames Chapter 7 as the post-training stage where a pretrained model is pushed toward useful reasoning behavior, eventually connecting RL to GRPO and DeepSeek-R1. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-2">1. Why do we need RL after pre-training?</h4>
+<p>Our base model already knows how to predict text.</p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{good next-token prediction}
+\neq
+\text{good problem solving}
+}
+</div>
+<p>A model can be excellent at language modeling while still producing poor reasoning solutions.</p>
+<p>The source therefore distinguishes <strong>pre-training</strong> from <strong>post-training</strong>.</p>
+<h6 id="v3-heading-chunk-les-r102-0-i117-3">Pre-training</h6>
+<p>Learn language patterns:</p>
+<div class="math block">
+x_1,x_2,\ldots,x_t
+\rightarrow
+x_{t+1}.
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-4">Reinforcement learning</h6>
+<p>Generate a response, evaluate its outcome, and change the policy so successful behavior becomes more likely.</p>
+<p>The source describes this as moving from simply predicting tokens toward deliberate problem solving. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-5">2. Supervised learning vs reinforcement learning</h4>
+<p>This distinction is foundational.</p>
+<p>Suppose the problem is:</p>
+<blockquote>
+<p>Roger has 5 tennis balls. He buys 2 cans with 3 balls in each can. How many balls does he have?</p>
+</blockquote>
+<p>The answer is:</p>
+<div class="math block">
+5+2(3)=11.
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-6">Supervised learning</h6>
+<p>You might provide:</p>
+<pre><code class="language-text">Prompt:
+Roger has 5 tennis balls...
+
+Target:
+11
+</code></pre>
+<p>or even provide a complete reasoning trace.</p>
+<p>The model is trained to imitate the supplied target.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-r102-0-i117-7">Reinforcement learning</h6>
+<p>You give the model the problem and let it generate a response:</p>
+<pre><code class="language-text">Prompt
+  ↓
+model generates response
+  ↓
+verifier checks response
+  ↓
+reward
+</code></pre>
+<p>You do <strong>not necessarily specify the exact sequence of intermediate tokens</strong> the model should produce.</p>
+<p>The source explicitly highlights this distinction: RL does not require the exact correct action at every step; feedback may arrive only after several actions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-8">3. First build ordinary RL</h4>
+<p>Before translating RL to LLMs, the source uses a simple agent-environment example: a cleaning robot. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Imagine:</p>
+<pre><code class="language-text">Robot = agent
+Room = environment
+</code></pre>
+<p>At each step:</p>
+<pre><code class="language-text">observe state
+    ↓
+choose action
+    ↓
+environment changes
+    ↓
+receive reward
+    ↓
+new state
+    ↓
+repeat
+</code></pre>
+<p>There are four core objects:</p>
+<div class="math block">
+\boxed{
+\text{State}
+,\
+\text{Action}
+,\
+\text{Reward}
+,\
+\text{Policy}
+}
+</div>
+<p>The source deliberately establishes these four before translating them into language generation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-9">4. State</h4>
+<p>The <strong>state</strong> represents the current situation.</p>
+<p>For the cleaning robot, it might contain:</p>
+<ul>
+<li>where dust remains,</li>
+<li>obstacles,</li>
+<li>battery level,</li>
+<li>charging-dock location.</li>
+</ul>
+<p>So:</p>
+<div class="math block">
+s_t
+=
+\text{current situation at time }t.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-10">5. Action</h4>
+<p>The robot selects an action:</p>
+<div class="math block">
+a_t.
+</div>
+<p>Examples:</p>
+<pre><code class="language-text">move forward
+turn left
+vacuum
+return to dock
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+a_t=\text{what the agent does next}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-11">6. Reward</h4>
+<p>After taking an action, the environment provides a reward.</p>
+<p>For example:</p>
+<div class="math block">
++1
+</div>
+<p>for cleaning useful dust,</p>
+<p>and potentially:</p>
+<div class="math block">
+-1
+</div>
+<p>for wasting battery or colliding with something.</p>
+<p>The reward tells the agent whether its behavior was beneficial.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+R_t=\text{learning signal about the outcome}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-12">7. Policy</h4>
+<p>The <strong>policy</strong> is the rule that chooses actions from states.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\pi(a\mid s)
+}
+</div>
+<p>means:</p>
+<blockquote>
+<p>probability of taking action <span class="math inline">a</span> when in state <span class="math inline">s</span>.</p>
+</blockquote>
+<p>For a neural-network agent, the policy is represented by the model parameters.</p>
+<p>Training changes the parameters so actions associated with higher long-term reward become more likely. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-13">8. Now make the surprising translation to an LLM</h4>
+<p>A language model doesn't look like a robot.</p>
+<p>It does not move around a physical room.</p>
+<p>But token generation is still a sequential decision process.</p>
+<p>The source maps the RL components to LLM generation as follows. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<table>
+<thead>
+<tr>
+<th>RL concept</th>
+<th>LLM equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>State</td>
+<td>Prompt + tokens generated so far</td>
+</tr>
+<tr>
+<td>Action</td>
+<td>Next sampled token</td>
+</tr>
+<tr>
+<td>Transition</td>
+<td>Append sampled token to context</td>
+</tr>
+<tr>
+<td>Reward</td>
+<td>Score of the completed response</td>
+</tr>
+<tr>
+<td>Policy</td>
+<td>LLM's token probability distribution</td>
+</tr>
+</tbody>
+</table>
+<p>This table is the conceptual bridge between classical RL and reasoning-model training.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-14">9. Let's trace one LLM rollout</h4>
+<p>Suppose the prompt is:</p>
+<pre><code class="language-text">Roger has 5 tennis balls...
+</code></pre>
+<p>Initially:</p>
+<div class="math block">
+s_0=\text{prompt}.
+</div>
+<p>The model samples:</p>
+<div class="math block">
+a_0=\text{“Roger”}.
+</div>
+<p>Now the state becomes:</p>
+<div class="math block">
+s_1=
+\text{prompt}+\text{“Roger”}.
+</div>
+<p>Then the model samples another token.</p>
+<p>Maybe:</p>
+<div class="math block">
+a_1=\text{“has”}.
+</div>
+<p>Now:</p>
+<div class="math block">
+s_2=
+\text{prompt}+\text{“Roger has”}.
+</div>
+<p>And so on.</p>
+<p>Therefore:</p>
+<div class="math block">
+s_0
+\xrightarrow{a_0}
+s_1
+\xrightarrow{a_1}
+s_2
+\xrightarrow{a_2}
+\cdots
+</div>
+<p>until the response ends.</p>
+<p>The source uses essentially this exact progression to explain LLM RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-15">10. The action is a TOKEN</h4>
+<p>This point is easy to misunderstand.</p>
+<p>In LLM RL, the action is not:</p>
+<blockquote>
+<p>“solve the entire math problem.”</p>
+</blockquote>
+<p>The action at each generation step is:</p>
+<div class="math block">
+\boxed{
+\text{one sampled next token}
+}
+</div>
+<p>For example:</p>
+<pre><code class="language-text">&quot;Therefore&quot;
+</code></pre>
+<p>is one action.</p>
+<p>Then:</p>
+<pre><code class="language-text">&quot; the&quot;
+</code></pre>
+<p>is another action.</p>
+<p>Then:</p>
+<pre><code class="language-text">&quot; answer&quot;
+</code></pre>
+<p>is another.</p>
+<p>So an entire response is a <strong>sequence of actions</strong>:</p>
+<div class="math block">
+a_1,a_2,\ldots,a_T.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-16">11. The policy is the LLM itself</h4>
+<p>At every step, the model produces:</p>
+<div class="math block">
+\pi_\theta(a_t\mid s_t).
+</div>
+<p>For example, given the current context:</p>
+<pre><code class="language-text">&quot;Roger has&quot;
+</code></pre>
+<p>the model might assign:</p>
+<div class="math block">
+P(\text{5})=0.10
+</div>
+<div class="math block">
+P(\text{7})=0.03
+</div>
+<div class="math block">
+P(\text{bought})=0.05
+</div>
+<p>and so on.</p>
+<p>The model samples one of these possible tokens.</p>
+<p>So the policy is literally the LLM's probability distribution over the next token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-17">12. Why sampling matters</h4>
+<p>This is an especially important point in the source.</p>
+<p>During ordinary inference, you might use:</p>
+<div class="math block">
+\text{greedy decoding}
+</div>
+<p>or low-temperature sampling.</p>
+<p>But in RL rollouts, <strong>sampling is central</strong>.</p>
+<p>Why?</p>
+<p>Because RL needs <strong>exploration</strong>.</p>
+<p>Suppose the model always chooses:</p>
+<div class="math block">
+\arg\max_a \pi(a\mid s).
+</div>
+<p>Then it repeatedly follows essentially the same response path.</p>
+<p>It becomes difficult to discover alternative reasoning paths.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{sample multiple possible responses}
+}
+</div>
+<p>so the training system can compare them according to their rewards.</p>
+<p>The source explicitly says this sampling allows exploration of different responses for the same prompt. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-18">13. One prompt can produce multiple trajectories</h4>
+<p>Suppose we give the same problem to the model three times.</p>
+<p>It might generate:</p>
+<pre><code class="language-text">Prompt P
+
+Response A → reward 1
+Response B → reward 0
+Response C → reward 1
+</code></pre>
+<p>The responses are different because generation is stochastic.</p>
+<p>That gives RL useful information:</p>
+<div class="math block">
+\boxed{
+\text{which sampled behaviors tended to succeed?}
+}
+</div>
+<p>This group-based comparison later becomes central to <strong>GRPO</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-19">14. Now the difficult problem: sparse rewards</h4>
+<p>Here comes one of the biggest differences between ordinary supervised learning and RL for reasoning.</p>
+<p>Suppose the model generates:</p>
+<pre><code class="language-text">Token 1
+Token 2
+Token 3
+...
+Token 100
+</code></pre>
+<p>and only after the final answer do we know whether it is correct.</p>
+<p>For the math problem:</p>
+<div class="math block">
+\text{final answer}=11
+</div>
+<p>might give:</p>
+<div class="math block">
+R=1.
+</div>
+<p>A wrong final answer might give:</p>
+<div class="math block">
+R=0.
+</div>
+<p>The source calls this a <strong>sparse reward</strong> because the reward arrives only after the sequence of actions is complete. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-20">15. Why sparse reward creates credit assignment</h4>
+<p>Suppose the model produced 100 tokens and got:</p>
+<div class="math block">
+R=0.
+</div>
+<p>Which token was responsible?</p>
+<p>Maybe:</p>
+<pre><code class="language-text">token 14 → misunderstood problem
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">token 47 → arithmetic mistake
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">token 91 → final answer malformed
+</code></pre>
+<p>The final reward alone does not directly identify the cause.</p>
+<p>That is:</p>
+<div class="math block">
+\boxed{
+\text{credit assignment problem}
+}
+</div>
+<p>The source explicitly raises this issue after introducing sparse rewards. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-21">16. Yet the policy-gradient method has a way to use that reward</h4>
+<p>Here is the key idea.</p>
+<p>Suppose the model sampled a response:</p>
+<div class="math block">
+a_1,a_2,\ldots,a_T
+</div>
+<p>and the response receives reward:</p>
+<div class="math block">
+R.
+</div>
+<p>We want:</p>
+<h6 id="v3-heading-chunk-les-r102-0-i117-22">Successful response</h6>
+<div class="math block">
+\boxed{
+\text{increase probability of the sampled actions}
+}
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-23">Poor response</h6>
+<div class="math block">
+\boxed{
+\text{decrease probability of the sampled actions}
+}
+</div>
+<p>The source introduces policy-gradient methods specifically to make this connection. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-24">17. Policy-gradient intuition</h4>
+<p>The central quantity is the log probability of the sampled actions.</p>
+<p>A simplified objective can be thought of as:</p>
+<div class="math block">
+\boxed{
+R\sum_t \log\pi_\theta(a_t\mid s_t)
+}
+</div>
+<p>and the corresponding gradient is proportional to:</p>
+<div class="math block">
+\boxed{
+R\sum_t
+\nabla_\theta
+\log\pi_\theta(a_t\mid s_t)
+}
+</div>
+<p>The source explains the intuition:</p>
+<blockquote>
+<p>the gradient of the log probability tells us how to change the model so the sampled action becomes more or less likely, while the reward controls the direction and strength. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<p>This is the bridge from:</p>
+<div class="math block">
+\boxed{\text{reward}}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{\text{parameter update}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-25">18. Successful response</h4>
+<p>Suppose:</p>
+<div class="math block">
+R=1.
+</div>
+<p>Then, conceptually:</p>
+<div class="math block">
++\nabla\log\pi_\theta(a_t\mid s_t).
+</div>
+<p>We increase the likelihood of the sampled trajectory.</p>
+<p>So:</p>
+<pre><code class="language-text">successful response
+       ↓
+positive learning signal
+       ↓
+sampled tokens become more likely
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-26">19. Unsuccessful response</h4>
+<p>Now suppose the response receives a lower signal.</p>
+<p>Relative to a baseline, its advantage can be negative.</p>
+<p>Then:</p>
+<div class="math block">
+A&lt;0.
+</div>
+<p>The policy update pushes against the sampled behavior.</p>
+<p>So:</p>
+<pre><code class="language-text">poor response
+     ↓
+negative advantage
+     ↓
+sampled behavior becomes less likely
+</code></pre>
+<p>This is much more informative than simply thinking &quot;reward = number.&quot;</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-27">20. Why raw reward is not enough</h4>
+<p>The source makes an important observation.</p>
+<p>Imagine:</p>
+<h6 id="v3-heading-chunk-les-r102-0-i117-28">Prompt A — very easy</h6>
+<p>Most responses receive:</p>
+<div class="math block">
+R=1.
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-29">Prompt B — very difficult</h6>
+<p>Most responses receive:</p>
+<div class="math block">
+R=0.
+</div>
+<p>Suppose one response from Prompt A gets reward 1.</p>
+<p>That's not necessarily impressive.</p>
+<p>But a response from difficult Prompt B that somehow performs better than most alternatives may still be valuable.</p>
+<p>So raw reward does not tell us:</p>
+<div class="math block">
+\boxed{
+\text{how good was this response relative to what was expected?}
+}
+</div>
+<p>This motivates the <strong>advantage</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-30">21. Advantage</h4>
+<p>The source gives:</p>
+<div class="math block">
+\boxed{
+A_k=R_k-\text{baseline}(s_k)
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Interpret it as:</p>
+<div class="math block">
+\text{Advantage}
+=
+\text{actual outcome}
+-
+\text{expected outcome}.
+</div>
+<p>So:</p>
+<h6 id="v3-heading-chunk-les-r102-0-i117-31">Better than expected</h6>
+<div class="math block">
+A&gt;0.
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-32">Worse than expected</h6>
+<div class="math block">
+A&lt;0.
+</div>
+<h6 id="v3-heading-chunk-les-r102-0-i117-33">About as expected</h6>
+<div class="math block">
+A\approx0.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-34">22. Why the baseline helps</h4>
+<p>Without a baseline:</p>
+<div class="math block">
+R
+</div>
+<p>can be noisy.</p>
+<p>With a baseline:</p>
+<div class="math block">
+A=R-b.
+</div>
+<p>we ask:</p>
+<blockquote>
+<p>Did this response do unusually well or unusually badly relative to the reference level?</p>
+</blockquote>
+<p>The source says the baseline does not change which actions are optimal, but can dramatically reduce variance, producing more stable training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{baseline}
+\rightarrow
+\text{lower variance}
+\rightarrow
+\text{more stable updates}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-35">23. A concrete example</h4>
+<p>Suppose three responses to the same prompt produce rewards:</p>
+<div class="math block">
+R_1=1
+</div>
+<div class="math block">
+R_2=0
+</div>
+<div class="math block">
+R_3=0.5.
+</div>
+<p>Suppose the baseline is:</p>
+<div class="math block">
+b=0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+A_1=1-0.5=+0.5
+</div>
+<div class="math block">
+A_2=0-0.5=-0.5
+</div>
+<div class="math block">
+A_3=0.5-0.5=0.
+</div>
+<p>Therefore:</p>
+<pre><code class="language-text">Response 1 → positive signal → reinforce
+Response 2 → negative signal → discourage
+Response 3 → approximately neutral
+</code></pre>
+<p>This is the intuition that will eventually lead us to GRPO.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-36">24. Why this is especially powerful for reasoning</h4>
+<p>Suppose we don't know the ideal reasoning chain.</p>
+<p>Maybe there are 20 valid ways to solve the same problem.</p>
+<p>Supervised learning asks:</p>
+<blockquote>
+<p>Which exact target sequence should I imitate?</p>
+</blockquote>
+<p>RL can instead ask:</p>
+<blockquote>
+<p>Did the response actually solve the problem?</p>
+</blockquote>
+<p>That is why reward-based reasoning is interesting.</p>
+<p>The model can explore different token sequences as long as the resulting behavior receives useful reward.</p>
+<p>The source connects this idea to DeepSeek-R1 and objectively verifiable reasoning tasks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-37">25. But there is a limitation</h4>
+<p>Sparse reward is powerful, but the credit assignment is imperfect.</p>
+<p>If an entire 100-token answer gets reward:</p>
+<div class="math block">
+R=1,
+</div>
+<p>the simple policy-gradient interpretation can apply that positive signal across the generated response tokens.</p>
+<p>The source later explicitly explains that the completion-level advantage is applied across generated tokens, which is useful statistically but is not perfect token-level credit assignment. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is an important limitation to remember.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-38">26. The entire RL rollout</h4>
+<p>We can now draw the complete process:</p>
+<pre><code class="language-text">PROMPT
+   │
+   ▼
+State s₀
+   │
+   ▼
+LLM policy πθ
+   │
+   ▼
+sample token a₀
+   │
+   ▼
+new state s₁
+   │
+   ▼
+LLM policy πθ
+   │
+   ▼
+sample token a₁
+   │
+   ▼
+...
+   │
+   ▼
+complete response
+   │
+   ▼
+Verifier / Reward
+   │
+   ▼
+R
+   │
+   ▼
+Advantage A
+   │
+   ▼
+Policy-gradient update
+   │
+   ▼
+updated θ
+</code></pre>
+<p>This is the fundamental RL-for-LLMs pipeline introduced by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-39">27. Now compare this with our Chapter 6 training</h4>
+<h6 id="v3-heading-chunk-les-r102-0-i117-40">Chapter 6 — pre-training</h6>
+<pre><code class="language-text">X
+↓
+Transformer
+↓
+logits
+↓
+Cross Entropy with known Y
+↓
+backward
+↓
+AdamW
+</code></pre>
+<p>The target token is explicitly available.</p>
+<h6 id="v3-heading-chunk-les-r102-0-i117-41">Chapter 7 — RL</h6>
+<pre><code class="language-text">Prompt
+↓
+sample response
+↓
+Verifier / reward
+↓
+advantage
+↓
+policy-gradient objective
+↓
+backward
+↓
+optimizer
+</code></pre>
+<p>The training signal comes from the <strong>outcome</strong> rather than an explicitly supplied target sequence.</p>
+<p>That is the fundamental conceptual shift.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-42">28. Where PPO enters</h4>
+<p>The source's next step is <strong>PPO — Proximal Policy Optimization</strong>.</p>
+<p>Why do we need it?</p>
+<p>Because a naive policy-gradient update can change the model's probabilities too aggressively.</p>
+<p>Suppose the old policy produced a rollout.</p>
+<p>Then we update the model.</p>
+<p>If the new model becomes radically different from the old one in a single update, the rollout data becomes a poor basis for that update.</p>
+<p>PPO therefore introduces a mechanism to keep the policy update close to the old policy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That gives the next progression:</p>
+<div class="math block">
+\boxed{
+\text{Policy Gradient}
+\rightarrow
+\text{Advantage}
+\rightarrow
+\text{PPO}
+\rightarrow
+\text{GRPO}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-43">29. The key knowledge graph so far</h4>
+<pre><code class="language-text">                 REINFORCEMENT LEARNING
+                          │
+             ┌────────────┴────────────┐
+             ▼                         ▼
+          State                      Action
+             │                         │
+ prompt + generated tokens       sampled next token
+             │                         │
+             └──────────┬──────────────┘
+                        ▼
+                     Policy
+                   πθ(a | s)
+                        │
+                        ▼
+                   Response
+                        │
+                        ▼
+                     Reward
+                        │
+                        ▼
+                Sparse feedback
+                        │
+                        ▼
+                   Advantage
+                        │
+                        ▼
+                Policy Gradient
+                        │
+                        ▼
+                       PPO
+                        │
+                        ▼
+                      GRPO
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-0-i117-44">30. What you should be able to answer now</h4>
+<p><strong>Q: What is the state in LLM RL?</strong></p>
+<div class="math block">
+\boxed{\text{prompt + generated tokens so far}}
+</div>
+<p><strong>Q: What is the action?</strong></p>
+<div class="math block">
+\boxed{\text{next sampled token}}
+</div>
+<p><strong>Q: What is the policy?</strong></p>
+<div class="math block">
+\boxed{\text{LLM probability distribution over actions}}
+</div>
+<p><strong>Q: What is the reward?</strong></p>
+<div class="math block">
+\boxed{\text{score of the generated response}}
+</div>
+<p><strong>Q: Why is it sparse?</strong></p>
+<div class="math block">
+\boxed{\text{reward often arrives only after the complete response}}
+</div>
+<p><strong>Q: What is the credit-assignment problem?</strong></p>
+<div class="math block">
+\boxed{\text{the final reward doesn't directly identify which token caused success/failure}}
+</div>
+<p><strong>Q: Why use advantage instead of raw reward?</strong></p>
+<div class="math block">
+\boxed{\text{to measure outcome relative to a baseline and reduce variance}}
+</div>
+<p>All of these mappings come directly from the Chapter 7 framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

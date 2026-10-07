@@ -1,0 +1,1220 @@
+<section class="chunk" id="chunk-les-step-5-30-i71" data-id="les-step-5-30-i71"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-30-i71"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-30-i71" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-29-i70">← Previous lesson</a> · <a href="#v3-indicqa">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-29-i70">Step 5.29 — IndicXTREME Zero-Shot Fine-Tuning Protocol</a></p><p><strong>This lesson:</strong> Step 5.30 — Does IndicXTREME Actually Distinguish Good Models?</p><p><strong>Source references:</strong> <a href="#source-3">indicxtreme-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-30-i71"></a></p>
+<h2>Step 5.30 — Does IndicXTREME Actually Distinguish Good Models?</h2>
+<p><em>Plan node: I10 · chat order #71</em></p>
+<p>Now we move from <strong>benchmark design</strong> to the most important question:</p>
+<div class="math block">
+\boxed{
+\text{Does this benchmark actually reveal meaningful differences between models?}
+}
+</div>
+<p>A benchmark is useful only if strong and weak systems produce distinguishable results.</p>
+<p>The supplied deck answers:</p>
+<div class="math block">
+\boxed{\text{Yes}}
+</div>
+<p>and then shows <strong>why</strong>. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-1">5.30.1 First, understand what is being compared</h3>
+<p>The main results table contains:</p>
+<div class="math block">
+\boxed{\text{IndicBERT v1}}
+</div>
+<div class="math block">
+\boxed{\text{mBERT}}
+</div>
+<div class="math block">
+\boxed{\text{XLM-R}}
+</div>
+<div class="math block">
+\boxed{\text{MuRIL}}
+</div>
+<div class="math block">
+\boxed{\text{v1-data}}
+</div>
+<p>and several IndicBERT v2 variants:</p>
+<div class="math block">
+\boxed{\text{IndicBERT v2}}
+</div>
+<div class="math block">
+\boxed{+\text{Samanantar}}
+</div>
+<div class="math block">
+\boxed{+\text{Back-Trans}}
+</div>
+<div class="math block">
+\boxed{\text{IndicBERT-SS}}.
+</div>
+<p>The benchmark then evaluates each across the same 9-task structure:</p>
+<div class="math block">
+\boxed{
+5\text{ classification}
++
+2\text{ structure prediction}
++
+1\text{ QA}
++
+1\text{ retrieval}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-2">5.30.2 First baseline: IndicBERT v1</h3>
+<p>The table reports:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">IndicBERT v1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IndicSentiment</td>
+<td style="text-align:right">61.8</td>
+</tr>
+<tr>
+<td>IndicXNLI</td>
+<td style="text-align:right">42.8</td>
+</tr>
+<tr>
+<td>IndicCOPA</td>
+<td style="text-align:right">51.0</td>
+</tr>
+<tr>
+<td>IndicXPara</td>
+<td style="text-align:right">47.5</td>
+</tr>
+<tr>
+<td>MASSIVE Intent</td>
+<td style="text-align:right">—</td>
+</tr>
+<tr>
+<td>Naamapadam</td>
+<td style="text-align:right">25.3</td>
+</tr>
+<tr>
+<td>MASSIVE SlotFill</td>
+<td style="text-align:right">—</td>
+</tr>
+<tr>
+<td>IndicQA</td>
+<td style="text-align:right">10.1</td>
+</tr>
+<tr>
+<td>FLORES</td>
+<td style="text-align:right">1.1</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>This gives us a relatively weak starting point.</p>
+<p>For example:</p>
+<div class="math block">
+\boxed{\text{IndicQA}=10.1}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{FLORES}=1.1}.
+</div>
+<p>That creates a large headroom for improvement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-3">5.30.3 Compare with multilingual baselines</h3>
+<p>Now consider:</p>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-4">mBERT</h5>
+<div class="math block">
+69.5,\ 54.7,\ 51.7,\ 55.2,\ 13.2,\ 63.0,\ 6.2,\ 32.9,\ 32.3
+</div>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-5">XLM-R</h5>
+<div class="math block">
+84.0,\ 69.7,\ 60.1,\ 56.7,\ 66.6,\ 71.7,\ 50.0,\ 48.8,\ 3.1
+</div>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-6">MuRIL</h5>
+<div class="math block">
+85.1,\ 72.4,\ 58.9,\ 60.8,\ 77.2,\ 74.3,\ 57.0,\ 48.3,\ 52.3.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>Already we see something interesting:</p>
+<div class="math block">
+\boxed{
+\text{there is no single model that dominates every task}
+}
+</div>
+<p>For example, MuRIL is extremely strong on:</p>
+<div class="math block">
+\text{MASSIVE Intent}=77.2
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Naamapadam}=74.3,
+</div>
+<p>while XLM-R has:</p>
+<div class="math block">
+\text{IndicXNLI}=69.7.
+</div>
+<p>So task choice matters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-7">5.30.4 Now look at IndicBERT v2</h3>
+<p>IndicBERT v2 reports:</p>
+<div class="math block">
+\boxed{
+88.3
+}
+</div>
+<p>on IndicSentiment,</p>
+<div class="math block">
+\boxed{
+73.0
+}
+</div>
+<p>on IndicXNLI,</p>
+<div class="math block">
+\boxed{
+62.7
+}
+</div>
+<p>on IndicCOPA,</p>
+<div class="math block">
+\boxed{
+56.9
+}
+</div>
+<p>on IndicXPara,</p>
+<div class="math block">
+\boxed{
+78.8
+}
+</div>
+<p>on MASSIVE Intent,</p>
+<div class="math block">
+\boxed{
+73.2
+}
+</div>
+<p>on Naamapadam,</p>
+<div class="math block">
+\boxed{
+56.7
+}
+</div>
+<p>on SlotFill,</p>
+<div class="math block">
+\boxed{
+47.7
+}
+</div>
+<p>on IndicQA,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{
+69.4
+}
+</div>
+<p>on FLORES. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-8">5.30.5 What immediately jumps out?</h3>
+<p>Compare v1 and v2.</p>
+<p>For IndicSentiment:</p>
+<div class="math block">
+88.3-61.8
+=
+\boxed{26.5\text{ points}}.
+</div>
+<p>For IndicXNLI:</p>
+<div class="math block">
+73.0-42.8
+=
+\boxed{30.2\text{ points}}.
+</div>
+<p>For IndicCOPA:</p>
+<div class="math block">
+62.7-51.0
+=
+\boxed{11.7\text{ points}}.
+</div>
+<p>For IndicXPara:</p>
+<div class="math block">
+56.9-47.5
+=
+\boxed{9.4\text{ points}}.
+</div>
+<p>For Naamapadam:</p>
+<div class="math block">
+73.2-25.3
+=
+\boxed{47.9\text{ points}}.
+</div>
+<p>For IndicQA:</p>
+<div class="math block">
+47.7-10.1
+=
+\boxed{37.6\text{ points}}.
+</div>
+<p>For FLORES:</p>
+<div class="math block">
+69.4-1.1
+=
+\boxed{68.3\text{ points}}.
+</div>
+<p>These are very large changes.</p>
+<p>They show that the newer Indic-specialized setup is dramatically stronger than the old IndicBERT v1 baseline on the tasks for which both have reported values. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-9">5.30.6 Why does this matter?</h3>
+<p>Because it tells us the benchmark has enough dynamic range to distinguish:</p>
+<div class="math block">
+\boxed{\text{weaker Indic model}}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{\text{stronger Indic model}}.
+</div>
+<p>If every model had scored:</p>
+<div class="math block">
+70\%\pm1\%
+</div>
+<p>on every task, the benchmark would be much less informative.</p>
+<p>Instead, we see large spreads.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-10">5.30.7 The major claim on the slide</h3>
+<p>The deck summarizes:</p>
+<div class="math block">
+\boxed{
+\text{IndicBERT v2 family beats every massively-multilingual baseline}
+}
+</div>
+<p>on:</p>
+<div class="math block">
+\boxed{7\text{ of 9 tasks}}.
+</div>
+<p>The baselines named are:</p>
+<div class="math block">
+\boxed{\text{mBERT, XLM-R, MuRIL}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>The word <strong>family</strong> matters.</p>
+<p>It does not mean that the plain <code>IndicBERT v2</code> row itself beats the best multilingual baseline on all seven.</p>
+<p>The strongest variants are considered as part of the family.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-11">5.30.8 Let's verify the “7 of 9” claim ourselves</h3>
+<p>Take the strongest multilingual baseline per task:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Best of mBERT/XLM-R/MuRIL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IndicSentiment</td>
+<td style="text-align:right">85.1</td>
+</tr>
+<tr>
+<td>IndicXNLI</td>
+<td style="text-align:right">72.4</td>
+</tr>
+<tr>
+<td>IndicCOPA</td>
+<td style="text-align:right">60.1</td>
+</tr>
+<tr>
+<td>IndicXPara</td>
+<td style="text-align:right">60.8</td>
+</tr>
+<tr>
+<td>MASSIVE Intent</td>
+<td style="text-align:right">77.2</td>
+</tr>
+<tr>
+<td>Naamapadam</td>
+<td style="text-align:right">74.3</td>
+</tr>
+<tr>
+<td>SlotFill</td>
+<td style="text-align:right">57.0</td>
+</tr>
+<tr>
+<td>IndicQA</td>
+<td style="text-align:right">48.8</td>
+</tr>
+<tr>
+<td>FLORES</td>
+<td style="text-align:right">52.3</td>
+</tr>
+</tbody>
+</table>
+<p>Now use the strongest result within the IndicBERT v2 family, represented by the <code>IndicBERT-SS</code> row:</p>
+<div class="math block">
+88.1,\ 73.9,\ 64.2,\ 56.4,\ 80.7,\ 66.6,\ 57.3,\ 49.7,\ 71.2.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>Compare.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-12">5.30.9 Task-by-task comparison</h3>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-13">IndicSentiment</h5>
+<div class="math block">
+88.1&gt;85.1
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+3.0}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-14">IndicXNLI</h5>
+<div class="math block">
+73.9&gt;72.4
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+1.5}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-15">IndicCOPA</h5>
+<div class="math block">
+64.2&gt;60.1
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+4.1}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-16">IndicXPara</h5>
+<div class="math block">
+56.4&lt;60.8.
+</div>
+<p>So the multilingual baseline remains higher.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-17">MASSIVE Intent</h5>
+<div class="math block">
+80.7&gt;77.2
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+3.5}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-18">Naamapadam</h5>
+<div class="math block">
+66.6&lt;74.3.
+</div>
+<p>Multilingual baseline remains higher.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-19">MASSIVE SlotFill</h5>
+<div class="math block">
+57.3&gt;57.0
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+0.3}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-20">IndicQA</h5>
+<div class="math block">
+49.7&gt;48.8
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+0.9}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-21">FLORES</h5>
+<div class="math block">
+71.2&gt;52.3
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{+18.9}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+7\text{ wins out of }9
+}
+</div>
+<p>and the two losses are:</p>
+<div class="math block">
+\boxed{\text{IndicXPara}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{Naamapadam}}.
+</div>
+<p>This directly reproduces the deck's “7 of 9” statement. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-22">5.30.10 This is a much stronger way to read the table</h3>
+<p>Instead of memorizing:</p>
+<blockquote>
+<p>“IndicBERT wins 7 of 9.”</p>
+</blockquote>
+<p>understand:</p>
+<div class="math block">
+\boxed{
+\text{Indic-focused pretraining produces an advantage on most benchmark capabilities}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{not every task}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{not by the same margin}
+}.
+</div>
+<p>That is a scientifically more useful interpretation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-23">5.30.11 Biggest gain: retrieval</h3>
+<p>On FLORES:</p>
+<p>Strongest multilingual baseline:</p>
+<div class="math block">
+52.3.
+</div>
+<p>IndicBERT-SS:</p>
+<div class="math block">
+71.2.
+</div>
+<p>Gain:</p>
+<div class="math block">
+71.2-52.3
+=
+\boxed{18.9\text{ points}}.
+</div>
+<p>Relative improvement:</p>
+<div class="math block">
+\frac{18.9}{52.3}\times100
+\approx
+\boxed{36.1\%}.
+</div>
+<p>The 18.9-point gap is our calculation from the reported table.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-24">5.30.12 Another strong gain: Intent</h3>
+<p>Best multilingual:</p>
+<div class="math block">
+77.2.
+</div>
+<p>IndicBERT-SS:</p>
+<div class="math block">
+80.7.
+</div>
+<p>Gain:</p>
+<div class="math block">
+\boxed{3.5\text{ points}}.
+</div>
+<p>The improvement is much smaller than FLORES.</p>
+<p>This teaches us:</p>
+<div class="math block">
+\boxed{
+\text{“wins the task” does not mean “wins by a huge margin.”}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-25">5.30.13 Another important result: IndicBERT-only ablation</h3>
+<p>The deck says that the pattern persists even for the ablation trained purely on:</p>
+<div class="math block">
+\boxed{\text{IndicCorp v2}}
+</div>
+<p>using:</p>
+<div class="math block">
+\boxed{\text{MLM}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{no parallel data}}.
+</div>
+<p>The slide's explanation is that models that do not need to share capacity with unrelated high-resource languages perform better on Indic tasks. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a very important experiment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-26">5.30.14 Why is the ablation important?</h3>
+<p>Suppose the improvement came only because the model received a lot of parallel multilingual data.</p>
+<p>Then we might conclude:</p>
+<div class="math block">
+\boxed{
+\text{parallel translation data caused the gain}
+}
+</div>
+<p>But the IndicCorp-only MLM ablation still performs strongly.</p>
+<p>That suggests:</p>
+<div class="math block">
+\boxed{
+\text{Indic-focused monolingual pretraining itself is valuable}
+}
+</div>
+<p>in the reported benchmark.</p>
+<p>The source explicitly highlights this observation. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-27">5.30.15 Why does “no parallel data” matter?</h3>
+<p>Parallel data looks like:</p>
+<div class="math block">
+\boxed{
+\text{sentence in language A}
+\leftrightarrow
+\text{corresponding sentence in language B}
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+\text{Hindi sentence}
+\leftrightarrow
+\text{English sentence}.
+</div>
+<p>The ablation instead relies purely on:</p>
+<div class="math block">
+\boxed{
+\text{IndicCorp v2 + MLM}
+}
+</div>
+<p>so the model can learn Indic-language structure directly from monolingual text.</p>
+<p>This makes the experiment stronger evidence for the usefulness of Indic-focused pretraining.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-28">5.30.16 Think about capacity sharing</h3>
+<p>A general multilingual model has to represent:</p>
+<div class="math block">
+\text{English}
++
+\text{Chinese}
++
+\text{Arabic}
++
+\text{Hindi}
++
+\text{Tamil}
++\cdots
+</div>
+<p>inside one model.</p>
+<p>IndicBERT focuses heavily on Indic languages.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{shared model capacity}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{Indic-focused capacity}
+}.
+</div>
+<p>The deck interprets the ablation result as evidence that avoiding capacity sharing with unrelated high-resource languages can benefit Indic tasks. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-29">5.30.17 Important caution</h3>
+<p>Do not turn that into:</p>
+<blockquote>
+<p>“Multilingual models are bad.”</p>
+</blockquote>
+<p>The table shows:</p>
+<div class="math block">
+\boxed{
+\text{mBERT/XLM-R/MuRIL can be very strong}
+}
+</div>
+<p>on particular tasks.</p>
+<p>For example:</p>
+<div class="math block">
+\text{MuRIL Naamapadam}=74.3
+</div>
+<p>beats the strongest listed IndicBERT-family result:</p>
+<div class="math block">
+66.6.
+</div>
+<p>And:</p>
+<div class="math block">
+\text{XLM-R IndicXPara}=56.7
+</div>
+<p>is above the strongest IndicBERT-family result:</p>
+<div class="math block">
+56.4.
+</div>
+<p>So specialization improves many tasks, but not every one. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-30">5.30.18 Now we move to the bigger issue: language-level performance</h3>
+<p>A model can have:</p>
+<div class="math block">
+\boxed{\text{excellent average performance}}
+</div>
+<p>while still failing badly on particular languages.</p>
+<p>Therefore the researchers break performance down by language.</p>
+<p>This produces the next major result:</p>
+<div class="math block">
+\boxed{
+\text{Winners vs Left-Behinds}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-31">5.30.19 What are Winners and Left-Behinds?</h3>
+<p>The taxonomy used earlier assigns languages a resource class.</p>
+<p>At one extreme:</p>
+<div class="math block">
+\boxed{
+5=\text{Winner}
+}
+</div>
+<p>meaning resource-rich.</p>
+<p>At the other:</p>
+<div class="math block">
+\boxed{
+1=\text{Left-Behind}
+}
+</div>
+<p>meaning extremely under-resourced.</p>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>So the benchmark can ask:</p>
+<div class="math block">
+\boxed{
+\text{Does performance track resource availability?}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-32">5.30.20 The answer is yes</h3>
+<p>The deck says extremely low-resource languages—those below the 10th percentile of the corpus-resource distribution—show a sharp and consistent performance drop. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is one of the most important findings of the entire IndicXTREME material.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-33">5.30.21 The concrete COPA example</h3>
+<p>On IndicCOPA:</p>
+<div class="math block">
+\boxed{\text{Santhali}}
+</div>
+<p>scores:</p>
+<div class="math block">
+\boxed{25.9\%}
+</div>
+<p>lower than Hindi.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{\text{Sindhi}}
+</div>
+<p>scores:</p>
+<div class="math block">
+\boxed{17.7\%}
+</div>
+<p>lower than Hindi. <em>(Source: indicxtreme-slides)</em></p>
+<p>These are <strong>percentage-point gaps</strong>, not relative percentage reductions.</p>
+<p>That distinction matters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-34">5.30.22 Percentage points vs percentage reduction</h3>
+<p>Suppose Hindi gets:</p>
+<div class="math block">
+60\%
+</div>
+<p>and Santhali is:</p>
+<div class="math block">
+25.9\text{ points lower}.
+</div>
+<p>Then Santhali would be:</p>
+<div class="math block">
+60-25.9
+=
+\boxed{34.1\%}.
+</div>
+<p>But saying “Santhali is 25.9% worse” would normally suggest a relative reduction:</p>
+<div class="math block">
+60(1-0.259)
+=
+44.46\%.
+</div>
+<p>That is <strong>not</strong> what the deck's wording means.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+25.9\text{ points lower}
+\neq
+25.9\%\text{ relative lower}
+}
+</div>
+<p>Very important exam distinction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-35">5.30.23 Why are Left-Behinds performing worse?</h3>
+<p>The slide identifies three related causes.</p>
+<p>First:</p>
+<div class="math block">
+\boxed{\text{lack of pretraining data}}
+</div>
+<p>Second:</p>
+<div class="math block">
+\boxed{\text{no shared script}}
+</div>
+<p>Third:</p>
+<div class="math block">
+\boxed{
+\text{no linguistic “cousin” in the corpus to bridge transfer}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>Let's unpack them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-36">5.30.24 Cause 1 — Lack of pretraining data</h3>
+<p>Suppose Hindi has a huge amount of training text but a low-resource language has very little.</p>
+<p>Then the model receives much more statistical evidence for Hindi.</p>
+<p>Conceptually:</p>
+<div class="math block">
+N_{\text{Hindi}}\gg N_{\text{low-resource}}.
+</div>
+<p>The model can therefore learn:</p>
+<div class="math block">
+P(\text{patterns}\mid\text{Hindi})
+</div>
+<p>much more reliably than:</p>
+<div class="math block">
+P(\text{patterns}\mid\text{very-low-resource language}).
+</div>
+<p>This follows directly from the resource-imbalance problem established earlier in the deck. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-37">5.30.25 Cause 2 — No shared script</h3>
+<p>This is particularly interesting.</p>
+<p>Suppose a low-resource language uses a script that is also well represented in the training corpus.</p>
+<p>Then there may be useful shared orthographic patterns.</p>
+<p>But if its script is poorly represented:</p>
+<div class="math block">
+\boxed{
+\text{less direct script-level transfer}
+}
+</div>
+<p>is available.</p>
+<p>The deck explicitly identifies the lack of a shared script as one of the compounding reasons for the performance drop. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-38">5.30.26 Cause 3 — No linguistic “cousin”</h3>
+<p>Suppose a low-resource language has related languages that are well represented.</p>
+<p>Then the model may potentially exploit transfer through shared linguistic structure.</p>
+<p>Conceptually:</p>
+<div class="math block">
+L_{\text{low}}
+\leftrightarrow
+L_{\text{related}}
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{related}}
+\rightarrow
+\text{learned representations}.
+</div>
+<p>But if there is no well-represented linguistic cousin in the corpus:</p>
+<div class="math block">
+\boxed{
+\text{less indirect transfer support}
+}
+</div>
+<p>is available.</p>
+<p>Again, the “linguistic cousin” explanation is explicitly given by the slide. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-39">5.30.27 This gives us a three-factor failure model</h3>
+<p>For an extremely low-resource language:</p>
+<div class="math block">
+\boxed{
+\text{small data}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{weak script sharing}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{weak linguistic-transfer support}
+}
+</div>
+<p>can compound.</p>
+<p>So the problem is not merely:</p>
+<div class="math block">
+\boxed{
+\text{“not enough text.”}
+}
+</div>
+<p>It can be:</p>
+<div class="math block">
+\boxed{
+\text{not enough text + poor representational bridges}.
+}
+</div>
+<p>That is the more complete lesson.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-40">5.30.28 The benchmark itself still has a limitation</h3>
+<p>Here is an extremely important detail.</p>
+<p>IndicCorp v2 contains:</p>
+<div class="math block">
+\boxed{24\text{ languages}}.
+</div>
+<p>But IndicXTREME can evaluate only:</p>
+<div class="math block">
+\boxed{19}
+</div>
+<p>of them.</p>
+<p>Therefore:</p>
+<div class="math block">
+24-19
+=
+\boxed{5}
+</div>
+<p>languages still have <strong>no evaluation set</strong>.</p>
+<p>The deck calls these remaining languages “left-behind” in the context of benchmark coverage. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-41">5.30.29 Why is this ironic?</h3>
+<p>The benchmark was created to address:</p>
+<div class="math block">
+\boxed{
+\text{poor benchmark coverage}
+}
+</div>
+<p>but it still cannot evaluate:</p>
+<div class="math block">
+\boxed{5/24}
+</div>
+<p>of the corpus languages.</p>
+<p>The fraction is:</p>
+<div class="math block">
+\frac{5}{24}
+\approx
+0.2083.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{20.8\%}
+</div>
+<p>of the IndicCorp v2 language set lacks IndicXTREME evaluation according to this slide.</p>
+<p>This is our calculation from the source's explicit 24 and 19 figures. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-42">5.30.30 This is a major research lesson</h3>
+<p>A benchmark itself can have a <strong>coverage frontier</strong>.</p>
+<p>Even if we improve:</p>
+<div class="math block">
+\text{model}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{training corpus},
+</div>
+<p>we still cannot measure performance on a language for which:</p>
+<div class="math block">
+\boxed{
+\text{no reliable evaluation dataset exists}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Data problem}
+\rightarrow
+\text{Model problem}
+\rightarrow
+\text{Evaluation problem}
+}
+</div>
+<p>are interconnected.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-43">5.30.31 Let's connect corpus size to benchmark behavior</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+20.9\text{B tokens}
+</div>
+<p>total.</p>
+<p>But the bottom 11 lowest-resource languages contribute only:</p>
+<div class="math block">
+1.08\text{B}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{1.08}{20.9}\times100
+\approx
+\boxed{5.17\%}.
+</div>
+<p>So nearly all of the corpus is concentrated outside that bottom group.</p>
+<p>This explains why simply saying:</p>
+<blockquote>
+<p>“The model has 20.9B Indic tokens”</p>
+</blockquote>
+<p>can hide the real distribution problem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-44">5.30.32 Important numerical inference</h3>
+<p>Suppose two models both see:</p>
+<div class="math block">
+20.9\text{B total tokens}.
+</div>
+<p>Model A has balanced distribution.</p>
+<p>Model B has highly concentrated distribution.</p>
+<p>They have the same total:</p>
+<div class="math block">
+\boxed{20.9\text{B}}
+</div>
+<p>but potentially very different low-resource performance.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{total corpus size}
+\neq
+\text{resource balance}
+}
+</div>
+<p>This is a conceptual inference from the corpus and benchmark results.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-45">5.30.33 Why does the benchmark distinguish good models?</h3>
+<p>We can now answer the original question at three levels.</p>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-46">Level 1 — Task level</h5>
+<p>Models differ significantly across the 9 tasks.</p>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-47">Level 2 — Model level</h5>
+<p>IndicBERT v2 family outperforms major multilingual baselines on 7/9 tasks.</p>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-48">Level 3 — Language level</h5>
+<p>Performance changes sharply according to language resource level, especially for Left-Behinds.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{benchmark discriminates both models and languages}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-49">5.30.34 The strongest conceptual conclusion</h3>
+<p>The results suggest:</p>
+<div class="math block">
+\boxed{
+\text{Indic-specific pretraining helps}
+}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{
+\text{Indic-specific pretraining does not eliminate the low-resource gap}
+}
+</div>
+<p>That is extremely important.</p>
+<p>We improve the overall model:</p>
+<div class="math block">
+\text{IndicBERT v2 family}
+</div>
+<p>yet still see:</p>
+<div class="math block">
+\text{Winner}
+&gt;
+\text{Left-Behind}.
+</div>
+<p>So better Indic resources reduce some problems without magically solving resource inequality.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-50">5.30.35 Full causal chain</h3>
+<p>Now connect the entire IndicXTREME lecture:</p>
+<div class="math block">
+\boxed{
+\text{Some Indic languages have little/no data}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{generic multilingual models allocate uneven capacity}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{existing benchmarks omit many Indic languages}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{IndicCorp + IndicXTREME}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Indic-focused pretraining improves many tasks}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{but extreme low-resource languages remain substantially weaker}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{future work must improve both data and evaluation coverage}
+}
+</div>
+<p>This is the central story of the IndicXTREME material. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-51">5.30.36 Exam numerical bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-30-i71-52">Numerical 1 — v1 → v2 IndicSentiment</h5>
+<div class="math block">
+88.3-61.8
+=
+\boxed{26.5\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-53">Numerical 2 — v1 → v2 IndicXNLI</h5>
+<div class="math block">
+73.0-42.8
+=
+\boxed{30.2\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-54">Numerical 3 — v1 → v2 FLORES</h5>
+<div class="math block">
+69.4-1.1
+=
+\boxed{68.3\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-55">Numerical 4 — best multilingual → IndicBERT-SS FLORES</h5>
+<div class="math block">
+71.2-52.3
+=
+\boxed{18.9\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-56">Numerical 5 — relative FLORES improvement</h5>
+<div class="math block">
+\frac{18.9}{52.3}\times100
+\approx
+\boxed{36.1\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-57">Numerical 6 — languages without benchmark</h5>
+<div class="math block">
+24-19
+=
+\boxed{5}.
+</div>
+<p>Fraction:</p>
+<div class="math block">
+5/24
+\approx
+\boxed{20.8\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-30-i71-58">Numerical 7 — low-resource corpus share</h5>
+<div class="math block">
+1.08/20.9\times100
+\approx
+\boxed{5.17\%}.
+</div>
+<p>All source figures used here come from the supplied IndicXTREME slides. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-59">5.30.37 Exam-style conceptual question</h3>
+<p><strong>Question:</strong> Why is the 7/9 result more informative than saying “IndicBERT v2 has a higher average score”?</p>
+<p>Because a single average can hide task-specific failures. The 7/9 comparison shows that the IndicBERT v2 family beats the strongest massively multilingual baseline on most individual benchmark tasks while still losing on two, namely IndicXPara and Naamapadam in the strongest-family comparison. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-60">5.30.38 Another exam question</h3>
+<p><strong>Question:</strong> Why is the IndicCorp-only MLM ablation important?</p>
+<p>Because it shows that the reported Indic gains are not dependent entirely on parallel multilingual data. The supplied slide says the advantage persists for a model trained purely on IndicCorp v2 with MLM and no parallel data, supporting the value of Indic-focused pretraining. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-61">5.30.39 Another exam question</h3>
+<p><strong>Question:</strong> Why do Left-Behind languages perform worse?</p>
+<p>The source identifies:</p>
+<div class="math block">
+\boxed{
+\text{insufficient pretraining data}
++
+\text{lack of shared script}
++
+\text{lack of a linguistic cousin represented in the corpus}
+}
+</div>
+<p>as compounding factors. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-30-i71-62">5.30.40 Final mental model</h3>
+<p>The entire results section can be reduced to:</p>
+<div class="math block">
+\boxed{
+\text{Indic specialization}
+\rightarrow
+\text{better performance on most tasks}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{resource inequality}
+\rightarrow
+\text{persistent language inequality}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{better model}
+\neq
+\text{problem solved for every language}
+}
+</div>
+<p>And there is one final warning:</p>
+<div class="math block">
+\boxed{
+\text{24 corpus languages}
+\quad\neq\quad
+\text{24 evaluated languages}
+}
+</div>
+<p>because the deck says only 19 can currently be evaluated, leaving 5 without an evaluation set. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-30-i71-63">Where we are in the Indic section</h4>
+<p>We have now completed the logical chain:</p>
+<div class="math block">
+\boxed{
+\text{Why Indic benchmark?}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{IndicCorp v2 construction}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{IndicXTREME task suite}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Zero-shot fine-tuning protocol}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Model comparison}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Winners vs Left-Behinds}
+}
+</div>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-g7">G.7 — IndicXTREME slides not covered by the lessons</a> — <em>IndicQA statistics, ethics and annotator practices</em></p>
+</blockquote>
+<hr />
+</section>

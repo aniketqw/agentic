@@ -1,0 +1,52 @@
+<section class="chunk v3-bridge" id="v3-minillm-concepts" data-v3="added"><h2>Bridge 4 — MiniLLM: KD sampling distributions and KL direction</h2><div class="v3-route" data-v3="added" data-lesson="v3-minillm-concepts"><div class="v3-route-top"><span>source explanation + first-principles derivation</span><button type="button" class="v3-complete" data-lesson="v3-minillm-concepts" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-3-i35">← Previous lesson</a> · <a href="#chunk-les-step-4-4-i36">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-0-3-i4">STEP 0.3 — ENTROPY → CROSS-ENTROPY → KL DIVERGENCE</a>, <a href="#chunk-les-step-4-2-i34">Step 4.2 — Temperature Scaling and “Dark Knowledge”</a></p><p><strong>This lesson:</strong> Bridge 4 — MiniLLM: KD sampling distributions and KL direction</p><p><strong>Source references:</strong> Use the exact grounding note in this bridge.</p><p class="v3-muted">Listed source locations checked; accompanying standard-library examples validated; full course proof review not implied. New teaching bridge; specific scope shown in the lesson.</p></details></div><p class="v3-label">New teaching bridge · original lessons and slides retained</p><p><strong>Grounding:</strong> minillm-slides(1).pdf, physical PDF pages 11, 12, 13, 14, 15, 16, 17, 18, 19. Original pages: <a href="#chunk-g-minillm-p11">11</a>, <a href="#chunk-g-minillm-p12">12</a>, <a href="#chunk-g-minillm-p13">13</a>, <a href="#chunk-g-minillm-p14">14</a>, <a href="#chunk-g-minillm-p15">15</a>, <a href="#chunk-g-minillm-p16">16</a>, <a href="#chunk-g-minillm-p17">17</a>, <a href="#chunk-g-minillm-p18">18</a>, <a href="#chunk-g-minillm-p19">19</a>. Source statements, derivations, toy examples, and qualifications are identified below.</p><h3 id="v3-heading-v3-minillm-concepts-1">Which distribution supplies the training examples?</h3><p>Fix a teacher p and a student qθ for a prompt x. Classical soft-target KD compares token distributions on supplied prefixes. Sequence-level KD trains on complete teacher-generated targets. MiniLLM changes which distribution’s behavior is emphasized. Separating prefix sampling, target sampling, and per-token loss avoids treating all of these as identical implementations of one exact sequence objective.</p><div class="math block">\mathrm{KL}(p\|q)=\sum_y p(y)\log\frac{p(y)}{q(y)},\qquad \mathrm{KL}(q\|p)=\sum_y q(y)\log\frac{q(y)}{p(y)}</div><p>Forward KL takes its expectation under p; reverse KL takes its expectation under q. For an autoregressive sequence, p(y|x)=∏ₜp(yₜ|x,y&lt;t), so log p(y|x)=Σₜlog p(yₜ|x,y&lt;t). A teacher-forced token loss sees prefixes supplied by the dataset; a rollout objective also depends on which model generated those prefixes. This distinction is central to slides 11–12 and 19.</p><h3 id="v3-heading-v3-minillm-concepts-2">Recompute the slide’s asymmetric numerical example</h3><table><caption>Slide 16 inputs, independently recomputed using natural logarithms</caption><thead><tr><th scope="col">Outcome</th><th scope="col">p</th><th scope="col">q</th><th scope="col">p log(p/q)</th><th scope="col">q log(q/p)</th></tr></thead><tbody><tr><td>1</td><td>.70</td><td>.40</td><td>.391731</td><td>−.223846</td></tr><tr><td>2</td><td>.25</td><td>.40</td><td>−.117501</td><td>.188001</td></tr><tr><td>3</td><td>.05</td><td>.20</td><td>−.069315</td><td>.277259</td></tr><tr><td>Total</td><td></td><td></td><td>.204915</td><td>.241414</td></tr></tbody></table><p>Individual contributions may be negative while the total KL is nonnegative. Swapping p and q changes both the weights and the log ratio. The reverse objective penalizes mass q assigns to regions where p is very small; the forward objective heavily penalizes q approaching zero where p has mass. If q=p is representable, both achieve zero there. “Mode-covering” and “mode-seeking” describe constrained approximations and optimization behavior, not a theorem that reverse KL must always discard a mode.</p><h3 id="v3-heading-v3-minillm-concepts-3">Understand the limitation of the one-bump illustration</h3><p>Slide 14 constrains the student to one bump and illustrates two candidate distributions. The exact family of allowed bumps is not mathematically specified, so its printed “arg min” labels cannot be verified as global optima from the listed vectors alone. In particular, a zero q on positive teacher mass makes forward KL infinite. Keep the illustration as an intuition and reserve a numerical optimum claim for a fully specified family. Slide 18’s single-Gaussian fit to a separated Gaussian mixture supplies a more concrete version of that capacity restriction.</p><p>For the Gaussian case, minimizing forward KL over q=N(μ,σ²) is equivalent to minimizing cross-entropy E_p[(Y−μ)²/(2σ²)+log σ]+constant. Differentiating gives μ=E_p[Y] and σ²=Var_p[Y]. A separated target mixture therefore gives a wide fitted Gaussian between modes. Reverse KL uses E_q instead and can prefer one region; its result depends on separation, variance, and initialization. It is not guaranteed to choose a unique mode.</p><h3 id="v3-heading-v3-minillm-concepts-4">Bridge to RL, without skipping the needed mathematics</h3><p>Slide 20’s difficulty is that the student samples the very sequences whose probabilities are being optimized. Backpropagating only through the teacher score of a discrete sampled token misses the derivative of the sampling distribution. The next optimization bridge uses the log-derivative identity after the RL foundations. Before that, retain this mental distinction: a fixed target sequence gives a supervised loss; a changing rollout distribution requires an expectation-aware gradient.</p><details class="v3-code"><summary>Complete executable companion: kl_gradient_examples.py · Python standard library</summary><pre><code class="language-python" data-runnable="true" data-filename="kl_gradient_examples.py">&quot;&quot;&quot;Exact finite-vocabulary reverse-KL gradient checked by finite differences.&quot;&quot;&quot;
+import math
+
+def softmax(z):
+    exp = [math.exp(v - max(z)) for v in z]
+    return [v / sum(exp) for v in exp]
+
+def kl(p, q):
+    return sum(a * math.log(a / b) for a, b in zip(p, q) if a)
+
+def reverse_kl_from_logits(z, teacher):
+    return kl(softmax(z), teacher)
+
+def gradient(z, teacher):
+    q = softmax(z)
+    ratios = [math.log(a / b) for a, b in zip(q, teacher)]
+    average = sum(a * b for a, b in zip(q, ratios))
+    return [a * (b - average) for a, b in zip(q, ratios)]
+
+def main():
+    p, q = [0.70, 0.25, 0.05], [0.40, 0.40, 0.20]
+    z = [math.log(x) for x in q]
+    g = gradient(z, p)
+    finite = []
+    epsilon = 1e-5
+    for j in range(len(z)):
+        plus, minus = z[:], z[:]
+        plus[j] += epsilon
+        minus[j] -= epsilon
+        finite.append((reverse_kl_from_logits(plus, p) - reverse_kl_from_logits(minus, p)) / (2 * epsilon))
+    assert max(abs(a-b) for a,b in zip(g, finite)) &lt; 1e-8
+    assert abs(sum(g)) &lt; 1e-12
+    assert math.isclose(kl(p, q), 0.2049154261873674, abs_tol=1e-9)
+    assert math.isclose(kl(q, p), 0.2414140087481032, abs_tol=1e-9)
+    updated = [v - 0.1*d for v,d in zip(z,g)]
+    assert reverse_kl_from_logits(updated, p) &lt; reverse_kl_from_logits(z, p)
+    # Illustrative mixture/importance weights; no production rollout claim.
+    mixture = [0.2*a + 0.8*b for a,b in zip(p,q)]
+    weights = [b / m for b,m in zip(q,mixture)]
+    assert math.isclose(sum(m*w for m,w in zip(mixture,weights)), 1)
+    future_rewards = [-0.2, -0.6, -0.4]
+    averages = [sum(future_rewards[t+1:])/len(future_rewards[t+1:])
+                if future_rewards[t+1:] else 0.0 for t in range(3)]
+    assert averages == [-0.5, -0.4, 0.0]
+    print(&#x27;KL[p||q]:&#x27;, kl(p,q), &#x27;KL[q||p]:&#x27;, kl(q,p))
+    print(&#x27;analytic gradient:&#x27;, g, &#x27;finite differences:&#x27;, finite)
+    print(&#x27;mixture:&#x27;, mixture, &#x27;importance weights:&#x27;, weights)
+    print(&#x27;future-only average rewards:&#x27;, averages)
+
+if __name__ == &#x27;__main__&#x27;:
+    main()
+</code></pre><p>Run with Python 3. The assertions check the stated numerical identities and edge cases. This is an instructional example.</p></details><p><a href="#v3-minillm-optimization">Continue after policy-gradient foundations: MiniLLM optimization</a>. R1-style text distillation remains the separate treatment in the original next lessons.</p></section>

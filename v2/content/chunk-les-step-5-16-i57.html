@@ -1,0 +1,1390 @@
+<section class="chunk" id="chunk-les-step-5-16-i57" data-id="les-step-5-16-i57"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-16-i57"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-16-i57" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-15-i56">← Previous lesson</a> · <a href="#chunk-les-step-5-17-i58">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-15-i56">Step 5.15 — DeepSeek-R1 Distilled Models at Scale</a></p><p><strong>This lesson:</strong> Step 5.16 — The 800K Distillation Dataset: Rejection Sampling and Data Composition</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-16-i57"></a></p>
+<h2>Step 5.16 — The 800K Distillation Dataset: Rejection Sampling and Data Composition</h2>
+<p><em>Plan node: I8 · chat order #57</em></p>
+<p>We now move from <strong>student training</strong> to the thing that makes the whole student-training process work:</p>
+<div class="math block">
+\boxed{\text{What exactly did DeepSeek put into the student's training set?}}
+</div>
+<p>This is arguably as important as the loss function itself.</p>
+<p>The central idea is:</p>
+<div class="math block">
+\boxed{
+\text{A student cannot learn a reasoning behavior that is not represented well in its training data.}
+}
+</div>
+<p>The supplied source therefore treats dataset quality as the critical ingredient of the R1 distillation approach. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-1">5.16.1 Start with the basic problem</h3>
+<p>Suppose the teacher receives one math question.</p>
+<p>It might generate:</p>
+<div class="math block">
+R_1,R_2,R_3,\ldots,R_G
+</div>
+<p>where each <span class="math inline">R_i</span> is a different reasoning attempt.</p>
+<p>Some may be:</p>
+<ul>
+<li>correct,</li>
+<li>incorrect,</li>
+<li>partially correct,</li>
+<li>correct but badly formatted,</li>
+<li>repetitive,</li>
+<li>incoherent.</li>
+</ul>
+<p>The question is:</p>
+<blockquote>
+<p><strong>Which response should become training data for the student?</strong></p>
+</blockquote>
+<p>DeepSeek's answer is:</p>
+<div class="math block">
+\boxed{\text{generate multiple candidates + verify + filter}}
+</div>
+<p>This is <strong>rejection sampling</strong> in the source's distillation-data pipeline. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-2">5.16.2 Rejection sampling: the complete flow</h3>
+<p>Think about a single prompt:</p>
+<div class="math block">
+q
+</div>
+<p>The teacher samples:</p>
+<div class="math block">
+R_1,R_2,R_3,\ldots,R_K
+</div>
+<p>Then each candidate goes through verification.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                    Prompt q
+                       │
+                       ▼
+                 DeepSeek-R1
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+         R1            R2           R3   ... RK
+          │            │            │
+          ▼            ▼            ▼
+      Verify         Verify       Verify
+          │            │            │
+          ▼            ▼            ▼
+       Correct?      Correct?     Correct?
+          │            │            │
+          └────────────┴────────────┘
+                       │
+                       ▼
+                Quality filtering
+                       │
+                       ▼
+             Keep good responses
+</code></pre>
+<p>The retained responses become teacher-generated supervision for the students.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-3">5.16.3 Why generate multiple responses?</h3>
+<p>Because one teacher sample can fail.</p>
+<p>Suppose:</p>
+<div class="math block">
+P(\text{one generated response is correct})=0.4.
+</div>
+<p>With one attempt:</p>
+<div class="math block">
+P(\text{success})=0.4.
+</div>
+<p>But with <span class="math inline">K=5</span> independent attempts, the probability that <strong>at least one</strong> is correct is:</p>
+<div class="math block">
+1-(1-0.4)^5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+1-0.6^5
+=
+1-0.07776
+=
+\boxed{0.92224}.
+</div>
+<p>So approximately:</p>
+<div class="math block">
+\boxed{92.2\%}
+</div>
+<p>chance of obtaining at least one correct candidate.</p>
+<p>This is a <strong>general probabilistic illustration</strong>, not a reported DeepSeek sampling probability.</p>
+<p>The intuition is:</p>
+<div class="math block">
+\boxed{
+\text{multiple attempts}
+\rightarrow
+\text{higher chance of obtaining a strong trajectory}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-4">5.16.4 But “correct” is not enough</h3>
+<p>This is one of the most important parts of the source.</p>
+<p>Suppose the teacher generates:</p>
+<pre><code class="language-text">Answer: 42.
+</code></pre>
+<p>and it is correct.</p>
+<p>That may be useful.</p>
+<p>But suppose instead it generates:</p>
+<pre><code class="language-text">[fragmented multilingual text]
+[unnecessary code blocks]
+[random formatting]
+[repeated reasoning]
+42
+</code></pre>
+<p>It may still be technically correct.</p>
+<p>The source says such outputs can be filtered because the student learns not only the <strong>content</strong>, but also the <strong>style and structure</strong> of the training data. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Correctness} \neq \text{training-data quality}
+}
+</div>
+<p>A useful training example needs both.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-5">5.16.5 The two-stage selection idea</h3>
+<p>A simplified way to understand the pipeline is:</p>
+<div class="math block">
+\boxed{
+\text{Candidate generation}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Correctness verification}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Quality/style filtering}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Keep}
+=
+\text{Correct}
+\land
+\text{Well-formatted}
+}
+</div>
+<p>This is the conceptual rule described in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-6">5.16.6 Different domains need different verification</h3>
+<p>This is where the dataset becomes technically interesting.</p>
+<p>A mathematical answer often has an objective answer.</p>
+<p>Code can often be executed.</p>
+<p>But a general response may not have a deterministic ground truth.</p>
+<p>So the verifier depends on the domain.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-7">5.16.7 Mathematics</h3>
+<p>For a math problem:</p>
+<div class="math block">
+\boxed{
+\text{candidate final answer}
+\stackrel{?}{=}
+\text{ground-truth answer}
+}
+</div>
+<p>For example:</p>
+<p>Question:</p>
+<div class="math block">
+2x+6=20.
+</div>
+<p>Teacher response:</p>
+<pre><code class="language-text">2x = 14
+x = 7
+</code></pre>
+<p>Verifier:</p>
+<div class="math block">
+7\stackrel{?}{=}7.
+</div>
+<p>Accept.</p>
+<p>But suppose:</p>
+<pre><code class="language-text">2x = 14
+x = 8
+</code></pre>
+<p>Then:</p>
+<div class="math block">
+8\neq7.
+</div>
+<p>Reject.</p>
+<p>The source says mathematical candidates can be checked against known ground-truth answers. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-8">5.16.8 Why reasoning can still be wrong even when the final answer looks plausible</h3>
+<p>Imagine the teacher writes:</p>
+<pre><code class="language-text">3x = 18
+x = 5
+</code></pre>
+<p>The final answer is wrong.</p>
+<p>A verifier that checks only the final extracted value catches this.</p>
+<p>But the more interesting issue is that:</p>
+<div class="math block">
+\boxed{
+\text{correct final answer}
+}
+</div>
+<p>does not necessarily guarantee:</p>
+<div class="math block">
+\boxed{
+\text{correct reasoning trace}
+}.
+</div>
+<p>The supplied source emphasizes correctness checking but does not provide a universal formal proof verifier for every intermediate reasoning statement.</p>
+<p>So we should not infer that every retained chain-of-thought step is formally proven correct.</p>
+<p>The safe source-grounded conclusion is:</p>
+<div class="math block">
+\boxed{
+\text{the response was judged sufficiently correct for inclusion}
+}
+</div>
+<p>through the described verification process.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-9">5.16.9 Code</h3>
+<p>For code, the source describes a more powerful verifier.</p>
+<p>Instead of asking:</p>
+<blockquote>
+<p>“Does this code look right?”</p>
+</blockquote>
+<p>the system can:</p>
+<div class="math block">
+\boxed{
+\text{execute the code}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{test its output}
+}.
+</div>
+<p>So:</p>
+<pre><code class="language-text">Teacher code
+    ↓
+Execute
+    ↓
+Run tests
+    ↓
+Pass?
+  /   \
+Yes    No
+ |      |
+Keep   Reject
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is exactly why code is well suited to verifier-based reinforcement learning and data curation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-10">5.16.10 But code verification has a limitation</h3>
+<p>This point is supported by the broader source discussion of verifiers.</p>
+<p>Passing a visible set of tests does not necessarily prove correctness on every possible input. The source explicitly discusses this as a reward-hacking/verification concern in the RL context. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{passes tests}
+\neq
+\text{mathematically guaranteed correctness}
+}
+</div>
+<p>The verifier itself becomes part of the quality-control system.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-11">5.16.11 STEM and logic are harder</h3>
+<p>Suppose the prompt is a scientific reasoning question.</p>
+<p>There may not be a simple deterministic answer extractor.</p>
+<p>For such cases, the source says DeepSeek used <strong>DeepSeek-V3 as a generative reward model</strong>.</p>
+<p>The V3 model receives:</p>
+<div class="math block">
+\boxed{
+\text{ground-truth answer}
++
+\text{candidate response}
+}
+</div>
+<p>and judges whether the response is correct. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the pipeline becomes:</p>
+<div class="math block">
+\boxed{
+(q,y_{\text{gold}},R_i)
+\rightarrow
+\text{V3 judge}
+\rightarrow
+\text{accept/reject}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-12">5.16.12 This creates a hierarchy of verification</h3>
+<p>Conceptually:</p>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-13">Math</h5>
+<div class="math block">
+\boxed{
+\text{exact answer comparison}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-14">Code</h5>
+<div class="math block">
+\boxed{
+\text{execution/testing}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-15">STEM / Logic</h5>
+<div class="math block">
+\boxed{
+\text{generative judging}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-16">General data</h5>
+<div class="math block">
+\boxed{
+\text{quality/content filtering}
+}
+</div>
+<p>This is a crucial design principle:</p>
+<div class="math block">
+\boxed{
+\text{verification mechanism should match the task}
+}
+</div>
+<p>The source makes this same broader point in its RL section: use exact verifiers where possible and learned judgment where deterministic checking is insufficient. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-17">5.16.13 Correctness is only one filter</h3>
+<p>The source explicitly lists examples of responses that might be rejected despite being technically correct:</p>
+<ul>
+<li>mixed languages,</li>
+<li>chaotic formatting,</li>
+<li>excessive code blocks,</li>
+<li>incoherent presentation.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{student imitates training distribution}
+}
+</div>
+<p>Therefore poor teacher outputs can become poor student habits.</p>
+<p>This is a form of <strong>behavioral imitation</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-18">5.16.14 A powerful mental model: teacher traces are demonstrations</h3>
+<p>Instead of thinking:</p>
+<blockquote>
+<p>“The teacher gave the answer.”</p>
+</blockquote>
+<p>think:</p>
+<blockquote>
+<p>“The teacher gave a demonstration of how to solve the problem.”</p>
+</blockquote>
+<p>For example:</p>
+<div class="math block">
+q
+\rightarrow
+\underbrace{
+\text{decomposition}
+\rightarrow
+\text{calculation}
+\rightarrow
+\text{checking}
+\rightarrow
+\text{answer}
+}_{\text{teacher trajectory}}
+</div>
+<p>The student sees many such trajectories.</p>
+<p>So it can learn recurring structures such as:</p>
+<div class="math block">
+\text{identify subproblem}
+</div>
+<div class="math block">
+\rightarrow
+\text{select technique}
+</div>
+<div class="math block">
+\rightarrow
+\text{perform calculation}
+</div>
+<div class="math block">
+\rightarrow
+\text{verify}
+</div>
+<p>This is why the source says the value lies in the <strong>coherent reasoning strategy</strong>, not merely the final answer. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-19">5.16.15 Now the 800K dataset</h3>
+<p>After this filtering pipeline, the source reports approximately:</p>
+<div class="math block">
+\boxed{804,745\text{ training samples}}
+</div>
+<p>and commonly refers to it as the:</p>
+<div class="math block">
+\boxed{800K\text{ distillation dataset}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This distinction is important:</p>
+<div class="math block">
+804,745\approx800K
+</div>
+<p>so “800K” is the rounded description.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-20">5.16.16 Dataset composition</h3>
+<p>The source gives approximately:</p>
+<div class="math block">
+\boxed{395K\text{ Math}}
+</div>
+<div class="math block">
+\boxed{211K\text{ Code}}
+</div>
+<div class="math block">
+\boxed{10K\text{ STEM}}
+</div>
+<div class="math block">
+\boxed{10K\text{ Logic}}
+</div>
+<div class="math block">
+\boxed{178K\text{ General}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's organize it:</p>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th style="text-align:right">Approx. samples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Math</td>
+<td style="text-align:right">395K</td>
+</tr>
+<tr>
+<td>Code</td>
+<td style="text-align:right">211K</td>
+</tr>
+<tr>
+<td>STEM</td>
+<td style="text-align:right">10K</td>
+</tr>
+<tr>
+<td>Logic</td>
+<td style="text-align:right">10K</td>
+</tr>
+<tr>
+<td>General</td>
+<td style="text-align:right">178K</td>
+</tr>
+<tr>
+<td><strong>Approx. total</strong></td>
+<td style="text-align:right"><strong>804K</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-21">5.16.17 Check the arithmetic</h3>
+<p>Using the rounded values:</p>
+<div class="math block">
+395K+211K+10K+10K+178K
+</div>
+<div class="math block">
+=
+804K.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{804K}
+</div>
+<p>matches the more precise:</p>
+<div class="math block">
+\boxed{804,745}
+</div>
+<p>up to rounding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-22">5.16.18 Percentage composition</h3>
+<p>Using the approximate <span class="math inline">804,000</span> rounded total:</p>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-23">Math</h5>
+<div class="math block">
+\frac{395}{804}\times100
+\approx
+\boxed{49.1\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-24">Code</h5>
+<div class="math block">
+\frac{211}{804}\times100
+\approx
+\boxed{26.2\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-25">STEM</h5>
+<div class="math block">
+\frac{10}{804}\times100
+\approx
+\boxed{1.24\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-26">Logic</h5>
+<div class="math block">
+\boxed{1.24\%}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-27">General</h5>
+<div class="math block">
+\frac{178}{804}\times100
+\approx
+\boxed{22.1\%}.
+</div>
+<p>These reproduce the source's approximate characterization of Math as about 49% and Code as about 26%. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-28">5.16.19 The biggest insight: 75% is reasoning-heavy</h3>
+<p>Math + Code:</p>
+<div class="math block">
+395K+211K
+=
+606K.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\frac{606}{804}\times100
+\approx
+\boxed{75.4\%}.
+</div>
+<p>The source summarizes this as roughly:</p>
+<div class="math block">
+\boxed{75\%}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore the training distribution is heavily biased toward reasoning-intensive domains.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-29">5.16.20 Why not make it 100% math and code?</h3>
+<p>Because then the student risks becoming a specialist.</p>
+<p>Suppose:</p>
+<div class="math block">
+100\%
+</div>
+<p>of training consisted of competition math.</p>
+<p>The resulting model might become excellent at:</p>
+<div class="math block">
+\text{equations}
+</div>
+<p>but worse at:</p>
+<div class="math block">
+\text{conversation},
+\text{factual QA},
+\text{instruction following},
+\text{translation},
+\text{general interaction}.
+</div>
+<p>The source explicitly says the 178K general-purpose examples help prevent the distilled model from becoming too narrow. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-30">5.16.21 The role of the General 178K</h3>
+<p>The source describes this portion as including:</p>
+<ul>
+<li>general-purpose content,</li>
+<li>writing,</li>
+<li>factual QA,</li>
+<li>self-cognition,</li>
+<li>translation.</li>
+</ul>
+<p>Its purpose is to preserve the assistant-like breadth of the model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the dataset has a deliberate tension:</p>
+<div class="math block">
+\boxed{
+\text{reasoning specialization}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{general usefulness}
+}.
+</div>
+<p>This is a major training-data design decision.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-31">5.16.22 Why STEM and Logic are small but important</h3>
+<p>STEM:</p>
+<div class="math block">
+\approx10K
+</div>
+<p>Logic:</p>
+<div class="math block">
+\approx10K.
+</div>
+<p>Together:</p>
+<div class="math block">
+20K.
+</div>
+<p>Compared with:</p>
+<div class="math block">
+804K
+</div>
+<p>that's only about:</p>
+<div class="math block">
+\frac{20}{804}\times100
+\approx
+\boxed{2.49\%}.
+</div>
+<p>Yet the source calls these domains important because they help preserve reasoning ability outside pure mathematics and coding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This gives us an important lesson:</p>
+<div class="math block">
+\boxed{
+\text{sample count}
+\neq
+\text{importance}
+}
+</div>
+<p>A small category can serve an important coverage role.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-32">5.16.23 Average sample length: 5,355 tokens</h3>
+<p>This is another extremely important fact.</p>
+<p>The source reports:</p>
+<div class="math block">
+\boxed{5,355\text{ tokens/sample on average}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That means these are not short “question → answer” pairs.</p>
+<p>They are often long reasoning traces.</p>
+<p>The intended knowledge transfer is therefore:</p>
+<div class="math block">
+\boxed{
+\text{how the solution unfolds}
+}
+</div>
+<p>not simply:</p>
+<div class="math block">
+\boxed{
+\text{what the final answer is}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-33">5.16.24 Approximate token volume</h3>
+<p>Using the rounded figures:</p>
+<div class="math block">
+804,745\times5,355.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{4.31\times10^9}
+</div>
+<p>tokens.</p>
+<p>So the total teacher-generated dataset contains roughly:</p>
+<div class="math block">
+\boxed{4.3\text{ billion tokens}}
+</div>
+<p>under the simple assumption that the reported average applies across all samples.</p>
+<p>This is a <strong>derived estimate</strong> from the source's sample count and average length, not an independently reported token total.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-34">5.16.25 Exam numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+N=800,000
+</div>
+<p>and:</p>
+<div class="math block">
+\bar L=5,355.
+</div>
+<p>Then:</p>
+<div class="math block">
+N\bar L
+=
+800,000\times5,355
+</div>
+<div class="math block">
+=
+\boxed{4.284\times10^9}
+</div>
+<p>tokens.</p>
+<p>So about:</p>
+<div class="math block">
+\boxed{4.28\text{ billion tokens}}.
+</div>
+<p>Using the more precise <span class="math inline">804,745</span> count gives about <span class="math inline">4.31B</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-35">5.16.26 Why are long reasoning traces valuable?</h3>
+<p>Suppose two teachers produce:</p>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-36">Teacher A</h5>
+<pre><code class="language-text">x = 83
+</code></pre>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-37">Teacher B</h5>
+<pre><code class="language-text">Multiply both sides by 2.
+...
+Subtract 2x.
+...
+Verify the result.
+Therefore x = 83.
+</code></pre>
+<p>Both reveal:</p>
+<div class="math block">
+\text{answer}=83.
+</div>
+<p>But Teacher B exposes far more intermediate supervision.</p>
+<p>The student can see:</p>
+<div class="math block">
+\boxed{
+\text{problem decomposition}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{operation ordering}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{error correction}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{verification}
+}.
+</div>
+<p>This is why long chain-of-thought traces can be valuable for reasoning distillation.</p>
+<p>The source explicitly describes these samples as detailed, multi-step traces that can include intermediate calculations, corrections, and final verification. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-38">5.16.27 But long traces also create a cost</h3>
+<p>Longer sequence:</p>
+<div class="math block">
+N\uparrow
+</div>
+<p>means more token computation.</p>
+<p>For ordinary dense self-attention, attention cost grows approximately as:</p>
+<div class="math block">
+\boxed{O(N^2)}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\text{reasoning trace length}\uparrow
+</div>
+<p>can significantly increase training cost.</p>
+<p>This connects directly to everything we learned earlier about:</p>
+<ul>
+<li>sequence length,</li>
+<li>attention,</li>
+<li>KV cache,</li>
+<li>context windows.</li>
+</ul>
+<p>So the dataset itself creates a compute tradeoff:</p>
+<div class="math block">
+\boxed{
+\text{richer reasoning supervision}
+\leftrightarrow
+\text{higher computational cost}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-39">5.16.28 General data is different</h3>
+<p>The source says DeepSeek used their V3 model to generate the non-reasoning/general responses.</p>
+<p>For straightforward queries, they did not necessarily attach lengthy reasoning.</p>
+<p>For something as simple as:</p>
+<pre><code class="language-text">hello
+</code></pre>
+<p>the source says no chain-of-thought was added.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is important because forcing every example to have an enormous reasoning trace would be wasteful.</p>
+<p>So the training data adapts the response style to the task:</p>
+<div class="math block">
+\boxed{
+\text{hard reasoning problem}
+\rightarrow
+\text{long detailed trace}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{simple conversational request}
+\rightarrow
+\text{concise response}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-40">5.16.29 This prevents a bad student behavior</h3>
+<p>Imagine every training example looked like:</p>
+<pre><code class="language-text">&lt;very long reasoning&gt;
+...
+&lt;very long reasoning&gt;
+...
+Hello!
+</code></pre>
+<p>The student might learn that even trivial queries require enormous responses.</p>
+<p>That would be undesirable.</p>
+<p>Therefore dataset construction controls not only <strong>what the model knows</strong>, but also <strong>when it should reason at length</strong>.</p>
+<p>This is an important inference from the source's domain-specific curation strategy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-41">5.16.30 A critical distinction: data distribution shapes behavior</h3>
+<p>Suppose:</p>
+<div class="math block">
+75\%
+</div>
+<p>of your examples are math + code.</p>
+<p>You should expect the student to devote substantial capacity to those behaviors.</p>
+<p>Suppose:</p>
+<div class="math block">
+22\%
+</div>
+<p>are general.</p>
+<p>That helps preserve broader behavior.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+P(\text{training behavior})
+\rightarrow
+P(\text{learned behavior})
+}
+</div>
+<p>This is not a literal equality, but it is the right conceptual understanding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-42">5.16.31 The dataset is therefore a “compressed teacher”</h3>
+<p>Think carefully about this.</p>
+<p>The original teacher is:</p>
+<div class="math block">
+671B
+</div>
+<p>parameters.</p>
+<p>Instead of putting the teacher inside the student-training loop, DeepSeek converts teacher behavior into:</p>
+<div class="math block">
+\boxed{
+\text{millions of tokens of demonstrations}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{student parameters}
+}
+</div>
+<p>absorb patterns from those demonstrations.</p>
+<p>So the 800K dataset acts as an <strong>intermediate representation of teacher behavior</strong>.</p>
+<p>Not mathematically lossless.</p>
+<p>Not literally the teacher's internal state.</p>
+<p>But a practical behavioral interface between teacher and student.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-43">5.16.32 The information bottleneck</h3>
+<p>We can write the pipeline conceptually as:</p>
+<div class="math block">
+\boxed{
+\text{Teacher internal knowledge}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{generated text}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{filtering}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{finite dataset}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{student capacity}
+}
+</div>
+<p>At every arrow, information can be lost.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{distillation is fundamentally an information bottleneck}
+}
+</div>
+<p>This explains the capacity-gap results from Step 5.15.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-44">5.16.33 Why rejection sampling is so important</h3>
+<p>Imagine no filtering.</p>
+<p>Then:</p>
+<div class="math block">
+\text{good responses}
++
+\text{bad responses}
+</div>
+<p>become the training set.</p>
+<p>The student minimizes:</p>
+<div class="math block">
+L_{\text{SFT}}
+</div>
+<p>on all of them.</p>
+<p>So it is literally rewarded for increasing probability of bad teacher responses too.</p>
+<p>Filtering therefore changes the effective target distribution:</p>
+<div class="math block">
+P_{\text{raw teacher}}
+</div>
+<p>into:</p>
+<div class="math block">
+\boxed{
+P_{\text{curated teacher}}
+}.
+</div>
+<p>The student is trained on the second distribution.</p>
+<p>That is a very deep connection between data curation and optimization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-45">5.16.34 Simple probability example</h3>
+<p>Suppose raw teacher data has:</p>
+<div class="math block">
+70\%\text{ useful},
+</div>
+<div class="math block">
+30\%\text{ poor}.
+</div>
+<p>Suppose filtering removes <span class="math inline">90\%</span> of poor examples but only <span class="math inline">10\%</span> of useful ones.</p>
+<p>From 10,000 examples:</p>
+<p>Useful retained:</p>
+<div class="math block">
+7000\times0.9
+=
+6300.
+</div>
+<p>Poor retained:</p>
+<div class="math block">
+3000\times0.1
+=
+300.
+</div>
+<p>Total:</p>
+<div class="math block">
+6600.
+</div>
+<p>Useful fraction:</p>
+<div class="math block">
+\frac{6300}{6600}\times100
+\approx
+\boxed{95.45\%}.
+</div>
+<p>So a strong filter can dramatically change the quality distribution.</p>
+<p>This is an illustrative calculation, not a reported DeepSeek acceptance rate.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-46">5.16.35 Rejection sampling vs ordinary sampling</h3>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-47">Ordinary synthetic-data generation</h5>
+<div class="math block">
+q
+\rightarrow
+\text{one teacher response}
+\rightarrow
+\text{dataset}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-48">Rejection-sampled generation</h5>
+<div class="math block">
+q
+\rightarrow
+R_1,\ldots,R_K
+\rightarrow
+\text{verify}
+\rightarrow
+\text{filter}
+\rightarrow
+\text{dataset}.
+</div>
+<p>The second pipeline spends more compute <strong>up front</strong>.</p>
+<p>But the resulting student data can be much higher quality.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{more teacher-generation cost}
+\rightarrow
+\text{better training signal}
+\rightarrow
+\text{better student}
+}
+</div>
+<p>This is why the source describes the distillation dataset generation as a deliberate quality-control process. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-49">5.16.36 The economics then make sense</h3>
+<p>The teacher-generation stage is expensive.</p>
+<p>But once the data exists:</p>
+<div class="math block">
+\boxed{
+\text{one teacher}
+\rightarrow
+\text{one reusable dataset}
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+\text{many students}
+\rightarrow
+\text{same dataset}
+}.
+</div>
+<p>Hence the earlier point:</p>
+<div class="math block">
+\boxed{
+\text{teacher cost is amortized}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-50">5.16.37 Dataset design determines specialization</h3>
+<p>Let's make this concrete.</p>
+<p>Suppose a hypothetical dataset were:</p>
+<div class="math block">
+95\%\text{ coding},
+\quad
+5\%\text{ general}.
+</div>
+<p>Then a student might become highly code-oriented.</p>
+<p>Conversely:</p>
+<div class="math block">
+95\%\text{ general conversation},
+\quad
+5\%\text{ reasoning}.
+</div>
+<p>Then the reasoning behavior would receive much less supervision.</p>
+<p>DeepSeek instead uses:</p>
+<div class="math block">
+\boxed{
+\text{heavy reasoning data}
++
+\text{meaningful general data}
+}
+</div>
+<p>to produce a model that is both reasoning-capable and still useful as an assistant. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-51">5.16.38 One subtle point: the 800K examples are not all the same kind of supervision</h3>
+<p>There are at least two broad categories:</p>
+<div class="math block">
+\boxed{
+\text{reasoning examples}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{general-purpose examples}
+}.
+</div>
+<p>Reasoning examples emphasize:</p>
+<div class="math block">
+\text{long-form problem solving}.
+</div>
+<p>General examples emphasize:</p>
+<div class="math block">
+\text{normal assistant behavior}.
+</div>
+<p>So the student objective is effectively aggregating multiple behavioral distributions into one model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-52">5.16.39 This connects directly to catastrophic forgetting</h3>
+<p>We have already learned that fine-tuning can shift a pretrained model toward the training distribution.</p>
+<p>Here, imagine:</p>
+<div class="math block">
+\text{base model}
+</div>
+<p>already knows:</p>
+<div class="math block">
+\text{conversation + QA + translation + coding + math}.
+</div>
+<p>If distillation data contained only math reasoning, SFT could disproportionately reinforce math and potentially weaken the balance of other behaviors.</p>
+<p>The source doesn't present a formal catastrophic-forgetting experiment here, so we should not claim a measured effect from this chapter.</p>
+<p>But it explicitly states that the general 178K samples are intended to prevent the distilled models from becoming narrow specialists. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-53">5.16.40 A compact mathematical model of the dataset</h3>
+<p>We can conceptualize the student data distribution as:</p>
+<div class="math block">
+\boxed{
+P_{\text{student-data}}
+=
+\sum_d
+\lambda_d P_d
+}
+</div>
+<p>where each <span class="math inline">d</span> is a domain:</p>
+<div class="math block">
+d\in
+\{\text{Math, Code, STEM, Logic, General}\}.
+</div>
+<p>And:</p>
+<div class="math block">
+\sum_d\lambda_d=1.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\lambda_{\text{Math}}\approx0.49
+</div>
+<div class="math block">
+\lambda_{\text{Code}}\approx0.26
+</div>
+<div class="math block">
+\lambda_{\text{General}}\approx0.22
+</div>
+<div class="math block">
+\lambda_{\text{STEM}}\approx0.012
+</div>
+<div class="math block">
+\lambda_{\text{Logic}}\approx0.012.
+</div>
+<p>These are derived from the source's rounded counts.</p>
+<p>The student's loss is therefore effectively averaging supervision across these domain-specific distributions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-54">5.16.41 A useful training objective interpretation</h3>
+<p>If:</p>
+<div class="math block">
+L_d(\theta)
+</div>
+<p>is the SFT loss on domain <span class="math inline">d</span>, then conceptually:</p>
+<div class="math block">
+\boxed{
+L(\theta)
+=
+\sum_d
+\lambda_dL_d(\theta)
+}
+</div>
+<p>This is not stated as DeepSeek's explicit published loss equation for the dataset mixture; it is the natural mathematical interpretation of training on a mixed dataset.</p>
+<p>It explains why dataset composition matters.</p>
+<p>Increasing:</p>
+<div class="math block">
+\lambda_{\text{Math}}
+</div>
+<p>increases the relative training pressure from mathematical examples.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-55">5.16.42 Why this is more than “just 800K examples”</h3>
+<p>The important object is not merely:</p>
+<div class="math block">
+N=800,000.
+</div>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+(N,\text{quality},\text{distribution},\text{length},\text{verification})
+}
+</div>
+<p>all together.</p>
+<p>Two datasets could both contain 800K examples but yield very different students.</p>
+<p>For example:</p>
+<div class="math block">
+D_1=
+\text{high-quality verified reasoning}.
+</div>
+<p>versus:</p>
+<div class="math block">
+D_2=
+\text{uncurated teacher outputs}.
+</div>
+<p>Same sample count.</p>
+<p>Very different training signal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-56">5.16.43 The key design principle</h3>
+<p>The source's approach can be summarized as:</p>
+<div class="math block">
+\boxed{
+\text{Generate broadly}
+\rightarrow
+\text{verify strictly}
+\rightarrow
+\text{filter stylistically}
+\rightarrow
+\text{mix domains deliberately}
+\rightarrow
+\text{SFT student}
+}
+</div>
+<p>That is the actual engineering recipe behind the famous “800K distillation” result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-57">5.16.44 Exam numerical set</h3>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-58">Numerical 1 — Domain percentage</h5>
+<p>Math:</p>
+<div class="math block">
+395K
+</div>
+<p>Total:</p>
+<div class="math block">
+804K.
+</div>
+<div class="math block">
+\frac{395}{804}\times100
+\approx
+\boxed{49.1\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-16-i57-59">Numerical 2 — Reasoning fraction</h5>
+<p>Math + Code:</p>
+<div class="math block">
+395+211=606K.
+</div>
+<div class="math block">
+\frac{606}{804}\times100
+\approx
+\boxed{75.4\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-16-i57-60">Numerical 3 — General fraction</h5>
+<div class="math block">
+\frac{178}{804}\times100
+\approx
+\boxed{22.1\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-16-i57-61">Numerical 4 — Total tokens</h5>
+<div class="math block">
+804,745\times5,355
+\approx
+\boxed{4.31\text{ billion tokens}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-16-i57-62">Numerical 5 — Multiple teacher attempts</h5>
+<p>Suppose one response has correctness probability:</p>
+<div class="math block">
+p=0.4.
+</div>
+<p>Five independent responses:</p>
+<div class="math block">
+P(\ge1\text{ correct})
+=
+1-(1-p)^5.
+</div>
+<div class="math block">
+=1-0.6^5
+</div>
+<div class="math block">
+\boxed{\approx92.2\%}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-16-i57-63">Numerical 6 — Dataset mixture</h5>
+<p>Suppose a batch has 64 examples following the approximate domain proportions.</p>
+<p>Expected Math examples:</p>
+<div class="math block">
+64(0.491)
+\approx
+\boxed{31.4}.
+</div>
+<p>Expected Code:</p>
+<div class="math block">
+64(0.262)
+\approx
+\boxed{16.8}.
+</div>
+<p>Expected General:</p>
+<div class="math block">
+64(0.221)
+\approx
+\boxed{14.1}.
+</div>
+<p>The actual batch will of course contain integer counts; these are expected values under random sampling from the approximate mixture.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-64">5.16.45 Exam-style conceptual questions</h3>
+<p><strong>Q1. Why is rejection sampling necessary?</strong></p>
+<p>Because a teacher can generate incorrect or poorly formatted responses. Keeping only high-quality verified responses creates a stronger supervised signal for the student. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Q2. Why is Code easier to verify than General conversation?</strong></p>
+<p>Code can often be executed and tested, while open-ended general responses do not always have a single deterministic correctness criterion. The source therefore uses different verification mechanisms for different domains. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Q3. Why include 178K general examples?</strong></p>
+<p>To prevent the distilled models from becoming narrow reasoning specialists and preserve general assistant capabilities such as conversation, factual QA, writing, self-cognition, and translation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Q4. Why are long reasoning traces valuable?</strong></p>
+<p>They expose intermediate problem-solving behavior, not only final answers, allowing the student to imitate solution strategies and multi-step reasoning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Q5. Why aren't long traces free?</strong></p>
+<p>Longer sequences require more token computation and increase the cost of processing attention, so richer supervision comes with greater compute requirements.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-65">5.16.46 The deepest connection to everything we've studied</h3>
+<p>Earlier we learned:</p>
+<div class="math block">
+\boxed{\text{GRPO}}
+</div>
+<p>uses rewards to improve a teacher.</p>
+<p>Now:</p>
+<div class="math block">
+\boxed{\text{Rejection sampling}}
+</div>
+<p>selects successful teacher trajectories.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{SFT}}
+</div>
+<p>teaches those trajectories to the student.</p>
+<p>So the complete loop is:</p>
+<div class="math block">
+\boxed{
+\text{RL}
+\rightarrow
+\text{better behavior}
+\rightarrow
+\text{teacher trajectories}
+\rightarrow
+\text{verification}
+\rightarrow
+\text{distillation}
+}
+</div>
+<p>This is the bridge between our <strong>RL/GRPO chapters</strong> and our <strong>knowledge-distillation chapter</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-66">5.16.47 One final distinction you must know for the exam</h3>
+<p>Do not confuse these three things:</p>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-67">Reward</h5>
+<p>Used to tell RL:</p>
+<div class="math block">
+\boxed{\text{Was this sampled behavior good?}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-68">Rejection sampling</h5>
+<p>Used to decide:</p>
+<div class="math block">
+\boxed{\text{Should this generated behavior become training data?}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-16-i57-69">Cross-entropy</h5>
+<p>Used to train the student:</p>
+<div class="math block">
+\boxed{\text{How well does the student predict the selected teacher tokens?}}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Reward}\neq\text{filter}\neq\text{loss}
+}
+</div>
+<p>They operate at different stages.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-16-i57-70">Final mental model for Step 5.16</h3>
+<p>The 800K dataset is best remembered as:</p>
+<div class="math block">
+\boxed{
+\textbf{High-quality teacher behavior turned into supervised demonstrations}
+}
+</div>
+<p>with the pipeline:</p>
+<div class="math block">
+\boxed{
+\text{Prompt}
+\rightarrow
+\text{multiple R1 responses}
+\rightarrow
+\text{verification}
+\rightarrow
+\text{quality filtering}
+\rightarrow
+\text{domain-balanced mixture}
+\rightarrow
+\text{student SFT}
+}
+</div>
+<p>and the major quantitative facts:</p>
+<div class="math block">
+\boxed{804,745\text{ samples}}
+</div>
+<div class="math block">
+\boxed{395K\text{ Math}}
+</div>
+<div class="math block">
+\boxed{211K\text{ Code}}
+</div>
+<div class="math block">
+\boxed{10K\text{ STEM}}
+</div>
+<div class="math block">
+\boxed{10K\text{ Logic}}
+</div>
+<div class="math block">
+\boxed{178K\text{ General}}
+</div>
+<div class="math block">
+\boxed{5,355\text{ tokens/sample on average}}
+</div>
+<p>with Math + Code representing approximately:</p>
+<div class="math block">
+\boxed{75\%}
+</div>
+<p>of the dataset. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The single most important insight is:</p>
+<div class="math block">
+\boxed{
+\textbf{Distillation succeeds not merely because the teacher is strong, but because its useful behavior is converted into clean, verifiable, appropriately distributed training data.}
+}
+</div>
+<hr />
+</section>

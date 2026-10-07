@@ -1,0 +1,72 @@
+<section class="chunk" id="chunk-g-quantization-p5" data-id="g-quantization-p5"><div class="v3-note" data-v3="added"><a href="#v3-floats">Read the teaching bridge for this source page</a> · syllabus 04.04. Original source image and extract follow.</div><p><a id="g-quantization-p5"></a></p>
+<h3 id="v3-heading-chunk-g-quantization-p5-1">Slide 5 — Where a format's min and max come from</h3>
+<p><img loading="lazy" decoding="async" width="1180" height="510" src="assets/9c9e219433b050cc71c8.png" alt="quantization-slides slide 5: Where a format's min and max come from" /></p>
+<details><summary>Slide text (extracted)</summary>
+<pre><code class="language-text">Where a format's min and max come from
+The largest and smallest representable magnitudes follow directly from how many bits go to the exponent and mantissa. The all-ones exponent is reserved for
+
+±∞/NaN, so the largest usable stored exponent is 2e − 2; the smallest is 1 (stored exponent 0 is reserved for zero/subnormals):
+MAX MAGNITUDE
+
+MIN NORMAL MAGNITUDE
+
+1.0 × 2 1−bias
+
+e
+
+(2 − 2−m ) × 2 (2 −2)−bias
+
+All mantissa bits zero, smallest usable exponent.
+
+All mantissa bits set (closest to 2), largest usable exponent.
+FO R M AT
+
+S I G N + E X P + M A N TI SS A
+
+BIAS
+
+MAX
+
+MIN (NORMAL)
+
+FP32
+
+1 + 8 + 23
+
+127
+
+3.4028 × 1038
+
+1.1755 × 10−38
+
+FP16
+
+1 + 5 + 10
+
+15
+
+6.5504 × 104
+
+6.1035 × 10−5
+
+BF16
+
+1+8+7
+
+127
+
+3.3895 × 1038
+
+1.1755 × 10−38
+
+R A N G E I S E X P O N E N T- D O M I N AT E D, N O T E X P O N E N T- O N LY
+
+Min normal has zero mantissa-dependence: it's always 1.0 × 21−bias , mantissa forced to all-zero. Max does depend on the mantissa a little, through the (2 −
+
+2−m ) term above — that's exactly why the table shows BF16's max (3.3895 × 1038 ) isn't bit-identical to FP32's (3.4028 × 1038 ) despite sharing all 8 exponent
+bits. But (2 − 2−m ) only ever ranges between 1 and 2 — at most a 2× difference — dwarfed by the exponent's contribution: 2127 vs 215 is a factor of 2112 . So the
+mantissa can nudge the max by less than 1 bit's worth of magnitude, while the exponent moves it by 112 bits' worth — which is the precise sense in which
+range is set by the exponent, and FP16's 3-bits-narrower exponent (not its mantissa) is why its max is 65504, not 1038 .
+</code></pre>
+</details>
+</section>

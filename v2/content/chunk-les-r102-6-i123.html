@@ -1,0 +1,821 @@
+<section class="chunk" id="chunk-les-r102-6-i123" data-id="les-r102-6-i123"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-6-i123"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-6-i123" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r102-5-i122">← Previous lesson</a> · <a href="#chunk-les-r102-7-i124">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r102-5-i122">R102.5 — DeepSeek-R1 Distillation: From Reasoning Behavior to Small Models</a></p><p><strong>This lesson:</strong> R102.6 — Implementing Knowledge Distillation: From Equations to PyTorch</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-6-i123"></a></p>
+<h3 id="v3-heading-chunk-les-r102-6-i123-1">R102.6 — Implementing Knowledge Distillation: From Equations to PyTorch</h3>
+<p><em>Plan node: B3 · chat order #123</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-4-3-i35">Step 4.3 — Building the Complete Classical Knowledge-Distillation Loss</a> · <a href="#les-step-4-9-i41">Step 4.9 — Limits of Distillation and How to Choose the Student</a> · <a href="#les-step-5-19-i60">Step 5.19 — Limits of Distillation + Future Directions</a></p>
+</blockquote>
+<p>Now that we understand <strong>why DeepSeek's reasoning distillation differs from classical KD</strong>, the source takes us back to implementation.</p>
+<p>This step is important because we should be able to look at the mathematics and translate it directly into:</p>
+<div class="math block">
+\boxed{\text{PyTorch computation} \rightarrow \text{loss} \rightarrow \text{backpropagation}}
+</div>
+<p>The source deliberately uses <strong>toy-sized models</strong> so that the entire process can be traced by hand. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-2">1. First, be clear about which distillation we are implementing</h4>
+<p>There are two things in the chapter:</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-3">Classical KD</h6>
+<div class="math block">
+\boxed{
+\text{Teacher logits}
+\rightarrow
+\text{soft targets}
+\rightarrow
+KL
+}
+</div>
+<p>This is what Section 8.6 implements.</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-4">DeepSeek-R1 reasoning distillation</h6>
+<div class="math block">
+\boxed{
+\text{R1-generated text}
+\rightarrow
+\text{filtered dataset}
+\rightarrow
+\text{SFT}
+}
+</div>
+<p>That was the subject of R102.5.</p>
+<p>So when we now write code containing:</p>
+<pre><code class="language-python">teacher_logits
+student_logits
+temperature
+KL divergence
+</code></pre>
+<p>we are implementing <strong>classical KD</strong>, not the actual R1 reasoning-distillation recipe.</p>
+<p>That distinction must remain explicit. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-5">2. Teacher and student architecture</h4>
+<p>The source uses a deliberately small example.</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-6">Teacher</h6>
+<ul>
+<li>4 layers</li>
+<li>hidden size = 128</li>
+<li>approximately 26K parameters</li>
+</ul>
+<h6 id="v3-heading-chunk-les-r102-6-i123-7">Student</h6>
+<ul>
+<li>2 layers</li>
+<li>hidden size = 32</li>
+<li>approximately 8.8K parameters</li>
+</ul>
+<p>Both use:</p>
+<ul>
+<li>vocabulary = 100</li>
+<li>embedding dimension = 64</li>
+<li>output classes = 10</li>
+</ul>
+<p>So:</p>
+<div class="math block">
+\text{Teacher} \gg \text{Student}
+</div>
+<p>in representational capacity. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The purpose is not to reproduce R1's architecture.</p>
+<p>The purpose is to make the mechanics visible.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-8">3. The training step</h4>
+<p>The entire classical KD training step is:</p>
+<pre><code class="language-text">                Input batch
+               /           \
+              /             \
+             ▼               ▼
+        Frozen Teacher    Trainable Student
+             │               │
+             ▼               ▼
+       teacher logits    student logits
+             │               │
+             │          ┌────┴─────┐
+             │          │          │
+             │          ▼          ▼
+             │       Hard CE     Soft logits
+             │                       │
+             │                       ▼
+             │                      KL
+             │                       │
+             └───────────────────────┘
+                         │
+                         ▼
+                       Total loss
+                         │
+                         ▼
+                    Backpropagation
+                         │
+                         ▼
+                  Student parameters
+</code></pre>
+<p>Only the student is updated. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-9">4. Step 1 — Teacher forward pass</h4>
+<p>We send the input through the teacher:</p>
+<div class="math block">
+x\rightarrow T(x)=z_T
+</div>
+<p>where:</p>
+<div class="math block">
+z_T\in\mathbb{R}^{C}
+</div>
+<p>contains the teacher logits.</p>
+<p>But the teacher is frozen.</p>
+<p>Therefore the source uses:</p>
+<pre><code class="language-python">with torch.no_grad():
+    t_logits = teacher(x)
+</code></pre>
+<p>Why?</p>
+<p>Because we don't need gradients through the teacher.</p>
+<p>Computing them would waste memory and computation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-10">5. Step 2 — Student forward pass</h4>
+<p>The same input goes through the student:</p>
+<div class="math block">
+x\rightarrow S_\theta(x)=z_S
+</div>
+<p>Here gradients <strong>are</strong> required because:</p>
+<div class="math block">
+\theta
+</div>
+<p>must be updated.</p>
+<p>So:</p>
+<pre><code class="language-python">s_logits = student(x)
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-11">6. Step 3 — Hard-label loss</h4>
+<p>The first branch is ordinary language/classification learning.</p>
+<p>We use the ground-truth label <span class="math inline">y</span>:</p>
+<div class="math block">
+\boxed{
+L_{\text{hard}}
+=
+CE(z_S,y)
+}
+</div>
+<p>This branch answers:</p>
+<blockquote>
+<p>Is the student's actual prediction correct?</p>
+</blockquote>
+<p>In PyTorch:</p>
+<pre><code class="language-python">hard_loss = F.cross_entropy(
+    student_logits,
+    labels
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-12">7. Step 4 — Make the teacher's distribution soft</h4>
+<p>Now we use temperature:</p>
+<div class="math block">
+p_T^{(T)}
+=
+\operatorname{softmax}
+\left(
+\frac{z_T}{T}
+\right).
+</div>
+<p>Similarly:</p>
+<div class="math block">
+p_S^{(T)}
+=
+\operatorname{softmax}
+\left(
+\frac{z_S}{T}
+\right).
+</div>
+<p>In code:</p>
+<pre><code class="language-python">soft_teacher = F.softmax(
+    teacher_logits / temperature,
+    dim=-1
+)
+
+soft_student = F.log_softmax(
+    student_logits / temperature,
+    dim=-1
+)
+</code></pre>
+<p>The student uses <code>log_softmax</code> because PyTorch's KL implementation expects the input in log-probability form. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-13">8. Step 5 — KL divergence</h4>
+<p>Now compare:</p>
+<div class="math block">
+p_T^{(T)}
+</div>
+<p>with:</p>
+<div class="math block">
+p_S^{(T)}.
+</div>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+KL(p_T^{(T)}\|p_S^{(T)})
+}
+</div>
+<p>implemented as:</p>
+<pre><code class="language-python">kl_loss = F.kl_div(
+    soft_student,
+    soft_teacher,
+    reduction='batchmean'
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The interpretation is:</p>
+<blockquote>
+<p>“Make the student's probability distribution look like the teacher's probability distribution.”</p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-14">9. Step 6 — Apply <span class="math inline">T^2</span></h4>
+<p>Remember:</p>
+<div class="math block">
+L_{\text{soft}}
+=
+T^2 KL(p_T^{(T)}\|p_S^{(T)}).
+</div>
+<p>Why?</p>
+<p>Because increasing <span class="math inline">T</span> reduces gradient magnitude approximately as:</p>
+<div class="math block">
+\frac{1}{T^2}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+T^2
+}
+</div>
+<p>compensates for that scaling effect. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-15">10. Step 7 — Combine the two objectives</h4>
+<p>The final loss is:</p>
+<div class="math block">
+\boxed{
+L
+=
+\alpha L_{\text{hard}}
++
+(1-\alpha)T^2L_{\text{soft}}
+}
+</div>
+<p>in the implementation used by the source.</p>
+<p>So there are two teachers influencing the student, conceptually:</p>
+<pre><code class="language-text">Ground truth
+     │
+     ▼
+&quot;Be correct.&quot;
+
+Teacher
+     │
+     ▼
+&quot;Behave like me.&quot;
+
+        ↓
+
+      Student
+</code></pre>
+<p>The ground truth provides correctness.</p>
+<p>The teacher provides richer distributional information.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-16">11. The source's numerical example</h4>
+<p>The source gives:</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-17">Teacher logits</h6>
+<div class="math block">
+z_T=[5.0,3.0,1.0,-1.0]
+</div>
+<h6 id="v3-heading-chunk-les-r102-6-i123-18">Student logits</h6>
+<div class="math block">
+z_S=[4.0,2.5,1.5,-0.5]
+</div>
+<p>and:</p>
+<div class="math block">
+T=3.
+</div>
+<p>After temperature-scaled softmax, the source gives approximately:</p>
+<div class="math block">
+p_T=
+[0.523,0.268,0.138,0.071]
+</div>
+<p>and:</p>
+<div class="math block">
+p_S=
+[0.442,0.268,0.192,0.099].
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice something immediately:</p>
+<p>The teacher's probability isn't saying merely:</p>
+<div class="math block">
+\text{class 1 = correct}.
+</div>
+<p>It is communicating a relative structure:</p>
+<div class="math block">
+\text{class 1}&gt;\text{class 2}&gt;\text{class 3}&gt;\text{class 4}.
+</div>
+<p>The student can learn this structure.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-19">12. KL calculation</h4>
+<p>The source gives:</p>
+<div class="math block">
+KL\approx0.0199.
+</div>
+<p>Then:</p>
+<div class="math block">
+T^2=9
+</div>
+<p>so:</p>
+<div class="math block">
+L_{\text{soft}}
+=
+9(0.0199)
+\approx0.179.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is why the <span class="math inline">T^2</span> term is not cosmetic.</p>
+<p>It materially rescales the soft-target training signal.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-20">13. Combined-loss example</h4>
+<p>The source then uses:</p>
+<div class="math block">
+\alpha=0.3.
+</div>
+<p>It gives a hard loss around:</p>
+<div class="math block">
+L_{\text{hard}}\approx0.275
+</div>
+<p>and the temperature-adjusted soft component:</p>
+<div class="math block">
+L_{\text{soft}}\approx0.179.
+</div>
+<p>So:</p>
+<div class="math block">
+L
+=
+0.3(0.275)+0.7(0.179).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L
+\approx
+0.0825+0.1253
+</div>
+<div class="math block">
+\boxed{L\approx0.208}
+</div>
+<p>which matches the source's calculation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The important thing isn't the particular number.</p>
+<p>It is the flow:</p>
+<div class="math block">
+\boxed{
+\text{logits}
+\rightarrow
+\frac{\text{logits}}{T}
+\rightarrow
+\text{softmax}
+\rightarrow
+KL
+\rightarrow
+T^2
+\rightarrow
+\text{combine with CE}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-21">14. Complete classical KD code</h4>
+<p>The source's complete toy training setup is essentially:</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TeacherModel(nn.Module):
+    def __init__(self, vocab=100, d=64, classes=10):
+        super().__init__()
+
+        self.embed = nn.Embedding(vocab, d)
+
+        self.net = nn.Sequential(
+            nn.Linear(d, 128),
+            nn.ReLU(),
+
+            nn.Linear(128, 128),
+            nn.ReLU(),
+
+            nn.Linear(128, 64),
+            nn.ReLU(),
+
+            nn.Linear(64, classes)
+        )
+
+    def forward(self, x):
+        return self.net(
+            self.embed(x).mean(dim=1)
+        )
+
+
+class StudentModel(nn.Module):
+    def __init__(self, vocab=100, d=64, classes=10):
+        super().__init__()
+
+        self.embed = nn.Embedding(vocab, d)
+
+        self.net = nn.Sequential(
+            nn.Linear(d, 32),
+            nn.ReLU(),
+
+            nn.Linear(32, classes)
+        )
+
+    def forward(self, x):
+        return self.net(
+            self.embed(x).mean(dim=1)
+        )
+
+
+def distillation_loss(
+    student_logits,
+    teacher_logits,
+    labels,
+    temperature=3.0,
+    alpha=0.3
+):
+    soft_teacher = F.softmax(
+        teacher_logits / temperature,
+        dim=-1
+    )
+
+    soft_student = F.log_softmax(
+        student_logits / temperature,
+        dim=-1
+    )
+
+    kl_loss = F.kl_div(
+        soft_student,
+        soft_teacher,
+        reduction='batchmean'
+    )
+
+    hard_loss = F.cross_entropy(
+        student_logits,
+        labels
+    )
+
+    return (
+        alpha * hard_loss
+        + (1 - alpha)
+        * temperature**2
+        * kl_loss
+    )
+
+
+def train_distill(
+    teacher,
+    student,
+    loader,
+    epochs=10,
+    T=3.0,
+    alpha=0.3,
+    lr=1e-3
+):
+    teacher.eval()
+
+    optimizer = torch.optim.Adam(
+        student.parameters(),
+        lr=lr
+    )
+
+    for epoch in range(epochs):
+
+        total = 0.0
+
+        for x, y in loader:
+
+            optimizer.zero_grad()
+
+            with torch.no_grad():
+                teacher_logits = teacher(x)
+
+            student_logits = student(x)
+
+            loss = distillation_loss(
+                student_logits,
+                teacher_logits,
+                y,
+                temperature=T,
+                alpha=alpha
+            )
+
+            loss.backward()
+            optimizer.step()
+
+            total += loss.item()
+
+        print(
+            f&quot;Epoch {epoch + 1}: &quot;
+            f&quot;{total / len(loader):.4f}&quot;
+        )
+</code></pre>
+<p>This follows the training-loop structure in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-22">15. Notice where the gradient flows</h4>
+<p>This deserves special attention.</p>
+<p>The graph is:</p>
+<div class="math block">
+\text{Teacher}
+\rightarrow
+z_T
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\nabla_{\theta_T}=0}
+</div>
+<p>because the teacher is frozen.</p>
+<p>The student produces:</p>
+<div class="math block">
+z_S
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\nabla_{\theta_S}\neq0}.
+</div>
+<p>So after:</p>
+<pre><code class="language-python">loss.backward()
+</code></pre>
+<p>the optimizer performs:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p>on:</p>
+<div class="math block">
+\boxed{\theta_S}
+</div>
+<p>only.</p>
+<p>This is the defining teacher-student asymmetry in classical KD. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-23">16. Three experiments the source recommends</h4>
+<p>The source then proposes comparing three setups.</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-24">Experiment 1 — Baseline</h6>
+<p>Train the student with:</p>
+<div class="math block">
+\boxed{CE}
+</div>
+<p>only.</p>
+<p>No teacher.</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-25">Experiment 2 — Distillation</h6>
+<p>Train the same student with:</p>
+<div class="math block">
+\boxed{
+\alpha CE+(1-\alpha)T^2KL
+}
+</div>
+<h6 id="v3-heading-chunk-les-r102-6-i123-26">Experiment 3 — Teacher</h6>
+<p>Evaluate the teacher itself.</p>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+\text{Student baseline}
+&lt;
+\text{Distilled student}
+&lt;
+\text{Teacher}
+}
+</div>
+<p>as the typical pattern described by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-27">17. Why distillation helps particularly on ambiguous examples</h4>
+<p>Suppose the correct class is A.</p>
+<p>Hard-label training says:</p>
+<div class="math block">
+A=1,\qquad B=C=D=0.
+</div>
+<p>The teacher might instead say:</p>
+<div class="math block">
+A=.60,\quad B=.30,\quad C=.08,\quad D=.02.
+</div>
+<p>The student learns not just:</p>
+<blockquote>
+<p>“A is correct.”</p>
+</blockquote>
+<p>but also:</p>
+<blockquote>
+<p>“B is considerably closer to A than C or D.”</p>
+</blockquote>
+<p>That additional relational structure is what the source means by:</p>
+<div class="math block">
+\boxed{\text{dark knowledge}}.
+</div>
+<p>The source notes that the benefit is particularly visible on ambiguous or closely related examples. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-28">18. Now connect this back to DeepSeek-R1</h4>
+<p>This is where many students accidentally mix up the methods.</p>
+<p>Classical KD:</p>
+<div class="math block">
+\boxed{
+R1\text{-style teacher}
+\rightarrow
+\text{logits}
+\rightarrow
+KL
+}
+</div>
+<p>would require us to have access to the teacher's internal output distribution during training.</p>
+<p>But DeepSeek's R1 distillation does:</p>
+<div class="math block">
+\boxed{
+R1
+\rightarrow
+\text{generate response}
+\rightarrow
+\text{filter}
+\rightarrow
+\text{text dataset}
+\rightarrow
+SFT
+}
+</div>
+<p>No teacher logits are needed during student training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-29">19. Why this matters enormously at R1 scale</h4>
+<p>Imagine attempting classical KD using a 671B teacher.</p>
+<p>The teacher and student have to participate in the training computation.</p>
+<p>That's extremely expensive.</p>
+<p>DeepSeek's approach instead performs:</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-30">Expensive operation once</h6>
+<div class="math block">
+\text{R1 teacher}
+\rightarrow
+\text{800K curated examples}
+</div>
+<p>Then:</p>
+<h6 id="v3-heading-chunk-les-r102-6-i123-31">Cheap/reusable operation</h6>
+<div class="math block">
+\text{800K static examples}
+\rightarrow
+\text{many students}.
+</div>
+<p>The source explicitly emphasizes this decoupling as a major practical advantage. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-32">20. This gives us two completely different compression pipelines</h4>
+<h6 id="v3-heading-chunk-les-r102-6-i123-33">Classical KD</h6>
+<pre><code class="language-text">Large Teacher
+     │
+     │ logits
+     ▼
+Soft targets
+     │
+     ▼
+Student
+     │
+     ├── CE
+     └── KL(T)
+          │
+          ▼
+       Update
+</code></pre>
+<h6 id="v3-heading-chunk-les-r102-6-i123-34">R1 reasoning distillation</h6>
+<pre><code class="language-text">Large R1 Teacher
+       │
+       │ generate
+       ▼
+Many reasoning traces
+       │
+       ▼
+Rejection sampling
+       │
+       ▼
+Curated dataset
+       │
+       ▼
+Small Student
+       │
+       ▼
+Standard SFT / CE
+</code></pre>
+<p>This distinction is one of the most important takeaways from Chapter 8.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-35">21. The deeper idea: exploration vs imitation</h4>
+<p>The source makes a particularly interesting argument later in the chapter.</p>
+<p>During RL, a huge model can:</p>
+<div class="math block">
+\boxed{
+\text{explore}
+\rightarrow
+\text{fail}
+\rightarrow
+\text{recover}
+\rightarrow
+\text{discover}
+}
+</div>
+<p>A tiny student may not have enough capacity to discover those strategies independently.</p>
+<p>But after the teacher has discovered them, the student only needs to:</p>
+<div class="math block">
+\boxed{\text{imitate}}
+</div>
+<p>through supervised learning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Exploration is harder than imitation}
+}
+</div>
+<p>and distillation transforms the former into the latter.</p>
+<p>That is a deep reason why an RL-trained teacher can be used to create surprisingly capable smaller models.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-36">22. But compression is not lossless</h4>
+<p>The source's empirical section shows that the teacher remains ahead.</p>
+<p>It reports:</p>
+<div class="math block">
+\text{DeepSeek-R1}: 79.8\%\ \text{AIME}
+</div>
+<p>versus:</p>
+<div class="math block">
+\text{best distilled}:72.6\%.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{student} &lt; \text{teacher}
+}
+</div>
+<p>in ultimate capability.</p>
+<p>Distillation is therefore not magic compression of every capability into an arbitrarily tiny model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-37">23. The capacity gap explains why</h4>
+<p>The source reports for the 1.5B model:</p>
+<div class="math block">
+83.9\%\quad\text{MATH-500}
+</div>
+<p>but only:</p>
+<div class="math block">
+16.9\%\quad\text{LiveCodeBench}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The source's explanation is that mathematical reasoning has relatively structured and repeatable solution patterns, whereas coding spans a much larger space of syntax, APIs, design patterns, error handling, and implementation choices.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{different capabilities have different compressibility}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-38">24. The student-size intuition from the source</h4>
+<p>The chapter gives these practical bands:</p>
+<div class="math block">
+\boxed{1.5B-3B}
+</div>
+<p>for narrow, well-defined reasoning domains.</p>
+<div class="math block">
+\boxed{7B-14B}
+</div>
+<p>as a suggested sweet spot for more general reasoning.</p>
+<div class="math block">
+\boxed{32B-70B}
+</div>
+<p>for getting much closer to teacher-level quality across domains. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>These are <strong>source-specific practical guidelines</strong>, not universal laws.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-39">25. The final mental model</h4>
+<p>At this point, keep this diagram in your head:</p>
+<pre><code class="language-text">                    LARGE MODEL
+                       │
+              ┌────────┴────────┐
+              │                 │
+         RL exploration    Learned knowledge
+              │
+              ▼
+       reasoning strategies
+              │
+              ▼
+       generated traces
+              │
+       rejection sampling
+              │
+              ▼
+        curated dataset
+              │
+              ▼
+        SMALL MODEL
+              │
+              ▼
+             SFT
+              │
+              ▼
+      compressed behavior
+</code></pre>
+<p>The central idea is:</p>
+<div class="math block">
+\boxed{
+\text{Teacher does the hard discovery}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Student learns from the discoveries}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-6-i123-40">R102.6 checkpoint</h4>
+<p>You should now be able to answer these without calculation:</p>
+<p><strong>Why is the teacher run under <code>torch.no_grad()</code>?</strong></p>
+<p>Because its weights are frozen; only the student receives gradients. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Why divide logits by <span class="math inline">T</span>?</strong></p>
+<p>To soften the probability distribution and expose more relative information among alternatives. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Why multiply the KL term by <span class="math inline">T^2</span>?</strong></p>
+<p>To compensate for the reduction in gradient magnitude caused by temperature scaling. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>Why doesn't DeepSeek-R1 reasoning distillation use this classical KD loss?</strong></p>
+<p>Because the source treats the valuable teacher signal as the <strong>generated reasoning trajectory</strong>, so the student is trained on curated teacher-generated text using ordinary SFT rather than teacher-logit KL matching. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p><strong>What is the biggest practical limitation?</strong></p>
+<p>The <strong>capacity gap</strong>: a student that is too small cannot absorb every capability of the teacher equally well. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

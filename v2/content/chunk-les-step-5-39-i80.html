@@ -1,0 +1,1445 @@
+<section class="chunk" id="chunk-les-step-5-39-i80" data-id="les-step-5-39-i80"><details class="audit-card" id="audit-A03" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A03 — Auxiliary balancing is variant-specific</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Concentrating every token on a single expert can waste the available expert capacity.</p><p><strong>Prerequisites:</strong> <a href="#audit-A02">MoE top-k routing and selected normalization</a>, <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-5-39-i80-1">Notation and assumptions</h4><p>Switch-style top1 illustration: f_i assigned-token fraction, P_i mean router probability, E experts, coefficient a. Not a universal DeepSeek balancing formula.</p><h4 id="v3-heading-chunk-les-step-5-39-i80-2">Derivation and mechanism</h4><ol><li>Count realized top1 assignments to obtain f.</li><li>Average soft router probabilities to obtain P.</li><li>Compute aEΣf_iP_i and distinguish this differentiable surrogate from a hard load guarantee.</li></ol><div class="math block">L_{balance}=aE\sum_i f_iP_i</div><h4 id="v3-heading-chunk-les-step-5-39-i80-3">Worked example</h4><p>E2,a1: assignments[0,1],all probabilities[.5,.5]→loss1. Assignments[0,0],all probabilities[1,0]→loss2. Loss1 is a reference value for this uniform fixture, not zero.</p><h4 id="v3-heading-chunk-les-step-5-39-i80-4">Limitations</h4><ul><li>Hard routing counts are not differentiated like soft scores.</li><li>DeepSeek-V3 bias updates, sequence auxiliaries and earlier balancing variants need their own source equations.</li></ul><h4 id="v3-heading-chunk-les-step-5-39-i80-5">Connections to later concepts</h4><ul><li>R01 also uses group statistics, but expert-balancing statistics concern workload rather than answer reward.</li></ul><h4 id="v3-heading-chunk-les-step-5-39-i80-6">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 212, 213, 214, 215, 216 · Chapter4 expert balancing context</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-39-i80-7">Executed code and evidence</h4><p>Functions: balance_loss. Passed checks: Balance-uniform, Balance-collapse</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-39-i80"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-39-i80" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-38-i79">← Previous lesson</a> · <a href="#chunk-les-step-5-40-i81">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-38-i79">Step 5.38 — DeepSeek Mixture-of-Experts (MoE): From Dense FFN to Sparse Routing</a></p><p><strong>This lesson:</strong> Step 5.39 — MoE Load Balancing: Why Routing Must Be Controlled</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-39-i80"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-39-i80-8">Step 5.39 — MoE Load Balancing: Why Routing Must Be Controlled</h3>
+<p><em>Plan node: A2 · chat order #80</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We have now built the basic sparse MoE:</p>
+<div class="math block">
+\boxed{
+y_t=
+\sum_{i\in TopK(t)}g_{t,i}E_i(x_t)
+}
+</div>
+<p>But this immediately creates the most important training problem in MoE:</p>
+<div class="math block">
+\boxed{\text{imbalanced routing}}
+</div>
+<p>The source presents <strong>three successive approaches</strong>:</p>
+<div class="math block">
+\boxed{
+\text{Auxiliary Loss}
+\rightarrow
+\text{Load-Balancing Loss}
+\rightarrow
+\text{Auxiliary-Loss-Free Bias}
+}
+</div>
+<p>We will derive them in exactly that order. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-9">5.39.1 First understand what “balance” actually means</h4>
+<p>Imagine:</p>
+<div class="math block">
+N=4
+</div>
+<p>experts and:</p>
+<div class="math block">
+T=100
+</div>
+<p>tokens.</p>
+<p>Suppose:</p>
+<div class="math block">
+k=2.
+</div>
+<p>Every token chooses two experts, so there are:</p>
+<div class="math block">
+100\times2
+=
+\boxed{200}
+</div>
+<p>total expert assignments.</p>
+<p>Perfectly balanced routing would give:</p>
+<div class="math block">
+\frac{200}{4}
+=
+\boxed{50}
+</div>
+<p>assignments to each expert.</p>
+<p>So the ideal routing is:</p>
+<div class="math block">
+[50,50,50,50].
+</div>
+<p>Suppose instead we get:</p>
+<div class="math block">
+[90,70,30,10].
+</div>
+<p>Still:</p>
+<div class="math block">
+90+70+30+10=200,
+</div>
+<p>but the distribution is terrible.</p>
+<p>Expert 1 is a hotspot.</p>
+<p>Expert 4 is barely used.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-10">5.39.2 Why not simply force equal routing?</h4>
+<p>Because routing is supposed to be <strong>learned</strong>.</p>
+<p>Suppose every token is mathematically forced to go equally to every expert.</p>
+<p>Then we lose the point of specialization.</p>
+<p>We want:</p>
+<div class="math block">
+\boxed{\text{specialization}}
+</div>
+<p>while simultaneously preventing:</p>
+<div class="math block">
+\boxed{\text{collapse onto a few experts}}.
+</div>
+<p>So load balancing is a <strong>soft preference</strong>, not “make every expert process exactly the same token.”</p>
+<p>That tension is the heart of MoE routing.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-11">5.39.3 Three different quantities you must not confuse</h4>
+<p>This is extremely important for the exam.</p>
+<p>For expert <span class="math inline">i</span>, we can discuss:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-12">1. Router probability / importance</h6>
+<p>How much probability the router assigns to expert <span class="math inline">i</span>.</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-13">2. Actual load</h6>
+<p>How many tokens are actually dispatched to expert <span class="math inline">i</span> after Top-K.</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-14">3. Capacity</h6>
+<p>The maximum number of tokens expert <span class="math inline">i</span> is allowed to process in a batch.</p>
+<p>These are different.</p>
+<p>The source explicitly highlights the distinction between <strong>importance</strong> and <strong>actual load</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-15">5.39.4 Attempt #1 — Auxiliary Loss</h4>
+<p>The traditional idea is simple:</p>
+<blockquote>
+<p>Add another term to the training objective that encourages the router to distribute importance more uniformly.</p>
+</blockquote>
+<p>So instead of only optimizing:</p>
+<div class="math block">
+L_{\text{main}}
+</div>
+<p>we optimize:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{main}}
++
+\lambda L_{\text{aux}}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">L_{\text{main}}</span>: normal language-model loss,</li>
+<li><span class="math inline">L_{\text{aux}}</span>: routing-balancing penalty,</li>
+<li><span class="math inline">\lambda</span>: controls how strongly balancing matters.</li>
+</ul>
+<p>The source explicitly describes the auxiliary loss as an additional penalty designed to be high for imbalanced expert importance and low for balanced importance. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-16">5.39.5 What is “expert importance”?</h4>
+<p>Suppose the router gives probabilities:</p>
+<div class="math block">
+P=
+\begin{bmatrix}
+0.7 &amp; 0.2 &amp; 0.1\\
+0.4 &amp; 0.5 &amp; 0.1\\
+0.3 &amp; 0.3 &amp; 0.4\\
+0.0 &amp; 0.2 &amp; 0.8
+\end{bmatrix}.
+</div>
+<p>Each row is one token.</p>
+<p>Each column is one expert.</p>
+<p>So:</p>
+<div class="math block">
+P_{t,i}
+</div>
+<p>means:</p>
+<blockquote>
+<p>the router's probability for expert <span class="math inline">i</span> on token <span class="math inline">t</span>.</p>
+</blockquote>
+<p>The source measures an expert's importance by aggregating these probabilities across the batch. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For expert <span class="math inline">i</span>:</p>
+<div class="math block">
+\boxed{
+I_i=\sum_{t=1}^{T}P_{t,i}
+}
+</div>
+<p>in the source's conceptual treatment.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-17">5.39.6 Example: calculate importance</h4>
+<p>Using the matrix above:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-18">Expert 1</h6>
+<div class="math block">
+I_1=
+0.7+0.4+0.3+0
+=
+\boxed{1.4}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-19">Expert 2</h6>
+<div class="math block">
+I_2=
+0.2+0.5+0.3+0.2
+=
+\boxed{1.2}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-20">Expert 3</h6>
+<div class="math block">
+I_3=
+0.1+0.1+0.4+0.8
+=
+\boxed{1.4}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+I=[1.4,1.2,1.4]
+}
+</div>
+<p>The ideal total importance is:</p>
+<div class="math block">
+4
+</div>
+<p>because every token contributes total probability 1:</p>
+<div class="math block">
+\sum_iI_i=T.
+</div>
+<p>Ideal equal importance:</p>
+<div class="math block">
+4/3=1.3333.
+</div>
+<p>Our values are reasonably close.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-21">5.39.7 Convert importance to probability</h4>
+<p>The source later calls the normalized version:</p>
+<div class="math block">
+p_i
+</div>
+<p>and computes it by dividing expert importance by the number of tokens. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+p_i=\frac{I_i}{T}
+}
+</div>
+<p>For the example:</p>
+<div class="math block">
+p_1=\frac{1.4}{4}=0.35
+</div>
+<div class="math block">
+p_2=\frac{1.2}{4}=0.30
+</div>
+<div class="math block">
+p_3=\frac{1.4}{4}=0.35.
+</div>
+<p>And:</p>
+<div class="math block">
+0.35+0.30+0.35=1.
+</div>
+<p>So <span class="math inline">p_i</span> tells us:</p>
+<blockquote>
+<p>On average, how much router probability mass does expert <span class="math inline">i</span> receive?</p>
+</blockquote>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-22">5.39.8 Why does auxiliary loss help?</h4>
+<p>Because the model is encouraged to make:</p>
+<div class="math block">
+p_1,p_2,\ldots,p_N
+</div>
+<p>closer to:</p>
+<div class="math block">
+\frac1N.
+</div>
+<p>For:</p>
+<div class="math block">
+N=4,
+</div>
+<p>the ideal is:</p>
+<div class="math block">
+[0.25,0.25,0.25,0.25].
+</div>
+<p>So the auxiliary objective pushes the routing distribution toward that point.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-23">5.39.9 But here comes the subtle flaw</h4>
+<p>Balancing <strong>probability</strong> does not necessarily balance <strong>actual token count</strong>.</p>
+<p>This distinction is explicitly emphasized by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Consider the source's illustrative example.</p>
+<p>There are:</p>
+<div class="math block">
+\boxed{2\text{ experts}}
+</div>
+<p>and:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-24">Expert 1</h6>
+<p>One token gives it probability:</p>
+<div class="math block">
+1.0.
+</div>
+<p>Importance:</p>
+<div class="math block">
+1.0.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-25">Expert 2</h6>
+<p>Four tokens each give it probability:</p>
+<div class="math block">
+0.25.
+</div>
+<p>Importance:</p>
+<div class="math block">
+0.25+0.25+0.25+0.25
+=
+1.0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+I_1=I_2=1.
+</div>
+<p>So an importance-based auxiliary objective sees:</p>
+<div class="math block">
+\boxed{\text{perfect balance}}.
+</div>
+<p>But actual token routing is:</p>
+<div class="math block">
+E_1:1\text{ token}
+</div>
+<div class="math block">
+E_2:4\text{ tokens}.
+</div>
+<p>That is a:</p>
+<div class="math block">
+\boxed{4\times}
+</div>
+<p>difference in workload.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-26">5.39.10 This is the key distinction</h4>
+<p>Think of it this way:</p>
+<div class="math block">
+\boxed{
+\text{Importance}
+=
+\text{how much probability I receive}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Load}
+=
+\text{how many tokens I actually process}
+}
+</div>
+<p>Those can disagree.</p>
+<p>This gives us the motivation for:</p>
+<h4 id="v3-heading-chunk-les-step-5-39-i80-27">5.39.11 Attempt #2 — Load-Balancing Loss</h4>
+<p>The source therefore introduces a more sophisticated objective that considers <strong>both</strong>:</p>
+<div class="math block">
+\boxed{f_i}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{p_i}.
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">f_i</span> = fraction of tokens actually dispatched to expert <span class="math inline">i</span>,</li>
+<li><span class="math inline">p_i</span> = average router probability assigned to expert <span class="math inline">i</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></li>
+</ul>
+<p>The source describes the objective as proportional to:</p>
+<div class="math block">
+\boxed{
+\sum_i f_i p_i
+}
+</div>
+<p>scaled by:</p>
+<div class="math block">
+N\lambda.
+</div>
+<p>Thus the source-style load balancing objective is:</p>
+<div class="math block">
+\boxed{
+L_{\text{load}}
+=
+\lambda N\sum_{i=1}^{N}f_i p_i
+}
+</div>
+<p>with the goal of minimizing it. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-28">5.39.12 What exactly is <span class="math inline">f_i</span>?</h4>
+<p>Suppose:</p>
+<div class="math block">
+T
+</div>
+<p>tokens are in the batch.</p>
+<p>For expert <span class="math inline">i</span>, count how many tokens were actually dispatched to it.</p>
+<p>Call that:</p>
+<div class="math block">
+C_i.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+f_i=\frac{C_i}{T}
+}
+</div>
+<p>in the source's fraction-of-tokens interpretation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Important:</p>
+<p>With top-<span class="math inline">k</span>, one token can appear in multiple expert assignments.</p>
+<p>So depending on the precise convention, “fraction” can be defined over routed assignments or tokens. For the chapter's illustrative development, follow the source's stated definition and examples rather than silently substituting another MoE paper's convention.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-29">5.39.13 Numerical example for <span class="math inline">f_i</span></h4>
+<p>Suppose:</p>
+<div class="math block">
+T=100
+</div>
+<p>tokens.</p>
+<p>After Top-2 routing:</p>
+<div class="math block">
+C=[60,50,40,50].
+</div>
+<p>Then:</p>
+<div class="math block">
+f_1=0.60
+</div>
+<div class="math block">
+f_2=0.50
+</div>
+<div class="math block">
+f_3=0.40
+</div>
+<div class="math block">
+f_4=0.50.
+</div>
+<p>Again, the exact normalization convention matters in production implementations; here we are following the chapter's conceptual treatment.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-30">5.39.14 Why multiply <span class="math inline">f_i</span> and <span class="math inline">p_i</span>?</h4>
+<p>This is the clever part.</p>
+<p>Suppose an expert has:</p>
+<div class="math block">
+f_i\gg \frac1N
+</div>
+<p>meaning it receives many tokens,</p>
+<p>and also:</p>
+<div class="math block">
+p_i\gg \frac1N
+</div>
+<p>meaning the router strongly favors it.</p>
+<p>Then:</p>
+<div class="math block">
+f_ip_i
+</div>
+<p>becomes large.</p>
+<p>Thus minimizing:</p>
+<div class="math block">
+\sum_i f_ip_i
+</div>
+<p>discourages an expert from simultaneously being:</p>
+<div class="math block">
+\boxed{\text{highly selected}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{highly weighted}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-31">5.39.15 Perfectly balanced example</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=4
+</div>
+<p>and ideal routing is:</p>
+<div class="math block">
+f_i=0.25
+</div>
+<p>and:</p>
+<div class="math block">
+p_i=0.25
+</div>
+<p>for all experts.</p>
+<p>Then:</p>
+<div class="math block">
+\sum_i f_ip_i
+=
+4(0.25\times0.25)
+</div>
+<div class="math block">
+=
+4(0.0625)
+=
+\boxed{0.25}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{load}}
+=
+\lambda N(0.25)
+=
+\lambda.
+</div>
+<p>So the balanced case gives a neat baseline.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-32">5.39.16 Why the factor <span class="math inline">N</span>?</h4>
+<p>The factor:</p>
+<div class="math block">
+N
+</div>
+<p>normalizes/scales the objective with the number of experts.</p>
+<p>The source explicitly states that the expression is scaled by the number of experts and the hyperparameter <span class="math inline">\lambda</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Don't think of <span class="math inline">N</span> as creating the balance by itself.</p>
+<p>The important part is:</p>
+<div class="math block">
+\boxed{f_i p_i}
+</div>
+<p>The <span class="math inline">N</span> and <span class="math inline">\lambda</span> control scaling/strength.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-33">5.39.17 Exam numerical: compute a load loss</h4>
+<p>Suppose:</p>
+<div class="math block">
+N=4,\qquad \lambda=0.01
+</div>
+<p>and:</p>
+<div class="math block">
+f=[0.4,0.3,0.2,0.1]
+</div>
+<p>while:</p>
+<div class="math block">
+p=[0.25,0.25,0.25,0.25].
+</div>
+<p>Then:</p>
+<div class="math block">
+\sum_i f_ip_i
+=
+0.4(0.25)+0.3(0.25)+0.2(0.25)+0.1(0.25)
+</div>
+<div class="math block">
+=
+0.25(1.0)
+=
+0.25.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{load}}
+=
+0.01\times4\times0.25
+</div>
+<div class="math block">
+=
+\boxed{0.01}.
+</div>
+<p>Notice something interesting:</p>
+<p>Even though <span class="math inline">f</span> is highly uneven, uniform <span class="math inline">p</span> makes the simple product sum unchanged.</p>
+<p>This is one reason it is important to understand the exact normalization and balancing objective rather than assuming one metric guarantees another.</p>
+<p>The source itself motivates load loss precisely because importance balancing alone does <strong>not</strong> guarantee token-load balancing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-34">5.39.18 Now let's use the source's four-token example</h4>
+<p>The source gives:</p>
+<div class="math block">
+p_1=0.35
+</div>
+<div class="math block">
+p_2=0.25
+</div>
+<div class="math block">
+p_3=0.40.
+</div>
+<p>These came from:</p>
+<div class="math block">
+I=[1.4,1.0,1.6]
+</div>
+<p>divided by:</p>
+<div class="math block">
+T=4.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose the actual dispatch fractions are:</p>
+<div class="math block">
+f=[0.25,0.50,0.25].
+</div>
+<p>Then:</p>
+<div class="math block">
+\sum_i f_ip_i
+</div>
+<p>is:</p>
+<div class="math block">
+0.25(0.35)+0.50(0.25)+0.25(0.40)
+</div>
+<div class="math block">
+=
+0.0875+0.125+0.100
+</div>
+<div class="math block">
+=
+\boxed{0.3125}.
+</div>
+<p>For:</p>
+<div class="math block">
+N=3
+</div>
+<p>and:</p>
+<div class="math block">
+\lambda=0.01,
+</div>
+<p>the scaled loss is:</p>
+<div class="math block">
+0.01\times3\times0.3125
+=
+\boxed{0.009375}.
+</div>
+<p>This numerical calculation is based on the source's <span class="math inline">f_i,p_i</span> definitions and an explicit illustrative <span class="math inline">f</span> choice; the source snippet does not specify this exact <span class="math inline">f</span> vector in text.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-35">5.39.19 Now the deeper problem with auxiliary/load losses</h4>
+<p>We have changed the objective to:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{LM}}
++
+L_{\text{balance}}
+}
+</div>
+<p>This sounds reasonable.</p>
+<p>But now the router is being asked to satisfy <strong>two objectives</strong>:</p>
+<div class="math block">
+\boxed{
+\text{1. choose the best experts}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{2. distribute work evenly}
+}
+</div>
+<p>These objectives can conflict.</p>
+<p>Suppose Expert 7 is genuinely much better for mathematics.</p>
+<p>The language-model objective might want:</p>
+<div class="math block">
+\boxed{\text{send math tokens to Expert 7}}
+</div>
+<p>while the balancing loss might say:</p>
+<div class="math block">
+\boxed{\text{stop sending so many tokens to Expert 7}}.
+</div>
+<p>So we introduce a competition between:</p>
+<div class="math block">
+\boxed{\text{model quality}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{load balance}}.
+</div>
+<p>The source identifies this interference as the fundamental drawback of traditional auxiliary-loss-based balancing. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-36">5.39.20 DeepSeek asks a different question</h4>
+<p>Instead of changing the training loss:</p>
+<div class="math block">
+L_{\text{main}}
+\rightarrow
+L_{\text{main}}+\lambda L_{\text{balance}},
+</div>
+<p>why not leave the primary learning objective alone?</p>
+<p>That means:</p>
+<div class="math block">
+\boxed{
+L=L_{\text{next-token}}
+}
+</div>
+<p>and control routing by modifying the router itself.</p>
+<p>This leads to:</p>
+<h4 id="v3-heading-chunk-les-step-5-39-i80-37">5.39.21 Attempt #3 — Auxiliary-Loss-Free Load Balancing</h4>
+<p>DeepSeek introduces a persistent bias:</p>
+<div class="math block">
+\boxed{b_i}
+</div>
+<p>for each expert.</p>
+<p>Instead of:</p>
+<div class="math block">
+\text{router logits}
+</div>
+<p>we use:</p>
+<div class="math block">
+\boxed{
+\text{adjusted logits}
+=
+\text{router logits}+b
+}
+</div>
+<p>before Top-K selection.</p>
+<p>The source explicitly states that the dynamic bias is added to raw router logits <strong>before</strong> top-k selection and softmax normalization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-38">5.39.22 Why does adding a bias help?</h4>
+<p>Suppose original logits are:</p>
+<div class="math block">
+[1.7,\;1.5,\;2.3].
+</div>
+<p>Expert 3 is being selected too often.</p>
+<p>Suppose bias is:</p>
+<div class="math block">
+b=[0.2,\;0.1,\;-0.3].
+</div>
+<p>Then:</p>
+<div class="math block">
+L+b
+=
+[1.9,\;1.6,\;2.0].
+</div>
+<p>Now Expert 3 becomes less dominant.</p>
+<p>Conversely, underused experts receive positive bias.</p>
+<p>So the bias changes the <strong>probability of future selection</strong> without becoming part of the learned neural network weights.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-39">5.39.23 Source's feedback rule</h4>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+\text{underloaded expert}
+\rightarrow
+\text{increase bias}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{overloaded expert}
+\rightarrow
+\text{decrease bias}
+}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{underused}
+\Rightarrow
+b_i\uparrow
+\Rightarrow
+L_i\uparrow
+\Rightarrow
+\text{more likely selected}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{overused}
+\Rightarrow
+b_i\downarrow
+\Rightarrow
+L_i\downarrow
+\Rightarrow
+\text{less likely selected}.
+}
+</div>
+<p>This is a classic negative-feedback control loop.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-40">5.39.24 The source's load-violation example</h4>
+<p>We already had:</p>
+<div class="math block">
+[2,2,4]
+</div>
+<p>tokens assigned to:</p>
+<div class="math block">
+[E_1,E_2,E_3].
+</div>
+<p>Total:</p>
+<div class="math block">
+8.
+</div>
+<p>Average:</p>
+<div class="math block">
+\frac83
+=
+2.67.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+v_1=2.67-2=+0.67
+</div>
+<div class="math block">
+v_2=2.67-2=+0.67
+</div>
+<div class="math block">
+v_3=2.67-4=-1.33.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{
+v&gt;0\Rightarrow \text{underloaded}
+}
+</div>
+<div class="math block">
+\boxed{
+v&lt;0\Rightarrow \text{overloaded}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-41">5.39.25 Why the sign matters</h4>
+<p>The source describes a simple update based on the sign of the violation.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+u\,\operatorname{sign}(v_i)
+}
+</div>
+<p>where <span class="math inline">u</span> is a small adjustment constant. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-42">Expert 1</h6>
+<div class="math block">
+b_1\leftarrow b_1+u
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-43">Expert 2</h6>
+<div class="math block">
+b_2\leftarrow b_2+u
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-44">Expert 3</h6>
+<div class="math block">
+b_3\leftarrow b_3-u.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-45">5.39.26 Modernized source implementation</h4>
+<p>The source's concrete implementation uses a smoother bounded update:</p>
+<div class="math block">
+\boxed{
+b_i
+\leftarrow
+b_i+
+\eta\tanh(v_i)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\eta
+=
+\text{bias learning rate}.
+</div>
+<p>The code is:</p>
+<pre><code class="language-python">violation = (avg - counts) / (avg + 1e-6)
+self.bias.add_(self.bias_lr * torch.tanh(violation))
+</code></pre>
+<p>The <span class="math inline">\tanh</span> makes the update bounded and smoother than a raw sign-based jump.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-46">5.39.27 Numerical bias update</h4>
+<p>Suppose:</p>
+<div class="math block">
+\text{avg}=10.
+</div>
+<p>Expert 1 has:</p>
+<div class="math block">
+C_1=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+v_1=
+\frac{10-8}{10}
+=
+0.2.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\eta=0.01.
+</div>
+<p>Then:</p>
+<div class="math block">
+\tanh(0.2)\approx0.1974.
+</div>
+<p>So:</p>
+<div class="math block">
+\Delta b_1
+=
+0.01(0.1974)
+</div>
+<div class="math block">
+\approx
+\boxed{0.001974}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+b_1
+</div>
+<p>increases slightly.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-47">5.39.28 Overloaded expert</h4>
+<p>Suppose:</p>
+<div class="math block">
+C_3=15.
+</div>
+<p>Then:</p>
+<div class="math block">
+v_3=
+\frac{10-15}{10}
+=
+-0.5.
+</div>
+<div class="math block">
+\tanh(-0.5)\approx-0.4621.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\Delta b_3
+=
+0.01(-0.4621)
+</div>
+<div class="math block">
+=
+\boxed{-0.004621}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+b_3
+</div>
+<p>decreases.</p>
+<p>Exactly the desired direction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-48">5.39.29 Why call it “loss-free”?</h4>
+<p>Because we do <strong>not</strong> add:</p>
+<div class="math block">
+L_{\text{balance}}
+</div>
+<p>to the next-token loss.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+L_{\text{training}}
+=
+L_{\text{language}}
+}
+</div>
+<p>and the balancing mechanism operates through:</p>
+<div class="math block">
+\boxed{
+b_i
+}
+</div>
+<p>as a separate control mechanism.</p>
+<p>The source emphasizes that this decouples the primary language-learning objective from the balancing objective. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-49">5.39.30 Very important distinction</h4>
+<p>The bias:</p>
+<div class="math block">
+b_i
+</div>
+<p>is not trained through ordinary backpropagation as a normal model parameter.</p>
+<p>In the source implementation it is a buffer and is updated under:</p>
+<div class="math block">
+\boxed{\texttt{torch.no\_grad()}}
+</div>
+<p>so the adjustment does not contribute gradients to the main model.</p>
+<p>That is why the architecture separates:</p>
+<div class="math block">
+\boxed{
+\text{gradient-based learning}
+}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{
+\text{load-control adjustment}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-50">5.39.31 Full DeepSeek-style routing sequence</h4>
+<p>Now we can write the complete pipeline:</p>
+<div class="math block">
+X
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-51">Router</h6>
+<div class="math block">
+L=XW_R
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-52">Add dynamic bias</h6>
+<div class="math block">
+\boxed{
+L'=L+b
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-53">Top-K</h6>
+<div class="math block">
+I=TopK(L',k)
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-54">Softmax</h6>
+<div class="math block">
+g_i=
+\frac{e^{L'_i}}
+{\sum_{j\in I}e^{L'_j}}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-55">Sparse dispatch</h6>
+<div class="math block">
+E_i(x),\qquad i\in I
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-56">Weighted sum</h6>
+<div class="math block">
+y=
+\sum_{i\in I}g_iE_i(x)
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-57">Measure load</h6>
+<div class="math block">
+C_i
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-58">Compute violation</h6>
+<div class="math block">
+v_i=
+\frac{\bar C-C_i}{\bar C}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-59">Update bias</h6>
+<div class="math block">
+b_i\leftarrow b_i+\eta\tanh(v_i)
+</div>
+<div class="math block">
+\downarrow
+</div>
+<p>next training step.</p>
+<p>This creates:</p>
+<div class="math block">
+\boxed{\text{self-correcting routing}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-60">5.39.32 Why update for the <em>next</em> step?</h4>
+<p>This is an important subtlety.</p>
+<p>Suppose the current batch routed too many tokens to Expert 3.</p>
+<p>We don't magically change the computation that already happened.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{current batch}
+\rightarrow
+\text{measure imbalance}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{update bias}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{next batch uses corrected logits}
+}.
+</div>
+<p>The source explicitly describes this as a feedback loop carried across training steps. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-61">5.39.33 Control-theory interpretation</h4>
+<p>This is a very useful way to remember it.</p>
+<p>Let:</p>
+<div class="math block">
+\text{target load}=\bar C.
+</div>
+<p>Measure:</p>
+<div class="math block">
+\text{error}
+=
+\bar C-C_i.
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{controller}
+\rightarrow
+b_i.
+</div>
+<p>If error is positive:</p>
+<div class="math block">
+\text{increase bias}.
+</div>
+<p>If error is negative:</p>
+<div class="math block">
+\text{decrease bias}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MoE balancing}
+\approx
+\text{feedback control over router preferences}
+}
+</div>
+<p>This is an interpretation of the source mechanism rather than a terminology claim made by the source.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-62">5.39.34 Traditional vs DeepSeek balancing</h4>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>What it changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auxiliary loss</td>
+<td>Training objective</td>
+</tr>
+<tr>
+<td>Load-balancing loss</td>
+<td>Training objective using probability + load</td>
+</tr>
+<tr>
+<td>DeepSeek loss-free bias</td>
+<td>Router scores</td>
+</tr>
+</tbody>
+</table>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Traditional}
+:
+L_{\text{LM}}+\lambda L_{\text{balance}}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek}
+:
+L_{\text{LM}},
+\quad
+L_{\text{router}}\leftarrow L_{\text{router}}+b
+}
+</div>
+<p>with <span class="math inline">b</span> separately updated.</p>
+<p>The source's central claim is that this separation avoids making the balancing objective compete directly with language learning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-63">5.39.35 But there is still one more problem</h4>
+<p>Even with load balancing, standard MoE experts can still be too broad.</p>
+<p>Suppose:</p>
+<div class="math block">
+16
+</div>
+<p>experts.</p>
+<p>Each expert has to absorb many domains.</p>
+<p>One expert might still learn:</p>
+<div class="math block">
+\text{Python}
++
+\text{math}
++
+\text{legal}
++
+\text{grammar}.
+</div>
+<p>That creates:</p>
+<div class="math block">
+\boxed{\text{knowledge hybridity}}.
+</div>
+<p>The source identifies this as one of the two fundamental obstacles to ultimate specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So balancing alone is not enough.</p>
+<p>DeepSeek's next architectural idea is:</p>
+<div class="math block">
+\boxed{\text{Fine-Grained Expert Segmentation}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-64">5.39.36 Exam numerical — full balancing question</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=120
+</div>
+<p>tokens,</p>
+<div class="math block">
+N=6
+</div>
+<p>experts,</p>
+<div class="math block">
+k=2.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-65">Step 1 — total assignments</h6>
+<div class="math block">
+120\times2
+=
+\boxed{240}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-66">Step 2 — ideal average</h6>
+<div class="math block">
+240/6
+=
+\boxed{40}.
+</div>
+<p>Suppose actual loads:</p>
+<div class="math block">
+[30,40,55,25,45,45].
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-67">Step 3 — violations</h6>
+<p>Using:</p>
+<div class="math block">
+v_i=\frac{40-C_i}{40}.
+</div>
+<p>We get:</p>
+<div class="math block">
+v_1=\frac{40-30}{40}
+=
+\boxed{0.25}
+</div>
+<div class="math block">
+v_2=0
+</div>
+<div class="math block">
+v_3=\frac{40-55}{40}
+=
+\boxed{-0.375}
+</div>
+<div class="math block">
+v_4=\frac{40-25}{40}
+=
+\boxed{0.375}
+</div>
+<div class="math block">
+v_5=-0.125
+</div>
+<div class="math block">
+v_6=-0.125.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+E_1,E_4\text{ underloaded}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+E_3,E_5,E_6\text{ overloaded}.
+}
+</div>
+<p>That means the next update should:</p>
+<div class="math block">
+b_1\uparrow,\quad
+b_4\uparrow
+</div>
+<p>and:</p>
+<div class="math block">
+b_3\downarrow,\quad
+b_5\downarrow,\quad
+b_6\downarrow.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-68">5.39.37 Exam numerical — capacity</h4>
+<p>Suppose:</p>
+<div class="math block">
+T=4096,\quad
+k=2,\quad
+N=32,\quad
+CF=1.25.
+</div>
+<p>Ideal load:</p>
+<div class="math block">
+\frac{4096\times2}{32}
+=
+\boxed{256}.
+</div>
+<p>Capacity:</p>
+<div class="math block">
+256\times1.25
+=
+\boxed{320}.
+</div>
+<p>So, under the source's simplified capacity discussion:</p>
+<div class="math block">
+\boxed{320\text{ tokens/expert}}
+</div>
+<p>is the nominal hard ceiling.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-69">5.39.38 The deepest concept from this step</h4>
+<p>There are <strong>three different goals</strong>:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-70">Goal 1 — specialization</h6>
+<p>Each token should reach useful experts.</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-71">Goal 2 — utilization</h6>
+<p>Experts should not become dead or overloaded.</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-72">Goal 3 — learning freedom</h6>
+<p>Balancing should not damage the language-model objective.</p>
+<p>Basic MoE addresses:</p>
+<div class="math block">
+\boxed{\text{specialization + sparsity}}
+</div>
+<p>Traditional load balancing addresses:</p>
+<div class="math block">
+\boxed{\text{utilization}}
+</div>
+<p>DeepSeek's auxiliary-loss-free balancing tries to obtain:</p>
+<div class="math block">
+\boxed{
+\text{utilization without directly modifying the main loss}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-73">5.39.39 Master exam sheet</h4>
+<p>Remember these equations:</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-74">Basic routing</h6>
+<div class="math block">
+\boxed{
+L=XW_R
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-75">Bias-adjusted routing</h6>
+<div class="math block">
+\boxed{
+L'=L+b
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-76">Top-K</h6>
+<div class="math block">
+\boxed{
+I_t=TopK(L'_t,k)
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-77">Gate</h6>
+<div class="math block">
+\boxed{
+g_{t,i}
+=
+\frac{e^{L'_{t,i}}}
+{\sum_{j\in I_t}e^{L'_{t,j}}}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-78">MoE output</h6>
+<div class="math block">
+\boxed{
+y_t
+=
+\sum_{i\in I_t}
+g_{t,i}E_i(x_t)
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-79">Importance</h6>
+<div class="math block">
+\boxed{
+I_i=\sum_t P_{t,i}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-80">Router probability</h6>
+<div class="math block">
+\boxed{
+p_i=\frac{I_i}{T}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-81">Actual load fraction</h6>
+<div class="math block">
+\boxed{
+f_i=\frac{C_i}{T}
+}
+</div>
+<p>following the source's stated convention.</p>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-82">Load-balancing loss</h6>
+<div class="math block">
+\boxed{
+L_{\text{load}}
+=
+\lambda N\sum_i f_ip_i
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-83">Ideal average assignment</h6>
+<div class="math block">
+\boxed{
+\bar C=\frac{Tk}{N}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-84">Load violation</h6>
+<div class="math block">
+\boxed{
+v_i=
+\frac{\bar C-C_i}{\bar C}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-39-i80-85">DeepSeek-style bias update</h6>
+<p>Source's conceptual sign form:</p>
+<div class="math block">
+\boxed{
+b_i\leftarrow b_i+u\,\operatorname{sign}(v_i)
+}
+</div>
+<p>Concrete smoother implementation:</p>
+<div class="math block">
+\boxed{
+b_i\leftarrow b_i+\eta\tanh(v_i)
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-39-i80-86">5.39.40 The complete evolution</h4>
+<p>Now look at the whole story:</p>
+<div class="math block">
+\boxed{
+\text{Dense FFN}
+}
+</div>
+<p>Too expensive.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+}
+</div>
+<p>Use only a few experts.</p>
+<p>↓</p>
+<p>Problem:</p>
+<div class="math block">
+\boxed{
+\text{experts become imbalanced}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Auxiliary Loss}
+}
+</div>
+<p>Balances importance.</p>
+<p>↓</p>
+<p>Problem:</p>
+<div class="math block">
+\boxed{
+\text{importance}\neq\text{actual load}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Load-Balancing Loss}
+}
+</div>
+<p>Uses actual dispatch + router probability.</p>
+<p>↓</p>
+<p>Problem:</p>
+<div class="math block">
+\boxed{
+\text{balancing objective can interfere with main objective}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek Auxiliary-Loss-Free Bias}
+}
+</div>
+<p>Balances routing by modifying router scores rather than adding a competing training loss.</p>
+<p>↓</p>
+<p>But another problem remains:</p>
+<div class="math block">
+\boxed{
+\text{Knowledge Hybridity}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Knowledge Redundancy}
+}
+</div>
+<p>↓</p>
+<hr />
+</section>

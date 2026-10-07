@@ -1,0 +1,508 @@
+<section class="chunk" id="chunk-les-step-5-26-i67" data-id="les-step-5-26-i67"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-26-i67"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-26-i67" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-25-i66">← Previous lesson</a> · <a href="#chunk-les-step-5-27-i68">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a></p><p><strong>This lesson:</strong> Step 5.26 — Indic Language Benchmarks: Why IndicXTREME Exists</p><p><strong>Source references:</strong> <a href="#source-3">indicxtreme-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-26-i67"></a></p>
+<h2>Step 5.26 — Indic Language Benchmarks: Why IndicXTREME Exists</h2>
+<p><em>Plan node: I10 · chat order #67</em></p>
+<p>We now transition from <strong>tool-using reasoning models</strong> to the Indic-language part of your material.</p>
+<p>The first thing to understand is not the list of tasks.</p>
+<p>It is the underlying problem:</p>
+<div class="math block">
+\boxed{
+\text{Why isn't a generic multilingual benchmark enough for Indian languages?}
+}
+</div>
+<p>The supplied IndicXTREME deck begins with exactly this question. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-1">5.26.1 The assumption that sounds reasonable</h3>
+<p>Suppose we have a multilingual model such as XLM-R.</p>
+<p>A natural assumption is:</p>
+<div class="math block">
+\boxed{
+\text{strong English model}
++
+\text{multilingual pretraining}
+\Rightarrow
+\text{good Indian-language performance}
+}
+</div>
+<p>This is the idea of <strong>zero-shot transfer</strong>.</p>
+<p>The model learns representations from high-resource languages and is expected to transfer those capabilities to low-resource languages.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\text{English training}
+\rightarrow
+\text{shared multilingual representation}
+\rightarrow
+\text{Hindi/Bengali/Tamil/etc.}
+</div>
+<p>But the IndicXTREME material says that this breaks down for many of India's languages. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-2">5.26.2 Why does zero-shot transfer break down?</h3>
+<p>The deck identifies <strong>three separate problems</strong>.</p>
+<p>We should understand them individually.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-26-i67-3">Problem 1 — Poor model coverage</h4>
+<p>The first problem is:</p>
+<div class="math block">
+\boxed{
+\text{the model may not adequately support the language at all}
+}
+</div>
+<p>The deck notes that among the 22 scheduled Indian languages, only 15 are supported by XLM-R.</p>
+<p>It gives examples such as:</p>
+<div class="math block">
+\boxed{\text{Bodo, Dogri, Kashmiri}}
+</div>
+<p>being absent from resources such as CC-100 and mC4 used in multilingual pretraining. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is a fundamental issue.</p>
+<p>You cannot transfer useful representations for a language that the model barely encountered or did not represent in its pretraining resources.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-4">5.26.3 Think of model capacity as a budget</h3>
+<p>Suppose a model has a finite representational capacity:</p>
+<div class="math block">
+C.
+</div>
+<p>It must distribute that capacity across languages:</p>
+<div class="math block">
+C=C_1+C_2+\cdots+C_L.
+</div>
+<p>For a dominant language such as English:</p>
+<div class="math block">
+C_{\text{English}}
+</div>
+<p>can be very large.</p>
+<p>For a very low-resource language:</p>
+<div class="math block">
+C_{\text{low-resource}}
+</div>
+<p>may be tiny.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{multilingual}
+\neq
+\text{equally represented}
+}
+</div>
+<p>This is an important conceptual point from the deck's “starved languages” discussion. <em>(Source: indicxtreme-slides)</em></p>
+<p>The equation above is a conceptual model, not a formula presented by the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-5">5.26.4 Problem 2 — Even supported languages are starved</h3>
+<p>Suppose a language technically exists in the pretraining corpus.</p>
+<p>That does not mean it receives enough data.</p>
+<p>The second problem is:</p>
+<div class="math block">
+\boxed{
+\text{language exists}
+\neq
+\text{language has sufficient representation}
+}
+</div>
+<p>The deck says that even when low-resource languages are present, their pretraining data can be dramatically smaller than English.</p>
+<p>That affects both:</p>
+<div class="math block">
+\boxed{\text{model capacity}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{vocabulary representation}}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-6">5.26.5 Why vocabulary matters</h3>
+<p>Consider a language that is poorly represented in the tokenizer.</p>
+<p>A word may be split into many subword pieces:</p>
+<div class="math block">
+w
+\rightarrow
+t_1,t_2,t_3,t_4,t_5.
+</div>
+<p>Another language might represent common words much more efficiently:</p>
+<div class="math block">
+w'
+\rightarrow
+t_1,t_2.
+</div>
+<p>More fragmented tokenization can make sequences longer and potentially make modeling less efficient.</p>
+<p>The IndicXTREME deck specifically mentions poor allocation of vocabulary alongside model capacity for low-resource languages. <em>(Source: indicxtreme-slides)</em></p>
+<p>The precise downstream effect of tokenization efficiency is general ML reasoning; the slide itself does not quantify that effect.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-7">5.26.6 Problem 3 — The benchmark itself doesn't cover the languages</h3>
+<p>This is perhaps the biggest reason a dedicated benchmark is necessary.</p>
+<p>Suppose a model claims:</p>
+<blockquote>
+<p>“I support 22 Indian languages.”</p>
+</blockquote>
+<p>But the benchmark evaluates only a few of them.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{claim of multilingual capability}
+}
+</div>
+<p>is not adequately tested.</p>
+<p>The deck notes that in XTREME-R:</p>
+<ul>
+<li>only 3 of 10 tasks cover more than two Indic languages;</li>
+<li>no task covers more than seven;</li>
+<li>15 of the 22 constitutional languages appear in no task at all. <em>(Source: indicxtreme-slides)</em></li>
+</ul>
+<p>So there is a measurement problem:</p>
+<div class="math block">
+\boxed{
+\text{language capability}
+\neq
+\text{language capability that has actually been benchmarked}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-8">5.26.7 The three-problem model</h3>
+<p>This gives us the foundation of IndicXTREME:</p>
+<div class="math block">
+\boxed{
+\text{Poor model coverage}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{Insufficient data for supported languages}
+}
+</div>
+<div class="math block">
++
+</div>
+<div class="math block">
+\boxed{
+\text{Poor benchmark coverage}
+}
+</div>
+<div class="math block">
+\Downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Need a dedicated Indic benchmark}
+}
+</div>
+<p>This is the conceptual starting point of the deck. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-9">5.26.8 What exactly is IndicXTREME trying to cover?</h3>
+<p>The deck describes three related contributions from the original work:</p>
+<div class="math block">
+\boxed{\text{IndicCorp v2}}
+</div>
+<div class="math block">
+\boxed{\text{IndicXTREME}}
+</div>
+<div class="math block">
+\boxed{\text{IndicBERT v2}}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<p>Let's understand why these three belong together.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-26-i67-10">IndicCorp v2</h4>
+<p>A monolingual Indic pretraining corpus:</p>
+<div class="math block">
+\boxed{20.9\text{ billion tokens}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{24\text{ languages}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{4\text{ language families}}.
+</div>
+<p>Its purpose is to provide better Indic-language pretraining resources. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-26-i67-11">IndicXTREME</h4>
+<p>The benchmark contains:</p>
+<div class="math block">
+\boxed{9\text{ tasks}}
+</div>
+<p>across:</p>
+<div class="math block">
+\boxed{20\text{ languages}}
+</div>
+<p>with human supervision.</p>
+<p>The deck says there are:</p>
+<div class="math block">
+\boxed{105\text{ evaluation sets}}
+</div>
+<p>in total, of which:</p>
+<div class="math block">
+\boxed{52}
+</div>
+<p>are brand-new contributions. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-26-i67-12">IndicBERT v2</h4>
+<p>A:</p>
+<div class="math block">
+\boxed{278\text{M-parameter}}
+</div>
+<p>BERT model pretrained on IndicCorp v2 and evaluated using IndicXTREME.</p>
+<p>So the logical chain is:</p>
+<div class="math block">
+\boxed{
+\text{better Indic data}
+\rightarrow
+\text{Indic-specialized model}
+\rightarrow
+\text{Indic-specific evaluation}
+}
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-13">5.26.9 Why are there 24 languages in IndicCorp but 22 scheduled languages?</h3>
+<p>This is a useful place to be careful with source terminology.</p>
+<p>The deck says the paper targets the:</p>
+<div class="math block">
+\boxed{22\text{ languages of the 8th Schedule}}
+</div>
+<p>but IndicCorp v2 itself contains:</p>
+<div class="math block">
+\boxed{24\text{ languages}}.
+</div>
+<p>Later, the deck notes that IndicXTREME can evaluate only 19 of IndicCorp's 24 languages, leaving five without an evaluation set. <em>(Source: indicxtreme-slides)</em></p>
+<p>So do <strong>not</strong> collapse all the numbers into “24 Indian languages” or “22 benchmark languages.”</p>
+<p>They describe different scopes:</p>
+<div class="math block">
+\boxed{
+22 = \text{constitutional target}
+}
+</div>
+<div class="math block">
+\boxed{
+24 = \text{IndicCorp v2 corpus scope}
+}
+</div>
+<div class="math block">
+\boxed{
+20 = \text{benchmark scope stated on the contribution slide}
+}
+</div>
+<p>and later:</p>
+<div class="math block">
+\boxed{
+19 = \text{languages actually evaluable according to the deck's limitation slide}
+}
+</div>
+<p>That distinction is source-important.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-14">5.26.10 Another critical concept: language-resource imbalance</h3>
+<p>The deck uses the taxonomy from Joshi et al. to classify languages according to resource availability.</p>
+<p>At the extremes:</p>
+<div class="math block">
+\boxed{5=\text{resource-rich “Winner”}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{1=\text{almost entirely unresourced “Left-Behind”}}.
+</div>
+<p>Among languages newly added to IndicXTREME, the deck says:</p>
+<div class="math block">
+\boxed{9}
+</div>
+<p>are class-1 Left-Behinds, while only:</p>
+<div class="math block">
+\boxed{3}
+</div>
+<p>are class-5 Winners. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-15">5.26.11 Why is this classification useful?</h3>
+<p>Because “22 Indian languages” sounds homogeneous.</p>
+<p>They are not.</p>
+<p>The data available for:</p>
+<div class="math block">
+\text{Hindi}
+</div>
+<p>can be radically different from:</p>
+<div class="math block">
+\text{Santali}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{Bodo}.
+</div>
+<p>Therefore the benchmark should not only ask:</p>
+<div class="math block">
+\boxed{
+\text{How good is the model overall?}
+}
+</div>
+<p>It should also ask:</p>
+<div class="math block">
+\boxed{
+\text{How does performance change as language resources decrease?}
+}
+</div>
+<p>That becomes important later when the deck compares <strong>Winners vs Left-Behinds</strong>. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-16">5.26.12 Numerical understanding</h3>
+<p>Suppose, purely as an illustrative abstraction, that a multilingual model has an effective language-resource budget of:</p>
+<div class="math block">
+1000
+</div>
+<p>units.</p>
+<p>Suppose English consumes:</p>
+<div class="math block">
+500
+</div>
+<p>units, while five low-resource languages collectively receive:</p>
+<div class="math block">
+50.
+</div>
+<p>Then average allocation to those five languages is:</p>
+<div class="math block">
+\frac{50}{5}
+=
+\boxed{10}
+</div>
+<p>units each.</p>
+<p>This does <strong>not</strong> represent the actual model's resource allocation—the slide provides no such numeric budget. It is a conceptual numerical illustration of the imbalance problem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-17">5.26.13 Exam numerical: benchmark coverage</h3>
+<p>The deck states:</p>
+<div class="math block">
+22
+</div>
+<p>constitutional languages, but:</p>
+<div class="math block">
+15
+</div>
+<p>appear in no XTREME-R task.</p>
+<p>Then benchmark-covered languages under that statement:</p>
+<div class="math block">
+22-15
+=
+\boxed{7}.
+</div>
+<p>This matches the slide's statement that no XTREME-R task covers more than seven Indic languages. <em>(Source: indicxtreme-slides)</em></p>
+<p>The important lesson is not merely the number 7.</p>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{a benchmark can systematically hide failures by omitting languages}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-18">5.26.14 Exam numerical: corpus growth</h3>
+<p>IndicCorp v1:</p>
+<div class="math block">
+8.79\text{B tokens}.
+</div>
+<p>IndicCorp v2:</p>
+<div class="math block">
+20.9\text{B tokens}.
+</div>
+<p>The ratio is:</p>
+<div class="math block">
+\frac{20.9}{8.79}
+\approx
+\boxed{2.38\times}.
+</div>
+<p>The deck reports exactly this value and notes that the paper rounds it to about 2.3×. <em>(Source: indicxtreme-slides)</em></p>
+<p>This is an excellent exam-style calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-19">5.26.15 Exam numerical: post-filter reduction</h3>
+<p>Before offensive-content filtering:</p>
+<div class="math block">
+23.1\text{B tokens}.
+</div>
+<p>After filtering:</p>
+<div class="math block">
+20.9\text{B tokens}.
+</div>
+<p>Reduction:</p>
+<div class="math block">
+23.1-20.9
+=
+\boxed{2.2\text{B tokens}}.
+</div>
+<p>Percentage:</p>
+<div class="math block">
+\frac{2.2}{23.1}\times100
+\approx
+\boxed{9.52\%}.
+</div>
+<p>The deck reports this as approximately:</p>
+<div class="math block">
+\boxed{9.5\%}.
+</div>
+<p><em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-20">5.26.16 The key benchmarking philosophy</h3>
+<p>Now we can formulate the problem properly.</p>
+<p>A multilingual benchmark should not merely ask:</p>
+<div class="math block">
+\text{“Can the model do NLP?”}
+</div>
+<p>It should ask:</p>
+<div class="math block">
+\boxed{
+\text{“Can the model do NLP across languages with drastically different resource levels?”}
+}
+</div>
+<p>And for Indic languages, the benchmark needs:</p>
+<div class="math block">
+\boxed{
+\text{broad language coverage}
++
+\text{human-supervised data}
++
+\text{multiple task types}
+}
+</div>
+<p>The deck's next section therefore moves into the <strong>9-task IndicXTREME suite</strong>. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-21">5.26.17 One subtle distinction to remember</h3>
+<p>There are really <strong>three different problems</strong>:</p>
+<div class="math block">
+\boxed{\text{Data problem}}
+</div>
+<p>Does the model have enough training text?</p>
+<div class="math block">
+\boxed{\text{Representation problem}}
+</div>
+<p>Does the model/tokenizer adequately represent the language?</p>
+<div class="math block">
+\boxed{\text{Evaluation problem}}
+</div>
+<p>Do we actually have a benchmark that measures the capability?</p>
+<p>IndicXTREME primarily attacks the third problem, while the overall paper also contributes IndicCorp v2 to address the first and IndicBERT v2 to demonstrate the value of Indic-focused pretraining. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-26-i67-22">Step 5.26 checkpoint</h3>
+<p>The entire motivation can now be compressed to:</p>
+<div class="math block">
+\boxed{
+\text{High-resource multilingual pretraining}
+\not\Rightarrow
+\text{equal Indic-language capability}
+}
+</div>
+<p>because:</p>
+<div class="math block">
+\boxed{
+\text{some languages are missing}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{some have very little data}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{some are barely benchmarked}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Indic-specific data + Indic-specific benchmark}
+}
+</div>
+<p>is necessary to expose the real performance gaps. <em>(Source: indicxtreme-slides)</em></p>
+<hr />
+</section>

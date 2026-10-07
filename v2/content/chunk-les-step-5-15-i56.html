@@ -1,0 +1,1434 @@
+<section class="chunk" id="chunk-les-step-5-15-i56" data-id="les-step-5-15-i56"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-15-i56"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-15-i56" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-14-i55">← Previous lesson</a> · <a href="#chunk-les-step-5-16-i57">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-14-i55">Step 5.14 — DeepSeek-R1 Distillation Training Mechanics</a></p><p><strong>This lesson:</strong> Step 5.15 — DeepSeek-R1 Distilled Models at Scale</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-15-i56"></a></p>
+<h2>Step 5.15 — DeepSeek-R1 Distilled Models at Scale</h2>
+<p><em>Plan node: I8 · chat order #56</em></p>
+<p>We now move from <strong>how one distillation example is trained</strong> to the much bigger question:</p>
+<blockquote>
+<p><strong>How was the 800K-example teacher dataset actually turned into six useful small reasoning models, and what do the results tell us about model size, base-model choice, and distillation?</strong></p>
+</blockquote>
+<p>This is where the mathematics we just learned connects directly to the empirical results.</p>
+<p>The source describes six distilled models spanning Qwen2.5 and Llama-3 families, all trained with <strong>SFT only</strong>, with no RL stage for the distilled models. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-1">5.15.1 First, remember the complete pipeline</h3>
+<p>We have:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 teacher}
+}
+</div>
+<p>↓</p>
+<p>generates many reasoning responses</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{rejection sampling / curation}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{800K high-quality training samples}
+}
+</div>
+<p>↓</p>
+<p>choose a smaller pretrained base model</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{supervised fine-tuning}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1-Distill model}
+}
+</div>
+<p>The important point is that the student <strong>does not repeat the full R1 RL pipeline</strong>. The source states that the distilled models receive SFT only. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-2">5.15.2 Why six models?</h3>
+<p>DeepSeek did not create just one student.</p>
+<p>It tested whether the same teacher-generated knowledge could be transferred into models of different:</p>
+<ul>
+<li>parameter counts,</li>
+<li>base-model families,</li>
+<li>pre-existing capabilities.</li>
+</ul>
+<p>The six models are:</p>
+<div class="math block">
+\boxed{
+\text{Qwen 1.5B,\;7B,\;14B,\;32B}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Llama 8B,\;70B}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This lets us ask three different questions:</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-3">Question 1</h5>
+<p>Does a larger student absorb more teacher knowledge?</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-4">Question 2</h5>
+<p>Does the starting base model matter?</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-5">Question 3</h5>
+<p>Is distillation enough, or does the student still need RL?</p>
+<p>The experiments address all three.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-6">5.15.3 The starting models matter</h3>
+<p>This is a very important idea.</p>
+<p>The student is <strong>not trained from scratch</strong>.</p>
+<p>It already has pretrained knowledge.</p>
+<p>So think of the student's final ability as:</p>
+<div class="math block">
+\boxed{
+\text{Final ability}
+\approx
+\text{base capability}
++
+\text{distilled teacher behavior}
+}
+</div>
+<p>Not literally an additive equation, but this is the right conceptual model.</p>
+<p>The source specifically says the 1.5B and 7B Qwen students use <strong>Qwen2.5-Math</strong> bases, which are already math-specialized, while the larger Qwen and Llama variants use more general bases. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-7">5.15.4 Exact base-model choices</h3>
+<p>According to the source:</p>
+<table>
+<thead>
+<tr>
+<th>Student</th>
+<th>Base</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1-Distill-Qwen-1.5B</td>
+<td>Qwen2.5-Math 1.5B</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-7B</td>
+<td>Qwen2.5-Math 7B</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-14B</td>
+<td>Qwen2.5 14B</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-32B</td>
+<td>Qwen2.5 32B</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-8B</td>
+<td>Llama-3.1 8B</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-70B</td>
+<td>Llama-3.3 70B Instruct</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the two smallest Qwen students receive a <strong>head start in mathematical reasoning</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-8">5.15.5 Why does a math-specialized base help?</h3>
+<p>Imagine two students before distillation.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-9">Student A</h5>
+<p>Already understands:</p>
+<ul>
+<li>algebraic patterns,</li>
+<li>mathematical notation,</li>
+<li>common proof structures,</li>
+<li>competition-style mathematical language.</li>
+</ul>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-10">Student B</h5>
+<p>Has broad language knowledge but weaker mathematical specialization.</p>
+<p>Now give both the same teacher reasoning traces.</p>
+<p>Student A has a better starting representation for those traces.</p>
+<p>So even though:</p>
+<div class="math block">
+\text{same teacher data}
+</div>
+<p>does not mean:</p>
+<div class="math block">
+\text{same final performance}.
+</div>
+<p>That is precisely the point highlighted by the source: <strong>base-model pre-existing capabilities interact with distillation quality</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-11">5.15.6 Training configuration</h3>
+<p>The source reports that the distilled models were trained for:</p>
+<div class="math block">
+\boxed{2\text{–}3\text{ epochs}}
+</div>
+<p>using:</p>
+<div class="math block">
+\boxed{\text{batch size}=64}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{cosine learning-rate decay}}
+</div>
+<p>and maximum context:</p>
+<div class="math block">
+\boxed{32,768\text{ tokens}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The reported initial learning rates were:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">Initial LR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen 1.5B</td>
+<td style="text-align:right"><span class="math inline">1\times10^{-4}</span></td>
+</tr>
+<tr>
+<td>Qwen 7B</td>
+<td style="text-align:right"><span class="math inline">8\times10^{-5}</span></td>
+</tr>
+<tr>
+<td>Qwen 14B</td>
+<td style="text-align:right"><span class="math inline">7\times10^{-5}</span></td>
+</tr>
+<tr>
+<td>Qwen 32B</td>
+<td style="text-align:right"><span class="math inline">6\times10^{-5}</span></td>
+</tr>
+<tr>
+<td>Llama 8B</td>
+<td style="text-align:right"><span class="math inline">5\times10^{-5}</span></td>
+</tr>
+<tr>
+<td>Llama 70B</td>
+<td style="text-align:right"><span class="math inline">2\times10^{-5}</span></td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-12">5.15.7 Why are larger models given smaller learning rates?</h3>
+<p>This is a training-stability idea.</p>
+<p>A useful mental model is:</p>
+<div class="math block">
+\Delta\theta
+=
+-\eta\nabla_\theta L
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\eta</span> = learning rate,</li>
+<li><span class="math inline">\nabla_\theta L</span> = gradient.</li>
+</ul>
+<p>The source uses larger initial learning rates for smaller models and progressively smaller values for larger models. It presents this as a common fine-tuning practice: smaller models can benefit from larger steps, while larger models are more susceptible to instability from overly aggressive updates. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{model size}\uparrow
+\Rightarrow
+\text{initial LR}\downarrow
+}
+</div>
+<p>in this particular training setup.</p>
+<p>Do not treat this as a universal law for every LLM training regime. It is the pattern in the supplied source's configuration.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-13">5.15.8 Exam numerical: how many optimizer steps?</h3>
+<p>Suppose the dataset contains:</p>
+<div class="math block">
+800,000
+</div>
+<p>examples and batch size is:</p>
+<div class="math block">
+64.
+</div>
+<p>Assuming every example is used once per epoch:</p>
+<div class="math block">
+\frac{800,000}{64}
+=
+\boxed{12,500}
+</div>
+<p>batches per epoch.</p>
+<p>For 2 epochs:</p>
+<div class="math block">
+12,500\times2
+=
+\boxed{25,000}
+</div>
+<p>optimizer updates.</p>
+<p>For 3 epochs:</p>
+<div class="math block">
+12,500\times3
+=
+\boxed{37,500}.
+</div>
+<p>So the rough training range is:</p>
+<div class="math block">
+\boxed{25,000\text{–}37,500\text{ optimizer steps}}
+</div>
+<p>under these assumptions.</p>
+<p>This is a <strong>derived calculation</strong>, not a separately reported step count from the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-14">5.15.9 What does “cosine decay to one-tenth” mean?</h3>
+<p>The source says the learning rate gradually decays to:</p>
+<div class="math block">
+\boxed{0.1\times \text{initial LR}}
+</div>
+<p>using cosine decay. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore, for Qwen-1.5B:</p>
+<div class="math block">
+\eta_0=10^{-4}
+</div>
+<p>so:</p>
+<div class="math block">
+\eta_{\min}=10^{-5}.
+</div>
+<p>For Qwen-32B:</p>
+<div class="math block">
+6\times10^{-5}\rightarrow6\times10^{-6}.
+</div>
+<p>For Llama-70B:</p>
+<div class="math block">
+2\times10^{-5}\rightarrow2\times10^{-6}.
+</div>
+<p>These endpoint calculations follow directly from the stated one-tenth decay.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-15">5.15.10 Now the big result: the benchmark table</h3>
+<p>The source reports:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">Params</th>
+<th style="text-align:right">AIME 2024</th>
+<th style="text-align:right">MATH-500</th>
+<th style="text-align:right">GPQA Diamond</th>
+<th style="text-align:right">LiveCodeBench</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-4o</td>
+<td style="text-align:right">~1.8T</td>
+<td style="text-align:right">9.3%</td>
+<td style="text-align:right">74.6%</td>
+<td style="text-align:right">49.9%</td>
+<td style="text-align:right">32.9%</td>
+</tr>
+<tr>
+<td>Claude-3.5-Sonnet</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">16.0%</td>
+<td style="text-align:right">78.3%</td>
+<td style="text-align:right">65.0%</td>
+<td style="text-align:right">38.9%</td>
+</tr>
+<tr>
+<td>o1-mini</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">63.6%</td>
+<td style="text-align:right">90.0%</td>
+<td style="text-align:right">60.0%</td>
+<td style="text-align:right">53.8%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-1.5B</td>
+<td style="text-align:right">1.5B</td>
+<td style="text-align:right">28.9%</td>
+<td style="text-align:right">83.9%</td>
+<td style="text-align:right">33.8%</td>
+<td style="text-align:right">16.9%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-7B</td>
+<td style="text-align:right">7B</td>
+<td style="text-align:right">55.5%</td>
+<td style="text-align:right">92.8%</td>
+<td style="text-align:right">49.1%</td>
+<td style="text-align:right">37.6%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-14B</td>
+<td style="text-align:right">14B</td>
+<td style="text-align:right">69.7%</td>
+<td style="text-align:right">93.9%</td>
+<td style="text-align:right">59.1%</td>
+<td style="text-align:right">53.1%</td>
+</tr>
+<tr>
+<td>R1-Distill-Qwen-32B</td>
+<td style="text-align:right">32B</td>
+<td style="text-align:right">72.6%</td>
+<td style="text-align:right">94.3%</td>
+<td style="text-align:right">62.1%</td>
+<td style="text-align:right">57.2%</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-8B</td>
+<td style="text-align:right">8B</td>
+<td style="text-align:right">50.4%</td>
+<td style="text-align:right">89.1%</td>
+<td style="text-align:right">49.0%</td>
+<td style="text-align:right">39.6%</td>
+</tr>
+<tr>
+<td>R1-Distill-Llama-70B</td>
+<td style="text-align:right">70B</td>
+<td style="text-align:right">70.0%</td>
+<td style="text-align:right">94.5%</td>
+<td style="text-align:right">65.2%</td>
+<td style="text-align:right">57.5%</td>
+</tr>
+<tr>
+<td>DeepSeek-R1 teacher</td>
+<td style="text-align:right">671B</td>
+<td style="text-align:right">79.8%</td>
+<td style="text-align:right">97.3%</td>
+<td style="text-align:right">71.5%</td>
+<td style="text-align:right">65.9%</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now let's understand what this table is really telling us.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-16">5.15.11 First shock: the 1.5B student</h3>
+<p>The smallest student achieves:</p>
+<div class="math block">
+\boxed{28.9\%\text{ AIME}}
+</div>
+<p>while GPT-4o in the supplied table gets:</p>
+<div class="math block">
+\boxed{9.3\%}.
+</div>
+<p>So:</p>
+<div class="math block">
+28.9-9.3
+=
+\boxed{19.6\text{ percentage points}}.
+</div>
+<p>That is a very large gap.</p>
+<p>It also scores:</p>
+<div class="math block">
+83.9\%
+</div>
+<p>on MATH-500 versus Claude-3.5-Sonnet's:</p>
+<div class="math block">
+78.3\%.
+</div>
+<p>The source uses this as the headline result demonstrating how effectively reasoning behavior can be compressed. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-17">5.15.12 But don't misinterpret this</h3>
+<p>It does <strong>not</strong> mean:</p>
+<div class="math block">
+1.5B &gt; 1.8T
+</div>
+<p>in general.</p>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{on these particular benchmarks}
+}
+</div>
+<p>the distilled 1.5B model scored higher on the reported tasks.</p>
+<p>And notice the same 1.5B model is much weaker on coding:</p>
+<div class="math block">
+\boxed{16.9\%}
+</div>
+<p>on LiveCodeBench.</p>
+<p>So distillation did not make it universally equivalent to the teacher.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-18">5.15.13 Mathematical reasoning compresses differently from coding</h3>
+<p>For the 1.5B model:</p>
+<div class="math block">
+\text{MATH-500}=83.9\%
+</div>
+<p>but:</p>
+<div class="math block">
+\text{LiveCodeBench}=16.9\%.
+</div>
+<p>Gap:</p>
+<div class="math block">
+83.9-16.9
+=
+\boxed{67.0\text{ percentage points}}.
+</div>
+<p>This is one of the most important results in the source.</p>
+<p>It demonstrates a <strong>capacity problem</strong>:</p>
+<div class="math block">
+\boxed{
+\text{student can absorb some kinds of teacher behavior much better than others}
+}
+</div>
+<p>The source specifically points out that coding requires a very large space of syntax, APIs, and programming patterns, which is difficult for a very small model to store. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-19">5.15.14 Now look at Qwen scaling</h3>
+<p>AIME performance:</p>
+<div class="math block">
+1.5B\rightarrow28.9
+</div>
+<div class="math block">
+7B\rightarrow55.5
+</div>
+<div class="math block">
+14B\rightarrow69.7
+</div>
+<div class="math block">
+32B\rightarrow72.6.
+</div>
+<p>So as model size increases:</p>
+<div class="math block">
+\boxed{
+28.9\rightarrow55.5\rightarrow69.7\rightarrow72.6
+}
+</div>
+<p>This is called <strong>smooth scaling</strong> in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-20">5.15.15 Calculate the increments</h3>
+<p>From 1.5B to 7B:</p>
+<div class="math block">
+55.5-28.9
+=
+\boxed{26.6}
+</div>
+<p>points.</p>
+<p>From 7B to 14B:</p>
+<div class="math block">
+69.7-55.5
+=
+\boxed{14.2}
+</div>
+<p>points.</p>
+<p>From 14B to 32B:</p>
+<div class="math block">
+72.6-69.7
+=
+\boxed{2.9}
+</div>
+<p>points.</p>
+<p>So the absolute gain from adding parameters gets smaller:</p>
+<div class="math block">
+\boxed{
+26.6\rightarrow14.2\rightarrow2.9
+}
+</div>
+<p>for these sizes.</p>
+<p>This is a useful example of <strong>diminishing incremental returns</strong>, although the source itself mainly emphasizes the smooth upward scaling rather than fitting a formal scaling law.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-21">5.15.16 Why does performance eventually flatten?</h3>
+<p>Think about the teacher data.</p>
+<p>The student is learning:</p>
+<div class="math block">
+\boxed{\text{existing teacher behavior}}
+</div>
+<p>There is only so much information that can be represented by a finite-capacity model.</p>
+<p>At small size:</p>
+<div class="math block">
+\text{capacity constraint is severe}.
+</div>
+<p>As size grows:</p>
+<div class="math block">
+\text{capacity constraint decreases}.
+</div>
+<p>Eventually:</p>
+<div class="math block">
+\text{teacher data becomes the limiting factor}.
+</div>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{performance}
+=
+f(\text{data quality},\text{base quality},\text{student capacity})
+}
+</div>
+<p>rather than simply:</p>
+<div class="math block">
+\text{performance}=f(\text{parameter count}).
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-22">5.15.17 Compare Qwen 7B and Llama 8B</h3>
+<p>This is one of the cleanest demonstrations that <strong>size alone is not enough</strong>.</p>
+<p>Qwen 7B:</p>
+<div class="math block">
+\boxed{55.5\%\text{ AIME}}
+</div>
+<p>Llama 8B:</p>
+<div class="math block">
+\boxed{50.4\%\text{ AIME}}
+</div>
+<p>Even though:</p>
+<div class="math block">
+8B&gt;7B,
+</div>
+<p>the larger model performs worse on AIME.</p>
+<p>Difference:</p>
+<div class="math block">
+55.5-50.4
+=
+\boxed{5.1\text{ percentage points}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-23">5.15.18 What explains that difference?</h3>
+<p>The source attributes an important part of the effect to the starting base models.</p>
+<p>The Qwen 7B model uses:</p>
+<div class="math block">
+\boxed{\text{Qwen2.5-Math 7B}}
+</div>
+<p>while the Llama 8B model uses:</p>
+<div class="math block">
+\boxed{\text{Llama 3.1 8B}}.
+</div>
+<p>The Qwen base therefore begins with stronger mathematical specialization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{better starting representation}
++
+\text{same teacher supervision}
+\rightarrow
+\text{better student}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-24">5.15.19 The surprising 70B result</h3>
+<p>Now compare:</p>
+<div class="math block">
+\text{Qwen-32B}=72.6\%
+</div>
+<p>against:</p>
+<div class="math block">
+\text{Llama-70B}=70.0\%.
+</div>
+<p>The 70B model is more than twice as large but still scores:</p>
+<div class="math block">
+72.6-70.0
+=
+\boxed{2.6}
+</div>
+<p>points lower on AIME.</p>
+<p>The source uses this as evidence that the base model matters strongly: a larger model does not automatically compensate for weaker prior specialization in the target capability. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is a major interview-level lesson:</p>
+<div class="math block">
+\boxed{
+\text{parameter count is not the only determinant of capability}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-25">5.15.20 Distillation is not lossless</h3>
+<p>The teacher has:</p>
+<div class="math block">
+79.8\%\text{ AIME}.
+</div>
+<p>Best distilled model in the table:</p>
+<div class="math block">
+72.6\%.
+</div>
+<p>Absolute gap:</p>
+<div class="math block">
+79.8-72.6
+=
+\boxed{7.2\text{ percentage points}}.
+</div>
+<p>Relative to the teacher:</p>
+<div class="math block">
+\frac{79.8-72.6}{79.8}\times100
+\approx
+\boxed{9.0\%}.
+</div>
+<p>This matches the source's statement that roughly 9% of the teacher's mathematical performance is lost in compression to the 32B student. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{distillation}\neq\text{perfect cloning}
+}
+</div>
+<p>It is <strong>compression</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-26">5.15.21 Why does information get lost?</h3>
+<p>Suppose the teacher implicitly contains:</p>
+<div class="math block">
+1000
+</div>
+<p>useful reasoning patterns.</p>
+<p>A small student may only have enough representational capacity to encode some of them.</p>
+<p>So:</p>
+<div class="math block">
+\text{Teacher capability}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{compression bottleneck}
+</div>
+<p>↓</p>
+<div class="math block">
+\text{Student capability}.
+</div>
+<p>This is the <strong>capacity gap</strong> discussed by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-27">5.15.22 This explains the 1.5B coding result</h3>
+<p>The 1.5B model performs very strongly on:</p>
+<div class="math block">
+\text{MATH}=83.9\%.
+</div>
+<p>But poorly on:</p>
+<div class="math block">
+\text{coding}=16.9\%.
+</div>
+<p>So the student isn't simply “weak.”</p>
+<p>Rather:</p>
+<div class="math block">
+\boxed{
+\text{different capabilities have different compression difficulty}
+}
+</div>
+<p>This is much more precise.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-28">5.15.23 Why does the 32B model beat o1-mini?</h3>
+<p>Compare:</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-29">AIME</h5>
+<div class="math block">
+72.6&gt;63.6
+</div>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-30">MATH-500</h5>
+<div class="math block">
+94.3&gt;90.0
+</div>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-31">GPQA</h5>
+<div class="math block">
+62.1&gt;60.0
+</div>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-32">LiveCodeBench</h5>
+<div class="math block">
+57.2&gt;53.8.
+</div>
+<p>The source highlights that the Qwen 32B distilled model exceeds o1-mini on all four reported benchmarks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is especially interesting because the training recipe is much simpler:</p>
+<div class="math block">
+\boxed{
+\text{SFT on teacher traces}
+}
+</div>
+<p>rather than repeating large-scale RL.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-33">5.15.24 Now we reach the most important experiment</h3>
+<p>The key question is:</p>
+<blockquote>
+<p>Suppose I already have a 32B model. Should I train it with RL, or distill a stronger teacher into it?</p>
+</blockquote>
+<p>DeepSeek directly compared these.</p>
+<p>The same Qwen2.5-32B architecture was used.</p>
+<p>One version:</p>
+<div class="math block">
+\boxed{\text{large-scale RL}}
+</div>
+<p>with more than:</p>
+<div class="math block">
+\boxed{10,000\text{ policy-gradient updates}}
+</div>
+<p>Another:</p>
+<div class="math block">
+\boxed{\text{distillation + 2–3 epochs SFT}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is an extremely clean experiment because the architecture is held constant.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-34">5.15.25 Results: RL vs distillation</h3>
+<p>AIME:</p>
+<div class="math block">
+\text{Distill}=72.6\%
+</div>
+<div class="math block">
+\text{RL}=47.0\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+\boxed{25.6\text{ percentage points}}.
+</div>
+<p>MATH-500:</p>
+<div class="math block">
+94.3-91.6
+=
+\boxed{2.7}.
+</div>
+<p>GPQA:</p>
+<div class="math block">
+62.1-55.0
+=
+\boxed{7.1}.
+</div>
+<p>LiveCodeBench:</p>
+<div class="math block">
+57.2-40.2
+=
+\boxed{17.0}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So distillation wins on <strong>every benchmark</strong> in this comparison.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-35">5.15.26 Why is this result so important?</h3>
+<p>Because the architecture is basically controlled.</p>
+<p>Both are:</p>
+<div class="math block">
+\boxed{\text{Qwen2.5-32B}}
+</div>
+<p>So this is not:</p>
+<blockquote>
+<p>“a better architecture beat a worse architecture.”</p>
+</blockquote>
+<p>Instead, it is approximately:</p>
+<div class="math block">
+\boxed{
+\text{different training strategy}
+\rightarrow
+\text{different outcome}
+}
+</div>
+<p>The source's interpretation is that a 32B model attempting to discover difficult reasoning through RL on its own encounters a capacity/learning bottleneck, whereas distillation gives it successful reasoning patterns directly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-36">5.15.27 Think about RL discovery mathematically</h3>
+<p>During RL, the student is effectively trying to discover useful behaviors:</p>
+<div class="math block">
+\boxed{
+\text{candidate trajectory}
+\rightarrow
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{policy update}
+}
+</div>
+<p>A difficult reasoning strategy may occupy a tiny region of the model's behavior space.</p>
+<p>The model may need many attempts before stumbling upon it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-37">5.15.28 Distillation changes the search problem</h3>
+<p>Instead of asking:</p>
+<blockquote>
+<p>“Discover a successful trajectory.”</p>
+</blockquote>
+<p>we ask:</p>
+<blockquote>
+<p>“Imitate this successful trajectory.”</p>
+</blockquote>
+<p>So:</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-38">RL</h5>
+<div class="math block">
+\boxed{
+\text{exploration}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-39">Distillation</h5>
+<div class="math block">
+\boxed{
+\text{supervised imitation}
+}
+</div>
+<p>This is the core reason the training dynamics are so different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-40">5.15.29 A useful analogy</h3>
+<p>Imagine a student learning calculus.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-41">RL-like approach</h5>
+<p>Give the student:</p>
+<blockquote>
+<p>Solve this problem.</p>
+</blockquote>
+<p>If correct, give reward.</p>
+<p>The student has to discover useful methods.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-42">Distillation</h5>
+<p>Give the student:</p>
+<blockquote>
+<p>Here is an expert solution showing the sequence of reasoning.</p>
+</blockquote>
+<p>Now the student can practice imitating the expert.</p>
+<p>That does not guarantee perfect transfer, but it is much more data-efficient when expert demonstrations are high quality.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-43">5.15.30 But distillation has a fundamental limitation</h3>
+<p>This is extremely important.</p>
+<p>Suppose:</p>
+<div class="math block">
+\text{Teacher capability}=100.
+</div>
+<p>Distillation may produce:</p>
+<div class="math block">
+90,\;80,\;70,\ldots
+</div>
+<p>depending on student size.</p>
+<p>But if you keep distilling the same teacher, you do not normally get:</p>
+<div class="math block">
+\boxed{120}
+</div>
+<p>from a teacher that never possessed the capability.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{distillation transfers}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{RL can potentially discover}
+}
+</div>
+<p>new behavior when the reward signal supports it.</p>
+<p>The source explicitly makes this distinction: distillation is economical and effective, but advancing beyond the teacher's frontier requires stronger base models and/or larger-scale RL. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-44">5.15.31 The DeepSeek training philosophy becomes clearer</h3>
+<p>We can now connect the whole pipeline:</p>
+<div class="math block">
+\boxed{
+\text{Large model + RL}
+\rightarrow
+\text{discover/strengthen reasoning}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{large model}
+\rightarrow
+\text{generate successful demonstrations}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{small model + SFT}
+\rightarrow
+\text{absorb those demonstrations}
+}
+</div>
+<p>This is why the two techniques are complementary rather than competitors.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-45">5.15.32 One teacher, many students</h3>
+<p>This gives another major economic advantage.</p>
+<p>Suppose generating the teacher dataset costs:</p>
+<div class="math block">
+C_T.
+</div>
+<p>You can then train:</p>
+<div class="math block">
+N
+</div>
+<p>different students.</p>
+<p>The teacher-generation cost is paid once.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+C_{\text{total}}
+=
+C_T+\sum_{i=1}^{N}C_{\text{student},i}
+}
+</div>
+<p>rather than running a large RL process separately for every student.</p>
+<p>The source explicitly highlights this amortization property: once the 800K dataset exists, many student models can reuse it. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-46">5.15.33 Source-reported economics</h3>
+<p>The source estimates:</p>
+<div class="math block">
+\boxed{\$10,000}
+</div>
+<p>for generating the distillation data, corresponding to about:</p>
+<div class="math block">
+5,000
+</div>
+<p>H800 GPU hours.</p>
+<p>It compares this with approximately:</p>
+<div class="math block">
+\$202,000
+</div>
+<p>for R1-Zero RL and:</p>
+<div class="math block">
+\$82,000
+</div>
+<p>for the full R1 pipeline, using the source's disclosed hour/rate assumptions. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>These are <strong>source-specific estimates</strong>, not universal costs for distillation or RL.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-47">5.15.34 A useful amortization numerical</h3>
+<p>Suppose the teacher-data generation cost is:</p>
+<div class="math block">
+\$10,000.
+</div>
+<p>Suppose five student models each cost:</p>
+<div class="math block">
+\$3,000
+</div>
+<p>to SFT.</p>
+<p>Then:</p>
+<div class="math block">
+C_{\text{total}}
+=
+10,000+5(3,000)
+=
+\$25,000.
+</div>
+<p>Average cost per model:</p>
+<div class="math block">
+\frac{25,000}{5}
+=
+\boxed{\$5,000}.
+</div>
+<p>As the number of students grows, the fixed teacher-generation cost is spread across more models.</p>
+<p>For <span class="math inline">N</span> students:</p>
+<div class="math block">
+\boxed{
+\text{average teacher-generation cost per student}
+=
+\frac{10,000}{N}
+}
+</div>
+<p>plus the individual student-training cost.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-48">5.15.35 Another important pattern: MATH-500 is already very strong at 7B</h3>
+<p>Qwen 7B:</p>
+<div class="math block">
+92.8\%.
+</div>
+<p>o1-mini:</p>
+<div class="math block">
+90.0\%.
+</div>
+<p>Difference:</p>
+<div class="math block">
+\boxed{2.8\text{ percentage points}}.
+</div>
+<p>Notice what happened:</p>
+<p>The student is only:</p>
+<div class="math block">
+7B
+</div>
+<p>but already exceeds o1-mini on this benchmark in the supplied source.</p>
+<p>That suggests the teacher's mathematical reasoning patterns are highly compressible for this particular task. The source explicitly makes this observation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-49">5.15.36 But GPQA tells a different story</h3>
+<p>Qwen 7B:</p>
+<div class="math block">
+49.1\%.
+</div>
+<p>o1-mini:</p>
+<div class="math block">
+60.0\%.
+</div>
+<p>Gap:</p>
+<div class="math block">
+60.0-49.1
+=
+\boxed{10.9\text{ points}}.
+</div>
+<p>So the student doesn't uniformly inherit all the teacher's capabilities.</p>
+<p>Again:</p>
+<div class="math block">
+\boxed{
+\text{compression efficiency depends on the task}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-50">5.15.37 Why coding is especially revealing</h3>
+<p>For Qwen 1.5B:</p>
+<div class="math block">
+16.9\%
+</div>
+<p>LiveCodeBench.</p>
+<p>For Qwen 32B:</p>
+<div class="math block">
+57.2\%.
+</div>
+<p>Improvement:</p>
+<div class="math block">
+57.2-16.9
+=
+\boxed{40.3\text{ points}}.
+</div>
+<p>This is much larger than the corresponding AIME improvement:</p>
+<div class="math block">
+72.6-28.9
+=
+\boxed{43.7\text{ points}}.
+</div>
+<p>Both capabilities improve substantially with size, but the small student's bottleneck is particularly visible in coding.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-51">5.15.38 What does scaling actually mean here?</h3>
+<p>Do not think only:</p>
+<div class="math block">
+\text{more parameters}\rightarrow\text{more accuracy}.
+</div>
+<p>The more complete picture is:</p>
+<div class="math block">
+\boxed{
+\text{student size}
++
+\text{base model}
++
+\text{teacher-data quality}
++
+\text{training recipe}
+}
+</div>
+<p>all influence the final result.</p>
+<p>The supplied experiments demonstrate this very clearly:</p>
+<ul>
+<li>Qwen 7B beats Llama 8B on AIME.</li>
+<li>Qwen 32B beats Llama 70B on AIME.</li>
+<li>larger students generally improve over smaller students within a family.</li>
+<li>the teacher still remains above the students. <em>(Source: Build a DeepSeek Model (From Scratch))</em></li>
+</ul>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-52">5.15.39 A note about the source's parameter-ratio statements</h3>
+<p>There is an inconsistency in the supplied material that you should <strong>not memorize blindly</strong>.</p>
+<p>One passage says that a 1.5B student is roughly <strong>12,000× smaller</strong> than GPT-4o estimated at 1.8T parameters. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>But:</p>
+<div class="math block">
+\frac{1.8\times10^{12}}{1.5\times10^9}
+=
+1200.
+</div>
+<p>So from the numbers actually printed in the table:</p>
+<div class="math block">
+\boxed{1200\times}
+</div>
+<p>is the direct ratio, not 12,000×.</p>
+<p>Separately, the source summary says approximately <strong>450×</strong> compression; that ratio corresponds more closely to:</p>
+<div class="math block">
+\frac{671B}{1.5B}
+\approx447.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For exams, when given explicit numbers, calculate from the numbers rather than relying on the prose statement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-53">5.15.40 Exam numerical: parameter compression ratio</h3>
+<p>Teacher:</p>
+<div class="math block">
+671B
+</div>
+<p>Student:</p>
+<div class="math block">
+1.5B.
+</div>
+<p>Ratio:</p>
+<div class="math block">
+\frac{671}{1.5}
+=
+\boxed{447.3\times}.
+</div>
+<p>So the teacher has roughly:</p>
+<div class="math block">
+\boxed{447\times}
+</div>
+<p>as many parameters.</p>
+<p>This is the mathematically consistent basis for the source's “approximately 450×” statement.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-54">5.15.41 Exam numerical: teacher vs student memory</h3>
+<p>Suppose parameters are stored in FP16:</p>
+<div class="math block">
+2\text{ bytes/parameter}.
+</div>
+<p>For 671B parameters:</p>
+<div class="math block">
+671\times10^9\times2
+=
+1.342\times10^{12}
+\text{ bytes}.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{1.342\text{ TB}}
+</div>
+<p>in decimal units.</p>
+<p>The source gives approximately:</p>
+<div class="math block">
+\boxed{1342\text{ GB}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>For 1.5B parameters:</p>
+<div class="math block">
+1.5\times10^9\times2
+=
+3\times10^9
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{\approx3\text{ GB}}
+</div>
+<p>for raw FP16 parameter storage.</p>
+<p>This is only raw parameter memory, not full inference/training memory.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-55">5.15.42 Important distinction: total parameters vs active parameters</h3>
+<p>The teacher is an MoE model.</p>
+<p>Source:</p>
+<div class="math block">
+\boxed{671B\text{ total parameters}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{37B\text{ active per token}}.
+</div>
+<p>Yet the full weights must remain available in memory. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{active compute}
+\neq
+\text{stored model size}
+}
+</div>
+<p>This connects directly back to our earlier MoE lessons.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-56">5.15.43 What does distillation actually compress?</h3>
+<p>It is not simply:</p>
+<div class="math block">
+671B\rightarrow32B
+</div>
+<p>by deleting parameters.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+\text{behavior/knowledge expressed by teacher}
+}
+</div>
+<p>is converted into:</p>
+<div class="math block">
+\boxed{
+\text{training examples}
+}
+</div>
+<p>and then re-encoded into:</p>
+<div class="math block">
+\boxed{
+\text{student parameters}
+}.
+</div>
+<p>So this is <strong>knowledge transfer</strong>, not mere parameter pruning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-57">5.15.44 The deepest conceptual lesson</h3>
+<p>There are really three resources involved:</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-58">1. Exploration capability</h5>
+<p>Large RL-trained teacher can search for useful reasoning behavior.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-59">2. Data quality</h5>
+<p>Rejection sampling turns successful behavior into clean demonstrations.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-60">3. Student capacity</h5>
+<p>The smaller model determines how much of that behavior can actually be absorbed.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Teacher}
+\rightarrow
+\text{Data}
+\rightarrow
+\text{Student}
+}
+</div>
+<p>is the complete chain.</p>
+<p>A failure at any stage limits the final result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-61">5.15.45 The three major conclusions from Step 5.15</h3>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-62">Conclusion 1 — Scaling helps</h5>
+<p>Within the Qwen family:</p>
+<div class="math block">
+1.5B\rightarrow7B\rightarrow14B\rightarrow32B
+</div>
+<p>gives steadily increasing AIME performance.</p>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-63">Conclusion 2 — Base model matters</h5>
+<p>Qwen 7B:</p>
+<div class="math block">
+55.5\%
+</div>
+<p>beats Llama 8B:</p>
+<div class="math block">
+50.4\%.
+</div>
+<p>And Qwen 32B:</p>
+<div class="math block">
+72.6\%
+</div>
+<p>beats Llama 70B:</p>
+<div class="math block">
+70.0\%.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-64">Conclusion 3 — Distillation can beat small-model RL</h5>
+<p>For the same 32B Qwen architecture:</p>
+<div class="math block">
+72.6\%
+</div>
+<p>from distillation versus:</p>
+<div class="math block">
+47.0\%
+</div>
+<p>from the reported RL-only setup. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-65">5.15.46 The full DeepSeek story so far</h3>
+<p>We can now compress Chapters/steps 5.1–5.15 into one causal chain:</p>
+<div class="math block">
+\boxed{
+\text{Pretraining}
+}
+</div>
+<p>gives general language ability.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{SFT}
+}
+</div>
+<p>gives instruction following / initial reasoning behavior.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{RL / GRPO}
+}
+</div>
+<p>strengthens and can discover useful reasoning strategies.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Teacher generates many solutions}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Rejection sampling}
+}
+</div>
+<p>keeps high-quality traces.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{800K curated dataset}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Student SFT}
+}
+</div>
+<p>transfers reasoning behavior.</p>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{Small reasoning model}
+}
+</div>
+<p>That is the overall architecture of the <strong>reasoning-to-distillation pipeline</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-66">Step 5.15 — Exam Numerical Bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-15-i56-67">Level 1 — Direct calculation</h5>
+<p>A dataset has 800,000 examples and batch size is 64.</p>
+<div class="math block">
+\boxed{12,500\text{ batches/epoch}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-15-i56-68">Level 2 — Tensor/training workload</h5>
+<p>Three epochs, 12,500 batches each:</p>
+<div class="math block">
+\boxed{37,500\text{ optimizer updates}}
+</div>
+<p>assuming one optimizer update per batch.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-15-i56-69">Level 3 — Multi-step comparison</h5>
+<p>Qwen 7B AIME = 55.5%.</p>
+<p>Llama 8B AIME = 50.4%.</p>
+<p>Difference:</p>
+<div class="math block">
+\boxed{5.1\text{ points}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-15-i56-70">Level 4 — Compression</h5>
+<div class="math block">
+671B/1.5B
+=
+\boxed{447.3\times}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-15-i56-71">Level 5 — Mixed exam question</h5>
+<p>Teacher AIME:</p>
+<div class="math block">
+79.8\%.
+</div>
+<p>Student AIME:</p>
+<div class="math block">
+72.6\%.
+</div>
+<ol>
+<li>Absolute loss:</li>
+</ol>
+<div class="math block">
+\boxed{7.2\text{ points}}
+</div>
+<ol start="2">
+<li>Relative loss:</li>
+</ol>
+<div class="math block">
+\boxed{\approx9.0\%}
+</div>
+<ol start="3">
+<li>Retained fraction:</li>
+</ol>
+<div class="math block">
+\frac{72.6}{79.8}\times100
+\approx
+\boxed{91.0\%}
+</div>
+<p>So the student retains approximately:</p>
+<div class="math block">
+\boxed{91\%}
+</div>
+<p>of the teacher's AIME score in this comparison.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-15-i56-72">Final mental model for Step 5.15</h3>
+<p>Do not remember the benchmark table as isolated numbers.</p>
+<p>Remember the <strong>causal structure</strong>:</p>
+<div class="math block">
+\boxed{
+\text{Bigger student}
+\Rightarrow
+\text{more capacity to absorb teacher behavior}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{Better base model}
+\Rightarrow
+\text{better starting point}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Better teacher traces}
+\Rightarrow
+\text{better supervision}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{Student capacity}
+&lt;
+\text{Teacher complexity}
+\Rightarrow
+\text{capacity gap / information loss}
+}
+</div>
+<p>and finally:</p>
+<div class="math block">
+\boxed{
+\text{RL discovers/strengthens}
+\qquad
+\text{Distillation transfers}
+}
+</div>
+<p>The source's overall conclusion is therefore:</p>
+<div class="math block">
+\boxed{
+\text{RL is powerful for creating the teacher; SFT distillation is powerful for spreading the teacher's behavior.}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

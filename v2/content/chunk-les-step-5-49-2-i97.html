@@ -1,0 +1,1507 @@
+<section class="chunk" id="chunk-les-step-5-49-2-i97" data-id="les-step-5-49-2-i97"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-49-2-i97"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-49-2-i97" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-49-1-i96">← Previous lesson</a> · <a href="#chunk-les-step-5-49-3-i98">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-49-1-i96">Step 5.49.1 — DeepSeek Mixed-Precision Training: Fprop → Dgrad → Wgrad → Weight Update</a></p><p><strong>This lesson:</strong> Step 5.49.2 — Pillar 2: Fine-Grained Quantization</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-49-2-i97"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-49-2-i97-1">Step 5.49.2 — Pillar 2: Fine-Grained Quantization</h3>
+<p><em>Plan node: A4 · chat order #97</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a> · <a href="#les-step-3-6b-i32">Step 3.6B — GGUF, K-Quants, QAT, BitNet, and 1.58-bit LLMs</a></p>
+</blockquote>
+<p>We now reach the <strong>second pillar</strong> of DeepSeek's FP8 framework.</p>
+<p>The first pillar answered:</p>
+<div class="math block">
+\boxed{\text{Which precision should be used where?}}
+</div>
+<p>The second asks:</p>
+<div class="math block">
+\boxed{\text{When we use FP8, how do we preserve enough information?}}
+</div>
+<p>The answer is:</p>
+<div class="math block">
+\boxed{\text{Fine-Grained Quantization}}
+</div>
+<p>The central problem is the presence of <strong>outliers</strong>. The source develops this using the concrete vector:</p>
+<div class="math block">
+\boxed{[2.0,\;3.0,\;500.0]}
+</div>
+<p>and then moves from one scale for the entire tensor to separate scales for smaller groups/blocks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-2">5.49.2.1 First recall ordinary tensor-wise quantization</h4>
+<p>From the previous step, our basic scaling mechanism was:</p>
+<div class="math block">
+\alpha=\max_i|x_i|
+</div>
+<p>then:</p>
+<div class="math block">
+s=\frac{q_{\max}}{\alpha}
+</div>
+<p>then:</p>
+<div class="math block">
+q_i=\operatorname{round}(x_i s)
+</div>
+<p>and approximately:</p>
+<div class="math block">
+\hat{x}_i=\frac{q_i}{s}.
+</div>
+<p>The important assumption is:</p>
+<div class="math block">
+\boxed{\text{one scaling factor for the entire tensor}.}
+</div>
+<p>That assumption becomes problematic for LLM activations and weights because their values can have a large dynamic range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-3">5.49.2.2 The outlier problem</h4>
+<p>Take the source's example:</p>
+<div class="math block">
+x=[2.0,\;3.0,\;500.0].
+</div>
+<p>Suppose we want to map this to signed INT8:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>The maximum absolute value is:</p>
+<div class="math block">
+\alpha=\boxed{500}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s=\frac{127}{500}
+=
+\boxed{0.254}.
+</div>
+<p>Now quantize.</p>
+<p>For <span class="math inline">2.0</span>:</p>
+<div class="math block">
+2(0.254)=0.508
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{q_1=1}.
+</div>
+<p>For <span class="math inline">3.0</span>:</p>
+<div class="math block">
+3(0.254)=0.762
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{q_2=1}.
+</div>
+<p>For <span class="math inline">500</span>:</p>
+<div class="math block">
+500(0.254)=127
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{q_3=127}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[2,3,500]
+\rightarrow
+[1,1,127].
+}
+</div>
+<p>This is exactly the numerical example used by the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-4">5.49.2.3 What went wrong?</h4>
+<p>The original values contained:</p>
+<div class="math block">
+2\neq3.
+</div>
+<p>But after quantization:</p>
+<div class="math block">
+\boxed{1=1}.
+</div>
+<p>So the distinction between them disappeared.</p>
+<p>This is what the source calls the <strong>squashing</strong> problem: the outlier <span class="math inline">500</span> determines the global scale, forcing ordinary values into a tiny region of the quantized range. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-5">5.49.2.4 Dequantization makes the problem visible</h4>
+<p>Recall:</p>
+<div class="math block">
+\hat{x}=\frac{q}{s}.
+</div>
+<p>For <span class="math inline">q=1</span>:</p>
+<div class="math block">
+\hat{x}
+=
+\frac1{0.254}
+\approx
+\boxed{3.94}.
+</div>
+<p>So:</p>
+<div class="math block">
+2.0
+\rightarrow
+3.94.
+</div>
+<p>For the other value <span class="math inline">3.0</span>, it also became <span class="math inline">1</span>, therefore:</p>
+<div class="math block">
+3.0
+\rightarrow
+3.94.
+</div>
+<p>And:</p>
+<div class="math block">
+500
+\rightarrow
+\frac{127}{0.254}
+=
+500.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[2.0,3.0,500]
+\rightarrow
+[3.94,3.94,500].
+}
+</div>
+<p>The source reports approximately <strong>97% relative error for 2.0</strong> and <strong>31% for 3.0</strong>, while the outlier is recovered almost perfectly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-6">5.49.2.5 Calculate those relative errors</h4>
+<p>For a value <span class="math inline">x</span> reconstructed as <span class="math inline">\hat{x}</span>:</p>
+<div class="math block">
+\boxed{
+\text{relative error}
+=
+\frac{|x-\hat{x}|}{|x|}
+\times100\%.
+}
+</div>
+<p>For <span class="math inline">2.0</span>:</p>
+<div class="math block">
+\frac{|2-3.94|}{2}\times100
+</div>
+<div class="math block">
+=
+\frac{1.94}{2}\times100
+=
+\boxed{97\%}.
+</div>
+<p>For <span class="math inline">3.0</span>:</p>
+<div class="math block">
+\frac{|3-3.94|}{3}\times100
+</div>
+<div class="math block">
+=
+\frac{0.94}{3}\times100
+\approx
+\boxed{31.3\%}.
+</div>
+<p>This reproduces the source's result. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-7">5.49.2.6 The insight</h4>
+<p>The problem is <strong>not necessarily FP8 itself</strong>.</p>
+<p>The immediate problem is:</p>
+<div class="math block">
+\boxed{
+\text{using one scale for values with very different magnitudes}.
+}
+</div>
+<p>So ask:</p>
+<blockquote>
+<p>Why should the value 500 be allowed to determine how we represent the values 2 and 3?</p>
+</blockquote>
+<p>It shouldn't.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{break the tensor into smaller regions}.
+}
+</div>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{give each region its own scaling factor}.
+}
+</div>
+<p>That is the basic idea of fine-grained quantization. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-8">5.49.2.7 From tensor-wise scaling to group-wise scaling</h4>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-9">Ordinary quantization</h6>
+<pre><code class="language-text">Entire tensor
+┌─────────────────────────────┐
+│ 2   3   500   ...           │
+└─────────────────────────────┘
+             │
+             ▼
+       one scale factor
+</code></pre>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-10">Fine-grained quantization</h6>
+<pre><code class="language-text">Tensor
+┌──────────┬──────────┬──────────┐
+│ Group 1  │ Group 2  │ Group 3  │
+└──────────┴──────────┴──────────┘
+     │          │          │
+     ▼          ▼          ▼
+    s₁         s₂         s₃
+</code></pre>
+<p>Now an outlier in Group 1 does not automatically determine the scale for Groups 2 and 3.</p>
+<p>The source describes exactly this divide-and-conquer strategy. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-11">5.49.2.8 The simplest toy version</h4>
+<p>Suppose instead of:</p>
+<div class="math block">
+[2,3,500]
+</div>
+<p>being one group, we split it into:</p>
+<div class="math block">
+[2,3]
+</div>
+<p>and:</p>
+<div class="math block">
+[500].
+</div>
+<p>For the first group:</p>
+<div class="math block">
+\alpha_1=3.
+</div>
+<p>For the second:</p>
+<div class="math block">
+\alpha_2=500.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s_1=\frac{127}{3}
+</div>
+<p>while:</p>
+<div class="math block">
+s_2=\frac{127}{500}.
+</div>
+<p>Now the small numbers are not affected by the 500 outlier.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-12">5.49.2.9 Quantizing the first group</h4>
+<p>For:</p>
+<div class="math block">
+[2,3]
+</div>
+<p>we have:</p>
+<div class="math block">
+s_1=\frac{127}{3}\approx42.333.
+</div>
+<p>Quantize <span class="math inline">2</span>:</p>
+<div class="math block">
+2(42.333)
+\approx84.667
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{85}.
+</div>
+<p>Quantize <span class="math inline">3</span>:</p>
+<div class="math block">
+3(42.333)
+=
+127.
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{127}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[2,3]\rightarrow[85,127].
+}
+</div>
+<p>Compare this with the global-scale result:</p>
+<div class="math block">
+[2,3]\rightarrow[1,1].
+</div>
+<p>Huge improvement in preserving the distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-13">5.49.2.10 Dequantize</h4>
+<p>For <span class="math inline">85</span>:</p>
+<div class="math block">
+\hat{x}
+=
+\frac{85}{127/3}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\hat{x}
+=
+85\frac3{127}
+\approx
+\boxed{2.008}.
+</div>
+<p>For <span class="math inline">127</span>:</p>
+<div class="math block">
+\hat{x}
+=
+3.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[2,3]\rightarrow[2.008,3.0]
+}
+</div>
+<p>approximately.</p>
+<p>The first value now has only about:</p>
+<div class="math block">
+\frac{|2-2.008|}{2}\times100
+\approx
+\boxed{0.4\%}
+</div>
+<p>relative error, rather than the catastrophic error from global scaling.</p>
+<p>This is our illustrative derivation of the principle.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-14">5.49.2.11 The actual DeepSeek idea</h4>
+<p>The source applies this principle separately to:</p>
+<div class="math block">
+\boxed{\text{activations}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{weights}}.
+</div>
+<p>But the geometry differs.</p>
+<p>For activations, we have a long vector.</p>
+<p>For weights, we have a 2D matrix.</p>
+<p>The source therefore uses:</p>
+<div class="math block">
+\boxed{
+\text{groups for activations}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{2D blocks/tiles for weights}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-15">5.49.2.12 Activations: start with a vector</h4>
+<p>Suppose an activation vector is:</p>
+<div class="math block">
+x\in\mathbb R^{7168}.
+</div>
+<p>The source uses DeepSeek-V3's 7168-dimensional activation example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{
+\text{one scale for all 7168 values}
+}
+</div>
+<p>the vector is divided into groups.</p>
+<p>The source specifies:</p>
+<div class="math block">
+\boxed{
+N_C=128
+}
+</div>
+<p>elements per activation group. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-16">5.49.2.13 How many activation groups?</h4>
+<p>Suppose:</p>
+<div class="math block">
+d=7168.
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{7168}{128}
+=
+\boxed{56}.
+</div>
+<p>So one activation vector has:</p>
+<div class="math block">
+\boxed{56\text{ groups}}
+</div>
+<p>under the source's stated grouping.</p>
+<p>Each group gets its own scaling factor:</p>
+<div class="math block">
+s_1,s_2,\ldots,s_{56}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-17">5.49.2.14 Why 128?</h4>
+<p>The source identifies 128 as the group size used in its described implementation.</p>
+<p>The conceptual benefit is that 128 values share a scale rather than thousands of values sharing one scale.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{local dynamic range}
+}
+</div>
+<p>is handled independently.</p>
+<p>The number 128 is source-specific; the broader idea of smaller groups with independent scaling is the general mechanism. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-18">5.49.2.15 The source's activation example</h4>
+<p>Imagine:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-19">Group 1</h6>
+<p>maximum magnitude:</p>
+<div class="math block">
+20.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-20">Group 2</h6>
+<p>maximum magnitude:</p>
+<div class="math block">
+0.1.
+</div>
+<p>With a single tensor-wise scale, the <span class="math inline">20</span> can force the <span class="math inline">0.1</span>-scale values into an extremely narrow quantized region.</p>
+<p>With fine-grained scaling:</p>
+<div class="math block">
+\boxed{s_1\text{ is based on Group 1}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{s_2\text{ is based on Group 2}}.
+</div>
+<p>The source explains that an outlier in one group therefore no longer affects the other groups. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-21">5.49.2.16 Numerical comparison</h4>
+<p>Suppose the target range is:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>For Group 1:</p>
+<div class="math block">
+\alpha_1=20.
+</div>
+<p>Then:</p>
+<div class="math block">
+s_1=\frac{127}{20}=6.35.
+</div>
+<p>For Group 2:</p>
+<div class="math block">
+\alpha_2=0.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+s_2=\frac{127}{0.1}=1270.
+</div>
+<p>Notice the difference:</p>
+<div class="math block">
+\boxed{
+s_1=6.35
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+s_2=1270.
+}
+</div>
+<p>That is exactly what we want.</p>
+<p>The small-valued group gets a much larger scale, so its values occupy more of the available quantized range.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-22">5.49.2.17 This is “local dynamic-range adaptation”</h4>
+<p>That phrase is useful conceptually.</p>
+<p>Tensor-wise:</p>
+<div class="math block">
+\boxed{
+\text{one global dynamic range}
+}
+</div>
+<p>Fine-grained:</p>
+<div class="math block">
+\boxed{
+\text{many local dynamic ranges}.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{outlier influence becomes local instead of global}.
+}
+</div>
+<p>That is the essence of the second pillar.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-23">5.49.2.18 Now weights are different</h4>
+<p>A weight matrix has two dimensions:</p>
+<div class="math block">
+W\in\mathbb R^{m\times n}.
+</div>
+<p>You cannot naturally treat it as one long activation vector if you want to preserve its 2D structure.</p>
+<p>The source therefore partitions it into:</p>
+<div class="math block">
+\boxed{\text{2D tiles / blocks}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-24">5.49.2.19 Source's weight block size</h4>
+<p>The source states:</p>
+<div class="math block">
+\boxed{
+128\times128
+}
+</div>
+<p>as the block size used for weights in its FP8 framework. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore every weight block has:</p>
+<div class="math block">
+128\times128
+=
+\boxed{16,384}
+</div>
+<p>weight values.</p>
+<p>Each such block receives its own scaling factor.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-25">5.49.2.20 Example weight matrix</h4>
+<p>Suppose:</p>
+<div class="math block">
+W\in\mathbb R^{512\times512}.
+</div>
+<p>Using:</p>
+<div class="math block">
+128\times128
+</div>
+<p>blocks:</p>
+<div class="math block">
+\frac{512}{128}=4
+</div>
+<p>blocks along each dimension.</p>
+<p>Therefore:</p>
+<div class="math block">
+4\times4
+=
+\boxed{16}
+</div>
+<p>weight blocks.</p>
+<p>Each has its own scale:</p>
+<div class="math block">
+s_{11},s_{12},\ldots,s_{44}.
+</div>
+<p>So instead of:</p>
+<div class="math block">
+\boxed{1\text{ scale}}
+</div>
+<p>we have:</p>
+<div class="math block">
+\boxed{16\text{ scales}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-26">5.49.2.21 Why does this help?</h4>
+<p>Suppose:</p>
+<div class="math block">
+W_{11}
+</div>
+<p>contains an outlier of:</p>
+<div class="math block">
+500.
+</div>
+<p>But:</p>
+<div class="math block">
+W_{12}
+</div>
+<p>contains values only around:</p>
+<div class="math block">
+0.1.
+</div>
+<p>Tensor-wise scaling would let the 500 influence the entire matrix.</p>
+<p>Block-wise scaling gives:</p>
+<div class="math block">
+s_{11}
+</div>
+<p>based on the range of <span class="math inline">W_{11}</span>, while:</p>
+<div class="math block">
+s_{12}
+</div>
+<p>is based on <span class="math inline">W_{12}</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W_{11}\text{ outliers don't determine }W_{12}\text{'s precision}.
+}
+</div>
+<p>That is exactly the source's explanation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-27">5.49.2.22 Number of scales: an exam formula</h4>
+<p>For an activation vector of length <span class="math inline">d</span> and group size <span class="math inline">N_C</span>:</p>
+<div class="math block">
+\boxed{
+N_{\text{activation groups}}
+=
+\left\lceil\frac{d}{N_C}\right\rceil
+}
+</div>
+<p>assuming padding or handling of a remainder where needed.</p>
+<p>For dimensions divisible by <span class="math inline">N_C</span>:</p>
+<div class="math block">
+N=d/N_C.
+</div>
+<p>For a weight matrix:</p>
+<div class="math block">
+W\in\mathbb R^{M\times N}
+</div>
+<p>with block:</p>
+<div class="math block">
+B_r\times B_c,
+</div>
+<p>the number of blocks is approximately:</p>
+<div class="math block">
+\boxed{
+\left\lceil\frac{M}{B_r}\right\rceil
+\left\lceil\frac{N}{B_c}\right\rceil.
+}
+</div>
+<p>For DeepSeek's stated:</p>
+<div class="math block">
+B_r=B_c=128.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-28">5.49.2.23 Numerical: activation scale count</h4>
+<p>Suppose:</p>
+<div class="math block">
+d=4096
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>Then:</p>
+<div class="math block">
+4096/128
+=
+\boxed{32}
+</div>
+<p>groups.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{32\text{ activation scaling factors}}
+</div>
+<p>for that vector.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-29">5.49.2.24 Numerical: weight scale count</h4>
+<p>Suppose:</p>
+<div class="math block">
+W\in\mathbb R^{4096\times4096}.
+</div>
+<p>With:</p>
+<div class="math block">
+128\times128
+</div>
+<p>blocks:</p>
+<div class="math block">
+4096/128=32.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+32\times32
+=
+\boxed{1024}
+</div>
+<p>blocks.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{1024\text{ weight scaling factors}}.
+</div>
+<p>This is a very good exam numerical.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-30">5.49.2.25 Does using many scales cost extra memory?</h4>
+<p>Yes.</p>
+<p>Every group/block requires scale metadata.</p>
+<p>But the scale count is dramatically smaller than the number of values.</p>
+<p>For:</p>
+<div class="math block">
+4096\times4096
+=
+16,777,216
+</div>
+<p>weights, we need only:</p>
+<div class="math block">
+1024
+</div>
+<p>scales.</p>
+<p>So there is:</p>
+<div class="math block">
+\boxed{
+16,777,216\text{ data values}
+\quad\text{vs}\quad
+1,024\text{ scales}.
+}
+</div>
+<p>The source emphasizes the precision benefit of the local scaling; it does not give a detailed memory-overhead calculation for the scale metadata in the cited passage. The numerical comparison above is a derived consequence of the stated 128×128 block size.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-31">5.49.2.26 Scale overhead example</h4>
+<p>Suppose each scale is stored in 2 bytes.</p>
+<p>For:</p>
+<div class="math block">
+1024
+</div>
+<p>weight blocks:</p>
+<div class="math block">
+1024\times2
+=
+2048
+</div>
+<p>bytes.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{2\text{ KB}}
+</div>
+<p>of scale metadata.</p>
+<p>Compare this with the FP8 weights:</p>
+<div class="math block">
+16,777,216\times1
+=
+16,777,216
+</div>
+<p>bytes:</p>
+<div class="math block">
+\boxed{16\text{ MB}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{scale metadata}\ll\text{weight data}.
+}
+</div>
+<p>This is an illustrative calculation, not a storage-format specification from the source.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-32">5.49.2.27 Now connect activations and weights</h4>
+<p>The source's complete fine-grained diagram contains two independently scaled inputs:</p>
+<pre><code class="language-text">Activation groups                Weight blocks
+      │                                │
+      │ separate scales               │ separate scales
+      ▼                                ▼
+   FP8 Input  ───────────────►  FP8 Weight
+                    │
+                    ▼
+             Tensor Core GEMM
+                    │
+                    ▼
+             low-precision result
+                    │
+                    ▼
+             CUDA Core stage
+                    │
+                    ▼
+             high-precision result
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the key bridge to Pillar 3.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-33">5.49.2.28 Why do we need both activation and weight scaling?</h4>
+<p>Because the matrix multiplication is:</p>
+<div class="math block">
+Y=XW.
+</div>
+<p>Both:</p>
+<div class="math block">
+X
+</div>
+<p>and:</p>
+<div class="math block">
+W
+</div>
+<p>can have different local dynamic ranges.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{one global scale for }X
+}
+</div>
+<p>is not ideal.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{
+\text{one global scale for }W
+}
+</div>
+<p>is not ideal.</p>
+<p>DeepSeek therefore independently partitions/scales both.</p>
+<p>The source explicitly distinguishes activation groups from weight blocks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-34">5.49.2.29 How do the scales affect the matrix multiplication?</h4>
+<p>Suppose:</p>
+<div class="math block">
+X\approx s_X Q_X
+</div>
+<p>and:</p>
+<div class="math block">
+W\approx s_W Q_W
+</div>
+<p>under a conceptual dequantization convention.</p>
+<p>Then:</p>
+<div class="math block">
+XW
+\approx
+(s_XQ_X)(s_WQ_W).
+</div>
+<p>Because the scales are scalar for the corresponding local group/block:</p>
+<div class="math block">
+=
+s_Xs_W(Q_XQ_W).
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{low-precision GEMM}
++
+\text{appropriate scale restoration}
+}
+</div>
+<p>can approximately reconstruct the original magnitude.</p>
+<p>The source's diagram explicitly says the CUDA-core stage multiplies the low-precision Tensor Core output using the corresponding activation and weight scaling factors to restore magnitude. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-35">5.49.2.30 Why are there two scaling factors?</h4>
+<p>Because two things were scaled:</p>
+<div class="math block">
+\boxed{X}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{W}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+s_{\text{output}}
+\sim
+s_Xs_W.
+}
+</div>
+<p>This is an important exam concept.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-36">5.49.2.31 Numerical example of scale restoration</h4>
+<p>Suppose a local activation group has:</p>
+<div class="math block">
+s_X=2
+</div>
+<p>and a weight block has:</p>
+<div class="math block">
+s_W=3.
+</div>
+<p>Suppose the low-precision GEMM produces:</p>
+<div class="math block">
+Q_XQ_W=10.
+</div>
+<p>Then approximate restored output:</p>
+<div class="math block">
+Y
+=
+s_Xs_W(10).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Y=2\times3\times10
+=
+\boxed{60}.
+</div>
+<p>This is a simplified scalar demonstration of the source's scale-restoration principle.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-37">5.49.2.32 The “divide and conquer” interpretation</h4>
+<p>The source's strategy can be summarized as:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-38">Global scaling</h6>
+<div class="math block">
+\boxed{
+1\text{ region}
+\rightarrow
+1\text{ scale}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-39">Fine-grained scaling</h6>
+<div class="math block">
+\boxed{
+N\text{ local regions}
+\rightarrow
+N\text{ local scales}.
+}
+</div>
+<p>The goal is:</p>
+<div class="math block">
+\boxed{
+\text{each local region uses the numerical range it actually needs}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-40">5.49.2.33 Why this synergizes with E4M3</h4>
+<p>This becomes important later.</p>
+<p>FP8 E4M3 has:</p>
+<div class="math block">
+\boxed{
+3\text{ mantissa bits}
+}
+</div>
+<p>so it gives better precision than E5M2 but less dynamic range.</p>
+<p>The source later argues that fine-grained scaling handles dynamic-range problems locally, allowing DeepSeek to use E4M3 more uniformly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the relationship is:</p>
+<div class="math block">
+\boxed{
+\text{fine-grained scaling}
+\rightarrow
+\text{local range control}
+\rightarrow
+\text{less pressure for a huge global dynamic range}
+}
+</div>
+<p>which eventually supports:</p>
+<div class="math block">
+\boxed{
+\text{E4M3 emphasis}.
+}
+</div>
+<p>We'll derive that fully under Pillar 4.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-41">5.49.2.34 Another exam numerical</h4>
+<p>Suppose:</p>
+<div class="math block">
+W\in\mathbb R^{2048\times4096}
+</div>
+<p>and block size is:</p>
+<div class="math block">
+128\times128.
+</div>
+<p>Number of blocks vertically:</p>
+<div class="math block">
+2048/128
+=
+16.
+</div>
+<p>Horizontally:</p>
+<div class="math block">
+4096/128
+=
+32.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+16\times32
+=
+\boxed{512}
+</div>
+<p>weight blocks.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{512\text{ independent weight scales}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-42">5.49.2.35 Activation example</h4>
+<p>Suppose:</p>
+<div class="math block">
+d=7168
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128.
+</div>
+<p>We found:</p>
+<div class="math block">
+7168/128=56.
+</div>
+<p>Now suppose each group has maximum magnitudes:</p>
+<div class="math block">
+[20,\;0.1,\;\ldots].
+</div>
+<p>Group 1 uses a scale based on:</p>
+<div class="math block">
+20.
+</div>
+<p>Group 2 uses a scale based on:</p>
+<div class="math block">
+0.1.
+</div>
+<p>The exact scale formula under our previous symmetric INT8 illustration would be:</p>
+<div class="math block">
+s_i=\frac{127}{\alpha_i}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+s_1=\frac{127}{20}=6.35
+</div>
+<p>and:</p>
+<div class="math block">
+s_2=\frac{127}{0.1}=1270.
+</div>
+<p>So Group 2 can use almost the entire representable quantization range for its tiny values rather than being squashed by Group 1's large values.</p>
+<p>This is precisely the numerical intuition behind the source's activation example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-43">5.49.2.36 A subtle wording clarification</h4>
+<p>The source's explanatory text says:</p>
+<blockquote>
+<p>“Group 1 are scaled by 20” and “Group 2 are scaled by 0.1.”</p>
+</blockquote>
+<p>In context, those numbers are the groups' <strong>maximum magnitudes used to determine their independent scales</strong>. Under the explicit scaling convention introduced earlier in the source, the actual scale multiplier would be derived from the target range, for example:</p>
+<div class="math block">
+\frac{127}{20}
+</div>
+<p>or:</p>
+<div class="math block">
+\frac{127}{0.1}.
+</div>
+<p>So do not memorize “scale = 20” literally as a universal scaling formula. The source's underlying principle is:</p>
+<div class="math block">
+\boxed{
+\text{each group gets a scale derived from its own local maximum}.
+}
+</div>
+<p>This preserves the source's framing without confusing the local maximum <span class="math inline">\alpha</span> with the scale factor <span class="math inline">s</span>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-44">5.49.2.37 Why fine-grained quantization is especially useful for LLMs</h4>
+<p>The source describes LLM values as having potentially enormous dynamic ranges.</p>
+<p>With one global scale:</p>
+<div class="math block">
+\boxed{
+\text{one outlier}
+\rightarrow
+\text{whole tensor's scale changes}.
+}
+</div>
+<p>With local scaling:</p>
+<div class="math block">
+\boxed{
+\text{one outlier}
+\rightarrow
+\text{mainly affects its own local region}.
+}
+</div>
+<p>This is the fundamental reason fine-grained quantization improves numerical fidelity. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-45">5.49.2.38 Full fine-grained pipeline</h4>
+<p>Let's now assemble the source's Figure 5.29 conceptually.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-46">Step 1 — Input activation</h6>
+<div class="math block">
+X
+</div>
+<p>is divided into:</p>
+<div class="math block">
+\boxed{
+N_C\text{-element groups}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-47">Step 2 — Activation scales</h6>
+<p>Each group gets:</p>
+<div class="math block">
+\boxed{s_1,s_2,\ldots}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-48">Step 3 — Weight matrix</h6>
+<div class="math block">
+W
+</div>
+<p>is divided into:</p>
+<div class="math block">
+\boxed{
+128\times128\text{ blocks}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-49">Step 4 — Weight scales</h6>
+<p>Each block gets its own:</p>
+<div class="math block">
+\boxed{s_{ij}}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-50">Step 5 — FP8 Tensor Core GEMM</h6>
+<p>Quantized values enter the fast matrix multiplication.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-51">Step 6 — CUDA-core restoration/accumulation</h6>
+<p>The source describes dequantizing the low-precision intermediate using the corresponding scales and producing a higher-precision output. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-52">5.49.2.39 The central formula</h4>
+<p>For a local group/block, conceptually:</p>
+<div class="math block">
+\boxed{
+q_X=\operatorname{Quantize}(X;s_X)
+}
+</div>
+<div class="math block">
+\boxed{
+q_W=\operatorname{Quantize}(W;s_W)
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+q_Y=q_Xq_W
+}
+</div>
+<p>and approximately:</p>
+<div class="math block">
+\boxed{
+Y\approx s_Xs_Wq_Y.
+}
+</div>
+<p>The precise hardware implementation can organize scaling/accumulation more intricately, but this is the correct mathematical intuition for why both scales appear in reconstruction; it matches the source's Figure 5.29 explanation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-53">5.49.2.40 Compare global and fine-grained quantization</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Tensor-wise</th>
+<th>Fine-grained</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Number of scales</td>
+<td>One</td>
+<td>Many</td>
+</tr>
+<tr>
+<td>Outlier effect</td>
+<td>Global</td>
+<td>Local</td>
+</tr>
+<tr>
+<td>Dynamic range</td>
+<td>One global range</td>
+<td>Local ranges</td>
+</tr>
+<tr>
+<td>Precision for small values</td>
+<td>Can be poor</td>
+<td>Better</td>
+</tr>
+<tr>
+<td>Metadata</td>
+<td>Minimal</td>
+<td>More scales</td>
+</tr>
+<tr>
+<td>Source's DeepSeek strategy</td>
+<td>Not used as the main FP8 approach</td>
+<td>Used</td>
+</tr>
+</tbody>
+</table>
+<p>The source explicitly positions fine-grained scaling as DeepSeek's solution to the outlier problem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-54">5.49.2.41 Exam numerical — quantization error comparison</h4>
+<p>Consider:</p>
+<div class="math block">
+x=[2,3,500]
+</div>
+<p>with INT8 target range.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-55">Global scale</h6>
+<div class="math block">
+s=\frac{127}{500}=0.254.
+</div>
+<p>Results:</p>
+<div class="math block">
+[1,1,127].
+</div>
+<p>Dequantized:</p>
+<div class="math block">
+[3.94,3.94,500].
+</div>
+<p>Approximate errors:</p>
+<div class="math block">
+97\%,31.3\%,0\%.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-56">Local groups</h6>
+<p>Group 1:</p>
+<div class="math block">
+[2,3],\quad s_1=127/3.
+</div>
+<p>Group 2:</p>
+<div class="math block">
+[500],\quad s_2=127/500.
+</div>
+<p>First group dequantizes approximately to:</p>
+<div class="math block">
+[2.008,3].
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{local scaling preserves the small values dramatically better}.
+}
+</div>
+<p>This is exactly why the outlier example exists in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-57">5.49.2.42 Exam numerical — number of scales</h4>
+<p>Given:</p>
+<div class="math block">
+X\in\mathbb R^{8192}
+</div>
+<p>and:</p>
+<div class="math block">
+N_C=128,
+</div>
+<p>find activation groups:</p>
+<div class="math block">
+8192/128
+=
+\boxed{64}.
+</div>
+<p>Given:</p>
+<div class="math block">
+W\in\mathbb R^{8192\times8192}
+</div>
+<p>and:</p>
+<div class="math block">
+128\times128
+</div>
+<p>blocks:</p>
+<div class="math block">
+8192/128=64
+</div>
+<p>in each dimension.</p>
+<p>Therefore:</p>
+<div class="math block">
+64\times64
+=
+\boxed{4096}
+</div>
+<p>weight blocks/scales.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-58">5.49.2.43 Exam numerical — block size trade-off</h4>
+<p>Suppose a matrix is:</p>
+<div class="math block">
+4096\times4096.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-59">With 128×128 blocks</h6>
+<div class="math block">
+32\times32=1024
+</div>
+<p>scales.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-60">With 256×256 blocks</h6>
+<div class="math block">
+16\times16=256
+</div>
+<p>scales.</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-61">With one global tensor scale</h6>
+<div class="math block">
+1
+</div>
+<p>scale.</p>
+<p>As block size gets larger:</p>
+<div class="math block">
+\boxed{\text{fewer scales}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{more values share one dynamic range}}.
+</div>
+<p>As block size gets smaller:</p>
+<div class="math block">
+\boxed{\text{more scales}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{better local adaptation}}.
+</div>
+<p>This is the fundamental block-size trade-off. The source specifies 128×128 for its described DeepSeek framework rather than presenting a general optimality theorem. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-62">5.49.2.44 Connect this to Pillar 1</h4>
+<p>Pillar 1:</p>
+<div class="math block">
+\boxed{
+\text{Mixed Precision}
+}
+</div>
+<p>decided:</p>
+<div class="math block">
+\boxed{
+\text{FP8 for the big GEMMs}.
+}
+</div>
+<p>Pillar 2:</p>
+<div class="math block">
+\boxed{
+\text{Fine-Grained Quantization}
+}
+</div>
+<p>decides:</p>
+<div class="math block">
+\boxed{
+\text{how to scale FP8 inputs so they don't lose excessive information}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Pillar 1 = where FP8}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Pillar 2 = how FP8}.
+}
+</div>
+<p>That's an excellent way to distinguish them in an exam.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-63">5.49.2.45 Connect this to Pillar 3</h4>
+<p>After scaling, we still have:</p>
+<div class="math block">
+FP8\times FP8.
+</div>
+<p>Now we have another problem:</p>
+<div class="math block">
+\boxed{
+\text{What precision should be used for the intermediate accumulation?}
+}
+</div>
+<p>That's the next question.</p>
+<p>The source's Figure 5.29 already hints at the answer:</p>
+<div class="math block">
+\boxed{
+\text{Tensor Core}
+\rightarrow
+\text{low-precision product}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{CUDA Core}
+\rightarrow
+\text{higher-precision accumulation/dequantization}.
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This leads directly to:</p>
+<div class="math block">
+\boxed{\text{Pillar 3: Increasing Accumulation Precision}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-64">5.49.2.46 The deepest intuition of Pillar 2</h4>
+<p>The easiest way to remember the entire thing is:</p>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-65">Problem</h6>
+<div class="math block">
+\boxed{
+500\text{ outlier}
+}
+</div>
+<p>controls the representation of:</p>
+<div class="math block">
+2,\;3.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-66">Bad approach</h6>
+<div class="math block">
+\boxed{
+\text{one scale for everything}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-49-2-i97-67">DeepSeek approach</h6>
+<div class="math block">
+\boxed{
+\text{divide into small groups/blocks}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{one scale per group/block}.
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{outlier influence becomes local}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-68">5.49.2.47 Source-specific numbers to memorize</h4>
+<p>For this source's DeepSeek FP8 description:</p>
+<div class="math block">
+\boxed{
+N_C=128
+}
+</div>
+<p>for activation groups, and:</p>
+<div class="math block">
+\boxed{
+128\times128
+}
+</div>
+<p>for weight blocks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>And the source's central outlier example is:</p>
+<div class="math block">
+\boxed{
+[2.0,3.0,500.0].
+}
+</div>
+<p>With tensor-wise INT8 scaling:</p>
+<div class="math block">
+\boxed{
+[1,1,127].
+}
+</div>
+<p>and approximate dequantization:</p>
+<div class="math block">
+\boxed{
+[3.94,3.94,500].
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Those are worth remembering because they give you a complete numerical story.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-69">5.49.2.48 Final architecture picture</h4>
+<pre><code class="language-text">                    HIGH-PRECISION INPUTS
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+         ACTIVATIONS                  WEIGHTS
+              │                         │
+         groups of 128              128×128 blocks
+              │                         │
+        scale each group          scale each block
+              │                         │
+              ▼                         ▼
+           FP8 X                     FP8 W
+              │                         │
+              └────────────┬────────────┘
+                           ▼
+                    Tensor Core GEMM
+                           │
+                     FP8 products
+                           │
+                           ▼
+                 CUDA Core stage
+                           │
+                  scale restoration
+                           │
+                           ▼
+                    higher precision
+                       output
+</code></pre>
+<p>This captures the workflow shown in the source's fine-grained quantization figure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-49-2-i97-70">Step 5.49.2 checkpoint</h4>
+<p>Know these formulas:</p>
+<div class="math block">
+\boxed{
+\alpha_g=\max_{i\in g}|x_i|
+}
+</div>
+<p>for the maximum of a local group <span class="math inline">g</span>, and conceptually:</p>
+<div class="math block">
+\boxed{
+s_g=\frac{q_{\max}}{\alpha_g}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+q_i=\operatorname{round}(x_i s_g).
+}
+</div>
+<p>For an activation vector:</p>
+<div class="math block">
+\boxed{
+N_{\text{groups}}
+=
+\left\lceil\frac{d}{128}\right\rceil
+}
+</div>
+<p>for the source's stated group size.</p>
+<p>For a weight matrix:</p>
+<div class="math block">
+\boxed{
+N_{\text{blocks}}
+=
+\left\lceil\frac{M}{128}\right\rceil
+\left\lceil\frac{N}{128}\right\rceil.
+}
+</div>
+<p>And conceptually:</p>
+<div class="math block">
+\boxed{
+Y\approx s_Xs_W(Q_XQ_W).
+}
+</div>
+<p>Most importantly:</p>
+<div class="math block">
+\boxed{
+\text{Tensor-wise scaling: outlier affects everyone}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{Fine-grained scaling: outlier mainly affects its own group/block}.
+}
+</div>
+<p>The source presents this as one of the key enablers of stable FP8 training at scale. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

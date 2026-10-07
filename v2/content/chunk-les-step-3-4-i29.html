@@ -1,0 +1,1151 @@
+<section class="chunk" id="chunk-les-step-3-4-i29" data-id="les-step-3-4-i29"><details class="audit-card" id="audit-P02" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> P02 — LoRA merge and initialization scope</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>The adapter can be algebraically absorbed into the frozen weight for compatible inference.</p><p><strong>Prerequisites:</strong> <a href="#audit-P01">LoRA orientation and the complete slide numerical</a></p><h4 id="v3-heading-chunk-les-step-3-4-i29-1">Notation and assumptions</h4><p>Wmerged=W+(alpha/r)BA; same arithmetic precision and no active adapter dropout. One factor zero, the other nonzero initializes an unchanged base.</p><h4 id="v3-heading-chunk-les-step-3-4-i29-2">Derivation and mechanism</h4><ol><li>At zero update, verify outputs equal the pretrained base.</li><li>After training, form the scaled matrix update once.</li><li>Replace the effective inference weight; compare separate and merged outputs.</li></ol><h4 id="v3-heading-chunk-les-step-3-4-i29-3">Worked example</h4><p>For the P01 example, merged W=[[4,5],[2,5],[1,2]]. X=[1,1,1] yields[7,12], equal to the separate branch. At one zero factor the update is zero; both zero factors would also kill their initial bilinear gradients.</p><h4 id="v3-heading-chunk-les-step-3-4-i29-4">Limitations</h4><ul><li>Finite-precision merging can differ numerically.</li><li>Changing adapters, unmerged dropout and quantized-base merging need separate contracts.</li></ul><h4 id="v3-heading-chunk-les-step-3-4-i29-5">Connections to later concepts</h4><ul><li>Q08 keeps a quantized base; merging then requires a precision/requantization contract beyond exact real-number algebra.</li></ul><h4 id="v3-heading-chunk-les-step-3-4-i29-6">Source support</h4><ul><li>peft-slides(1).pdf · physical PDF pages 5, 6 · PEFT lecture</li><li>Build a Large Language Model (From Scratch)(2).pdf · physical PDF pages 745, 746, 747, 748, 749 · AppendixE.4 LoRA implementation</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-4-i29-7">Executed code and evidence</h4><p>Functions: lora. Passed checks: LoRA-merge</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-4-i29"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-4-i29" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-3-3-i28">← Previous lesson</a> · <a href="#chunk-les-step-3-5-i30">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-3-i28">Step 3.3 — Where LoRA Goes Inside a Transformer</a></p><p><strong>This lesson:</strong> Step 3.4 — LoRA Initialization, Training, Scaling, and Merge</p><p><strong>Source references:</strong> <a href="#source-6">Build a Large Language Model (From Scratch)</a>; <a href="#source-10">peft-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-4-i29"></a></p>
+<h2>Step 3.4 — LoRA Initialization, Training, Scaling, and Merge</h2>
+<p><em>Plan node: I3 · chat order #29</em></p>
+<p>We now know <strong>what LoRA is</strong> and <strong>where it is inserted</strong> into the Transformer. The next important question is:</p>
+<blockquote>
+<p><strong>How does LoRA actually learn anything if the original LLM is frozen?</strong></p>
+</blockquote>
+<p>This step follows the LoRA implementation in <em>Build a Large Language Model From Scratch</em>, while also connecting it to the PEFT slides. The book initializes one LoRA factor randomly and the other to zero, freezes the original model parameters, trains only the LoRA parameters, and keeps the LoRA weights separate from the pretrained weights during use. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-8">1. Start from ordinary fine-tuning</h3>
+<p>Suppose a pretrained linear layer has</p>
+<div class="math block">
+W_0\in\mathbb{R}^{d\times d_{\text{out}}}
+</div>
+<p>and input</p>
+<div class="math block">
+X\in\mathbb{R}^{m\times d}.
+</div>
+<p>Normally, during fine-tuning:</p>
+<div class="math block">
+W'=W_0+\Delta W
+</div>
+<p>and the output is</p>
+<div class="math block">
+Y=XW'.
+</div>
+<p>Therefore,</p>
+<div class="math block">
+Y=X(W_0+\Delta W)
+</div>
+<p>so</p>
+<div class="math block">
+\boxed{Y=XW_0+X\Delta W}
+</div>
+<p>The problem is that <span class="math inline">\Delta W</span> has exactly the same size as <span class="math inline">W_0</span>.</p>
+<p>For a <span class="math inline">4096\times4096</span> matrix,</p>
+<div class="math block">
+4096\times4096=16,777,216
+</div>
+<p>parameters must potentially be trained.</p>
+<p>LoRA says:</p>
+<blockquote>
+<p>Rather than learning the entire <span class="math inline">\Delta W</span>, learn a low-rank approximation.</p>
+</blockquote>
+<p>The book describes LoRA as learning smaller matrices <span class="math inline">A</span> and <span class="math inline">B</span> whose product approximates the weight update. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-9">2. LoRA forward computation</h3>
+<p>There are two notational conventions in the materials, so this is an important exam point.</p>
+<h4 id="v3-heading-chunk-les-step-3-4-i29-10">Book convention</h4>
+<p>The Raschka implementation uses</p>
+<div class="math block">
+A\in\mathbb{R}^{d\times r}
+</div>
+<p>and</p>
+<div class="math block">
+B\in\mathbb{R}^{r\times d_{\text{out}}}.
+</div>
+<p>Thus</p>
+<div class="math block">
+AB\in\mathbb{R}^{d\times d_{\text{out}}},
+</div>
+<p>which is exactly the shape of <span class="math inline">W_0</span>.</p>
+<p>The LoRA layer computes:</p>
+<div class="math block">
+\boxed{
+Y=XW_0+\alpha XAB
+}
+</div>
+<p>in the book's implementation. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Equivalently,</p>
+<div class="math block">
+Y=X(W_0+\alpha AB).
+</div>
+<p>So the effective weight is</p>
+<div class="math block">
+\boxed{W_{\text{eff}}=W_0+\alpha AB}
+</div>
+<p>for the book's notation.</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-11">PEFT-slide convention</h5>
+<p>The slides use the other ordering:</p>
+<div class="math block">
+B\in\mathbb{R}^{d\times r},\qquad
+A\in\mathbb{R}^{r\times d_{\text{out}}},
+</div>
+<p>so their update is written as something like</p>
+<div class="math block">
+W'=W_0+\frac{\alpha}{r}BA.
+</div>
+<p>The mathematics is the same idea; <strong>only the names/order and scaling convention differ</strong>.</p>
+<p>Do not blindly memorize whether the smaller matrix is called <span class="math inline">A</span> or <span class="math inline">B</span>. For an exam, follow the notation given in the question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-12">3. Why initialize one matrix to zero?</h3>
+<p>This is one of the most important ideas in the entire LoRA topic.</p>
+<p>The book initializes:</p>
+<div class="math block">
+A=\text{random}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{B=0}.
+</div>
+<p>Its implementation uses Kaiming-uniform initialization for <span class="math inline">A</span> and zeros for <span class="math inline">B</span>. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Therefore initially,</p>
+<div class="math block">
+AB=A0=0.
+</div>
+<p>So</p>
+<div class="math block">
+W_{\text{eff}}
+=
+W_0+\alpha AB
+=
+W_0.
+</div>
+<p>Hence:</p>
+<div class="math block">
+\boxed{Y_{\text{initial}}=XW_0}
+</div>
+<p>The LoRA branch contributes <strong>nothing initially</strong>.</p>
+<p>The book explicitly notes that this leaves the pretrained model's behavior unchanged at initialization. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-13">4. Why is this useful?</h3>
+<p>Imagine your pretrained model already works reasonably well.</p>
+<p>You do <strong>not</strong> want LoRA to suddenly inject a random perturbation into every projection.</p>
+<p>If <span class="math inline">A</span> and <span class="math inline">B</span> were randomly initialized, then</p>
+<div class="math block">
+AB\neq0
+</div>
+<p>and therefore</p>
+<div class="math block">
+W_{\text{eff}}\neq W_0.
+</div>
+<p>You would immediately change the pretrained model's behavior before training.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{B=0\Rightarrow AB=0\Rightarrow W_{\text{eff}}=W_0}
+</div>
+<p>So training begins from the original model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-14">5. A subtle but VERY important gradient idea</h3>
+<p>Now comes a beautiful part of LoRA.</p>
+<p>Suppose</p>
+<div class="math block">
+Y=XW_0+\alpha XAB
+</div>
+<p>and let</p>
+<div class="math block">
+G=\frac{\partial L}{\partial Y}.
+</div>
+<p>The base weight <span class="math inline">W_0</span> is frozen.</p>
+<p>The trainable variables are <span class="math inline">A</span> and <span class="math inline">B</span>.</p>
+<p>For the book's notation:</p>
+<div class="math block">
+A:d\times r,\qquad
+B:r\times d_{\text{out}}.
+</div>
+<p>The gradients are</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial B}
+=
+\alpha (XA)^T G
+}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial A}
+=
+\alpha X^T G B^T
+}
+</div>
+<p>These equations are a mathematical derivation from the LoRA forward equation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-15">6. What happens on the very first training step?</h3>
+<p>Initially:</p>
+<div class="math block">
+B=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial A}
+=
+\alpha X^TGB^T
+=
+0.
+</div>
+<p>But:</p>
+<div class="math block">
+\frac{\partial L}{\partial B}
+=
+\alpha(XA)^TG
+</div>
+<p>can be nonzero because <span class="math inline">A</span> is randomly initialized.</p>
+<p>So initially:</p>
+<div class="math block">
+\boxed{\nabla_A L=0}
+</div>
+<p>while usually</p>
+<div class="math block">
+\boxed{\nabla_B L\neq0}.
+</div>
+<p>Therefore <span class="math inline">B</span> can start moving.</p>
+<p>After <span class="math inline">B</span> becomes nonzero, gradients can flow into <span class="math inline">A</span> as well.</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-16">Conceptual picture</h5>
+<div class="math block">
+\boxed{
+\text{Initialize } A\text{ randomly}, B=0
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{first step: }B\text{ learns}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+B\neq0
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+A\text{ also starts receiving gradients}
+}
+</div>
+<p>This is an excellent exam/interview question.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-17">7. Why not initialize BOTH A and B to zero?</h3>
+<p>Because then:</p>
+<div class="math block">
+A=0,\qquad B=0.
+</div>
+<p>The gradients become:</p>
+<div class="math block">
+\frac{\partial L}{\partial B}
+=
+\alpha(XA)^TG
+=
+0
+</div>
+<p>and</p>
+<div class="math block">
+\frac{\partial L}{\partial A}
+=
+\alpha X^TGB^T
+=
+0.
+</div>
+<p>So both matrices remain stuck at zero.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{both-zero initialization is a bad idea}}
+</div>
+<p>The useful initialization is asymmetric:</p>
+<div class="math block">
+\boxed{A\text{ random},\quad B=0}
+</div>
+<p>for the book's convention. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-18">8. Numerical Example — first LoRA gradient</h3>
+<p>Let's make this completely concrete.</p>
+<p>Suppose</p>
+<div class="math block">
+X=
+\begin{bmatrix}
+1&amp;2
+\end{bmatrix}
+</div>
+<p>and</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+0.5\\
+1
+\end{bmatrix}.
+</div>
+<p>Let</p>
+<div class="math block">
+B=
+\begin{bmatrix}
+0
+\end{bmatrix}
+</div>
+<p>and</p>
+<div class="math block">
+\alpha=2.
+</div>
+<p>Suppose the pretrained layer produces</p>
+<div class="math block">
+XW_0=3
+</div>
+<p>and target is</p>
+<div class="math block">
+t=5.
+</div>
+<p>Use</p>
+<div class="math block">
+L=\frac12(Y-t)^2.
+</div>
+<p>Because <span class="math inline">B=0</span>,</p>
+<div class="math block">
+Y=3.
+</div>
+<p>Therefore</p>
+<div class="math block">
+\frac{\partial L}{\partial Y}
+=
+Y-t
+=
+3-5=-2.
+</div>
+<p>So</p>
+<div class="math block">
+G=-2.
+</div>
+<p>First compute</p>
+<div class="math block">
+XA
+=
+[1\quad2]
+\begin{bmatrix}
+0.5\\
+1
+\end{bmatrix}
+=
+2.5.
+</div>
+<p>Then</p>
+<div class="math block">
+\frac{\partial L}{\partial B}
+=
+\alpha(XA)^TG.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial B}
+=
+2(2.5)(-2)
+=
+\boxed{-10}.
+</div>
+<p>And because <span class="math inline">B=0</span>,</p>
+<div class="math block">
+\frac{\partial L}{\partial A}=0.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\nabla_B L=-10,\qquad
+\nabla_A L=0
+}
+</div>
+<p>This is exactly the initialization behavior we just derived.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-19">9. One SGD update</h3>
+<p>Suppose the learning rate is</p>
+<div class="math block">
+\eta=0.02.
+</div>
+<p>SGD:</p>
+<div class="math block">
+B_{\text{new}}
+=
+B-\eta\nabla_B L.
+</div>
+<p>Thus:</p>
+<div class="math block">
+B_{\text{new}}
+=
+0-0.02(-10)
+=
+\boxed{0.2}.
+</div>
+<p>Now the LoRA branch is no longer zero.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-20">10. What happens on the next step?</h3>
+<p>Now:</p>
+<div class="math block">
+B=0.2.
+</div>
+<p>Suppose again</p>
+<div class="math block">
+Y=XW_0+\alpha(XA)B.
+</div>
+<p>We have</p>
+<div class="math block">
+XW_0=3
+</div>
+<p>and</p>
+<div class="math block">
+\alpha(XA)B
+=
+2(2.5)(0.2)
+=
+1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+Y=4.
+</div>
+<p>Target is 5, so</p>
+<div class="math block">
+G=4-5=-1.
+</div>
+<p>Now:</p>
+<div class="math block">
+\frac{\partial L}{\partial A}
+=
+\alpha X^TGB^T.
+</div>
+<p>Hence:</p>
+<div class="math block">
+\frac{\partial L}{\partial A}
+=
+2
+\begin{bmatrix}
+1\\2
+\end{bmatrix}
+(-1)(0.2)
+</div>
+<p>giving</p>
+<div class="math block">
+\boxed{
+\nabla_A L=
+\begin{bmatrix}
+-0.4\\
+-0.8
+\end{bmatrix}
+}
+</div>
+<p>Now <strong>A also learns</strong>.</p>
+<p>This gives us the complete learning mechanism:</p>
+<div class="math block">
+\boxed{
+B=0
+\rightarrow B\text{ starts learning}
+\rightarrow B\neq0
+\rightarrow A\text{ also learns}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-21">11. Freeze the original model</h3>
+<p>LoRA's second fundamental idea is:</p>
+<div class="math block">
+\boxed{\text{do not update }W_0}
+</div>
+<p>The original pretrained parameters are frozen.</p>
+<p>The book explicitly does:</p>
+<pre><code class="language-python">for param in model.parameters():
+    param.requires_grad = False
+</code></pre>
+<p>before inserting LoRA layers. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>In the book's GPT-2 example:</p>
+<div class="math block">
+124,441,346
+</div>
+<p>parameters are initially present, but after freezing:</p>
+<div class="math block">
+\boxed{0}
+</div>
+<p>parameters are trainable. Then LoRA parameters are introduced. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-22">12. Which parameters actually learn?</h3>
+<p>Suppose the layer is</p>
+<div class="math block">
+W_0
+</div>
+<p>plus LoRA parameters</p>
+<div class="math block">
+A,B.
+</div>
+<p>During training:</p>
+<div class="math block">
+W_0=\text{fixed}
+</div>
+<p>while</p>
+<div class="math block">
+A,B=\text{trainable}.
+</div>
+<p>Therefore the optimizer conceptually performs:</p>
+<div class="math block">
+A\leftarrow A-\eta\nabla_A L
+</div>
+<div class="math block">
+B\leftarrow B-\eta\nabla_B L.
+</div>
+<p>But:</p>
+<div class="math block">
+W_0\not\leftarrow W_0-\eta\nabla_{W_0}L.
+</div>
+<p>Its gradient is unnecessary for updating the model because it is frozen.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-23">13. Why does this save memory?</h3>
+<p>For a normal <span class="math inline">4096\times4096</span> matrix:</p>
+<div class="math block">
+N_{\text{full}}=4096^2
+=16,777,216.
+</div>
+<p>With rank</p>
+<div class="math block">
+r=8,
+</div>
+<p>LoRA stores:</p>
+<div class="math block">
+4096(8)+(8)(4096)
+</div>
+<p>so</p>
+<div class="math block">
+N_{\text{LoRA}}
+=
+65,536.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\frac{16,777,216}{65,536}
+=
+\boxed{256}.
+</div>
+<p>So the trainable parameter count for that matrix is reduced by</p>
+<div class="math block">
+\boxed{256\times}.
+</div>
+<p>This exact example appears in the PEFT slides. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-24">14. What exactly does rank control?</h3>
+<p>Remember:</p>
+<div class="math block">
+AB
+</div>
+<p>has rank at most <span class="math inline">r</span>:</p>
+<div class="math block">
+\boxed{\operatorname{rank}(AB)\le r}.
+</div>
+<p>So <span class="math inline">r</span> controls the maximum complexity/capacity of the learned update.</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-25">Small <span class="math inline">r</span></h5>
+<p>Fewer parameters:</p>
+<div class="math block">
+r\downarrow
+\Rightarrow
+\text{cheaper}
+</div>
+<p>but the update has a smaller low-rank subspace.</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-26">Large <span class="math inline">r</span></h5>
+<p>More parameters:</p>
+<div class="math block">
+r\uparrow
+\Rightarrow
+\text{more trainable capacity}
+</div>
+<p>but more memory/computation.</p>
+<p>The book explicitly describes rank as the setting controlling the number of additional trainable parameters. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-27">15. What does alpha do?</h3>
+<p>The book defines <span class="math inline">\alpha</span> as a scaling factor controlling the influence of the LoRA adaptation on the original layer output. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>In the book notation:</p>
+<div class="math block">
+Y=XW_0+\alpha XAB.
+</div>
+<p>Think of:</p>
+<div class="math block">
+XAB
+</div>
+<p>as the <strong>direction/content of the adaptation</strong>, while</p>
+<div class="math block">
+\alpha
+</div>
+<p>controls <strong>how strongly it contributes</strong>.</p>
+<p>For example, if</p>
+<div class="math block">
+XAB=0.5
+</div>
+<p>then:</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-28"><span class="math inline">\alpha=1</span></h5>
+<div class="math block">
+\text{LoRA contribution}=0.5
+</div>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-29"><span class="math inline">\alpha=4</span></h5>
+<div class="math block">
+\text{LoRA contribution}=2
+</div>
+<p>So increasing <span class="math inline">\alpha</span> strengthens the adapter's effect.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-30">16. The PEFT-slide convention: <span class="math inline">\alpha/r</span></h3>
+<p>The PEFT slides use the more common scaled form:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\frac{\alpha}{r}BA
+}
+</div>
+<p>rather than the book's simplified implementation</p>
+<div class="math block">
+W'=W_0+\alpha AB.
+</div>
+<p>This is why you may encounter:</p>
+<div class="math block">
+\frac{\alpha}{r}
+</div>
+<p>in papers/libraries and simply</p>
+<div class="math block">
+\alpha
+</div>
+<p>in the Raschka implementation.</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-31">Example</h5>
+<p>Suppose:</p>
+<div class="math block">
+r=8,\qquad\alpha=16.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\alpha}{r}
+=
+\frac{16}{8}
+=
+\boxed{2}.
+</div>
+<p>So the low-rank update is scaled by 2.</p>
+<p>The slides also note that values such as <span class="math inline">\alpha</span> equal to, half of, or double the rank are common choices in their example. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-32">17. Full training flow</h3>
+<p>Now we can finally see the complete LoRA training loop.</p>
+<h4 id="v3-heading-chunk-les-step-3-4-i29-33">Step 1 — Start with pretrained model</h4>
+<div class="math block">
+W_0
+</div>
+<p>contains all the knowledge acquired during pretraining.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-34">Step 2 — Freeze <span class="math inline">W_0</span></h4>
+<div class="math block">
+\boxed{W_0\text{ does not change}}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-35">Step 3 — Insert LoRA matrices</h4>
+<div class="math block">
+A,\ B
+</div>
+<p>are added to selected linear layers.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-36">Step 4 — Initialize</h4>
+<div class="math block">
+A=\text{random}
+</div>
+<div class="math block">
+B=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+W_{\text{eff}}=W_0.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-37">Step 5 — Forward pass</h4>
+<div class="math block">
+Y=XW_0+\alpha XAB.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-38">Step 6 — Compute loss</h4>
+<p>For a classification task, for example:</p>
+<div class="math block">
+L=-\log p(y_{\text{correct}}).
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-39">Step 7 — Backpropagation</h4>
+<p>Compute:</p>
+<div class="math block">
+\nabla_A L,
+\qquad
+\nabla_B L.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-40">Step 8 — Update only LoRA parameters</h4>
+<div class="math block">
+A\leftarrow A-\eta\nabla_A L
+</div>
+<div class="math block">
+B\leftarrow B-\eta\nabla_B L.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-41">Step 9 — Repeat</h4>
+<p>After many batches:</p>
+<div class="math block">
+A,B
+</div>
+<p>encode the task-specific adaptation.</p>
+<p>The book uses its ordinary PyTorch training function with an optimizer on the modified model. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-42">18. What happened in the book's actual experiment?</h3>
+<p>The book uses a GPT-2-small-sized model with:</p>
+<div class="math block">
+124\text{M}
+</div>
+<p>parameters.</p>
+<p>It freezes the complete model and then adds LoRA.</p>
+<p>With</p>
+<div class="math block">
+r=16,\qquad \alpha=16,
+</div>
+<p>the reported trainable LoRA parameters are:</p>
+<div class="math block">
+\boxed{2,666,528}.
+</div>
+<p>So instead of training roughly 124 million parameters, it trains about 2.7 million. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>The book reports that the initial accuracy was unchanged after adding LoRA because <span class="math inline">B=0</span>, so the LoRA branch initially produced no modification. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>After training, the example achieved very high performance, with the book reporting approximately:</p>
+<div class="math block">
+100\%\text{ training accuracy}
+</div>
+<p>and</p>
+<div class="math block">
+96.64\%\text{ validation accuracy}.
+</div>
+<p>The book notes that this involved only around 2.7 million LoRA parameters rather than the original 124 million model parameters. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-43">19. Why can LoRA still train if most parameters are frozen?</h3>
+<p>This is the key conceptual insight.</p>
+<p>The base model already provides:</p>
+<div class="math block">
+W_0
+</div>
+<p>which defines a powerful pretrained function.</p>
+<p>We don't need to completely relearn that function.</p>
+<p>We only need to learn a relatively small modification:</p>
+<div class="math block">
+\Delta W\approx AB.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{Pretrained knowledge}
++
+\text{small task-specific correction}
+}
+</div>
+<p>becomes the adaptation strategy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-44">20. Separate LoRA during deployment</h3>
+<p>After training, we have:</p>
+<div class="math block">
+W_0,\ A,\ B.
+</div>
+<p>We can keep them separate:</p>
+<div class="math block">
+Y=XW_0+\alpha XAB.
+</div>
+<p>The book emphasizes that keeping LoRA parameters separate lets the pretrained weights remain unchanged and allows different LoRA adapters to be associated with the same base model, reducing storage requirements when customizing a model for different applications. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<pre><code class="language-text">                    ┌─────────────┐
+X ─────────────────►│ Base W0     │────┐
+                    └─────────────┘    │
+                                       ├──► Y
+X ─► A ─► B ─► scale(α) ───────────────┘
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-45">21. Merge LoRA into the base model</h3>
+<p>Eventually we can combine the matrices.</p>
+<p>For the book notation:</p>
+<div class="math block">
+\boxed{
+W_{\text{merged}}
+=
+W_0+\alpha AB
+}
+</div>
+<p>Then inference becomes simply:</p>
+<div class="math block">
+\boxed{
+Y=XW_{\text{merged}}
+}
+</div>
+<p>instead of computing two branches.</p>
+<p>Why is this mathematically identical?</p>
+<p>Start with:</p>
+<div class="math block">
+Y=XW_0+\alpha XAB.
+</div>
+<p>Factor out <span class="math inline">X</span>:</p>
+<div class="math block">
+Y=X(W_0+\alpha AB).
+</div>
+<p>Define:</p>
+<div class="math block">
+W_{\text{merged}}=W_0+\alpha AB.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{Y=XW_{\text{merged}}}.
+</div>
+<p>Nothing about the function changes mathematically.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-46">22. Numerical merge example</h3>
+<p>Take</p>
+<div class="math block">
+W_0=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1
+\end{bmatrix}
+</div>
+<p>and</p>
+<div class="math block">
+A=
+\begin{bmatrix}
+1\\
+2
+\end{bmatrix},
+\qquad
+B=
+\begin{bmatrix}
+0.2&amp;0.1
+\end{bmatrix},
+\qquad
+\alpha=2.
+</div>
+<p>First:</p>
+<div class="math block">
+AB=
+\begin{bmatrix}
+1\\2
+\end{bmatrix}
+\begin{bmatrix}
+0.2&amp;0.1
+\end{bmatrix}
+</div>
+<p>so</p>
+<div class="math block">
+AB=
+\begin{bmatrix}
+0.2&amp;0.1\\
+0.4&amp;0.2
+\end{bmatrix}.
+</div>
+<p>Scale:</p>
+<div class="math block">
+\alpha AB
+=
+\begin{bmatrix}
+0.4&amp;0.2\\
+0.8&amp;0.4
+\end{bmatrix}.
+</div>
+<p>Merge:</p>
+<div class="math block">
+W_{\text{merged}}
+=
+\begin{bmatrix}
+1&amp;0\\
+0&amp;1
+\end{bmatrix}
++
+\begin{bmatrix}
+0.4&amp;0.2\\
+0.8&amp;0.4
+\end{bmatrix}
+</div>
+<p>giving</p>
+<div class="math block">
+\boxed{
+W_{\text{merged}}
+=
+\begin{bmatrix}
+1.4&amp;0.2\\
+0.8&amp;1.4
+\end{bmatrix}
+}
+</div>
+<p>Now take</p>
+<div class="math block">
+X=[1\quad2].
+</div>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-47">Separate computation</h5>
+<p>Base:</p>
+<div class="math block">
+XW_0=[1\quad2].
+</div>
+<p>LoRA:</p>
+<div class="math block">
+XA=1(1)+2(2)=5.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\alpha(XA)B
+=
+2(5)
+\begin{bmatrix}
+0.2&amp;0.1
+\end{bmatrix}
+=
+[2\quad1].
+</div>
+<p>Total:</p>
+<div class="math block">
+Y=[1\quad2]+[2\quad1]
+=
+\boxed{[3\quad3]}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-48">Merged computation</h5>
+<div class="math block">
+XW_{\text{merged}}
+=
+[1\quad2]
+\begin{bmatrix}
+1.4&amp;0.2\\
+0.8&amp;1.4
+\end{bmatrix}
+</div>
+<p>so</p>
+<div class="math block">
+=
+[1.4+1.6,\ 0.2+2.8]
+</div>
+<div class="math block">
+=
+\boxed{[3\quad3]}.
+</div>
+<p>Exactly the same.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-49">23. Why merge?</h3>
+<p>During training, keeping them separate is useful because:</p>
+<div class="math block">
+A,B
+</div>
+<p>are the only trainable components.</p>
+<p>After training, merging gives:</p>
+<div class="math block">
+W_{\text{merged}}
+</div>
+<p>so inference can use the ordinary linear layer.</p>
+<p>This is conceptually:</p>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-50">During training</h5>
+<div class="math block">
+\boxed{
+W_0 + \text{LoRA branch}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-4-i29-51">After merge</h5>
+<div class="math block">
+\boxed{
+W_{\text{merged}}
+}
+</div>
+<p>Same function, different representation.</p>
+<p>The book's emphasis is that keeping adapters separate is particularly useful for customization and storage; merging is the natural algebraic equivalent when a standalone adapted model is desired. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-52">24. Very important distinction: trainable parameters vs total model parameters</h3>
+<p>Suppose:</p>
+<div class="math block">
+W_0 = 124\text{M parameters}
+</div>
+<p>and LoRA introduces:</p>
+<div class="math block">
+2.7\text{M}.
+</div>
+<p>It does <strong>not</strong> mean the model suddenly becomes a 2.7M-parameter model.</p>
+<p>It is still a 124M-parameter base model plus the adapter.</p>
+<p>The important reduction is:</p>
+<div class="math block">
+\boxed{
+\text{trainable parameters}
+\downarrow
+}
+</div>
+<p>not necessarily:</p>
+<div class="math block">
+\boxed{
+\text{total model parameters}
+\downarrow
+}
+</div>
+<p>This distinction leads directly to the motivation for <strong>quantization and QLoRA</strong>, which we will encounter next.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-53">25. Exam Numerical Bank — Step 3.4</h3>
+<h4 id="v3-heading-chunk-les-step-3-4-i29-54">Numerical 1 — parameter count</h4>
+<p>A square matrix has</p>
+<div class="math block">
+d=4096,\quad r=8.
+</div>
+<p>Calculate LoRA trainable parameters.</p>
+<div class="math block">
+N=r(d+d)
+</div>
+<div class="math block">
+=8(4096+4096)
+</div>
+<div class="math block">
+=8(8192)
+</div>
+<div class="math block">
+\boxed{65,536}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-55">Numerical 2 — reduction factor</h4>
+<p>Full matrix:</p>
+<div class="math block">
+4096^2=16,777,216.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+65,536.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{16,777,216}{65,536}
+=
+\boxed{256\times}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-56">Numerical 3 — rank constraint</h4>
+<p>If</p>
+<div class="math block">
+A\in\mathbb{R}^{4096\times8}
+</div>
+<p>and</p>
+<div class="math block">
+B\in\mathbb{R}^{8\times4096},
+</div>
+<p>then:</p>
+<div class="math block">
+AB\in\mathbb{R}^{4096\times4096}
+</div>
+<p>and</p>
+<div class="math block">
+\boxed{\operatorname{rank}(AB)\le8}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-57">Numerical 4 — first-step gradient trap</h4>
+<p>Given</p>
+<div class="math block">
+B=0,
+</div>
+<p>what is</p>
+<div class="math block">
+\frac{\partial L}{\partial A}
+=
+\alpha X^TGB^T?
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{0}.
+</div>
+<p>But <span class="math inline">\partial L/\partial B</span> can be nonzero because <span class="math inline">A\neq0</span>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-58">Numerical 5 — both-zero initialization</h4>
+<p>If</p>
+<div class="math block">
+A=0,\quad B=0,
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\nabla_A L=0,\qquad\nabla_B L=0
+}
+</div>
+<p>and the LoRA adapter cannot start learning.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-59">Numerical 6 — scaling</h4>
+<p>Given</p>
+<div class="math block">
+\alpha=16,\qquad r=8,
+</div>
+<p>using the PEFT-slide convention:</p>
+<div class="math block">
+\frac{\alpha}{r}
+=
+\boxed{2}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-3-4-i29-60">Numerical 7 — parameter count across layers</h4>
+<p>Suppose:</p>
+<div class="math block">
+L=32
+</div>
+<p>layers,</p>
+<p>four attention projections per layer,</p>
+<div class="math block">
+d=4096,\quad r=8.
+</div>
+<p>One projection:</p>
+<div class="math block">
+65,536.
+</div>
+<p>All four per layer:</p>
+<div class="math block">
+4(65,536)=262,144.
+</div>
+<p>Across 32 layers:</p>
+<div class="math block">
+32(262,144)
+=
+\boxed{8,388,608}.
+</div>
+<p>The PEFT slides give exactly this model-scale result and report it as about <span class="math inline">0.124\%</span> of a 6.74B-parameter model. <em>(Source: peft-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-61">26. The whole LoRA story in one chain</h3>
+<p>Memorize the <strong>logic</strong>, not just the formula:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\Delta W
+}
+</div>
+<p>Full fine-tuning:</p>
+<div class="math block">
+\Delta W\text{ is huge}.
+</div>
+<p>LoRA:</p>
+<div class="math block">
+\boxed{
+\Delta W\approx AB
+}
+</div>
+<p>with small rank <span class="math inline">r</span>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+W'=W_0+\alpha AB
+}
+</div>
+<p>Freeze:</p>
+<div class="math block">
+\boxed{W_0\text{ frozen}}
+</div>
+<p>Initialize:</p>
+<div class="math block">
+\boxed{A\text{ random},\ B=0}
+</div>
+<p>so initially:</p>
+<div class="math block">
+\boxed{W'=W_0}.
+</div>
+<p>Train:</p>
+<div class="math block">
+\boxed{A,B\text{ only}}
+</div>
+<p>After training:</p>
+<div class="math block">
+\boxed{
+W_{\text{merged}}
+=
+W_0+\alpha AB
+}
+</div>
+<p>and inference can use the merged matrix.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-4-i29-62">27. What you should be able to answer after this step</h3>
+<p>A strong exam/interview answer to <strong>“Explain how LoRA actually learns”</strong> should sound like this:</p>
+<blockquote>
+<p>LoRA freezes the pretrained matrix <span class="math inline">W_0</span> and learns a low-rank update represented by two smaller matrices. The forward computation becomes <span class="math inline">XW_0+\alpha XAB</span>. One LoRA factor is initialized randomly and the other to zero, so the initial model behavior is unchanged. During the first backward pass, the zero factor can receive gradients while the other factor's gradient is initially zero; subsequent updates allow both factors to learn. Because only <span class="math inline">A</span> and <span class="math inline">B</span> are optimized, the number of trainable parameters is much smaller than full fine-tuning. After training, the low-rank update can be merged into <span class="math inline">W_0</span> algebraically.</p>
+</blockquote>
+<p>That is the conceptual core of <strong>LoRA initialization → gradient flow → training → merge</strong>.</p>
+<hr />
+</section>

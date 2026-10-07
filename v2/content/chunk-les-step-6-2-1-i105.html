@@ -1,0 +1,567 @@
+<section class="chunk" id="chunk-les-step-6-2-1-i105" data-id="les-step-6-2-1-i105"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-6-2-1-i105"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-6-2-1-i105" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-6-1-1-i104">← Previous lesson</a> · <a href="#chunk-les-step-6-2-1-i106">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-6-1-1-i104">R100.2 / Step 6.1.1 — Turning the Flat Token Stream into Training Batches</a></p><p><strong>This lesson:</strong> R100.3 — Step 6.2.1: ModelArgs — The Architecture Contract</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-6-2-1-i105"></a></p>
+<h3 id="v3-heading-chunk-les-step-6-2-1-i105-1">R100.3 — Step 6.2.1: <code>ModelArgs</code> — The Architecture Contract</h3>
+<p><em>Plan node: A6 · chat order #105</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now move from <strong>data preparation</strong> into <strong>model construction</strong>.</p>
+<p>The source explicitly says that <code>model.py</code> translates the architectural theory from the previous chapters into a single functional PyTorch <code>nn.Module</code>, integrating <strong>MLA, Decoupled RoPE, MoE, and MTP</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Before constructing those components, the book introduces one important idea:</p>
+<div class="math block">
+\boxed{\texttt{ModelArgs}}
+</div>
+<p>Think of this as the <strong>configuration contract of the entire Mini-DeepSeek model</strong>.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-6-2-1-i105-2">6.2.1.1 Why do we need <code>ModelArgs</code>?</h5>
+<p>A model has many architectural parameters:</p>
+<pre><code class="language-text">d_model
+number of layers
+number of attention heads
+latent dimension
+RoPE dimension
+number of experts
+top-k experts
+MTP modules
+maximum sequence length
+...
+</code></pre>
+<p>We could write a constructor like:</p>
+<pre><code class="language-python">MiniDeepSeek(
+    d_model,
+    n_layers,
+    vocab_size,
+    num_heads,
+    d_latent,
+    d_rope,
+    moe_n_routed_experts,
+    moe_n_shared_experts,
+    moe_top_k,
+    moe_routed_hidden,
+    n_mtp_modules,
+    dropout,
+    max_seq_len
+)
+</code></pre>
+<p>That becomes difficult to manage.</p>
+<p>Instead, the source creates one configuration object and passes it around:</p>
+<div class="math block">
+\boxed{
+\texttt{ModelArgs}
+\rightarrow
+\text{all model components}
+}
+</div>
+<p>The book explicitly describes this as a cleaner way to manage the numerous hyperparameters and to make it easy to define different model sizes. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-3">6.2.1.2 The source configuration</h4>
+<p>The source gives:</p>
+<pre><code class="language-python">@dataclass
+class ModelArgs:
+    # Architecture
+    d_model: int = 512
+    n_layers: int = 8
+    vocab_size: int = 50257
+
+    # Attention (MLA)
+    num_heads: int = 8
+    d_latent: int = 128
+    d_rope: int = 32
+
+    # MoE
+    moe_n_routed_experts: int = 8
+    moe_n_shared_experts: int = 1
+    moe_top_k: int = 2
+    moe_routed_hidden: int = 512
+
+    # MTP
+    n_mtp_modules: int = 1
+
+    # General
+    dropout: float = 0.1
+    max_seq_len: int = 1024
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now let's understand <strong>why each group exists</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-4">6.2.1.3 Group 1 — Core architecture</h4>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-5"><code>d_model</code></h6>
+<div class="math block">
+\boxed{d_{\text{model}}=512}
+</div>
+<p>This is the hidden representation size.</p>
+<p>So after token embedding, each token becomes a vector of length:</p>
+<div class="math block">
+512.
+</div>
+<p>For a batch:</p>
+<div class="math block">
+X\in\mathbb Z^{B\times T}
+</div>
+<p>becomes approximately:</p>
+<div class="math block">
+H\in\mathbb R^{B\times T\times512}.
+</div>
+<p>So <code>d_model</code> controls the width of the model's internal representation.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-6"><code>n_layers</code></h6>
+<div class="math block">
+\boxed{n_{\text{layers}}=8}
+</div>
+<p>This determines how many <code>TransformerBlock</code>s are stacked.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Embedding
+   ↓
+TransformerBlock 1
+   ↓
+TransformerBlock 2
+   ↓
+...
+   ↓
+TransformerBlock 8
+   ↓
+Final Norm
+   ↓
+LM Head
+</code></pre>
+<p>The source later constructs exactly this stack with:</p>
+<pre><code class="language-python">self.blocks = nn.ModuleList(
+    [TransformerBlock(args) for _ in range(args.n_layers)]
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+n_{\text{layers}}
+=
+\text{depth of the Transformer trunk}.
+}
+</div>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-7"><code>vocab_size</code></h6>
+<p>The default is:</p>
+<div class="math block">
+\boxed{50,257}.
+</div>
+<p>This corresponds to the GPT-2 tokenizer used for this Mini-DeepSeek project. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>It determines the size of the vocabulary space.</p>
+<p>Therefore the output head ultimately produces:</p>
+<div class="math block">
+\boxed{
+V=50,257
+}
+</div>
+<p>logits per token position.</p>
+<p>So if:</p>
+<div class="math block">
+H\in\mathbb R^{B\times T\times d_{\text{model}}},
+</div>
+<p>the language-model head produces:</p>
+<div class="math block">
+\boxed{
+Z\in\mathbb R^{B\times T\times V}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-8">6.2.1.4 Group 2 — MLA parameters</h4>
+<p>The next three parameters belong to the <strong>Multi-head Latent Attention / MLA</strong> implementation.</p>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-9"><code>num_heads</code></h6>
+<div class="math block">
+\boxed{8}
+</div>
+<p>This determines how many attention heads are used.</p>
+<p>So with:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<p>the source's implementation uses:</p>
+<div class="math block">
+d_{\text{head}}
+=
+\frac{512}{8}
+=
+\boxed{64}.
+</div>
+<p>This division is also reflected later in <code>DeepSeekAttention</code>, where the query is reshaped into:</p>
+<div class="math block">
+[\text{batch},\text{heads},\text{sequence},d_{\text{head}}].
+</div>
+<p>The source's attention code uses <code>num_heads</code> and derives the per-head dimension accordingly. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-10"><code>d_latent</code></h6>
+<div class="math block">
+\boxed{d_{\text{latent}}=128}
+</div>
+<p>This is the compressed latent dimension used in the <strong>content path of MLA</strong>.</p>
+<p>The source creates:</p>
+<pre><code class="language-python">self.W_dkv_content = nn.Linear(
+    args.d_model,
+    args.d_latent,
+    bias=False
+)
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+d_{\text{model}}
+\rightarrow
+d_{\text{latent}}
+}
+</div>
+<p>for the compressed KV representation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Numerically:</p>
+<div class="math block">
+512\rightarrow128.
+</div>
+<p>This is the core compression idea that makes the KV cache smaller.</p>
+<p>We already learned the mathematical motivation for MLA earlier; here <code>ModelArgs</code> simply provides the dimensions needed to implement it.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-11"><code>d_rope</code></h6>
+<div class="math block">
+\boxed{d_{\text{rope}}=32}
+</div>
+<p>This controls the dimensionality of the separate <strong>positional pathway</strong>.</p>
+<p>The source's implementation constructs:</p>
+<pre><code class="language-python">self.W_k_pos = nn.Linear(
+    args.d_model,
+    args.d_rope * args.num_heads,
+    bias=False
+)
+
+self.W_q_pos = nn.Linear(
+    args.d_model,
+    args.d_rope * args.num_heads,
+    bias=False
+)
+</code></pre>
+<p>and applies RoPE to those projections. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So MLA is conceptually split into:</p>
+<pre><code class="language-text">                hidden state
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+     Content path        Position path
+       MLA latent             RoPE
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+             attention scores
+</code></pre>
+<p>This is the <strong>decoupled MLA + RoPE</strong> architecture we previously derived.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-12">6.2.1.5 Group 3 — MoE parameters</h4>
+<p>Now we configure the feed-forward part.</p>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-13">Routed experts</h6>
+<pre><code class="language-python">moe_n_routed_experts = 8
+</code></pre>
+<p>So there are:</p>
+<div class="math block">
+\boxed{8}
+</div>
+<p>specialist experts available to the router.</p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-14">Shared experts</h6>
+<pre><code class="language-python">moe_n_shared_experts = 1
+</code></pre>
+<p>So there is:</p>
+<div class="math block">
+\boxed{1}
+</div>
+<p>shared expert through which every token passes.</p>
+<p>The source explicitly separates:</p>
+<pre><code class="language-text">shared_experts
+</code></pre>
+<p>from:</p>
+<pre><code class="language-text">routed_experts
+</code></pre>
+<p>in the <code>DeepSeekMoE</code> implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-15"><code>moe_top_k</code></h6>
+<pre><code class="language-python">moe_top_k = 2
+</code></pre>
+<p>For each token, the router chooses:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>routed experts out of:</p>
+<div class="math block">
+8.
+</div>
+<p>Therefore a token does not go through all eight routed experts.</p>
+<p>It goes through the selected top-2.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">Token
+  │
+  ▼
+Router
+  │
+  ├── Expert 1   ← selected
+  ├── Expert 2
+  ├── Expert 3
+  ├── Expert 4
+  ├── Expert 5   ← selected
+  ├── Expert 6
+  ├── Expert 7
+  └── Expert 8
+</code></pre>
+<p>The source implements this using <code>torch.topk(..., self.top_k, ...)</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-16"><code>moe_routed_hidden</code></h6>
+<pre><code class="language-python">moe_routed_hidden = 512
+</code></pre>
+<p>Each expert's FFN expands to a hidden size of:</p>
+<div class="math block">
+\boxed{512}.
+</div>
+<p>The source's <code>ExpertFFN</code> is:</p>
+<div class="math block">
+d_{\text{model}}
+\rightarrow
+d_{\text{hidden}}
+\rightarrow
+d_{\text{model}}
+</div>
+<p>implemented as:</p>
+<pre><code class="language-python">fc1: d_model → hidden
+fc2: hidden → d_model
+</code></pre>
+<p>with GELU between them. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus the source's expert is conceptually:</p>
+<div class="math block">
+512\rightarrow512\rightarrow512.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-17">6.2.1.6 Group 4 — MTP</h4>
+<pre><code class="language-python">n_mtp_modules = 1
+</code></pre>
+<p>means the model creates:</p>
+<div class="math block">
+\boxed{1}
+</div>
+<p>MTP module.</p>
+<p>Remember what MTP does from our earlier derivation:</p>
+<pre><code class="language-text">main representation
+       ↓
+ predict next token
+
+MTP 1
+       ↓
+ predict further future token
+</code></pre>
+<p>The source later constructs:</p>
+<pre><code class="language-python">self.mtp_modules = nn.ModuleList(
+    [MTPModule(args) for _ in range(args.n_mtp_modules)]
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So <code>n_mtp_modules</code> literally determines the depth of the MTP chain.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-18">6.2.1.7 Group 5 — General parameters</h4>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-19"><code>dropout</code></h6>
+<div class="math block">
+\boxed{0.1}
+</div>
+<p>This is used as a regularization mechanism in the source implementation.</p>
+<p>For example, dropout is attached to the expert FFN and attention components. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h6 id="v3-heading-chunk-les-step-6-2-1-i105-20"><code>max_seq_len</code></h6>
+<div class="math block">
+\boxed{1024}
+</div>
+<p>This defines the maximum positional sequence length for the model components by default.</p>
+<p>It is particularly relevant to the RoPE frequency table.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-21">6.2.1.8 An important distinction: default configuration vs actual training configuration</h4>
+<p>This is easy to miss.</p>
+<p>The source's <code>ModelArgs</code> defaults are:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<div class="math block">
+n_{\text{layers}}=8
+</div>
+<p>but later <code>train.py</code> deliberately creates a larger <strong>flagship configuration</strong>:</p>
+<div class="math block">
+d_{\text{model}}=768
+</div>
+<div class="math block">
+n_{\text{layers}}=12
+</div>
+<div class="math block">
+num\_heads=12.
+</div>
+<p>The source describes this later model as approximately <strong>130M parameters</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\texttt{ModelArgs defaults}
+\neq
+\text{final training configuration}.
+}
+</div>
+<p>The defaults are a convenient baseline configuration.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-22">6.2.1.9 Another important distinction: <code>max_seq_len</code> vs <code>block_size</code></h4>
+<p>We just saw:</p>
+<div class="math block">
+max\_seq\_len=1024.
+</div>
+<p>But <code>train.py</code> uses:</p>
+<div class="math block">
+block\_size=256.
+</div>
+<p>The training configuration later passes:</p>
+<pre><code class="language-python">max_seq_len=block_size
+</code></pre>
+<p>when constructing the model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore, in that actual training run:</p>
+<div class="math block">
+\boxed{
+max\_seq\_len=256.
+}
+</div>
+<p>So do not memorize “1024” as an immutable property of the model.</p>
+<p>It is the <strong>default</strong> in the configuration class.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-23">6.2.1.10 What <code>ModelArgs</code> really accomplishes</h4>
+<p>Every major component reads from this same configuration.</p>
+<p>For example:</p>
+<pre><code class="language-text">ModelArgs
+   │
+   ├── d_model
+   │      ├── Embedding
+   │      ├── Attention
+   │      ├── MoE
+   │      ├── MTP
+   │      └── LM Head
+   │
+   ├── num_heads
+   │      └── MLA
+   │
+   ├── d_latent
+   │      └── MLA compression
+   │
+   ├── d_rope
+   │      └── RoPE position path
+   │
+   ├── MoE parameters
+   │      └── DeepSeekMoE
+   │
+   └── n_mtp_modules
+          └── MTP chain
+</code></pre>
+<p>That is why the source calls it an organized configuration object rather than passing independent arguments everywhere. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-24">6.2.1.11 The architecture we are about to build</h4>
+<p>Now the whole model can be viewed from the outside:</p>
+<pre><code class="language-text">                    ModelArgs
+                        │
+                        ▼
+              ┌─────────────────┐
+              │   MiniDeepSeek   │
+              └────────┬────────┘
+                       │
+        ┌──────────────┼──────────────┐
+        ▼              ▼              ▼
+   Embedding       Transformer      MTP chain
+                      stack
+                       │
+                 ┌─────┴─────┐
+                 ▼           ▼
+              MLA           MoE
+                 │           │
+              RoPE      Routed + Shared
+                       experts
+                       │
+                       ▼
+                   final norm
+                       │
+                       ▼
+                    LM head
+                       │
+                       ▼
+                    logits
+</code></pre>
+<p>The source's top-level <code>MiniDeepSeek</code> class later implements exactly this organization: shared embedding, a stack of Transformer blocks, final normalization, shared LM head, and an MTP module list. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-25">6.2.1.12 The key mental model</h4>
+<p>Do <strong>not</strong> think of <code>ModelArgs</code> as doing computation.</p>
+<p>It does not.</p>
+<p>It is more like the <strong>blueprint</strong> handed to the construction workers.</p>
+<div class="math block">
+\boxed{
+\texttt{ModelArgs}
+=
+\text{architecture specification}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\texttt{MiniDeepSeek}
+=
+\text{actual neural network constructed from that specification}.
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<p>tells the model <strong>how wide</strong> to make its internal representations.</p>
+<div class="math block">
+n_{\text{layers}}=8
+</div>
+<p>tells it <strong>how deep</strong> to make the Transformer.</p>
+<div class="math block">
+num\_heads=8
+</div>
+<p>tells MLA <strong>how many attention heads</strong> to create.</p>
+<div class="math block">
+d_{\text{latent}}=128
+</div>
+<p>tells MLA <strong>how small the compressed latent KV representation is</strong>.</p>
+<div class="math block">
+moe\_top\_k=2
+</div>
+<p>tells MoE <strong>how many routed experts each token should use</strong>.</p>
+<div class="math block">
+n\_mtp\_modules=1
+</div>
+<p>tells the model <strong>how many extra MTP stages to construct</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i105-26">6.2.1.13 One exam-style numerical</h4>
+<p>Given:</p>
+<div class="math block">
+d_{\text{model}}=512,\qquad
+num\_heads=8
+</div>
+<p>what is the head dimension?</p>
+<div class="math block">
+d_{\text{head}}
+=
+\frac{d_{\text{model}}}{num\_heads}
+</div>
+<div class="math block">
+=
+\frac{512}{8}
+</div>
+<div class="math block">
+\boxed{64}.
+</div>
+<p>Now compare the MLA dimensions:</p>
+<div class="math block">
+d_{\text{model}}=512
+</div>
+<p>while:</p>
+<div class="math block">
+d_{\text{latent}}=128.
+</div>
+<p>So the content pathway compresses:</p>
+<div class="math block">
+\boxed{
+512\rightarrow128
+}
+</div>
+<p>before reconstructing the per-head key/value representations.</p>
+<p>That is the dimensional intuition behind the cache-efficiency motivation we studied earlier.</p>
+<hr />
+</section>

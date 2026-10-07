@@ -1,0 +1,1194 @@
+<section class="chunk" id="chunk-les-step-5-43-i84" data-id="les-step-5-43-i84"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-43-i84"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-43-i84" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-45-i86">← Previous lesson</a> · <a href="#chunk-les-step-5-48-i89">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-45-i86">Step 5.45 — Full 8-Token × 4-Expert Routing Trace</a></p><p><strong>This lesson:</strong> Step 5.43 — How MLA and MoE Fit Together in the DeepSeek Transformer</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-43-i84"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-43-i84-1">Step 5.43 — How MLA and MoE Fit Together in the DeepSeek Transformer</h3>
+<p><em>Plan node: A2 · chat order #84</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-10-i17">Step 1.10 — Position-Wise Feed-Forward Network (FFN / MLP)</a></p>
+</blockquote>
+<p>We now move from understanding <strong>MoE internally</strong> to understanding <strong>where MoE sits inside the entire DeepSeek Transformer</strong>.</p>
+<p>This is important because MLA and MoE are sometimes mentally mixed together as “two efficiency tricks.” They are not solving the same problem.</p>
+<p>The source explicitly frames DeepSeek's architecture as a Transformer in which the conventional <strong>multi-head attention</strong> is replaced by <strong>Multi-Head Latent Attention (MLA)</strong> and the conventional <strong>feed-forward network</strong> is replaced by <strong>DeepSeek-Mixture-of-Experts (MoE)</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the first thing to lock in is:</p>
+<div class="math block">
+\boxed{
+\text{MLA and MoE occupy different parts of the Transformer block}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-2">5.43.1 Start from the standard Transformer block</h4>
+<p>A conventional decoder-only Transformer block is conceptually:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+\text{Attention}
+\rightarrow
+\text{Residual}
+\rightarrow
+\text{FFN}
+\rightarrow
+\text{Residual}
+}
+</div>
+<p>With pre-normalization:</p>
+<div class="math block">
+\boxed{
+H_1=X+\operatorname{Attention}(\operatorname{Norm}(X))
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+Y=H_1+\operatorname{FFN}(\operatorname{Norm}(H_1))
+}
+</div>
+<p>This is the basic structure we have already used when studying Transformer blocks.</p>
+<p>The DeepSeek source's MiniDeepSeek implementation follows this same pattern: normalize → attention → residual, then normalize → MoE → residual. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-3">5.43.2 DeepSeek changes the first sub-block</h4>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{\text{standard MHA}}
+</div>
+<p>DeepSeek uses:</p>
+<div class="math block">
+\boxed{\text{MLA + decoupled RoPE}}
+</div>
+<p>Why?</p>
+<p>Because the standard KV cache becomes very expensive for long contexts.</p>
+<p>The source describes MLA as specifically targeting the <strong>KV-cache memory bottleneck</strong> by caching a compressed latent representation rather than the full K/V tensors. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So MLA is primarily an:</p>
+<div class="math block">
+\boxed{\text{attention-memory optimization}}
+</div>
+<p>in the source's framing.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-4">5.43.3 DeepSeek changes the second sub-block</h4>
+<p>Instead of:</p>
+<div class="math block">
+\boxed{\text{dense FFN}}
+</div>
+<p>DeepSeek uses:</p>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<p>Why?</p>
+<p>Because a dense FFN activates all of its expert-like capacity for every token.</p>
+<p>MoE instead provides:</p>
+<div class="math block">
+\boxed{
+\text{many parameters}
++
+\text{only a sparse subset active/token}
+}
+</div>
+<p>The source describes MoE as addressing computationally expensive dense FFNs through sparse expert activation.</p>
+<p>So MoE is primarily a:</p>
+<div class="math block">
+\boxed{\text{conditional-computation / parameter-scaling mechanism}}
+</div>
+<p>in the source's framing.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-5">5.43.4 Therefore the DeepSeek block is</h4>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+X
+\rightarrow
+\operatorname{RMSNorm}
+\rightarrow
+\operatorname{MLA}
+\rightarrow
++
+\rightarrow
+\operatorname{RMSNorm}
+\rightarrow
+\operatorname{MoE}
+\rightarrow
++
+}
+</div>
+<p>In the source's educational MiniDeepSeek implementation, <code>LayerNorm</code> is used for simplicity while the text explicitly notes that DeepSeek uses RMSNorm. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So distinguish:</p>
+<div class="math block">
+\boxed{
+\text{source implementation choice}
+}
+</div>
+<p>from:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek architectural description}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-6">5.43.5 The complete block visually</h4>
+<pre><code class="language-text">                         X
+                         │
+                         ▼
+                    RMSNorm / Norm
+                         │
+                         ▼
+                  MLA + decoupled RoPE
+                         │
+                         ▼
+                         H
+                         │
+                  ┌──────┴──────┐
+                  │             │
+                  │     Residual X
+                  └──────┬──────┘
+                         ▼
+                        X₁
+                         │
+                         ▼
+                    RMSNorm / Norm
+                         │
+                         ▼
+                    DeepSeek-MoE
+                         │
+               ┌─────────┼─────────┐
+               │         │         │
+               │         │         │
+               ▼         ▼         ▼
+           Shared     Router    Residual
+           Experts      │         X₁
+                        │
+                      + bias
+                        │
+                      Top-K
+                        │
+                 Routed Experts
+                        │
+                  Weighted Sum
+               └─────────┬─────────┘
+                         ▼
+                        X₂
+</code></pre>
+<p>The source's TransformerBlock code follows the normalized-attention-residual then normalized-MoE-residual flow. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-7">5.43.6 The most important conceptual separation</h4>
+<p>Remember:</p>
+<div class="math block">
+\boxed{\text{MLA decides how tokens attend to one another}}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{\text{MoE decides which FFN experts process each token}}
+</div>
+<p>That is the cleanest distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-8">5.43.7 MLA's question</h4>
+<p>MLA receives token representations:</p>
+<div class="math block">
+X
+</div>
+<p>and asks:</p>
+<blockquote>
+<p>Which previous tokens should this token retrieve information from?</p>
+</blockquote>
+<p>So it produces:</p>
+<div class="math block">
+Q,K,V
+</div>
+<p>or their latent/decoupled equivalents and performs attention.</p>
+<p>The central problem is:</p>
+<div class="math block">
+\boxed{\text{KV cache memory}}
+</div>
+<p>The source describes MLA as compressing the information stored in K/V while reconstructing the required representations for attention. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-9">5.43.8 MoE's question</h4>
+<p>MoE receives the output of the attention sub-block:</p>
+<div class="math block">
+H.
+</div>
+<p>It asks:</p>
+<blockquote>
+<p>Which specialized feed-forward networks should process this token?</p>
+</blockquote>
+<p>The router gives:</p>
+<div class="math block">
+L=H W_R+b
+</div>
+<p>then:</p>
+<div class="math block">
+TopK(L)
+</div>
+<p>then:</p>
+<div class="math block">
+\sum_i g_iE_i(H).
+</div>
+<p>The central problem is:</p>
+<div class="math block">
+\boxed{\text{dense FFN computation / scaling}}
+</div>
+<p>The source explicitly positions MoE as a replacement for the expensive dense FFN.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-10">5.43.9 Very important: MLA does not route experts</h4>
+<p>MLA does not say:</p>
+<div class="math block">
+T_1\rightarrow E_3.
+</div>
+<p>That's MoE.</p>
+<p>MLA says something like:</p>
+<div class="math block">
+T_t
+\rightarrow
+\text{attend to }T_1,T_2,\ldots,T_{t-1}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Attention routing across positions}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MoE routing across experts}
+}
+</div>
+<p>are two completely different routing processes.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-11">5.43.10 Example</h4>
+<p>Suppose we have:</p>
+<pre><code class="language-text">The cat sat on the mat
+</code></pre>
+<p>For the token:</p>
+<div class="math block">
+\text{“mat”}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-12">MLA/attention</h6>
+<p>It may attend strongly to:</p>
+<div class="math block">
+\text{“cat”}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{“sat”}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{“the”}.
+</div>
+<p>This determines what contextual information the token representation receives.</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-13">MoE</h6>
+<p>After attention, the representation of “mat” might be routed to:</p>
+<div class="math block">
+E_4,E_17,E_{31}.
+</div>
+<p>Those experts transform the representation.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{Attention = gather context}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{MoE = transform context using specialized pathways}
+}
+</div>
+<p>This is an interpretation built from the two source mechanisms.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-14">5.43.11 Think of the Transformer block as two questions</h4>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-15">Question A</h6>
+<div class="math block">
+\boxed{
+\text{“What information from other tokens do I need?”}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{MLA}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-16">Question B</h6>
+<div class="math block">
+\boxed{
+\text{“How should I transform the information I've gathered?”}
+}
+</div>
+<p>Answer:</p>
+<div class="math block">
+\text{MoE}.
+</div>
+<p>That is why these mechanisms complement each other.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-17">5.43.12 Why MLA solves memory, not parameter sparsity</h4>
+<p>Suppose standard MHA has huge K/V cache:</p>
+<div class="math block">
+\boxed{\text{large cache}}
+</div>
+<p>MLA compresses that cache.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{MLA}
+\rightarrow
+\text{lower KV-cache memory}
+}
+</div>
+<p>It does not fundamentally make the FFN sparse.</p>
+<p>That's MoE's job.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-18">5.43.13 Why MoE does not solve the KV-cache problem</h4>
+<p>Suppose you have:</p>
+<div class="math block">
+100{,}000
+</div>
+<p>tokens.</p>
+<p>Even if your FFN is perfectly sparse, attention still needs to deal with the history.</p>
+<p>The KV cache still exists.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{MoE does not replace MLA}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MLA does not replace MoE}.
+}
+</div>
+<p>They target different bottlenecks.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-19">5.43.14 The architecture hierarchy</h4>
+<p>This is the hierarchy you should memorize:</p>
+<div class="math block">
+\boxed{\text{Transformer}}
+</div>
+<p>contains:</p>
+<div class="math block">
+\boxed{\text{Attention sub-block}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{FFN/MoE sub-block}}.
+</div>
+<p>DeepSeek replaces them with:</p>
+<div class="math block">
+\boxed{
+\text{Attention}
+\rightarrow
+\text{MLA}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{FFN}
+\rightarrow
+\text{DeepSeek-MoE}
+}.
+</div>
+<p>The source explicitly presents DeepSeek this way. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-20">5.43.15 Now add RMSNorm</h4>
+<p>Before MLA:</p>
+<div class="math block">
+X_N=\operatorname{Norm}(X).
+</div>
+<p>Then:</p>
+<div class="math block">
+H=X+\operatorname{MLA}(X_N).
+</div>
+<p>Then:</p>
+<div class="math block">
+H_N=\operatorname{Norm}(H).
+</div>
+<p>Then:</p>
+<div class="math block">
+Y=H+\operatorname{MoE}(H_N).
+</div>
+<p>So the full mathematical skeleton is:</p>
+<div class="math block">
+\boxed{
+H=X+\operatorname{MLA}(\operatorname{Norm}(X))
+}
+</div>
+<div class="math block">
+\boxed{
+Y=H+\operatorname{MoE}(\operatorname{Norm}(H))
+}.
+</div>
+<p>The source's <code>TransformerBlock</code> uses precisely this computational ordering, though its simplified code uses <code>LayerNorm</code> rather than an RMSNorm implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-21">5.43.16 DeepSeek's educational code</h4>
+<p>The source's block is essentially:</p>
+<pre><code class="language-python">h, new_cache = self.attention(
+    self.norm1(x),
+    attn_mask,
+    past_kv,
+    position_offset
+)
+
+x = x + h
+
+x = x + self.feed_forward(
+    self.norm2(x)
+)
+
+return x, new_cache
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Here:</p>
+<div class="math block">
+\texttt{self.attention}
+=
+\text{DeepSeekAttention}
+</div>
+<p>and:</p>
+<div class="math block">
+\texttt{self.feed\_forward}
+=
+\text{DeepSeekMoE}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-22">5.43.17 Trace one tensor through the block</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=2,\quad S=16,\quad D=512.
+</div>
+<p>Input:</p>
+<div class="math block">
+X:
+\boxed{2\times16\times512}.
+</div>
+<p>Normalization:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>MLA output:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>Residual addition:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>Second normalization:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>MoE output:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>Final residual:</p>
+<div class="math block">
+\boxed{2\times16\times512}.
+</div>
+<p>So the entire Transformer block preserves:</p>
+<div class="math block">
+\boxed{B\times S\times D}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-23">5.43.18 Why this matters</h4>
+<p>Attention temporarily creates internal tensors with dimensions based on:</p>
+<div class="math block">
+\text{heads},\text{latent dimensions},\text{RoPE dimensions}.
+</div>
+<p>MoE temporarily creates:</p>
+<div class="math block">
+\text{expert-specific token groups}.
+</div>
+<p>But the residual stream continues to be:</p>
+<div class="math block">
+\boxed{B\times S\times D}.
+</div>
+<p>This makes the whole architecture composable.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-24">5.43.19 Now connect MLA's cache to MoE's parameters</h4>
+<p>This is where DeepSeek becomes interesting.</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-25">MLA</h6>
+<p>reduces the cost of storing the <strong>history used by attention</strong>.</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-26">MoE</h6>
+<p>increases the <strong>total parameter capacity</strong> without activating all expert parameters per token.</p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+\text{MLA}
+\rightarrow
+\text{memory efficiency}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+\rightarrow
+\text{parameter/computation efficiency}
+}.
+</div>
+<p>The source's roadmap explicitly describes MLA as reducing memory requirements and MoE as scaling intelligence efficiently through sparse experts.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-27">5.43.20 Important distinction: cache vs weights</h4>
+<p>This deserves special emphasis.</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-28">MLA stores</h6>
+<p>past compressed representations:</p>
+<div class="math block">
+\boxed{\text{latent KV information}}
+</div>
+<p>for inference.</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-29">MoE stores</h6>
+<p>expert weights:</p>
+<div class="math block">
+\boxed{E_1,E_2,\ldots,E_N}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MLA problem}
+=
+\text{activation/cache memory}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{MoE problem}
+=
+\text{model capacity and conditional computation}
+}.
+</div>
+<p>The exact memory behavior involves more details, but this is the conceptual distinction established by the source.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-30">5.43.21 DeepSeek generation path</h4>
+<p>Suppose a new token arrives.</p>
+<p>The model:</p>
+<div class="math block">
+\boxed{
+\text{token}
+\rightarrow
+\text{embedding}
+\rightarrow
+\text{Transformer blocks}
+\rightarrow
+\text{logits}
+}.
+</div>
+<p>Inside each block:</p>
+<div class="math block">
+\boxed{
+\text{Norm}
+\rightarrow
+\text{MLA}
+\rightarrow
+\text{residual}
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{MoE}
+\rightarrow
+\text{residual}
+}
+</div>
+<p>The MLA path updates/uses its KV cache.</p>
+<p>The MoE path selects experts for the token.</p>
+<p>So one generated token simultaneously interacts with:</p>
+<div class="math block">
+\boxed{
+\text{past-token memory}
+}
+</div>
+<p>through MLA and:</p>
+<div class="math block">
+\boxed{
+\text{specialized computation}
+}
+</div>
+<p>through MoE.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-31">5.43.22 A one-token inference trace</h4>
+<p>Suppose a token representation is:</p>
+<div class="math block">
+x_t\in\mathbb R^D.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-32">First norm</h6>
+<div class="math block">
+q_t=\operatorname{Norm}(x_t).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-33">MLA</h6>
+<p>The token attends to cached history:</p>
+<div class="math block">
+h_t=\operatorname{MLA}(q_t,\text{KV-cache}).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-34">Residual</h6>
+<div class="math block">
+z_t=x_t+h_t.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-35">Second norm</h6>
+<div class="math block">
+u_t=\operatorname{Norm}(z_t).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-36">MoE router</h6>
+<div class="math block">
+L_t=u_tW_R+b.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-37">Top-K</h6>
+<div class="math block">
+I_t=TopK(L_t,k).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-38">Expert mixture</h6>
+<div class="math block">
+r_t=
+\sum_{i\in I_t}g_{t,i}E_i(u_t).
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-39">Residual</h6>
+<div class="math block">
+\boxed{
+y_t=z_t+r_t.
+}
+</div>
+<p>That is one complete Transformer block for one token.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-40">5.43.23 Notice how the two caches/selection systems differ</h4>
+<p>MLA:</p>
+<div class="math block">
+\boxed{
+\text{historical token information}
+}
+</div>
+<p>is reused.</p>
+<p>MoE:</p>
+<div class="math block">
+\boxed{
+\text{historical expert choices do not determine the next token}
+}
+</div>
+<p>because the router evaluates the current representation.</p>
+<p>Each token can choose different experts.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{KV cache = reuse past activations}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{MoE router = choose current computation}
+}.
+</div>
+<p>Very important distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-41">5.43.24 Numerical — complete block dimensions</h4>
+<p>Suppose:</p>
+<div class="math block">
+B=4
+</div>
+<div class="math block">
+S=128
+</div>
+<div class="math block">
+D=1024
+</div>
+<div class="math block">
+N=64
+</div>
+<div class="math block">
+k=8.
+</div>
+<p>Input tokens:</p>
+<div class="math block">
+T=4\times128
+=
+\boxed{512}.
+</div>
+<p>After first norm:</p>
+<div class="math block">
+\boxed{4\times128\times1024}.
+</div>
+<p>Router operates after the attention/residual stage and flattening gives:</p>
+<div class="math block">
+\boxed{512\times1024}.
+</div>
+<p>Router matrix:</p>
+<div class="math block">
+\boxed{1024\times64}
+</div>
+<p>in mathematical <span class="math inline">XW_R</span> notation.</p>
+<p>Router output:</p>
+<div class="math block">
+\boxed{512\times64}.
+</div>
+<p>Top-K:</p>
+<div class="math block">
+\boxed{512\times8}.
+</div>
+<p>Total routed assignments:</p>
+<div class="math block">
+512\times8
+=
+\boxed{4096}.
+</div>
+<p>Ideal load per expert:</p>
+<div class="math block">
+4096/64
+=
+\boxed{64}.
+</div>
+<p>Finally, MoE returns:</p>
+<div class="math block">
+\boxed{4\times128\times1024}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-42">5.43.25 Parameter scaling example</h4>
+<p>Suppose each routed expert has:</p>
+<div class="math block">
+2DH
+</div>
+<p>parameters.</p>
+<p>Take:</p>
+<div class="math block">
+D=1024,\qquad H=2048.
+</div>
+<p>One expert:</p>
+<div class="math block">
+2(1024)(2048)
+=
+\boxed{4,194,304}.
+</div>
+<p>With:</p>
+<div class="math block">
+64
+</div>
+<p>experts:</p>
+<div class="math block">
+64(4,194,304)
+=
+\boxed{268,435,456}.
+</div>
+<p>With:</p>
+<div class="math block">
+k=8,
+</div>
+<p>active expert weights/token:</p>
+<div class="math block">
+8(4,194,304)
+=
+\boxed{33,554,432}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+268.4M\text{ total routed expert weights}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+33.6M\text{ active routed expert weights/token}
+}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-43">5.43.26 MLA side numerical intuition</h4>
+<p>From our earlier MLA work, suppose:</p>
+<div class="math block">
+d_{\text{latent}}=512
+</div>
+<p>and standard MHA would need a K/V dimension corresponding to:</p>
+<div class="math block">
+2nh=32768.
+</div>
+<p>Then the pure latent compression ratio is:</p>
+<div class="math block">
+\frac{32768}{512}
+=
+\boxed{64\times}.
+</div>
+<p>With the source's decoupled RoPE example:</p>
+<div class="math block">
+d_{\text{latent}}=512,
+\quad
+d_{\text{rope}}=64,
+</div>
+<p>total cached dimension:</p>
+<div class="math block">
+576.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{32768}{576}
+\approx
+\boxed{56.9\times}.
+</div>
+<p>The source rounds this to roughly:</p>
+<div class="math block">
+\boxed{57\times}.
+</div>
+<p>This is the attention-cache side of the architecture, not the MoE parameter side.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-44">5.43.27 Put the two numerical effects together</h4>
+<p>Imagine, conceptually:</p>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-45">Standard Transformer</h6>
+<div class="math block">
+\boxed{
+\text{MHA}
++
+\text{Dense FFN}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-46">DeepSeek-style</h6>
+<div class="math block">
+\boxed{
+\text{MLA}
++
+\text{MoE}
+}
+</div>
+<p>MLA gives:</p>
+<div class="math block">
+\boxed{\text{smaller inference KV cache}}
+</div>
+<p>MoE gives:</p>
+<div class="math block">
+\boxed{\text{larger total expert capacity with sparse activation}}
+</div>
+<p>So DeepSeek attacks two different scaling limits simultaneously.</p>
+<p>The source explicitly presents these as separate architectural innovations addressing distinct bottlenecks. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-47">5.43.28 What happens to training?</h4>
+<p>During training, the same Transformer block processes the whole sequence in parallel.</p>
+<p>The source's MiniDeepSeek architecture passes the sequence through the block and supports the MoE routing path; the training pipeline later combines MLA, MoE, and MTP.</p>
+<p>For MoE:</p>
+<div class="math block">
+T
+</div>
+<p>tokens are routed to selected experts.</p>
+<p>For MLA:</p>
+<p>all sequence positions can participate in parallel attention subject to the causal mask during training.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{training parallelism}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{inference autoregressive decoding}
+}
+</div>
+<p>have different execution characteristics.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-48">5.43.29 What happens during inference?</h4>
+<p>At inference time, the model generates one new token at a time.</p>
+<p>MLA benefits from its:</p>
+<div class="math block">
+\boxed{\text{KV cache}}
+</div>
+<p>so it doesn't recompute all historical K/V representations.</p>
+<p>MoE processes the current token through only the selected routed experts plus shared experts.</p>
+<p>The source's inference path explicitly threads the past KV cache and position offset through each <code>TransformerBlock</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-49">5.43.30 The complete architecture hierarchy</h4>
+<p>Memorize this tree:</p>
+<pre><code class="language-text">DeepSeek-style Transformer
+│
+├── Transformer Block × L
+│   │
+│   ├── Norm
+│   ├── MLA + Decoupled RoPE
+│   │   └── latent KV cache
+│   │
+│   ├── Residual
+│   │
+│   ├── Norm
+│   ├── DeepSeek-MoE
+│   │   │
+│   │   ├── Shared experts
+│   │   │   └── dense
+│   │   │
+│   │   └── Routed experts
+│   │       ├── router
+│   │       ├── bias
+│   │       ├── Top-K
+│   │       ├── softmax gates
+│   │       └── sparse dispatch
+│   │
+│   └── Residual
+│
+├── Final Norm
+│
+└── LM Head
+</code></pre>
+<p>The source's <code>MiniDeepSeek</code> top-level model contains token embedding, repeated Transformer blocks, final normalization, output projection, and MTP modules.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-50">5.43.31 Exam question: “What did DeepSeek actually replace?”</h4>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+\text{Standard Attention}
+\rightarrow
+\text{MLA + decoupled RoPE}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{Standard FFN}
+\rightarrow
+\text{DeepSeek-MoE}
+}
+</div>
+<p>The source explicitly presents this replacement structure. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-51">5.43.32 Exam question: “What bottleneck does each solve?”</h4>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-52">MLA</h6>
+<div class="math block">
+\boxed{
+\text{KV-cache memory}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-53">MoE</h6>
+<div class="math block">
+\boxed{
+\text{dense FFN compute / parameter scaling}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-54">MTP</h6>
+<p>later:</p>
+<div class="math block">
+\boxed{
+\text{stronger training signal / future-token prediction}
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-55">FP8</h6>
+<p>later:</p>
+<div class="math block">
+\boxed{
+\text{training compute and memory efficiency}
+}
+</div>
+<p>The source explicitly separates these innovations across its four-stage roadmap.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-56">5.43.33 Exam question: “Why can't MLA alone produce a 671B sparse model?”</h4>
+<p>Because MLA and MoE solve different things.</p>
+<p>MLA changes:</p>
+<div class="math block">
+\boxed{\text{attention representation/cache}}
+</div>
+<p>It does not create:</p>
+<div class="math block">
+\boxed{\text{specialized expert networks}}.
+</div>
+<p>MoE creates:</p>
+<div class="math block">
+\boxed{\text{many experts + sparse activation}}.
+</div>
+<p>Therefore the 671B/37B distinction comes from the MoE-style conditional parameter activation, not from MLA.</p>
+<p>The source attributes DeepSeek-R1's 671B total / 37B active-per-token figure to its MoE design. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-57">5.43.34 Exam question: “Does MoE eliminate memory cost?”</h4>
+<p>No.</p>
+<p>MoE gives:</p>
+<div class="math block">
+\boxed{
+\text{sparse computation}
+}
+</div>
+<p>but the full expert weights still exist.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{MoE}
+\neq
+\text{delete unused weights}
+}.
+</div>
+<p>The source makes this explicit when discussing the 671B R1 model: all 671B parameters must still be stored even though only approximately 37B are activated per token. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-58">5.43.35 One complete exam-style mixed problem</h4>
+<p>Suppose a DeepSeek-like Transformer has:</p>
+<div class="math block">
+B=2,\quad S=512,\quad D=2048
+</div>
+<p>and:</p>
+<div class="math block">
+N=64,\quad k=8.
+</div>
+<p>Also suppose each expert has hidden dimension:</p>
+<div class="math block">
+H=1024.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-59">Step 1 — number of tokens</h6>
+<div class="math block">
+T=BS
+</div>
+<div class="math block">
+=2\times512
+=
+\boxed{1024}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-60">Step 2 — router output</h6>
+<div class="math block">
+X_f:
+1024\times2048.
+</div>
+<p>Router:</p>
+<div class="math block">
+2048\times64.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+L:1024\times64
+}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-61">Step 3 — Top-K</h6>
+<div class="math block">
+\boxed{
+1024\times8
+}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-62">Step 4 — assignments</h6>
+<div class="math block">
+1024\times8
+=
+\boxed{8192}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-63">Step 5 — ideal expert load</h6>
+<div class="math block">
+8192/64
+=
+\boxed{128}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-64">Step 6 — parameters per expert</h6>
+<div class="math block">
+2DH
+=
+2(2048)(1024)
+</div>
+<div class="math block">
+=
+\boxed{4,194,304}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-65">Step 7 — total routed expert parameters</h6>
+<div class="math block">
+64(4,194,304)
+=
+\boxed{268,435,456}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-66">Step 8 — active routed parameters/token</h6>
+<div class="math block">
+8(4,194,304)
+=
+\boxed{33,554,432}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-67">Step 9 — active fraction</h6>
+<div class="math block">
+\frac8{64}
+=
+\boxed{12.5\%}.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-43-i84-68">Step 10 — output shape</h6>
+<p>Regardless of expert routing:</p>
+<div class="math block">
+\boxed{
+2\times512\times2048
+}.
+</div>
+<p>This is exactly the sort of multi-concept numerical you should be prepared to solve.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-69">5.43.36 Final conceptual map</h4>
+<p>The complete DeepSeek design now looks like this:</p>
+<div class="math block">
+\boxed{
+\text{Standard Transformer}
+}
+</div>
+<p>contains:</p>
+<div class="math block">
+\boxed{
+\text{Attention}
++
+\text{FFN}
+}
+</div>
+<p>DeepSeek changes this to:</p>
+<div class="math block">
+\boxed{
+\text{MLA}
++
+\text{MoE}
+}
+</div>
+<p>MLA:</p>
+<div class="math block">
+\boxed{
+\text{compress KV information}
+\rightarrow
+\text{reduce cache memory}
+}
+</div>
+<p>MoE:</p>
+<div class="math block">
+\boxed{
+\text{many experts}
+\rightarrow
+\text{sparse Top-K activation}
+\rightarrow
+\text{large total capacity}
+}
+</div>
+<p>DeepSeek's MoE innovations:</p>
+<div class="math block">
+\boxed{
+\text{fine-grained experts}
++
+\text{shared experts}
++
+\text{loss-free balancing}
+}
+</div>
+<p>and the whole block is wrapped in:</p>
+<div class="math block">
+\boxed{
+\text{Norm}
++
+\text{Attention}
++
+\text{Residual}
++
+\text{Norm}
++
+\text{MoE}
++
+\text{Residual}
+}.
+</div>
+<p>The source's MiniDeepSeek implementation explicitly assembles MLA, MoE, and later MTP into this Transformer-block-based architecture. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-43-i84-70">5.43.37 The single most important mental picture</h4>
+<p>When you see:</p>
+<div class="math block">
+\boxed{\text{DeepSeek}}
+</div>
+<p>think:</p>
+<div class="math block">
+\boxed{
+\underbrace{\text{MLA}}_{\text{efficient attention memory}}
+\quad+\quad
+\underbrace{\text{MoE}}_{\text{sparse expert computation}}
+}
+</div>
+<p>inside:</p>
+<div class="math block">
+\boxed{\text{Transformer blocks}}.
+</div>
+<p>Then remember:</p>
+<div class="math block">
+\boxed{
+\text{MLA asks “where do I get information from?”}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{MoE asks “which computation should transform this information?”}
+}
+</div>
+<p>That distinction will make the later <strong>MTP + FP8 + full DeepSeek training pipeline</strong> much easier to understand.</p>
+<hr />
+</section>

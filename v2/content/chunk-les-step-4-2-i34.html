@@ -1,0 +1,1414 @@
+<section class="chunk" id="chunk-les-step-4-2-i34" data-id="les-step-4-2-i34"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-2-i34"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-2-i34" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-1-i33">← Previous lesson</a> · <a href="#chunk-les-step-4-3-i35">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-4-1-i33">Step 4.1 — Knowledge Distillation: Why, Teacher–Student Paradigm, Hard vs Soft Distillation</a></p><p><strong>This lesson:</strong> Step 4.2 — Temperature Scaling and “Dark Knowledge”</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-9">decoding-sampling-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-2-i34"></a></p>
+<h2>Step 4.2 — Temperature Scaling and “Dark Knowledge”</h2>
+<p><em>Plan node: I5 · chat order #34</em></p>
+<p>We now reach the mathematical heart of classical knowledge distillation.</p>
+<p>The problem from Step 4.1 was:</p>
+<div class="math block">
+P_T(w)
+</div>
+<p>at ordinary temperature <span class="math inline">T=1</span> is often too peaked.</p>
+<p>For example:</p>
+<div class="math block">
+[0.865,\ 0.117,\ 0.016,\ 0.002].
+</div>
+<p>The information is technically there, but most of it is concentrated in the top class.</p>
+<p>The solution introduced in the chapter is:</p>
+<div class="math block">
+\boxed{\text{temperature scaling}}
+</div>
+<p>which makes the teacher's distribution softer and exposes the relationships among alternatives. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-1">1. Start from ordinary softmax</h3>
+<p>Given teacher logits:</p>
+<div class="math block">
+z=[z_1,z_2,\ldots,z_K],
+</div>
+<p>ordinary softmax is:</p>
+<div class="math block">
+\boxed{
+p_i=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">z_i</span> = logit for class/token <span class="math inline">i</span></li>
+<li><span class="math inline">p_i</span> = probability assigned to class/token <span class="math inline">i</span></li>
+<li><span class="math inline">K</span> = number of classes/tokens.</li>
+</ul>
+<p>This is exactly the softmax you already learned earlier for LLM next-token prediction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-2">2. Add temperature</h3>
+<p>Temperature introduces one parameter:</p>
+<div class="math block">
+\boxed{T&gt;0}.
+</div>
+<p>Instead of:</p>
+<div class="math block">
+p_i=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}},
+</div>
+<p>we compute:</p>
+<div class="math block">
+\boxed{
+q_i(T)
+=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<p>The procedure is:</p>
+<div class="math block">
+\boxed{
+z
+\rightarrow
+\frac{z}{T}
+\rightarrow
+\text{softmax}
+}
+</div>
+<p>The chapter gives exactly this formulation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-3">3. What does <span class="math inline">T</span> actually do?</h3>
+<p>Do not think of temperature as “adding randomness.”</p>
+<p>That interpretation is incomplete.</p>
+<p>Temperature first changes the <strong>shape of the probability distribution</strong>.</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-4"><span class="math inline">T=1</span></h5>
+<p>Normal softmax:</p>
+<div class="math block">
+q_i=p_i.
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-5"><span class="math inline">T&gt;1</span></h5>
+<p>Divide logits by a larger number:</p>
+<div class="math block">
+\frac{z_i}{T}
+</div>
+<p>so the differences between logits become smaller.</p>
+<p>Result:</p>
+<div class="math block">
+\boxed{\text{flatter distribution}}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-6"><span class="math inline">0&lt;T&lt;1</span></h5>
+<p>Differences become larger.</p>
+<p>Result:</p>
+<div class="math block">
+\boxed{\text{sharper distribution}}
+</div>
+<p>The supplied chapter explicitly describes <span class="math inline">T&gt;1</span> as softening the distribution. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-7">4. The most useful mathematical interpretation</h3>
+<p>Look at the ratio of two probabilities.</p>
+<p>Starting from:</p>
+<div class="math block">
+q_i=
+\frac{e^{z_i/T}}{\sum_j e^{z_j/T}}
+</div>
+<p>and:</p>
+<div class="math block">
+q_k=
+\frac{e^{z_k/T}}{\sum_j e^{z_j/T}}.
+</div>
+<p>Divide:</p>
+<div class="math block">
+\frac{q_i}{q_k}
+=
+\frac{e^{z_i/T}}{e^{z_k/T}}
+</div>
+<p>so:</p>
+<div class="math block">
+\boxed{
+\frac{q_i}{q_k}
+=
+e^{(z_i-z_k)/T}
+}
+</div>
+<p>This equation is extremely important.</p>
+<p>It tells us exactly what temperature does to <strong>relative preference</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-8">5. Example of probability ratios</h3>
+<p>Suppose:</p>
+<div class="math block">
+z_1=5,\qquad z_2=3.
+</div>
+<p>Then:</p>
+<div class="math block">
+z_1-z_2=2.
+</div>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+\frac{q_1}{q_2}
+=
+e^2
+\approx7.39.
+</div>
+<p>At <span class="math inline">T=2</span>:</p>
+<div class="math block">
+\frac{q_1}{q_2}
+=
+e^{2/2}
+=
+e
+\approx2.72.
+</div>
+<p>At <span class="math inline">T=4</span>:</p>
+<div class="math block">
+\frac{q_1}{q_2}
+=
+e^{2/4}
+=
+e^{0.5}
+\approx1.65.
+</div>
+<p>So increasing <span class="math inline">T</span> compresses the teacher's preferences.</p>
+<p>That is the mathematical meaning of “softening.”</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-9">6. Temperature does NOT change ranking</h3>
+<p>Suppose:</p>
+<div class="math block">
+z_1&gt;z_2&gt;z_3.
+</div>
+<p>For positive <span class="math inline">T</span>:</p>
+<div class="math block">
+\frac{z_1}{T}&gt;
+\frac{z_2}{T}&gt;
+\frac{z_3}{T}.
+</div>
+<p>Softmax is monotonic in the logits.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\arg\max_i q_i(T)
+=
+\arg\max_i z_i
+}
+</div>
+<p>for every positive <span class="math inline">T</span>.</p>
+<p>So temperature changes:</p>
+<div class="math block">
+\boxed{\text{how strongly the model prefers the winner}}
+</div>
+<p>but not:</p>
+<div class="math block">
+\boxed{\text{who the winner is}}.
+</div>
+<p>The supplied decoding slides make this same point explicitly: temperature changes distribution sharpness but not token ranking. <em>(Source: decoding-sampling-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-10">7. This is why temperature is useful for distillation</h3>
+<p>Suppose the teacher says:</p>
+<div class="math block">
+\text{Cat}&gt;\text{Dog}&gt;\text{Fox}&gt;\text{Bird}.
+</div>
+<p>At <span class="math inline">T=1</span>, maybe:</p>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>The ordering exists, but:</p>
+<div class="math block">
+0.016
+</div>
+<p>and:</p>
+<div class="math block">
+0.002
+</div>
+<p>are extremely small.</p>
+<p>At larger <span class="math inline">T</span>, the same ordering remains:</p>
+<div class="math block">
+\text{Cat}&gt;\text{Dog}&gt;\text{Fox}&gt;\text{Bird}
+</div>
+<p>but the differences become easier for the student to learn.</p>
+<p>That's what the chapter means by exposing <strong>dark knowledge</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-11">8. Full numerical example from the chapter</h3>
+<p>Teacher logits:</p>
+<div class="math block">
+\boxed{
+z=[5.0,3.0,1.0,-1.0]
+}
+</div>
+<p>Corresponding classes:</p>
+<div class="math block">
+[\text{cat},\text{dog},\text{fox},\text{bird}].
+</div>
+<p>We will calculate:</p>
+<div class="math block">
+T=1,
+\quad
+T=3,
+\quad
+T=10.
+</div>
+<p>The chapter uses exactly these logits and temperatures. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-12">9. Case 1 — <span class="math inline">T=1</span></h3>
+<p>We have:</p>
+<div class="math block">
+z/T=[5,3,1,-1].
+</div>
+<p>Exponentiate:</p>
+<div class="math block">
+e^5\approx148.41
+</div>
+<div class="math block">
+e^3\approx20.09
+</div>
+<div class="math block">
+e^1\approx2.72
+</div>
+<div class="math block">
+e^{-1}\approx0.37.
+</div>
+<p>Sum:</p>
+<div class="math block">
+148.41+20.09+2.72+0.37
+=
+171.59.
+</div>
+<p>Normalize:</p>
+<div class="math block">
+q=
+\left[
+\frac{148.41}{171.59},
+\frac{20.09}{171.59},
+\frac{2.72}{171.59},
+\frac{0.37}{171.59}
+\right]
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+q=[0.865,0.117,0.016,0.002]
+}
+</div>
+<p>as reported in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-13">10. Interpret <span class="math inline">T=1</span></h3>
+<p>The teacher says:</p>
+<div class="math block">
+\boxed{
+86.5\%\text{ cat}
+}
+</div>
+<div class="math block">
+11.7\%\text{ dog}
+</div>
+<div class="math block">
+1.6\%\text{ fox}
+</div>
+<div class="math block">
+0.2\%\text{ bird}.
+</div>
+<p>The top choice is obvious.</p>
+<p>But the student has difficulty extracting the detailed relationship among:</p>
+<div class="math block">
+\text{dog},\text{fox},\text{bird}.
+</div>
+<p>That is the problem.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-14">11. Case 2 — <span class="math inline">T=3</span></h3>
+<p>Now:</p>
+<div class="math block">
+\frac zT
+=
+\left[
+\frac53,\frac33,\frac13,-\frac13
+\right].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+z/T=[1.667,1.000,0.333,-0.333]
+}
+</div>
+<p>The chapter then exponentiates:</p>
+<div class="math block">
+e^{1.667}\approx5.30
+</div>
+<div class="math block">
+e^1\approx2.72
+</div>
+<div class="math block">
+e^{0.333}\approx1.40
+</div>
+<div class="math block">
+e^{-0.333}\approx0.72.
+</div>
+<p>Sum:</p>
+<div class="math block">
+5.30+2.72+1.40+0.72
+=
+10.14.
+</div>
+<p>Normalize:</p>
+<div class="math block">
+q=
+\left[
+\frac{5.30}{10.14},
+\frac{2.72}{10.14},
+\frac{1.40}{10.14},
+\frac{0.72}{10.14}
+\right].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+q=[0.523,0.268,0.138,0.071]
+}
+</div>
+<p>This is the chapter's central numerical example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-15">12. Look what happened</h3>
+<p>At <span class="math inline">T=1</span>:</p>
+<div class="math block">
+[0.865,0.117,0.016,0.002].
+</div>
+<p>At <span class="math inline">T=3</span>:</p>
+<div class="math block">
+[0.523,0.268,0.138,0.071].
+</div>
+<p>The ranking is unchanged:</p>
+<div class="math block">
+\boxed{
+\text{cat}&gt;\text{dog}&gt;\text{fox}&gt;\text{bird}
+}
+</div>
+<p>but the alternatives are now visible.</p>
+<p>The teacher is telling the student:</p>
+<div class="math block">
+\boxed{
+\text{cat is most likely}
+}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{
+\text{dog is substantially more plausible than fox}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{fox is substantially more plausible than bird}
+}
+</div>
+<p>That relational information is what the chapter calls <strong>dark knowledge</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-16">13. Why does this help the student?</h3>
+<p>With hard labels:</p>
+<div class="math block">
+[1,0,0,0]
+</div>
+<p>the student gets:</p>
+<blockquote>
+<p>Cat is correct.</p>
+</blockquote>
+<p>With <span class="math inline">T=3</span>:</p>
+<div class="math block">
+[0.523,0.268,0.138,0.071]
+</div>
+<p>the student gets:</p>
+<blockquote>
+<p>Cat is most likely, dog is somewhat plausible, fox is less plausible, bird is least plausible.</p>
+</blockquote>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{one training example contains relational information}
+}
+</div>
+<p>instead of only the identity of the correct class.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-17">14. Case 3 — <span class="math inline">T=10</span></h3>
+<p>Now:</p>
+<div class="math block">
+z/T
+=
+[0.5,0.3,0.1,-0.1].
+</div>
+<p>Softmax gives approximately:</p>
+<div class="math block">
+\boxed{
+[0.329,0.270,0.221,0.181]
+}
+</div>
+<p>according to the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Now the distribution is very flat.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-18">15. Why is <span class="math inline">T=10</span> too high?</h3>
+<p>Compare:</p>
+<div class="math block">
+\text{cat}=0.329
+</div>
+<p>with:</p>
+<div class="math block">
+\text{dog}=0.270.
+</div>
+<p>The distinction is still there.</p>
+<p>But compare the entire distribution:</p>
+<div class="math block">
+[0.329,0.270,0.221,0.181].
+</div>
+<p>It is approaching:</p>
+<div class="math block">
+[0.25,0.25,0.25,0.25].
+</div>
+<p>So the teacher is now becoming almost uninformative.</p>
+<p>The chapter describes this as revealing so much information that the meaningful structure gets diluted. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-19">16. The three regimes</h3>
+<p>We therefore have:</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-20">Low temperature</h5>
+<div class="math block">
+T\approx1
+</div>
+<p>or below:</p>
+<div class="math block">
+\boxed{\text{too sharp}}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-21">Moderate temperature</h5>
+<div class="math block">
+T\approx2-5
+</div>
+<p>in the chapter's discussion:</p>
+<div class="math block">
+\boxed{\text{useful / Goldilocks zone}}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-22">Very high temperature</h5>
+<div class="math block">
+T\gg5
+</div>
+<p>:</p>
+<div class="math block">
+\boxed{\text{too flat}}
+</div>
+<p>The chapter explicitly describes a useful middle range around <span class="math inline">T=2</span>–<span class="math inline">5</span>, with the precise best value being task/model-dependent. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-23">17. Limit <span class="math inline">T\to0^+</span></h3>
+<p>Let's derive an important mathematical limit.</p>
+<p>Suppose:</p>
+<div class="math block">
+z_1&gt;z_2&gt;\cdots&gt;z_K.
+</div>
+<p>As:</p>
+<div class="math block">
+T\to0^+,
+</div>
+<p>the largest logit dominates:</p>
+<div class="math block">
+e^{z_1/T}\gg e^{z_2/T}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+q\rightarrow[1,0,\ldots,0]
+}
+</div>
+<p>assuming a unique maximum.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\to0^+
+\Rightarrow
+\text{one-hot distribution}
+}
+</div>
+<p>This is why low temperature produces a very sharp output.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-24">18. Limit <span class="math inline">T\to\infty</span></h3>
+<p>For very large <span class="math inline">T</span>:</p>
+<div class="math block">
+\frac{z_i}{T}\rightarrow0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+e^{z_i/T}\rightarrow1.
+</div>
+<p>So:</p>
+<div class="math block">
+q_i
+\rightarrow
+\frac1K.
+</div>
+<p>Hence:</p>
+<div class="math block">
+\boxed{
+T\to\infty
+\Rightarrow
+\text{uniform distribution}
+}
+</div>
+<p>For four classes:</p>
+<div class="math block">
+\boxed{
+q\rightarrow[0.25,0.25,0.25,0.25]
+}
+</div>
+<p>This is exactly the qualitative behavior described in the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-25">19. A very useful identity: subtracting the same constant</h3>
+<p>Remember from softmax:</p>
+<div class="math block">
+\operatorname{softmax}(z)
+=
+\operatorname{softmax}(z-c)
+</div>
+<p>for any constant <span class="math inline">c</span>.</p>
+<p>This remains true with temperature:</p>
+<div class="math block">
+\boxed{
+\operatorname{softmax}(z/T)
+=
+\operatorname{softmax}((z-c)/T)
+}
+</div>
+<p>because:</p>
+<div class="math block">
+e^{(z_i-c)/T}
+=
+e^{-c/T}e^{z_i/T}
+</div>
+<p>and the common factor cancels.</p>
+<p>This is why numerical implementations can safely compute:</p>
+<div class="math block">
+\boxed{
+q_i=
+\frac{
+e^{(z_i-\max z)/T}
+}{
+\sum_j e^{(z_j-\max z)/T}
+}
+}
+</div>
+<p>to avoid overflow.</p>
+<p>That is the same numerical-stability principle you learned earlier for ordinary softmax.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-26">20. Temperature and entropy</h3>
+<p>There is another useful interpretation.</p>
+<p>Entropy:</p>
+<div class="math block">
+\boxed{
+H(P)
+=
+-\sum_iP_i\log P_i
+}
+</div>
+<p>measures uncertainty/spread.</p>
+<p>As temperature rises:</p>
+<div class="math block">
+T\uparrow
+\Rightarrow
+H(q_T)\uparrow
+</div>
+<p>for a nonuniform original distribution.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+T\text{ higher}
+\Rightarrow
+\text{higher entropy}
+}
+</div>
+<p>until the distribution approaches uniformity.</p>
+<p>For <span class="math inline">K</span> classes, the maximum entropy is:</p>
+<div class="math block">
+\boxed{
+H_{\max}=\log K
+}
+</div>
+<p>which occurs at:</p>
+<div class="math block">
+P_i=\frac1K.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-27">21. Numerical entropy example</h3>
+<p>At <span class="math inline">T=10</span>:</p>
+<div class="math block">
+P=[0.329,0.270,0.221,0.181].
+</div>
+<p>Entropy:</p>
+<div class="math block">
+H
+=
+-\sum_i p_i\ln p_i.
+</div>
+<p>Approx:</p>
+<div class="math block">
+H\approx
+0.366+0.354+0.333+0.309
+</div>
+<div class="math block">
+\approx
+\boxed{1.36\text{ nats}}
+</div>
+<p>whereas uniform four-class entropy is:</p>
+<div class="math block">
+\log4
+\approx
+\boxed{1.386\text{ nats}}.
+</div>
+<p>So the <span class="math inline">T=10</span> distribution is already very close to maximum entropy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-28">22. The crucial distinction: decoding temperature vs distillation temperature</h3>
+<p>You've already learned temperature during text generation.</p>
+<p>The formula is identical:</p>
+<div class="math block">
+q_i=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}.
+</div>
+<p>But the <strong>purpose</strong> is different.</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-29">During decoding</h5>
+<p>We use temperature to control the distribution from which we sample the next token.</p>
+<div class="math block">
+\boxed{
+T\rightarrow\text{generation diversity}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-30">During classical distillation</h5>
+<p>We use temperature to reveal the structure in the teacher's output distribution.</p>
+<div class="math block">
+\boxed{
+T\rightarrow\text{richer teaching signal}
+}
+</div>
+<p>Same mathematics.</p>
+<p>Different purpose.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-31">23. This distinction matters for exams</h3>
+<p>Suppose the question says:</p>
+<blockquote>
+<p>“Why does the teacher use <span class="math inline">T&gt;1</span> during distillation?”</p>
+</blockquote>
+<p>Don't answer:</p>
+<blockquote>
+<p>“To make generation more random.”</p>
+</blockquote>
+<p>The better answer is:</p>
+<div class="math block">
+\boxed{
+T&gt;1\text{ softens teacher probabilities so that relative probabilities of alternative classes/tokens become visible.}
+}
+</div>
+<p>The goal is to expose:</p>
+<div class="math block">
+\boxed{\text{dark knowledge}}
+</div>
+<p>to the student.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-32">24. Another powerful derivation: log-odds</h3>
+<p>From:</p>
+<div class="math block">
+\frac{q_i}{q_j}
+=
+e^{(z_i-z_j)/T},
+</div>
+<p>take <span class="math inline">\log</span>:</p>
+<div class="math block">
+\log\frac{q_i}{q_j}
+=
+\frac{z_i-z_j}{T}.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{log-odds}
+=
+\frac{\text{logit difference}}{T}
+}
+</div>
+<p>This makes the role of temperature incredibly clear.</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-33"><span class="math inline">T=1</span></h5>
+<p>Full logit difference.</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-34"><span class="math inline">T=2</span></h5>
+<p>Half the logit difference.</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-35"><span class="math inline">T=4</span></h5>
+<p>Quarter of the logit difference.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+T\text{ compresses relative logit differences}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-36">25. Why teacher logits are particularly valuable</h3>
+<p>Suppose teacher logits are:</p>
+<div class="math block">
+[5,3,1,-1].
+</div>
+<p>The raw differences are:</p>
+<div class="math block">
+5-3=2
+</div>
+<div class="math block">
+3-1=2
+</div>
+<div class="math block">
+1-(-1)=2.
+</div>
+<p>The teacher has a very clear ordering structure.</p>
+<p>The softmax at <span class="math inline">T=1</span> hides much of it through exponentiation.</p>
+<p>Temperature reduces the magnitude of those differences before exponentiation.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{temperature does not invent information}
+}
+</div>
+<p>It makes information already present in the logits more visible in the resulting probability distribution.</p>
+<p>That's the correct interpretation of “dark knowledge.”</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-37">26. Why <span class="math inline">T=3</span> in the chapter is useful</h3>
+<p>At:</p>
+<div class="math block">
+T=1:
+</div>
+<div class="math block">
+[0.865,0.117,0.016,0.002]
+</div>
+<p>At:</p>
+<div class="math block">
+T=3:
+</div>
+<div class="math block">
+[0.523,0.268,0.138,0.071].
+</div>
+<p>At:</p>
+<div class="math block">
+T=10:
+</div>
+<div class="math block">
+[0.329,0.270,0.221,0.181].
+</div>
+<p>So:</p>
+<div class="math block">
+T=1
+\rightarrow
+\text{too concentrated}
+</div>
+<div class="math block">
+T=3
+\rightarrow
+\text{rich structure visible}
+</div>
+<div class="math block">
+T=10
+\rightarrow
+\text{structure almost washed out}.
+</div>
+<p>That is exactly the chapter's <strong>Goldilocks</strong> interpretation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-38">27. Numerical exam question 1</h3>
+<p>Teacher logits:</p>
+<div class="math block">
+[4,2,0].
+</div>
+<p>Calculate scaled logits at:</p>
+<div class="math block">
+T=2.
+</div>
+<p>Answer:</p>
+<div class="math block">
+\boxed{[2,1,0]}.
+</div>
+<p>Then apply softmax:</p>
+<div class="math block">
+e^2\approx7.389
+</div>
+<div class="math block">
+e^1\approx2.718
+</div>
+<div class="math block">
+e^0=1.
+</div>
+<p>Sum:</p>
+<div class="math block">
+11.107.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+P\approx
+\boxed{
+[0.665,0.245,0.090]
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-39">28. Numerical exam question 2</h3>
+<p>Teacher logits:</p>
+<div class="math block">
+[4,2,0].
+</div>
+<p>What happens to the ranking when <span class="math inline">T=4</span>?</p>
+<p>Scaled:</p>
+<div class="math block">
+[1,0.5,0].
+</div>
+<p>Ranking remains:</p>
+<div class="math block">
+\boxed{
+1^\text{st}&gt;2^\text{nd}&gt;3^\text{rd}
+}
+</div>
+<p>Temperature does not change ranking.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-40">29. Numerical exam question 3</h3>
+<p>For:</p>
+<div class="math block">
+z=[10,0].
+</div>
+<p>At:</p>
+<div class="math block">
+T=1,
+</div>
+<p>the probability of the first class is almost:</p>
+<div class="math block">
+\boxed{0.99995}.
+</div>
+<p>At:</p>
+<div class="math block">
+T=10,
+</div>
+<p>scaled logits:</p>
+<div class="math block">
+[1,0].
+</div>
+<p>Then:</p>
+<div class="math block">
+P_1=
+\frac{e^1}{e^1+1}
+</div>
+<div class="math block">
+\approx
+\boxed{0.731}.
+</div>
+<p>Same winner, dramatically softer confidence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-41">30. Numerical exam question 4 — limit</h3>
+<p>What is:</p>
+<div class="math block">
+\lim_{T\to\infty}
+\operatorname{softmax}(z/T)
+</div>
+<p>for a 5-class problem?</p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+[0.2,0.2,0.2,0.2,0.2]
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-42">31. Numerical exam question 5 — ratio</h3>
+<p>Suppose:</p>
+<div class="math block">
+z_1=5,\qquad z_2=1.
+</div>
+<p>At <span class="math inline">T=2</span>:</p>
+<div class="math block">
+\frac{q_1}{q_2}
+=
+e^{(5-1)/2}
+=
+e^2
+\approx
+\boxed{7.389}.
+</div>
+<p>At <span class="math inline">T=4</span>:</p>
+<div class="math block">
+\frac{q_1}{q_2}
+=
+e^{4/4}
+=
+\boxed{e\approx2.718}.
+</div>
+<p>So larger temperature makes the two classes more comparable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-43">32. Why high temperature eventually becomes useless</h3>
+<p>Suppose:</p>
+<div class="math block">
+T\rightarrow\infty.
+</div>
+<p>Then:</p>
+<div class="math block">
+q_i\rightarrow\frac1K.
+</div>
+<p>All classes become equally likely.</p>
+<p>Therefore the teacher's information disappears.</p>
+<p>So we have:</p>
+<div class="math block">
+\boxed{
+T\text{ too low}
+\Rightarrow
+\text{dark knowledge hidden}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+T\text{ too high}
+\Rightarrow
+\text{dark knowledge washed out}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+T\text{ should be intermediate}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-44">33. Important gradient insight</h3>
+<p>Now connect this to optimization.</p>
+<p>Student soft distribution:</p>
+<div class="math block">
+q_i
+=
+\operatorname{softmax}(z_i^S/T).
+</div>
+<p>For softmax, the derivative with respect to student logit <span class="math inline">z_j^S</span> has the temperature factor:</p>
+<div class="math block">
+\boxed{
+\frac{\partial q_i}{\partial z_j^S}
+=
+\frac1Tq_i(\delta_{ij}-q_j)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\delta_{ij}
+=
+\begin{cases}
+1,&amp;i=j\\
+0,&amp;i\ne j.
+\end{cases}
+</div>
+<p>The explicit <span class="math inline">1/T</span> comes from the fact that the logits are first divided by <span class="math inline">T</span>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-45">34. Why does the chapter mention <span class="math inline">1/T^2</span>?</h3>
+<p>This is the next extremely important idea.</p>
+<p>The soft distillation loss compares:</p>
+<div class="math block">
+P_T(T)
+</div>
+<p>and:</p>
+<div class="math block">
+P_S(T).
+</div>
+<p>At large <span class="math inline">T</span>, both distributions become flatter.</p>
+<p>Therefore:</p>
+<div class="math block">
+P_S(T)-P_T(T)
+</div>
+<p>also becomes smaller.</p>
+<p>At the same time, the chain rule contributes an explicit:</p>
+<div class="math block">
+\frac1T.
+</div>
+<p>So the gradient magnitude becomes approximately:</p>
+<div class="math block">
+\boxed{
+\frac1{T^2}
+}
+</div>
+<p>relative to the corresponding <span class="math inline">T=1</span>-scale.</p>
+<p>The chapter explicitly derives this point and states that the difference between the soft distributions itself shrinks with <span class="math inline">T</span>, giving another <span class="math inline">1/T</span> factor. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-46">35. Why this creates a problem</h3>
+<p>Suppose:</p>
+<div class="math block">
+T=3.
+</div>
+<p>Then:</p>
+<div class="math block">
+T^2=9.
+</div>
+<p>Without correction, the soft-target gradient would become much smaller.</p>
+<p>If:</p>
+<div class="math block">
+T=10,
+</div>
+<p>then:</p>
+<div class="math block">
+T^2=100.
+</div>
+<p>The soft loss's gradient becomes dramatically weaker.</p>
+<p>That would be disastrous because we deliberately increased <span class="math inline">T</span> to reveal useful information.</p>
+<p>So we need compensation.</p>
+<p>That brings us directly to the next step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-47">36. The <span class="math inline">T^2</span> correction</h3>
+<p>The classical distillation soft loss is therefore multiplied by:</p>
+<div class="math block">
+\boxed{T^2}.
+</div>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+L_{\text{soft, corrected}}
+=
+T^2
+D_{KL}(P_T^T\|P_S^T)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+P_T^T
+=
+\operatorname{softmax}(z_T/T)
+</div>
+<p>and:</p>
+<div class="math block">
+P_S^T
+=
+\operatorname{softmax}(z_S/T).
+</div>
+<p>The purpose is <strong>not</strong> to change the teacher distribution again.</p>
+<p>The purpose is:</p>
+<div class="math block">
+\boxed{
+\text{restore the soft-loss gradient magnitude}
+}
+</div>
+<p>after temperature softening.</p>
+<p>The chapter explicitly explains this <span class="math inline">T^2</span> compensation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-48">37. Numerical understanding of <span class="math inline">T^2</span></h3>
+<p>Suppose:</p>
+<div class="math block">
+T=3
+</div>
+<p>and:</p>
+<div class="math block">
+D_{KL}=0.0199.
+</div>
+<p>Then:</p>
+<div class="math block">
+T^2D_{KL}
+=
+9(0.0199)
+</div>
+<div class="math block">
+=
+\boxed{0.1791}.
+</div>
+<p>The supplied chapter gives approximately:</p>
+<div class="math block">
+\boxed{0.179}
+</div>
+<p>for its example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the soft loss is:</p>
+<div class="math block">
+\boxed{0.179}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-49">38. This is a crucial distinction</h3>
+<p>Temperature has <strong>two linked effects</strong>:</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-50">Forward effect</h5>
+<div class="math block">
+\boxed{
+T\uparrow
+\Rightarrow
+\text{softer distribution}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-51">Backward compensation</h5>
+<div class="math block">
+\boxed{
+T\uparrow
+\Rightarrow
+\text{soft gradient shrinks}
+\Rightarrow
+\times T^2
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{temperature controls information exposure}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+T^2\text{ keeps its optimization influence useful}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-52">39. Complete mental model for <span class="math inline">T</span></h3>
+<p>Think of a three-step machine:</p>
+<div class="math block">
+\boxed{
+z
+}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-53">1. Divide by <span class="math inline">T</span></h5>
+<div class="math block">
+\boxed{
+z/T
+}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-54">2. Softmax</h5>
+<div class="math block">
+\boxed{
+P_T
+}
+</div>
+<p>↓</p>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-55">3. KL divergence</h5>
+<p>Compare teacher and student.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\times T^2
+}
+</div>
+<p>to compensate for the weaker gradients.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-56">40. The one diagram to remember</h3>
+<pre><code class="language-text">Teacher logits zT                    Student logits zS
+       |                                     |
+       | /T                                  | /T
+       ▼                                     ▼
+Teacher soft targets                    Student soft targets
+       |                                     |
+       └───────────────┬─────────────────────┘
+                       ▼
+                    KL divergence
+                       |
+                       ▼
+                     × T²
+                       |
+                       ▼
+                 Soft distillation
+                     loss
+</code></pre>
+<p>And separately:</p>
+<pre><code class="language-text">Student logits
+      |
+      └──────────────► hard CE loss (T=1)
+</code></pre>
+<p>These two branches will soon be combined.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-57">41. Important source distinction</h3>
+<p>The chapter's <strong>classical knowledge distillation</strong> uses temperature-scaled soft targets and KL divergence. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>But:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 Distill}
+}
+</div>
+<p>does <strong>not</strong> use this classical soft-logit procedure.</p>
+<p>DeepSeek's distilled models use teacher-generated reasoning traces and ordinary SFT instead. There is:</p>
+<div class="math block">
+\boxed{\text{no temperature scaling}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{no KL divergence}}
+</div>
+<p>in that specific R1 distillation approach. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So everything in this step is specifically the <strong>classical soft-distillation machinery</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-58">42. Master formula sheet — Step 4.2</h3>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-59">Temperature softmax</h5>
+<div class="math block">
+\boxed{
+q_i(T)=
+\frac{e^{z_i/T}}
+{\sum_j e^{z_j/T}}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-60">Relative probability</h5>
+<div class="math block">
+\boxed{
+\frac{q_i}{q_j}
+=
+e^{(z_i-z_j)/T}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-61">Log-odds</h5>
+<div class="math block">
+\boxed{
+\log\frac{q_i}{q_j}
+=
+\frac{z_i-z_j}{T}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-62"><span class="math inline">T\to0^+</span></h5>
+<div class="math block">
+\boxed{
+q\rightarrow\text{one-hot at argmax}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-63"><span class="math inline">T=1</span></h5>
+<div class="math block">
+\boxed{
+q=\operatorname{softmax}(z)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-64"><span class="math inline">T\to\infty</span></h5>
+<div class="math block">
+\boxed{
+q\rightarrow[1/K,\ldots,1/K]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-65">Soft distillation loss</h5>
+<div class="math block">
+\boxed{
+L_{\text{soft}}
+=
+T^2D_{KL}(P_T^T\|P_S^T)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-66">KL</h5>
+<div class="math block">
+\boxed{
+D_{KL}(P_T\|P_S)
+=
+\sum_iP_T(i)
+\log
+\frac{P_T(i)}{P_S(i)}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-67">43. Exam traps for this step</h3>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-68">Trap 1</h5>
+<p>“Higher <span class="math inline">T</span> changes the teacher's top class.”</p>
+<div class="math block">
+\boxed{\text{False}}
+</div>
+<p>Ranking stays unchanged for <span class="math inline">T&gt;0</span>.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-2-i34-69">Trap 2</h5>
+<p>“Temperature adds information.”</p>
+<div class="math block">
+\boxed{\text{False}}
+</div>
+<p>It makes existing information in the logits easier to observe through the probability distribution.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-2-i34-70">Trap 3</h5>
+<p>“<span class="math inline">T=10</span> is always better because it reveals more information.”</p>
+<div class="math block">
+\boxed{\text{False}}
+</div>
+<p>At very high <span class="math inline">T</span>, the distribution approaches uniformity.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-2-i34-71">Trap 4</h5>
+<p>“<span class="math inline">T^2</span> makes the teacher distribution softer.”</p>
+<div class="math block">
+\boxed{\text{False}}
+</div>
+<p>Division by <span class="math inline">T</span> softens the distribution.</p>
+<p>Multiplication by <span class="math inline">T^2</span> compensates the gradient magnitude of the soft-loss term.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-4-2-i34-72">Trap 5</h5>
+<p>“DeepSeek-R1 distilled models use temperature-scaled KL distillation.”</p>
+<div class="math block">
+\boxed{\text{False}}
+</div>
+<p>The supplied chapter explicitly distinguishes R1's text-based SFT distillation from classical KD. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-73">44. Cumulative numerical bank</h3>
+<p>You now need to be comfortable with all of these:</p>
+<div class="math block">
+z=[5,3,1,-1].
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-74"><span class="math inline">T=1</span></h5>
+<div class="math block">
+\boxed{
+[0.865,0.117,0.016,0.002]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-75"><span class="math inline">T=3</span></h5>
+<div class="math block">
+\boxed{
+[0.523,0.268,0.138,0.071]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-76"><span class="math inline">T=10</span></h5>
+<div class="math block">
+\boxed{
+[0.329,0.270,0.221,0.181]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-77"><span class="math inline">T\to\infty</span></h5>
+<div class="math block">
+\boxed{
+[0.25,0.25,0.25,0.25]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-78"><span class="math inline">T^2</span> at <span class="math inline">T=3</span></h5>
+<div class="math block">
+\boxed9
+</div>
+<h5 id="v3-heading-chunk-les-step-4-2-i34-79">If</h5>
+<div class="math block">
+KL=0.0199
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+T^2KL=9(0.0199)\approx0.179
+}
+</div>
+<p>which matches the supplied numerical example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-2-i34-80">45. The complete conceptual chain so far</h3>
+<p>We started with:</p>
+<div class="math block">
+\boxed{
+\text{hard label}
+=
+[1,0,0,\ldots]
+}
+</div>
+<p>which carries limited relational information.</p>
+<p>Then teacher softmax at <span class="math inline">T=1</span>:</p>
+<div class="math block">
+\boxed{
+\text{too peaked}
+}
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+z/T,\quad T&gt;1
+}
+</div>
+<p>produces:</p>
+<div class="math block">
+\boxed{
+\text{soft targets}
+}
+</div>
+<p>which reveal:</p>
+<div class="math block">
+\boxed{
+\text{dark knowledge}
+}
+</div>
+<p>Then we compare:</p>
+<div class="math block">
+P_T^T
+</div>
+<p>with:</p>
+<div class="math block">
+P_S^T
+</div>
+<p>using:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P_T^T\|P_S^T)
+}
+</div>
+<p>but because the gradient shrinks approximately as:</p>
+<div class="math block">
+\frac1{T^2},
+</div>
+<p>we compensate with:</p>
+<div class="math block">
+\boxed{T^2}.
+</div>
+<hr />
+</section>

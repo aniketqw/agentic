@@ -1,0 +1,811 @@
+<section class="chunk" id="chunk-les-step-5-48-1e-i94" data-id="les-step-5-48-1e-i94"><details class="audit-card" id="audit-A07" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A07 — Speculative sampling acceptance and residual correction</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>A cheaper draft may propose tokens, while a target model retains the declared output distribution.</p><p><strong>Prerequisites:</strong> <a href="#audit-A04">MTP teacher forcing and target alignment</a>, <a href="#audit-D10">Sampling order and inverse-CDF bins</a></p><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-1">Notation and assumptions</h4><p>One-step categorical target p,proposal q. Accept proposed outcome i with min(1,p_i/q_i). On rejection sample normalized positive part of p-q.</p><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-2">Derivation and mechanism</h4><ol><li>Proposal-weighted accepted mass at outcome i is min(p_i,q_i).</li><li>Total rejection mass is1-sum minima.</li><li>Distribute rejection according to normalized max(p-q,0); add both paths to recover p.</li></ol><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-3">Worked example</h4><p>p=[.2,.8],q=[.7,.3]:accepted masses[.2,.3],total.5. Residual[0,.5] sends rejected mass to outcome1; final distribution[.2,.8]. Equal p and q accept every proposal.</p><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-4">Limitations</h4><ul><li>Greedy verification is a distinct deterministic algorithm.</li><li>This one-step identity does not measure speedup or implement a full multi-token rollback/cache engine.</li></ul><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-5">Connections to later concepts</h4><ul><li>A04 supplies candidate future tokens, while D10 defines the target sampling distribution to be preserved by acceptance/rejection.</li></ul><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-6">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 264, 265 · §5.2.4 motivation</li><li><a href="https://arxiv.org/abs/2211.17192" rel="noopener noreferrer">Speculative decoding rejection construction</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-48-1e-i94-7">Executed code and evidence</h4><p>Functions: speculative_distribution. Passed checks: Speculative-accept, Speculative-corrected, Speculative-equal</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-48-1e-i94"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-48-1e-i94" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-48-1d-i93">← Previous lesson</a> · <a href="#chunk-les-step-5-49-i95">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-48-1d-i93">Step 5.48.1D — Teacher Forcing, Target Alignment, and the Exact Indexing</a></p><p><strong>This lesson:</strong> Step 5.48.1E — MTP During Inference and Speculative Decoding</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-48-1e-i94"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-48-1e-i94-8">Step 5.48.1E — MTP During Inference and Speculative Decoding</h3>
+<p><em>Plan node: A3 · chat order #94</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a> · <a href="#les-step-2-5-i25">Step 2.5 — Putting the Decoding Strategies Together</a></p>
+</blockquote>
+<p>We now make one of the most important separations in the entire MTP topic:</p>
+<div class="math block">
+\boxed{
+\text{MTP training}
+\neq
+\text{normal inference}
+}
+</div>
+<p>This matters because the MTP architecture uses <strong>ground-truth future-token embeddings during training</strong>, but during ordinary generation those future ground-truth tokens do not exist.</p>
+<p>The DeepSeek book explicitly provides separate training and inference paths and explains that the public inference setup uses standard single-token prediction, while MTP modules can be repurposed for speculative decoding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-9">5.48.1E.1 First: what happens during normal inference?</h4>
+<p>Suppose the model has already generated:</p>
+<div class="math block">
+[\text{The},\text{next},\text{day}]
+</div>
+<p>and now needs the next token.</p>
+<p>The normal autoregressive loop is:</p>
+<div class="math block">
+x_1,x_2,x_3
+\rightarrow
+\boxed{\text{predict }x_4}
+</div>
+<p>then:</p>
+<div class="math block">
+x_1,x_2,x_3,x_4
+\rightarrow
+\boxed{\text{predict }x_5}
+</div>
+<p>then:</p>
+<div class="math block">
+x_1,x_2,x_3,x_4,x_5
+\rightarrow
+\boxed{\text{predict }x_6}.
+</div>
+<p>The problem is that this is inherently sequential.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-10">5.48.1E.2 KV cache helps, but does not change the one-token loop</h4>
+<p>From our earlier chapter:</p>
+<div class="math block">
+\boxed{\text{KV Cache}}
+</div>
+<p>prevents us from recomputing the historical keys and values.</p>
+<p>So instead of recomputing the whole history, the new token uses the cached historical information.</p>
+<p>The source's inference path explicitly uses <code>past_kv_cache</code>, computes a position offset, runs the Transformer blocks, and then takes only the final position's logits:</p>
+<pre><code class="language-python">logits = self.lm_head(x[:, [-1], :])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{KV cache}
+\rightarrow
+\text{less redundant computation}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{one generated token}
+\rightarrow
+\text{one main-model generation step}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-11">5.48.1E.3 Why is that still slow?</h4>
+<p>Suppose you need:</p>
+<div class="math block">
+10
+</div>
+<p>new tokens.</p>
+<p>A conventional autoregressive generator essentially performs:</p>
+<div class="math block">
+\boxed{
+10\text{ sequential model steps}.
+}
+</div>
+<p>Even though the KV cache makes each step much cheaper than recomputing the whole prefix, the model still has to repeatedly move through the generation loop.</p>
+<p>This is the bottleneck that speculative decoding tries to attack.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-12">5.48.1E.4 The basic idea of speculative decoding</h4>
+<p>The source describes speculative decoding in two conceptual stages:</p>
+<div class="math block">
+\boxed{\text{Draft}}
+</div>
+<p>followed by:</p>
+<div class="math block">
+\boxed{\text{Verification}}.
+</div>
+<p>Instead of asking the expensive main model for:</p>
+<div class="math block">
+1\text{ token}
+</div>
+<p>at a time, we first generate a <strong>chunk of candidate tokens</strong> cheaply.</p>
+<p>Then the main model checks them.</p>
+<p>The source describes this as:</p>
+<ol>
+<li>a small/fast draft model or MTP head generates several candidate tokens,</li>
+<li>the main model processes the chunk in one forward pass and verifies them. <em>(Source: Build a DeepSeek Model (From Scratch))</em></li>
+</ol>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-13">5.48.1E.5 Why MTP fits naturally into this</h4>
+<p>MTP was trained specifically to reason over:</p>
+<div class="math block">
+t+1,t+2,\ldots,t+D.
+</div>
+<p>So instead of throwing away those extra prediction heads, we can use them as a <strong>drafting mechanism</strong>.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{MTP modules}
+\rightarrow
+\text{draft future tokens}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{main model}
+\rightarrow
+\text{verify draft}.
+}
+</div>
+<p>The source explicitly says the MTP heads can serve as the draft model in speculative decoding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-14">5.48.1E.6 Simple example</h4>
+<p>Suppose the current context is:</p>
+<pre><code class="language-text">The next day
+</code></pre>
+<p>The MTP mechanism might draft:</p>
+<pre><code class="language-text">is bright and
+</code></pre>
+<p>So the draft is:</p>
+<div class="math block">
+[\hat{x}_{t+1},\hat{x}_{t+2},\hat{x}_{t+3}]
+</div>
+<p>where the hats indicate <strong>candidate predictions</strong>, not guaranteed correct tokens.</p>
+<p>Then the main model verifies this chunk.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-15">5.48.1E.7 Standard generation vs speculative generation</h4>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-16">Standard</h6>
+<pre><code class="language-text">Context
+  │
+  ▼
+Main model
+  │
+  ▼
+Token 1
+  │
+  ▼
+Main model
+  │
+  ▼
+Token 2
+  │
+  ▼
+Main model
+  │
+  ▼
+Token 3
+</code></pre>
+<p>Three sequential main-model steps.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-17">Speculative</h6>
+<pre><code class="language-text">Context
+  │
+  ▼
+Fast draft / MTP
+  │
+  ├──► Token 1 candidate
+  ├──► Token 2 candidate
+  └──► Token 3 candidate
+            │
+            ▼
+       Main model
+       verification
+            │
+            ▼
+       accepted tokens
+</code></pre>
+<p>The key goal is:</p>
+<div class="math block">
+\boxed{
+\text{replace several expensive sequential steps with fewer expensive verification steps}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-18">5.48.1E.8 Why can one verification pass check several tokens?</h4>
+<p>A Transformer can process a <strong>sequence of tokens in parallel during a forward pass</strong>.</p>
+<p>This is something we already saw in training.</p>
+<p>For a candidate chunk:</p>
+<div class="math block">
+[x_{t+1},x_{t+2},x_{t+3}],
+</div>
+<p>the main model can process the sequence together under causal masking.</p>
+<p>So one expensive forward computation can evaluate multiple candidate positions.</p>
+<p>This is the basic computational opportunity exploited by speculative decoding, as described in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-19">5.48.1E.9 What does “verify” actually mean?</h4>
+<p>At the highest level:</p>
+<div class="math block">
+\boxed{
+\text{check whether the main model agrees sufficiently with the draft}.
+}
+</div>
+<p>For example, suppose the draft produces:</p>
+<div class="math block">
+[A,B,C].
+</div>
+<p>The main model evaluates the candidate continuation.</p>
+<p>Suppose it agrees with:</p>
+<div class="math block">
+A
+</div>
+<p>and:</p>
+<div class="math block">
+B
+</div>
+<p>but disagrees on:</p>
+<div class="math block">
+C.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+A,B\text{ can be accepted}
+}
+</div>
+<p>and generation continues from the first disagreement.</p>
+<p>The exact probabilistic acceptance/rejection rule used by a production speculative-decoding algorithm is <strong>not derived in the MTP section of the source</strong>. The source provides the high-level drafting-and-verification idea, not the complete accept/reject probability derivation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That distinction is important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-20">5.48.1E.10 The source's stated benefit</h4>
+<p>The book states that speculative decoding can produce:</p>
+<div class="math block">
+\boxed{\text{significantly faster inference}}
+</div>
+<p>and reports observed speedups of <strong>up to 3× on certain tasks</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This should be interpreted as a source-reported empirical result, not as a universal 3× guarantee.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{up to 3×}
+\neq
+\text{always 3×}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-21">5.48.1E.11 Why the speedup is not guaranteed</h4>
+<p>Suppose the draft is poor.</p>
+<p>Then:</p>
+<pre><code class="language-text">Draft:
+A B C D E
+</code></pre>
+<p>but the main model rejects most of them.</p>
+<p>You spend computation drafting tokens that are not accepted.</p>
+<p>So speculative decoding works best when:</p>
+<div class="math block">
+\boxed{
+\text{draft model is cheap}
++
+\text{draft predictions are often correct}.
+}
+</div>
+<p>This is general speculative-decoding reasoning; the source's key point is that the main model can verify a drafted chunk in a single forward pass. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-22">5.48.1E.12 Why is MTP an interesting draft mechanism?</h4>
+<p>Normally, speculative decoding uses a separate smaller draft model.</p>
+<p>For example:</p>
+<div class="math block">
+\boxed{
+\text{Large model}
+\leftarrow
+\text{Small model}
+}
+</div>
+<p>The small model proposes:</p>
+<div class="math block">
+t_{t+1},t_{t+2},t_{t+3}.
+</div>
+<p>But MTP gives the large model itself an additional future-prediction mechanism.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{same model's MTP modules}
+}
+</div>
+<p>can provide the draft candidates.</p>
+<p>That can avoid the need for a completely separate external draft model, at least conceptually.</p>
+<p>The source specifically highlights this reuse of MTP heads. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-23">5.48.1E.13 Now an extremely important DeepSeek detail</h4>
+<p>The book states that the MTP benefit was used primarily during <strong>pre-training</strong> for:</p>
+<div class="math block">
+\boxed{
+\text{denser training signals}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{better planning}.
+}
+</div>
+<p>For the public release, inference used:</p>
+<div class="math block">
+\boxed{
+\text{standard single-token prediction}
+}
+</div>
+<p>with the MTP modules discarded.</p>
+<p>The source nevertheless says these modules can be repurposed for speculative decoding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{MTP was not necessarily active in normal public generation}.
+}
+</div>
+<p>That distinction is very easy to miss.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-24">5.48.1E.14 Training vs inference table</h4>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>MTP training</th>
+<th>Ordinary inference</th>
+<th>Speculative use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Main Transformer</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>MTP modules</td>
+<td>Yes</td>
+<td>Not used in source's standard path</td>
+<td>Used as draft mechanism</td>
+</tr>
+<tr>
+<td>Ground-truth future embeddings</td>
+<td>Yes</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr>
+<td>KV cache</td>
+<td>Training path does not use it</td>
+<td>Yes</td>
+<td>Yes for main model</td>
+</tr>
+<tr>
+<td>Number of future predictions</td>
+<td>Multiple</td>
+<td>One next token</td>
+<td>Multiple draft candidates</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Better training signal</td>
+<td>Generate answer</td>
+<td>Accelerate generation</td>
+</tr>
+</tbody>
+</table>
+<p>The source explicitly separates training and inference in the Mini-DeepSeek implementation and discusses speculative decoding as a reuse of MTP. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-25">5.48.1E.15 Why can't ordinary inference use the same MTP training input?</h4>
+<p>Because during training we had:</p>
+<div class="math block">
+E(t_{i+k})
+</div>
+<p>where <span class="math inline">t_{i+k}</span> is the <strong>ground-truth future token</strong>.</p>
+<p>During inference:</p>
+<div class="math block">
+\boxed{
+t_{i+k}\text{ is unknown}.
+}
+</div>
+<p>So we cannot simply execute:</p>
+<div class="math block">
+h^{k-1}+E(t_{i+k})
+</div>
+<p>because:</p>
+<div class="math block">
+t_{i+k}
+</div>
+<p>does not yet exist.</p>
+<p>Instead, an inference-time MTP/speculative mechanism must obtain candidate future tokens from the model itself or another draft process.</p>
+<p>That is why training and inference architectures cannot simply be treated as identical loops.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-26">5.48.1E.16 The conceptual transition</h4>
+<p>Training:</p>
+<div class="math block">
+\boxed{
+\text{ground-truth future token}
+\rightarrow
+\text{embedding}
+\rightarrow
+MTP
+}
+</div>
+<p>Inference/speculation:</p>
+<div class="math block">
+\boxed{
+\text{draft prediction}
+\rightarrow
+\text{candidate future token}
+\rightarrow
+\text{draft continuation}
+}
+</div>
+<p>The second flow is conceptually different.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-27">5.48.1E.17 Example with <span class="math inline">D=3</span></h4>
+<p>Suppose current context is:</p>
+<div class="math block">
+C.
+</div>
+<p>MTP/draft proposes:</p>
+<div class="math block">
+\hat{x}_1,\hat{x}_2,\hat{x}_3.
+</div>
+<p>Then the main model verifies:</p>
+<div class="math block">
+P(x_1\mid C)
+</div>
+<div class="math block">
+P(x_2\mid C,\hat{x}_1)
+</div>
+<div class="math block">
+P(x_3\mid C,\hat{x}_1,\hat{x}_2).
+</div>
+<p>Notice something beautiful here:</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-28">The draft proposes</h6>
+<div class="math block">
+\hat{x}_1,\hat{x}_2,\hat{x}_3.
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-29">The main model checks</h6>
+<div class="math block">
+\hat{x}_1,\hat{x}_2,\hat{x}_3
+</div>
+<p>under its own autoregressive distribution.</p>
+<p>So the main model retains the final authority.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-30">5.48.1E.18 Why this can reduce the number of expensive passes</h4>
+<p>Suppose we want 4 new tokens.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-31">Normal generation</h6>
+<p>Approximately:</p>
+<div class="math block">
+4
+</div>
+<p>main-model steps.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-32">Speculative generation</h6>
+<p>Suppose one draft round proposes:</p>
+<div class="math block">
+4
+</div>
+<p>tokens.</p>
+<p>If all 4 are accepted after one verification operation, the expensive main model may only need approximately:</p>
+<div class="math block">
+1
+</div>
+<p>verification-style forward pass for that chunk, plus whatever extra steps are required by the implementation.</p>
+<p>So idealized:</p>
+<div class="math block">
+4\text{ expensive sequential steps}
+</div>
+<p>can become roughly:</p>
+<div class="math block">
+1\text{ expensive verification step}
+</div>
+<p>for that chunk.</p>
+<p>That is the source's underlying speed intuition. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-33">5.48.1E.19 But don't say “4× speedup”</h4>
+<p>Why not?</p>
+<p>Because the draft generation is not free.</p>
+<p>And:</p>
+<ul>
+<li>some candidates may be rejected,</li>
+<li>verification has cost,</li>
+<li>synchronization has cost,</li>
+<li>implementation details matter.</li>
+</ul>
+<p>Therefore actual speedup is:</p>
+<div class="math block">
+\boxed{
+\text{work saved by verification parallelism}
+-
+\text{draft + verification overhead}.
+}
+</div>
+<p>The source reports up to 3× on certain tasks rather than claiming an ideal <span class="math inline">D\times</span> speedup. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-34">5.48.1E.20 Exam-style numerical</h4>
+<p>Suppose a normal generator needs:</p>
+<div class="math block">
+12
+</div>
+<p>main-model decoding steps.</p>
+<p>Suppose speculative decoding uses groups of:</p>
+<div class="math block">
+D=3
+</div>
+<p>candidate tokens.</p>
+<p>Assume, ideally, all three candidates are accepted in every round and one main-model verification pass handles each group.</p>
+<p>Then approximately:</p>
+<div class="math block">
+12/3=4
+</div>
+<p>verification rounds.</p>
+<p>So the number of expensive main-model rounds changes from:</p>
+<div class="math block">
+12
+\rightarrow
+4.
+</div>
+<p>Idealized reduction:</p>
+<div class="math block">
+\boxed{
+66.7\%
+}
+</div>
+<p>in the number of main-model rounds.</p>
+<p>But this is <strong>not</strong> the same as a 3× wall-clock speedup because drafting and verification overhead remain.</p>
+<p>This is a derived idealized numerical example, not a measured DeepSeek result.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-35">5.48.1E.21 Another numerical: partial acceptance</h4>
+<p>Suppose the draft proposes:</p>
+<div class="math block">
+[A,B,C].
+</div>
+<p>The main model accepts:</p>
+<div class="math block">
+A,B
+</div>
+<p>but rejects:</p>
+<div class="math block">
+C.
+</div>
+<p>Then the useful accepted tokens are:</p>
+<div class="math block">
+\boxed{2}
+</div>
+<p>from one draft batch of 3.</p>
+<p>Acceptance ratio:</p>
+<div class="math block">
+\frac{2}{3}
+=
+\boxed{66.7\%}.
+</div>
+<p>The next generation step must recover from the rejected position according to the specific speculative-decoding algorithm.</p>
+<p>Again, the source does not provide the exact production acceptance formula, so this is an illustrative example of the source's draft/verification concept.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-36">5.48.1E.22 Connect this back to MTP depth</h4>
+<p>MTP depth:</p>
+<div class="math block">
+D
+</div>
+<p>controls how far into the future the model is trained to forecast.</p>
+<p>A larger <span class="math inline">D</span> means:</p>
+<div class="math block">
+\boxed{
+\text{longer future horizon}.
+}
+</div>
+<p>For example:</p>
+<div class="math block">
+D=1
+\rightarrow
+1\text{-step}
+</div>
+<div class="math block">
+D=3
+\rightarrow
+3\text{-step}
+</div>
+<div class="math block">
+D=5
+\rightarrow
+5\text{-step}.
+</div>
+<p>But a larger horizon also means:</p>
+<ul>
+<li>more MTP module computation,</li>
+<li>more parameters if modules are distinct,</li>
+<li>longer causal chains.</li>
+</ul>
+<p>So <span class="math inline">D</span> is a design trade-off.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-37">5.48.1E.23 A useful conceptual distinction</h4>
+<p>There are now <strong>three separate meanings of “future prediction”</strong> in our discussion:</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-38">Training objective</h6>
+<div class="math block">
+\boxed{
+\text{Predict future tokens to create richer supervision}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-39">Hidden-state mechanism</h6>
+<div class="math block">
+\boxed{
+\text{Refine representations sequentially across future depth}.
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-40">Speculative inference</h6>
+<div class="math block">
+\boxed{
+\text{Use future predictions as draft candidates}.
+}
+</div>
+<p>These are related, but not identical.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-41">5.48.1E.24 Put the entire MTP story together</h4>
+<p>We started with:</p>
+<div class="math block">
+\boxed{
+\text{ordinary NTP}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+t_i\rightarrow t_{i+1}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{MTP}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+t_i\rightarrow
+t_{i+1},t_{i+2},...,t_{i+D}.
+</div>
+<p>Then DeepSeek changes independent prediction heads into a causal chain:</p>
+<div class="math block">
+\boxed{
+h^0\rightarrow h^1\rightarrow h^2\rightarrow\cdots\rightarrow h^D.
+}
+</div>
+<p>Each depth produces:</p>
+<div class="math block">
+\boxed{
+L_1,L_2,\ldots,L_D.
+}
+</div>
+<p>And the complete training objective is:</p>
+<div class="math block">
+\boxed{
+L=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\sum_{k=1}^{D}L_k.
+}
+</div>
+<p>Finally, those MTP modules can potentially be reused as a speculative draft mechanism:</p>
+<div class="math block">
+\boxed{
+\text{MTP draft}
+\rightarrow
+\text{main-model verification}
+\rightarrow
+\text{accepted continuation}.
+}
+</div>
+<p>The source presents exactly this progression from multi-token training to causal MTP and then to speculative-decoding reuse. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-42">5.48.1E.25 One extremely important exam distinction</h4>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-43">Question:</h6>
+<p><strong>“Does DeepSeek's standard inference necessarily run all MTP modules?”</strong></p>
+<p>According to the source's described public inference setup:</p>
+<div class="math block">
+\boxed{\text{No.}}
+</div>
+<p>The source says the public release used standard single-token prediction and discarded the MTP modules for inference, while noting that MTP modules could be repurposed for speculative decoding. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-44">5.48.1E.26 Another exam question</h4>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-45">Question:</h6>
+<p>Why can MTP help inference even though its primary benefit is training?</p>
+<p>Because its learned future-prediction machinery can potentially act as a <strong>drafting mechanism</strong> for speculative decoding.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{MTP}
+\rightarrow
+\text{training benefits}
+}
+</div>
+<p>and potentially:</p>
+<div class="math block">
+\boxed{
+\text{MTP}
+\rightarrow
+\text{drafting for faster inference}.
+}
+</div>
+<p>The source explicitly presents this as a dual benefit. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-46">5.48.1E.27 MTP vs KV Cache</h4>
+<p>This is another important connection to the previous chapters.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-47">KV Cache</h6>
+<p>Solves:</p>
+<div class="math block">
+\boxed{
+\text{redundant historical computation}
+}
+</div>
+<p>by reusing cached keys and values.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-48">MTP</h6>
+<p>Solves:</p>
+<div class="math block">
+\boxed{
+\text{limited future-prediction supervision}
+}
+</div>
+<p>during training.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1e-i94-49">Speculative decoding</h6>
+<p>Uses:</p>
+<div class="math block">
+\boxed{
+\text{multiple candidate predictions}
+}
+</div>
+<p>to reduce expensive autoregressive generation steps.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{KV Cache and MTP attack different bottlenecks}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-50">5.48.1E.28 The complete DeepSeek optimization picture so far</h4>
+<p>We can now connect three major ideas:</p>
+<div class="math block">
+\boxed{\text{MLA}}
+</div>
+<p>reduces:</p>
+<div class="math block">
+\text{KV cache memory}.
+</div>
+<div class="math block">
+\boxed{\text{MoE}}
+</div>
+<p>reduces:</p>
+<div class="math block">
+\text{active FFN computation per token relative to total capacity}.
+</div>
+<div class="math block">
+\boxed{\text{MTP}}
+</div>
+<p>improves:</p>
+<div class="math block">
+\text{training signal density}
+</div>
+<p>and can potentially assist:</p>
+<div class="math block">
+\text{speculative inference}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{\text{FP8}}
+</div>
+<p>which is the next topic in the source, attacks:</p>
+<div class="math block">
+\text{numerical representation / training memory / compute efficiency}.
+</div>
+<p>That brings us to the next major section of the DeepSeek book.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1e-i94-51">Step 5.48.1E checkpoint</h4>
+<p>You should now have this mental hierarchy:</p>
+<pre><code class="language-text">                  MTP
+                   │
+        ┌──────────┴──────────┐
+        │                     │
+     TRAINING              INFERENCE
+        │                     │
+ future supervision      speculative draft
+        │                     │
+ h⁰→h¹→h²→...          candidate tokens
+        │                     │
+ L1+L2+...+LD          main-model verification
+</code></pre>
+<p>And the central distinction is:</p>
+<div class="math block">
+\boxed{
+\text{During training: ground-truth future embeddings are available.}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{During normal inference: future tokens are unknown.}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{MTP can instead be repurposed for speculative drafting.}
+}
+</div>
+<p>The DeepSeek source explicitly says its standard public inference used single-token prediction, while speculative decoding is a possible reuse of the MTP modules. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

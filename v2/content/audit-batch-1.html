@@ -1,0 +1,255 @@
+<section class="chunk audit-hub" id="audit-batch-1" data-audit="added"><h2>Implementation checkpoint 1 — Foundations and Transformers</h2><p><strong>24 new teaching capsules · 41 independent checks passed.</strong> This is the first implementation batch. The complete inherited course still needs its claim-by-claim audit. Checked examples, source support, reading progress, and full-course completeness are different records.</p><p>The capsules cover shared foundations and core Transformer mechanics. A capsule does not exhaust every topic in its host lesson: tokenization/BPE, RMSNorm/SwiGLU/RoPE, complete training code, and all later course families remain in the queue.</p><p>Use the route below to follow prerequisite order. Original lesson order, text, formulas, code and figures remain available.</p><ol><li><a href="#audit-F01">Matrix multiplication and shape contracts</a></li><li><a href="#audit-F02">Transpose versus reshape</a></li><li><a href="#audit-F03">Stable softmax and log-softmax</a></li><li><a href="#audit-F04">Conditional sequence probability and log likelihood</a></li><li><a href="#audit-F05">Entropy, cross-entropy, KL, and support</a></li><li><a href="#audit-F06">Chain rule and scalar gradients</a></li><li><a href="#audit-F07">Expectation and population variance</a></li><li><a href="#audit-F08">Matrix gradients from a scalar loss</a></li><li><a href="#audit-F09">A gradient-descent step and its limits</a></li><li><a href="#audit-F10">Softmax Jacobian and the CE logit gradient</a></li><li><a href="#audit-T01">Shifted next-token targets and masked loss</a></li><li><a href="#audit-T02">Embedding lookup and one-hot equivalence</a></li><li><a href="#audit-T03">Three projections: Q, K, and V</a></li><li><a href="#audit-T04">Scores to attention weights to output</a></li><li><a href="#audit-T05">Causal masks and future-token isolation</a></li><li><a href="#audit-T06">Why scale by the square root of key width?</a></li><li><a href="#audit-T07">Position and the limits of permutation arguments</a></li><li><a href="#audit-T08">LayerNorm: variance, epsilon, and affine parameters</a></li><li><a href="#audit-T09">Residual updates and the identity gradient path</a></li><li><a href="#audit-T10">Positionwise MLP and GELU variants</a></li><li><a href="#audit-T11">Multiple heads: split, attend, concatenate, project</a></li><li><a href="#audit-T12">A complete pre-norm causal block</a></li><li><a href="#audit-T13">Unembedding and the vocabulary axis</a></li><li><a href="#audit-T14">Attention dropout is not another normalized probability row</a></li></ol><h3 id="v3-heading-audit-batch-1-1">A complete attention numerical from the supplied slides</h3><p>The actual matrices on transformers-slides(1).pdf pp. 11–12 were visually inspected, then independently recomputed. Tables below retain greater precision than the rounded slide display. Rounded probability rows may sum to 0.999 or 1.001; the unrounded computation is normalized.</p><table class="audit-matrix"><caption>Input X</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td><td>1</td></tr><tr><th scope="row">2</th><td>0</td><td>1</td><td>1</td></tr><tr><th scope="row">3</th><td>1</td><td>1</td><td>0</td></tr></tbody></table><table class="audit-matrix"><caption>Q projection</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>2</td><td>1</td><td>1</td></tr><tr><th scope="row">2</th><td>1</td><td>2</td><td>1</td></tr><tr><th scope="row">3</th><td>1</td><td>1</td><td>0</td></tr></tbody></table><table class="audit-matrix"><caption>K projection</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>2</td><td>1</td></tr><tr><th scope="row">2</th><td>1</td><td>1</td><td>2</td></tr><tr><th scope="row">3</th><td>2</td><td>1</td><td>1</td></tr></tbody></table><table class="audit-matrix"><caption>V projection</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>2</td><td>-1</td><td>1</td></tr><tr><th scope="row">2</th><td>1</td><td>0</td><td>1</td></tr><tr><th scope="row">3</th><td>1</td><td>1</td><td>0</td></tr></tbody></table><table class="audit-matrix"><caption>Causal attention scores</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>2.88675135</td><td>2.88675135</td><td>3.46410162</td></tr><tr><th scope="row">2</th><td>3.46410162</td><td>2.88675135</td><td>2.88675135</td></tr><tr><th scope="row">3</th><td>1.73205081</td><td>1.15470054</td><td>1.73205081</td></tr></tbody></table><table class="audit-matrix"><caption>Causal attention weights</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td><td>0</td></tr><tr><th scope="row">2</th><td>0.640457476</td><td>0.359542524</td><td>0</td></tr><tr><th scope="row">3</th><td>0.390413946</td><td>0.219172109</td><td>0.390413946</td></tr></tbody></table><table class="audit-matrix"><caption>Causal attention output</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>2</td><td>-1</td><td>1</td></tr><tr><th scope="row">2</th><td>1.64045748</td><td>-0.640457476</td><td>1</td></tr><tr><th scope="row">3</th><td>1.39041395</td><td>0</td><td>0.609586054</td></tr></tbody></table><h3 id="v3-heading-audit-batch-1-2">Two heads, fully traced</h3><p>Each head receives two projected features. The table sequence shows separate weights/outputs, followed by concatenation and the identity output projection. These are the inputs and values used by check T11-heads.</p><table class="audit-matrix"><caption>Two-head Q</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th><th scope="col">Column 4</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td><td>2</td><td>1</td></tr><tr><th scope="row">2</th><td>0</td><td>1</td><td>1</td><td>2</td></tr></tbody></table><table class="audit-matrix"><caption>Two-head K</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th><th scope="col">Column 4</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>1</td><td>0</td><td>2</td></tr><tr><th scope="row">2</th><td>2</td><td>0</td><td>1</td><td>1</td></tr></tbody></table><table class="audit-matrix"><caption>Two-head V</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th><th scope="col">Column 4</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><th scope="row">2</th><td>5</td><td>6</td><td>7</td><td>8</td></tr></tbody></table><table class="audit-matrix"><caption>Head 1: weights</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td></tr><tr><th scope="row">2</th><td>0.669761549</td><td>0.330238451</td></tr></tbody></table><table class="audit-matrix"><caption>Head 1: output</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>2</td></tr><tr><th scope="row">2</th><td>2.3209538</td><td>3.3209538</td></tr></tbody></table><table class="audit-matrix"><caption>Head 2: weights</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td></tr><tr><th scope="row">2</th><td>0.669761549</td><td>0.330238451</td></tr></tbody></table><table class="audit-matrix"><caption>Head 2: output</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>3</td><td>4</td></tr><tr><th scope="row">2</th><td>4.3209538</td><td>5.3209538</td></tr></tbody></table><table class="audit-matrix"><caption>Concatenated heads after identity output projection</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th><th scope="col">Column 4</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><th scope="row">2</th><td>2.3209538</td><td>3.3209538</td><td>4.3209538</td><td>5.3209538</td></tr></tbody></table><h3 id="v3-heading-audit-batch-1-3">One complete decoder block, fully traced</h3><p>Three tokens, two features, one head, identity attention projections, no biases/dropout, epsilon 10⁻⁵, and exact GELU. Follow each stage from normalized input to the final residual output. The separate NumPy checker compares intermediate stages and the final answer.</p><table class="audit-matrix"><caption>Decoder block: input</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td></tr><tr><th scope="row">2</th><td>0</td><td>1</td></tr><tr><th scope="row">3</th><td>2</td><td>-1</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: w1</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>-1</td><td>2</td></tr><tr><th scope="row">2</th><td>2</td><td>1</td><td>0</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: w2</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td></tr><tr><th scope="row">2</th><td>0</td><td>1</td></tr><tr><th scope="row">3</th><td>0.5</td><td>-0.5</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: normalized input</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.999980001</td><td>-0.999980001</td></tr><tr><th scope="row">2</th><td>-0.999980001</td><td>0.999980001</td></tr><tr><th scope="row">3</th><td>0.999997778</td><td>-0.999997778</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: attention weights</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>1</td><td>0</td><td>0</td></tr><tr><th scope="row">2</th><td>0.0558131808</td><td>0.944186819</td><td>0</td></tr><tr><th scope="row">3</th><td>0.485640909</td><td>0.0287059727</td><td>0.485653118</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: attention output</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.999980001</td><td>-0.999980001</td></tr><tr><th scope="row">2</th><td>-0.888355872</td><td>0.888355872</td></tr><tr><th scope="row">3</th><td>0.942577837</td><td>-0.942577837</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: residual h</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>1.99998</td><td>-0.999980001</td></tr><tr><th scope="row">2</th><td>-0.888355872</td><td>1.88835587</td></tr><tr><th scope="row">3</th><td>2.94257784</td><td>-1.94257784</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: normalized h</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.999997778</td><td>-0.999997778</td></tr><tr><th scope="row">2</th><td>-0.999997406</td><td>0.999997406</td></tr><tr><th scope="row">3</th><td>0.999999162</td><td>-0.999999162</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: expanded features</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>-0.999997778</td><td>-1.99999556</td><td>1.99999556</td></tr><tr><th scope="row">2</th><td>0.999997406</td><td>1.99999481</td><td>-1.99999481</td></tr><tr><th scope="row">3</th><td>-0.999999162</td><td>-1.99999832</td><td>1.99999832</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: gelu features</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th><th scope="col">Column 3</th></tr></thead><tbody><tr><th scope="row">1</th><td>-0.158655439</td><td>-0.0455006427</td><td>1.95449491</td></tr><tr><th scope="row">2</th><td>0.841341936</td><td>1.95449411</td><td>-0.0455007061</td></tr><tr><th scope="row">3</th><td>-0.158655324</td><td>-0.0455004068</td><td>1.95449792</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: mlp update</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.818592017</td><td>-1.0227481</td></tr><tr><th scope="row">2</th><td>0.818591583</td><td>1.97724446</td></tr><tr><th scope="row">3</th><td>0.818593635</td><td>-1.02274937</td></tr></tbody></table><table class="audit-matrix"><caption>Decoder block: output</caption><thead><tr><th scope="col">Row</th><th scope="col">Column 1</th><th scope="col">Column 2</th></tr></thead><tbody><tr><th scope="row">1</th><td>2.81857202</td><td>-2.0227281</td></tr><tr><th scope="row">2</th><td>-0.0697642886</td><td>3.86560033</td></tr><tr><th scope="row">3</th><td>3.76117147</td><td>-2.9653272</td></tr></tbody></table><h3 id="v3-heading-audit-batch-1-4">Information-theory fixture</h3><table><caption>Natural-log units; independently checked with 60-digit Decimal arithmetic</caption><thead><tr><th scope="col">Quantity</th><th scope="col">Value</th></tr></thead><tbody><tr><td>entropy</td><td>0.746032664715</td></tr><tr><td>cross_entropy</td><td>0.950948090902</td></tr><tr><td>kl_forward</td><td>0.204915426187</td></tr><tr><td>kl_reverse</td><td>0.241414008748</td></tr></tbody></table><p>p=[0.7,0.25,0.05], q=[0.4,0.4,0.2]. Definitions and support conditions are explained in <a href="#audit-F05">F05</a>.</p><h3 id="audit-companion">Complete executable Python companion</h3><p>Run <code>python3 foundations_transformer.py</code>. No third-party dependencies are needed. Functions have purpose/shape docstrings. This is a transparent educational implementation; the inherited PyTorch fragments are not relabelled as executed.</p><details><summary>Show the complete companion</summary><pre><code class="language-python" data-runnable="true" data-filename="foundations_transformer.py">&quot;&quot;&quot;Small executable learning primitives. Python 3; no third-party dependencies.
+
+Matrices use row-token convention. These examples teach mechanisms; they do
+not train a language model or reproduce a paper&#x27;s benchmark.
+&quot;&quot;&quot;
+import json
+import math
+
+def shape(a):
+    &quot;&quot;&quot;Validate a nonempty rectangular finite matrix; return (rows, columns).&quot;&quot;&quot;
+    if not a or not a[0] or any(len(row) != len(a[0]) for row in a):
+        raise ValueError(&#x27;Expected a nonempty rectangular matrix&#x27;)
+    if any(not math.isfinite(v) for row in a for v in row):
+        raise ValueError(&#x27;Matrix entries must be finite&#x27;)
+    return len(a), len(a[0])
+
+def transpose(a):
+    &quot;&quot;&quot;Exchange matrix axes, preserving entries rather than reshaping them.&quot;&quot;&quot;
+    shape(a)
+    return [list(col) for col in zip(*a)]
+
+def matmul(a, b):
+    &quot;&quot;&quot;Return A @ B by explicit row-column dot products; reject invalid shapes.&quot;&quot;&quot;
+    _, width = shape(a)
+    rows, _ = shape(b)
+    if width != rows:
+        raise ValueError(&#x27;Inner matrix dimensions must agree&#x27;)
+    return [[math.fsum(x*y for x,y in zip(row,col)) for col in transpose(b)] for row in a]
+
+def distribution(p):
+    &quot;&quot;&quot;Validate a finite probability mass function, including zero entries.&quot;&quot;&quot;
+    if not p or any(not math.isfinite(x) or x &lt; 0 for x in p):
+        raise ValueError(&#x27;Probabilities must be finite and nonnegative&#x27;)
+    if not math.isclose(math.fsum(p), 1, abs_tol=1e-12, rel_tol=0):
+        raise ValueError(&#x27;Probabilities must sum to one&#x27;)
+    return p
+
+def log_softmax(z, temperature=1.0):
+    &quot;&quot;&quot;Normalize one logit row stably; -inf is allowed for masked positions.&quot;&quot;&quot;
+    if not z or any(math.isnan(x) or x == math.inf for x in z):
+        raise ValueError(&#x27;No empty, NaN, or +inf logit row&#x27;)
+    if not math.isfinite(temperature) or temperature &lt;= 0:
+        raise ValueError(&#x27;Temperature must be finite and positive&#x27;)
+    maximum = max(z)
+    if maximum == -math.inf:
+        raise ValueError(&#x27;An all-masked row has no probability distribution&#x27;)
+    shifted = [(x-maximum)/temperature for x in z]
+    normalizer = math.log(math.fsum(math.exp(x) for x in shifted))
+    return [x-normalizer for x in shifted]
+
+def softmax(z, temperature=1.0):
+    &quot;&quot;&quot;Exponentiate stable log-probabilities; normalize over this row only.&quot;&quot;&quot;
+    return [math.exp(x) for x in log_softmax(z, temperature)]
+
+def entropy(p):
+    &quot;&quot;&quot;Shannon entropy in nats, with 0 log 0 interpreted by its limit.&quot;&quot;&quot;
+    distribution(p)
+    return -math.fsum(x*math.log(x) for x in p if x &gt; 0)
+
+def cross_entropy(p, q):
+    &quot;&quot;&quot;Expected negative log q under p; return infinity for missing q support.&quot;&quot;&quot;
+    distribution(p); distribution(q)
+    if len(p) != len(q):
+        raise ValueError(&#x27;Distributions must have equal support length&#x27;)
+    if any(a &gt; 0 and b == 0 for a,b in zip(p,q)):
+        return math.inf
+    return -math.fsum(a*math.log(b) for a,b in zip(p,q) if a &gt; 0)
+
+def kl(p, q):
+    &quot;&quot;&quot;KL(p || q); the argument order is part of the mathematical definition.&quot;&quot;&quot;
+    distribution(p); distribution(q)
+    if len(p) != len(q):
+        raise ValueError(&#x27;Distributions must have equal support length&#x27;)
+    if any(a &gt; 0 and b == 0 for a,b in zip(p,q)):
+        return math.inf
+    return math.fsum(a*math.log(a/b) for a,b in zip(p,q) if a &gt; 0)
+
+def moments(values, p):
+    &quot;&quot;&quot;Return population expectation and variance for a discrete distribution.&quot;&quot;&quot;
+    distribution(p)
+    if len(values) != len(p) or any(not math.isfinite(x) for x in values):
+        raise ValueError(&#x27;Finite values and matching probabilities required&#x27;)
+    mean = math.fsum(x*w for x,w in zip(values,p))
+    return mean, math.fsum(w*(x-mean)**2 for x,w in zip(values,p))
+
+def ce_logits(z, target):
+    &quot;&quot;&quot;One-token negative log likelihood. Pass raw logits, not probabilities.&quot;&quot;&quot;
+    if not isinstance(target,int) or not 0 &lt;= target &lt; len(z):
+        raise ValueError(&#x27;Target must be an in-range token ID&#x27;)
+    return -log_softmax(z)[target]
+
+def ce_gradient(z, target):
+    &quot;&quot;&quot;Derivative of one-token CE with respect to each logit: softmax(z)-one_hot.&quot;&quot;&quot;
+    ce_logits(z,target)
+    return [p-(i==target) for i,p in enumerate(softmax(z))]
+
+def masked_token_loss(logit_rows,targets,mask):
+    &quot;&quot;&quot;Average CE over valid target positions; an all-ignored batch is rejected.&quot;&quot;&quot;
+    if len(logit_rows)!=len(targets) or len(targets)!=len(mask) or any(m not in (0,1) for m in mask):
+        raise ValueError(&#x27;Matching rows/targets and a binary validity mask required&#x27;)
+    if not any(mask):
+        raise ValueError(&#x27;No valid targets to average&#x27;)
+    return math.fsum(ce_logits(z,t) for z,t,m in zip(logit_rows,targets,mask) if m)/sum(mask)
+
+def softmax_jacobian(z):
+    &quot;&quot;&quot;J[i,j] = p[i]*(delta[i,j]-p[j]); all row/column sums are zero.&quot;&quot;&quot;
+    p = softmax(z)
+    return [[pi*((i==j)-pj) for j,pj in enumerate(p)] for i,pi in enumerate(p)]
+
+def quadratic_loss(x, w):
+    &quot;&quot;&quot;Half squared Frobenius norm of XW, used for matrix-gradient teaching.&quot;&quot;&quot;
+    y = matmul(x,w)
+    return .5*math.fsum(v*v for row in y for v in row)
+
+def quadratic_gradients(x, w):
+    &quot;&quot;&quot;Return dL/dW=X^T(XW) and dL/dX=(XW)W^T for the stated scalar loss.&quot;&quot;&quot;
+    y = matmul(x,w)
+    return matmul(transpose(x),y), matmul(y,transpose(w))
+
+def embedding(ids, table):
+    &quot;&quot;&quot;Gather table rows by token ID; numeric ID distance has no semantic role.&quot;&quot;&quot;
+    rows,_ = shape(table)
+    if not ids or any(not isinstance(i,int) or not 0 &lt;= i &lt; rows for i in ids):
+        raise ValueError(&#x27;Nonempty in-range token IDs required&#x27;)
+    return [list(table[i]) for i in ids]
+
+def shifted_targets(tokens):
+    &quot;&quot;&quot;For a stream of at least two tokens, return inputs[:-1], targets[1:].&quot;&quot;&quot;
+    if len(tokens) &lt; 2:
+        raise ValueError(&#x27;At least two tokens required&#x27;)
+    return list(tokens[:-1]), list(tokens[1:])
+
+def residual(x, update):
+    &quot;&quot;&quot;Add a sublayer&#x27;s output to the residual stream; broadcasting is forbidden.&quot;&quot;&quot;
+    if shape(x) != shape(update):
+        raise ValueError(&#x27;Residual shapes must agree exactly&#x27;)
+    return [[a+b for a,b in zip(row,delta)] for row,delta in zip(x,update)]
+
+def attention(q, k, v, causal=False):
+    &quot;&quot;&quot;Return scores, pre-dropout row weights, and output of square self-attention.
+
+    This companion deliberately excludes dropout, padding and rectangular caches.
+    A causal mask permits j &lt;= i. Q/K widths and K/V token counts must agree.
+    &quot;&quot;&quot;
+    nq,dq = shape(q); nk,dk = shape(k); nv,_ = shape(v)
+    if dq != dk or nk != nv or (causal and nq != nk):
+        raise ValueError(&#x27;Invalid attention dimensions or unsupported causal alignment&#x27;)
+    scores = [[x/math.sqrt(dk) for x in row] for row in matmul(q,transpose(k))]
+    weights = [softmax([s if not causal or j &lt;= i else -math.inf
+                        for j,s in enumerate(row)]) for i,row in enumerate(scores)]
+    return {&#x27;scores&#x27;:scores,&#x27;weights&#x27;:weights,&#x27;output&#x27;:matmul(weights,v)}
+
+def layer_norm(row, eps=1e-5, gamma=None, beta=None):
+    &quot;&quot;&quot;Population-variance LayerNorm over a token&#x27;s feature axis, with affine step.&quot;&quot;&quot;
+    if not row or any(not math.isfinite(x) for x in row) or not math.isfinite(eps) or eps &lt; 0:
+        raise ValueError(&#x27;Finite nonempty features and nonnegative epsilon required&#x27;)
+    mean = math.fsum(row)/len(row)
+    variance = math.fsum((x-mean)**2 for x in row)/len(row)
+    if variance+eps == 0:
+        raise ValueError(&#x27;Constant features require positive epsilon&#x27;)
+    gamma = [1.]*len(row) if gamma is None else gamma
+    beta = [0.]*len(row) if beta is None else beta
+    if len(gamma)!=len(row) or len(beta)!=len(row):
+        raise ValueError(&#x27;Affine parameter width must agree&#x27;)
+    return [g*(x-mean)/math.sqrt(variance+eps)+b for x,g,b in zip(row,gamma,beta)]
+
+def gelu(x):
+    &quot;&quot;&quot;Exact erf-based GELU; some model implementations use a tanh approximation.&quot;&quot;&quot;
+    return .5*x*(1+math.erf(x/math.sqrt(2)))
+
+def mlp(x, w1, w2):
+    &quot;&quot;&quot;Bias-free positionwise two-layer MLP with exact GELU activation.&quot;&quot;&quot;
+    hidden = [[gelu(v) for v in row] for row in matmul(x,w1)]
+    return matmul(hidden,w2)
+
+def split_heads(x, heads):
+    &quot;&quot;&quot;Split projected features into H equal head matrices; reject indivisible widths.&quot;&quot;&quot;
+    _,d = shape(x)
+    if not isinstance(heads,int) or heads&lt;=0 or d%heads:
+        raise ValueError(&#x27;Feature width must divide into a positive number of heads&#x27;)
+    width = d//heads
+    return [[row[h*width:(h+1)*width] for row in x] for h in range(heads)]
+
+def multihead(q,k,v,heads,wout,causal=True):
+    &quot;&quot;&quot;Separate head attention -&gt; concatenate outputs -&gt; learned output projection.&quot;&quot;&quot;
+    qs,ks,vs = split_heads(q,heads),split_heads(k,heads),split_heads(v,heads)
+    results = [attention(a,b,c,causal)[&#x27;output&#x27;] for a,b,c in zip(qs,ks,vs)]
+    combined = [[x for head in results for x in head[t]] for t in range(len(q))]
+    return matmul(combined,wout)
+
+def pre_norm_block(x,wq,wk,wv,wo,w1,w2,heads=1):
+    &quot;&quot;&quot;One illustrative causal pre-norm block, no biases/dropout or trained weights.&quot;&quot;&quot;
+    normalized = [layer_norm(row) for row in x]
+    attn = multihead(matmul(normalized,wq),matmul(normalized,wk),
+                     matmul(normalized,wv),heads,wo)
+    h = residual(x,attn)
+    return residual(h,mlp([layer_norm(row) for row in h],w1,w2))
+
+def block_trace():
+    &quot;&quot;&quot;Expose each stage of the exact tiny block used by the independent checker.&quot;&quot;&quot;
+    x=[[1,0],[0,1],[2,-1]]
+    identity=[[1,0],[0,1]]
+    w1=[[1,-1,2],[2,1,0]];w2=[[1,0],[0,1],[.5,-.5]]
+    normalized=[layer_norm(row) for row in x]
+    attn=attention(normalized,normalized,normalized,True)
+    h=residual(x,attn[&#x27;output&#x27;])
+    norm_h=[layer_norm(row) for row in h]
+    expanded=matmul(norm_h,w1)
+    activated=[[gelu(v) for v in row] for row in expanded]
+    update=matmul(activated,w2)
+    return {&#x27;input&#x27;:x,&#x27;w1&#x27;:w1,&#x27;w2&#x27;:w2,&#x27;normalized_input&#x27;:normalized,
+            &#x27;attention_weights&#x27;:attn[&#x27;weights&#x27;],&#x27;attention_output&#x27;:attn[&#x27;output&#x27;],
+            &#x27;residual_h&#x27;:h,&#x27;normalized_h&#x27;:norm_h,&#x27;expanded_features&#x27;:expanded,
+            &#x27;gelu_features&#x27;:activated,&#x27;mlp_update&#x27;:update,&#x27;output&#x27;:residual(h,update)}
+
+def head_trace():
+    &quot;&quot;&quot;Expose both head calculations, their concatenation, and output projection.&quot;&quot;&quot;
+    q=[[1,0,2,1],[0,1,1,2]];k=[[1,1,0,2],[2,0,1,1]];v=[[1,2,3,4],[5,6,7,8]]
+    wout=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+    qs,ks,vs=split_heads(q,2),split_heads(k,2),split_heads(v,2)
+    heads=[attention(qq,kk,vv,True) for qq,kk,vv in zip(qs,ks,vs)]
+    return {&#x27;q&#x27;:q,&#x27;k&#x27;:k,&#x27;v&#x27;:v,&#x27;heads&#x27;:heads,&#x27;output&#x27;:multihead(q,k,v,2,wout)}
+
+def fixtures():
+    &quot;&quot;&quot;Return reproducible outputs for the examples used by the concept cards.&quot;&quot;&quot;
+    x = [[1,0,1],[0,1,1],[1,1,0]]
+    wq = [[1,0,0],[0,1,0],[1,1,1]]
+    wk = [[1,1,0],[1,0,1],[0,1,1]]
+    wv = [[1,0,0],[0,1,0],[1,-1,1]]
+    q,k,v = matmul(x,wq),matmul(x,wk),matmul(x,wv)
+    p,student = [.7,.25,.05],[.4,.4,.2]
+    gx,gw = [[1,2],[3,4]],[[1,-1],[.5,2]]
+    gradient,_ = quadratic_gradients(gx,gw)
+    updated = [[w-.01*g for w,g in zip(row,grad)] for row,grad in zip(gw,gradient)]
+    return {
+        &#x27;matrix&#x27;:matmul(gx,gw), &#x27;matrix_gradients&#x27;:quadratic_gradients(gx,gw),
+        &#x27;loss_before&#x27;:quadratic_loss(gx,gw),&#x27;loss_after&#x27;:quadratic_loss(gx,updated),
+        &#x27;stable_softmax&#x27;:softmax([1000,1001,1002]),
+        &#x27;p&#x27;:p,&#x27;q&#x27;:student,&#x27;entropy&#x27;:entropy(p),&#x27;cross_entropy&#x27;:cross_entropy(p,student),
+        &#x27;kl_forward&#x27;:kl(p,student),&#x27;kl_reverse&#x27;:kl(student,p),
+        &#x27;moments&#x27;:moments([0,1,3],[.2,.5,.3]),
+        &#x27;ce&#x27;:ce_logits([math.log(1),math.log(2),math.log(3)],2),
+        &#x27;ce_gradient&#x27;:ce_gradient([math.log(1),math.log(2),math.log(3)],2),
+        &#x27;inputs_targets&#x27;:shifted_targets([2,0,1,2]),
+        &#x27;embeddings&#x27;:embedding([2,0,2],[[1,0],[0,1],[1,1]]),
+        &#x27;qkv&#x27;:{&#x27;q&#x27;:q,&#x27;k&#x27;:k,&#x27;v&#x27;:v},&#x27;causal_attention&#x27;:attention(q,k,v,True),
+        &#x27;layernorm&#x27;:layer_norm([1,3],0),&#x27;layernorm_eps1&#x27;:layer_norm([1,3],1),
+        &#x27;layernorm_affine&#x27;:layer_norm([1,3],0,[2,3],[1,-1]),
+        &#x27;gelu&#x27;:[gelu(t) for t in [-1,0,1]],
+        &#x27;multihead_trace&#x27;:head_trace(),&#x27;block_trace&#x27;:block_trace(),
+    }
+
+if __name__ == &#x27;__main__&#x27;:
+    print(json.dumps(fixtures(),indent=2,allow_nan=False))
+</code></pre></details><p><a download="foundations_transformer.py" href="data:text/x-python;charset=utf-8;base64,IiIiU21hbGwgZXhlY3V0YWJsZSBsZWFybmluZyBwcmltaXRpdmVzLiBQeXRob24gMzsgbm8gdGhpcmQtcGFydHkgZGVwZW5kZW5jaWVzLgoKTWF0cmljZXMgdXNlIHJvdy10b2tlbiBjb252ZW50aW9uLiBUaGVzZSBleGFtcGxlcyB0ZWFjaCBtZWNoYW5pc21zOyB0aGV5IGRvCm5vdCB0cmFpbiBhIGxhbmd1YWdlIG1vZGVsIG9yIHJlcHJvZHVjZSBhIHBhcGVyJ3MgYmVuY2htYXJrLgoiIiIKaW1wb3J0IGpzb24KaW1wb3J0IG1hdGgKCmRlZiBzaGFwZShhKToKICAgICIiIlZhbGlkYXRlIGEgbm9uZW1wdHkgcmVjdGFuZ3VsYXIgZmluaXRlIG1hdHJpeDsgcmV0dXJuIChyb3dzLCBjb2x1bW5zKS4iIiIKICAgIGlmIG5vdCBhIG9yIG5vdCBhWzBdIG9yIGFueShsZW4ocm93KSAhPSBsZW4oYVswXSkgZm9yIHJvdyBpbiBhKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdFeHBlY3RlZCBhIG5vbmVtcHR5IHJlY3Rhbmd1bGFyIG1hdHJpeCcpCiAgICBpZiBhbnkobm90IG1hdGguaXNmaW5pdGUodikgZm9yIHJvdyBpbiBhIGZvciB2IGluIHJvdyk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTWF0cml4IGVudHJpZXMgbXVzdCBiZSBmaW5pdGUnKQogICAgcmV0dXJuIGxlbihhKSwgbGVuKGFbMF0pCgpkZWYgdHJhbnNwb3NlKGEpOgogICAgIiIiRXhjaGFuZ2UgbWF0cml4IGF4ZXMsIHByZXNlcnZpbmcgZW50cmllcyByYXRoZXIgdGhhbiByZXNoYXBpbmcgdGhlbS4iIiIKICAgIHNoYXBlKGEpCiAgICByZXR1cm4gW2xpc3QoY29sKSBmb3IgY29sIGluIHppcCgqYSldCgpkZWYgbWF0bXVsKGEsIGIpOgogICAgIiIiUmV0dXJuIEEgQCBCIGJ5IGV4cGxpY2l0IHJvdy1jb2x1bW4gZG90IHByb2R1Y3RzOyByZWplY3QgaW52YWxpZCBzaGFwZXMuIiIiCiAgICBfLCB3aWR0aCA9IHNoYXBlKGEpCiAgICByb3dzLCBfID0gc2hhcGUoYikKICAgIGlmIHdpZHRoICE9IHJvd3M6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignSW5uZXIgbWF0cml4IGRpbWVuc2lvbnMgbXVzdCBhZ3JlZScpCiAgICByZXR1cm4gW1ttYXRoLmZzdW0oeCp5IGZvciB4LHkgaW4gemlwKHJvdyxjb2wpKSBmb3IgY29sIGluIHRyYW5zcG9zZShiKV0gZm9yIHJvdyBpbiBhXQoKZGVmIGRpc3RyaWJ1dGlvbihwKToKICAgICIiIlZhbGlkYXRlIGEgZmluaXRlIHByb2JhYmlsaXR5IG1hc3MgZnVuY3Rpb24sIGluY2x1ZGluZyB6ZXJvIGVudHJpZXMuIiIiCiAgICBpZiBub3QgcCBvciBhbnkobm90IG1hdGguaXNmaW5pdGUoeCkgb3IgeCA8IDAgZm9yIHggaW4gcCk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUHJvYmFiaWxpdGllcyBtdXN0IGJlIGZpbml0ZSBhbmQgbm9ubmVnYXRpdmUnKQogICAgaWYgbm90IG1hdGguaXNjbG9zZShtYXRoLmZzdW0ocCksIDEsIGFic190b2w9MWUtMTIsIHJlbF90b2w9MCk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUHJvYmFiaWxpdGllcyBtdXN0IHN1bSB0byBvbmUnKQogICAgcmV0dXJuIHAKCmRlZiBsb2dfc29mdG1heCh6LCB0ZW1wZXJhdHVyZT0xLjApOgogICAgIiIiTm9ybWFsaXplIG9uZSBsb2dpdCByb3cgc3RhYmx5OyAtaW5mIGlzIGFsbG93ZWQgZm9yIG1hc2tlZCBwb3NpdGlvbnMuIiIiCiAgICBpZiBub3QgeiBvciBhbnkobWF0aC5pc25hbih4KSBvciB4ID09IG1hdGguaW5mIGZvciB4IGluIHopOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ05vIGVtcHR5LCBOYU4sIG9yICtpbmYgbG9naXQgcm93JykKICAgIGlmIG5vdCBtYXRoLmlzZmluaXRlKHRlbXBlcmF0dXJlKSBvciB0ZW1wZXJhdHVyZSA8PSAwOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1RlbXBlcmF0dXJlIG11c3QgYmUgZmluaXRlIGFuZCBwb3NpdGl2ZScpCiAgICBtYXhpbXVtID0gbWF4KHopCiAgICBpZiBtYXhpbXVtID09IC1tYXRoLmluZjoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBbiBhbGwtbWFza2VkIHJvdyBoYXMgbm8gcHJvYmFiaWxpdHkgZGlzdHJpYnV0aW9uJykKICAgIHNoaWZ0ZWQgPSBbKHgtbWF4aW11bSkvdGVtcGVyYXR1cmUgZm9yIHggaW4gel0KICAgIG5vcm1hbGl6ZXIgPSBtYXRoLmxvZyhtYXRoLmZzdW0obWF0aC5leHAoeCkgZm9yIHggaW4gc2hpZnRlZCkpCiAgICByZXR1cm4gW3gtbm9ybWFsaXplciBmb3IgeCBpbiBzaGlmdGVkXQoKZGVmIHNvZnRtYXgoeiwgdGVtcGVyYXR1cmU9MS4wKToKICAgICIiIkV4cG9uZW50aWF0ZSBzdGFibGUgbG9nLXByb2JhYmlsaXRpZXM7IG5vcm1hbGl6ZSBvdmVyIHRoaXMgcm93IG9ubHkuIiIiCiAgICByZXR1cm4gW21hdGguZXhwKHgpIGZvciB4IGluIGxvZ19zb2Z0bWF4KHosIHRlbXBlcmF0dXJlKV0KCmRlZiBlbnRyb3B5KHApOgogICAgIiIiU2hhbm5vbiBlbnRyb3B5IGluIG5hdHMsIHdpdGggMCBsb2cgMCBpbnRlcnByZXRlZCBieSBpdHMgbGltaXQuIiIiCiAgICBkaXN0cmlidXRpb24ocCkKICAgIHJldHVybiAtbWF0aC5mc3VtKHgqbWF0aC5sb2coeCkgZm9yIHggaW4gcCBpZiB4ID4gMCkKCmRlZiBjcm9zc19lbnRyb3B5KHAsIHEpOgogICAgIiIiRXhwZWN0ZWQgbmVnYXRpdmUgbG9nIHEgdW5kZXIgcDsgcmV0dXJuIGluZmluaXR5IGZvciBtaXNzaW5nIHEgc3VwcG9ydC4iIiIKICAgIGRpc3RyaWJ1dGlvbihwKTsgZGlzdHJpYnV0aW9uKHEpCiAgICBpZiBsZW4ocCkgIT0gbGVuKHEpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0Rpc3RyaWJ1dGlvbnMgbXVzdCBoYXZlIGVxdWFsIHN1cHBvcnQgbGVuZ3RoJykKICAgIGlmIGFueShhID4gMCBhbmQgYiA9PSAwIGZvciBhLGIgaW4gemlwKHAscSkpOgogICAgICAgIHJldHVybiBtYXRoLmluZgogICAgcmV0dXJuIC1tYXRoLmZzdW0oYSptYXRoLmxvZyhiKSBmb3IgYSxiIGluIHppcChwLHEpIGlmIGEgPiAwKQoKZGVmIGtsKHAsIHEpOgogICAgIiIiS0wocCB8fCBxKTsgdGhlIGFyZ3VtZW50IG9yZGVyIGlzIHBhcnQgb2YgdGhlIG1hdGhlbWF0aWNhbCBkZWZpbml0aW9uLiIiIgogICAgZGlzdHJpYnV0aW9uKHApOyBkaXN0cmlidXRpb24ocSkKICAgIGlmIGxlbihwKSAhPSBsZW4ocSk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRGlzdHJpYnV0aW9ucyBtdXN0IGhhdmUgZXF1YWwgc3VwcG9ydCBsZW5ndGgnKQogICAgaWYgYW55KGEgPiAwIGFuZCBiID09IDAgZm9yIGEsYiBpbiB6aXAocCxxKSk6CiAgICAgICAgcmV0dXJuIG1hdGguaW5mCiAgICByZXR1cm4gbWF0aC5mc3VtKGEqbWF0aC5sb2coYS9iKSBmb3IgYSxiIGluIHppcChwLHEpIGlmIGEgPiAwKQoKZGVmIG1vbWVudHModmFsdWVzLCBwKToKICAgICIiIlJldHVybiBwb3B1bGF0aW9uIGV4cGVjdGF0aW9uIGFuZCB2YXJpYW5jZSBmb3IgYSBkaXNjcmV0ZSBkaXN0cmlidXRpb24uIiIiCiAgICBkaXN0cmlidXRpb24ocCkKICAgIGlmIGxlbih2YWx1ZXMpICE9IGxlbihwKSBvciBhbnkobm90IG1hdGguaXNmaW5pdGUoeCkgZm9yIHggaW4gdmFsdWVzKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdGaW5pdGUgdmFsdWVzIGFuZCBtYXRjaGluZyBwcm9iYWJpbGl0aWVzIHJlcXVpcmVkJykKICAgIG1lYW4gPSBtYXRoLmZzdW0oeCp3IGZvciB4LHcgaW4gemlwKHZhbHVlcyxwKSkKICAgIHJldHVybiBtZWFuLCBtYXRoLmZzdW0odyooeC1tZWFuKSoqMiBmb3IgeCx3IGluIHppcCh2YWx1ZXMscCkpCgpkZWYgY2VfbG9naXRzKHosIHRhcmdldCk6CiAgICAiIiJPbmUtdG9rZW4gbmVnYXRpdmUgbG9nIGxpa2VsaWhvb2QuIFBhc3MgcmF3IGxvZ2l0cywgbm90IHByb2JhYmlsaXRpZXMuIiIiCiAgICBpZiBub3QgaXNpbnN0YW5jZSh0YXJnZXQsaW50KSBvciBub3QgMCA8PSB0YXJnZXQgPCBsZW4oeik6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignVGFyZ2V0IG11c3QgYmUgYW4gaW4tcmFuZ2UgdG9rZW4gSUQnKQogICAgcmV0dXJuIC1sb2dfc29mdG1heCh6KVt0YXJnZXRdCgpkZWYgY2VfZ3JhZGllbnQoeiwgdGFyZ2V0KToKICAgICIiIkRlcml2YXRpdmUgb2Ygb25lLXRva2VuIENFIHdpdGggcmVzcGVjdCB0byBlYWNoIGxvZ2l0OiBzb2Z0bWF4KHopLW9uZV9ob3QuIiIiCiAgICBjZV9sb2dpdHMoeix0YXJnZXQpCiAgICByZXR1cm4gW3AtKGk9PXRhcmdldCkgZm9yIGkscCBpbiBlbnVtZXJhdGUoc29mdG1heCh6KSldCgpkZWYgbWFza2VkX3Rva2VuX2xvc3MobG9naXRfcm93cyx0YXJnZXRzLG1hc2spOgogICAgIiIiQXZlcmFnZSBDRSBvdmVyIHZhbGlkIHRhcmdldCBwb3NpdGlvbnM7IGFuIGFsbC1pZ25vcmVkIGJhdGNoIGlzIHJlamVjdGVkLiIiIgogICAgaWYgbGVuKGxvZ2l0X3Jvd3MpIT1sZW4odGFyZ2V0cykgb3IgbGVuKHRhcmdldHMpIT1sZW4obWFzaykgb3IgYW55KG0gbm90IGluICgwLDEpIGZvciBtIGluIG1hc2spOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01hdGNoaW5nIHJvd3MvdGFyZ2V0cyBhbmQgYSBiaW5hcnkgdmFsaWRpdHkgbWFzayByZXF1aXJlZCcpCiAgICBpZiBub3QgYW55KG1hc2spOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ05vIHZhbGlkIHRhcmdldHMgdG8gYXZlcmFnZScpCiAgICByZXR1cm4gbWF0aC5mc3VtKGNlX2xvZ2l0cyh6LHQpIGZvciB6LHQsbSBpbiB6aXAobG9naXRfcm93cyx0YXJnZXRzLG1hc2spIGlmIG0pL3N1bShtYXNrKQoKZGVmIHNvZnRtYXhfamFjb2JpYW4oeik6CiAgICAiIiJKW2ksal0gPSBwW2ldKihkZWx0YVtpLGpdLXBbal0pOyBhbGwgcm93L2NvbHVtbiBzdW1zIGFyZSB6ZXJvLiIiIgogICAgcCA9IHNvZnRtYXgoeikKICAgIHJldHVybiBbW3BpKigoaT09aiktcGopIGZvciBqLHBqIGluIGVudW1lcmF0ZShwKV0gZm9yIGkscGkgaW4gZW51bWVyYXRlKHApXQoKZGVmIHF1YWRyYXRpY19sb3NzKHgsIHcpOgogICAgIiIiSGFsZiBzcXVhcmVkIEZyb2Jlbml1cyBub3JtIG9mIFhXLCB1c2VkIGZvciBtYXRyaXgtZ3JhZGllbnQgdGVhY2hpbmcuIiIiCiAgICB5ID0gbWF0bXVsKHgsdykKICAgIHJldHVybiAuNSptYXRoLmZzdW0odip2IGZvciByb3cgaW4geSBmb3IgdiBpbiByb3cpCgpkZWYgcXVhZHJhdGljX2dyYWRpZW50cyh4LCB3KToKICAgICIiIlJldHVybiBkTC9kVz1YXlQoWFcpIGFuZCBkTC9kWD0oWFcpV15UIGZvciB0aGUgc3RhdGVkIHNjYWxhciBsb3NzLiIiIgogICAgeSA9IG1hdG11bCh4LHcpCiAgICByZXR1cm4gbWF0bXVsKHRyYW5zcG9zZSh4KSx5KSwgbWF0bXVsKHksdHJhbnNwb3NlKHcpKQoKZGVmIGVtYmVkZGluZyhpZHMsIHRhYmxlKToKICAgICIiIkdhdGhlciB0YWJsZSByb3dzIGJ5IHRva2VuIElEOyBudW1lcmljIElEIGRpc3RhbmNlIGhhcyBubyBzZW1hbnRpYyByb2xlLiIiIgogICAgcm93cyxfID0gc2hhcGUodGFibGUpCiAgICBpZiBub3QgaWRzIG9yIGFueShub3QgaXNpbnN0YW5jZShpLGludCkgb3Igbm90IDAgPD0gaSA8IHJvd3MgZm9yIGkgaW4gaWRzKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdOb25lbXB0eSBpbi1yYW5nZSB0b2tlbiBJRHMgcmVxdWlyZWQnKQogICAgcmV0dXJuIFtsaXN0KHRhYmxlW2ldKSBmb3IgaSBpbiBpZHNdCgpkZWYgc2hpZnRlZF90YXJnZXRzKHRva2Vucyk6CiAgICAiIiJGb3IgYSBzdHJlYW0gb2YgYXQgbGVhc3QgdHdvIHRva2VucywgcmV0dXJuIGlucHV0c1s6LTFdLCB0YXJnZXRzWzE6XS4iIiIKICAgIGlmIGxlbih0b2tlbnMpIDwgMjoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBdCBsZWFzdCB0d28gdG9rZW5zIHJlcXVpcmVkJykKICAgIHJldHVybiBsaXN0KHRva2Vuc1s6LTFdKSwgbGlzdCh0b2tlbnNbMTpdKQoKZGVmIHJlc2lkdWFsKHgsIHVwZGF0ZSk6CiAgICAiIiJBZGQgYSBzdWJsYXllcidzIG91dHB1dCB0byB0aGUgcmVzaWR1YWwgc3RyZWFtOyBicm9hZGNhc3RpbmcgaXMgZm9yYmlkZGVuLiIiIgogICAgaWYgc2hhcGUoeCkgIT0gc2hhcGUodXBkYXRlKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdSZXNpZHVhbCBzaGFwZXMgbXVzdCBhZ3JlZSBleGFjdGx5JykKICAgIHJldHVybiBbW2ErYiBmb3IgYSxiIGluIHppcChyb3csZGVsdGEpXSBmb3Igcm93LGRlbHRhIGluIHppcCh4LHVwZGF0ZSldCgpkZWYgYXR0ZW50aW9uKHEsIGssIHYsIGNhdXNhbD1GYWxzZSk6CiAgICAiIiJSZXR1cm4gc2NvcmVzLCBwcmUtZHJvcG91dCByb3cgd2VpZ2h0cywgYW5kIG91dHB1dCBvZiBzcXVhcmUgc2VsZi1hdHRlbnRpb24uCgogICAgVGhpcyBjb21wYW5pb24gZGVsaWJlcmF0ZWx5IGV4Y2x1ZGVzIGRyb3BvdXQsIHBhZGRpbmcgYW5kIHJlY3Rhbmd1bGFyIGNhY2hlcy4KICAgIEEgY2F1c2FsIG1hc2sgcGVybWl0cyBqIDw9IGkuIFEvSyB3aWR0aHMgYW5kIEsvViB0b2tlbiBjb3VudHMgbXVzdCBhZ3JlZS4KICAgICIiIgogICAgbnEsZHEgPSBzaGFwZShxKTsgbmssZGsgPSBzaGFwZShrKTsgbnYsXyA9IHNoYXBlKHYpCiAgICBpZiBkcSAhPSBkayBvciBuayAhPSBudiBvciAoY2F1c2FsIGFuZCBucSAhPSBuayk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignSW52YWxpZCBhdHRlbnRpb24gZGltZW5zaW9ucyBvciB1bnN1cHBvcnRlZCBjYXVzYWwgYWxpZ25tZW50JykKICAgIHNjb3JlcyA9IFtbeC9tYXRoLnNxcnQoZGspIGZvciB4IGluIHJvd10gZm9yIHJvdyBpbiBtYXRtdWwocSx0cmFuc3Bvc2UoaykpXQogICAgd2VpZ2h0cyA9IFtzb2Z0bWF4KFtzIGlmIG5vdCBjYXVzYWwgb3IgaiA8PSBpIGVsc2UgLW1hdGguaW5mCiAgICAgICAgICAgICAgICAgICAgICAgIGZvciBqLHMgaW4gZW51bWVyYXRlKHJvdyldKSBmb3IgaSxyb3cgaW4gZW51bWVyYXRlKHNjb3JlcyldCiAgICByZXR1cm4geydzY29yZXMnOnNjb3Jlcywnd2VpZ2h0cyc6d2VpZ2h0cywnb3V0cHV0JzptYXRtdWwod2VpZ2h0cyx2KX0KCmRlZiBsYXllcl9ub3JtKHJvdywgZXBzPTFlLTUsIGdhbW1hPU5vbmUsIGJldGE9Tm9uZSk6CiAgICAiIiJQb3B1bGF0aW9uLXZhcmlhbmNlIExheWVyTm9ybSBvdmVyIGEgdG9rZW4ncyBmZWF0dXJlIGF4aXMsIHdpdGggYWZmaW5lIHN0ZXAuIiIiCiAgICBpZiBub3Qgcm93IG9yIGFueShub3QgbWF0aC5pc2Zpbml0ZSh4KSBmb3IgeCBpbiByb3cpIG9yIG5vdCBtYXRoLmlzZmluaXRlKGVwcykgb3IgZXBzIDwgMDoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdGaW5pdGUgbm9uZW1wdHkgZmVhdHVyZXMgYW5kIG5vbm5lZ2F0aXZlIGVwc2lsb24gcmVxdWlyZWQnKQogICAgbWVhbiA9IG1hdGguZnN1bShyb3cpL2xlbihyb3cpCiAgICB2YXJpYW5jZSA9IG1hdGguZnN1bSgoeC1tZWFuKSoqMiBmb3IgeCBpbiByb3cpL2xlbihyb3cpCiAgICBpZiB2YXJpYW5jZStlcHMgPT0gMDoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDb25zdGFudCBmZWF0dXJlcyByZXF1aXJlIHBvc2l0aXZlIGVwc2lsb24nKQogICAgZ2FtbWEgPSBbMS5dKmxlbihyb3cpIGlmIGdhbW1hIGlzIE5vbmUgZWxzZSBnYW1tYQogICAgYmV0YSA9IFswLl0qbGVuKHJvdykgaWYgYmV0YSBpcyBOb25lIGVsc2UgYmV0YQogICAgaWYgbGVuKGdhbW1hKSE9bGVuKHJvdykgb3IgbGVuKGJldGEpIT1sZW4ocm93KToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBZmZpbmUgcGFyYW1ldGVyIHdpZHRoIG11c3QgYWdyZWUnKQogICAgcmV0dXJuIFtnKih4LW1lYW4pL21hdGguc3FydCh2YXJpYW5jZStlcHMpK2IgZm9yIHgsZyxiIGluIHppcChyb3csZ2FtbWEsYmV0YSldCgpkZWYgZ2VsdSh4KToKICAgICIiIkV4YWN0IGVyZi1iYXNlZCBHRUxVOyBzb21lIG1vZGVsIGltcGxlbWVudGF0aW9ucyB1c2UgYSB0YW5oIGFwcHJveGltYXRpb24uIiIiCiAgICByZXR1cm4gLjUqeCooMSttYXRoLmVyZih4L21hdGguc3FydCgyKSkpCgpkZWYgbWxwKHgsIHcxLCB3Mik6CiAgICAiIiJCaWFzLWZyZWUgcG9zaXRpb253aXNlIHR3by1sYXllciBNTFAgd2l0aCBleGFjdCBHRUxVIGFjdGl2YXRpb24uIiIiCiAgICBoaWRkZW4gPSBbW2dlbHUodikgZm9yIHYgaW4gcm93XSBmb3Igcm93IGluIG1hdG11bCh4LHcxKV0KICAgIHJldHVybiBtYXRtdWwoaGlkZGVuLHcyKQoKZGVmIHNwbGl0X2hlYWRzKHgsIGhlYWRzKToKICAgICIiIlNwbGl0IHByb2plY3RlZCBmZWF0dXJlcyBpbnRvIEggZXF1YWwgaGVhZCBtYXRyaWNlczsgcmVqZWN0IGluZGl2aXNpYmxlIHdpZHRocy4iIiIKICAgIF8sZCA9IHNoYXBlKHgpCiAgICBpZiBub3QgaXNpbnN0YW5jZShoZWFkcyxpbnQpIG9yIGhlYWRzPD0wIG9yIGQlaGVhZHM6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRmVhdHVyZSB3aWR0aCBtdXN0IGRpdmlkZSBpbnRvIGEgcG9zaXRpdmUgbnVtYmVyIG9mIGhlYWRzJykKICAgIHdpZHRoID0gZC8vaGVhZHMKICAgIHJldHVybiBbW3Jvd1toKndpZHRoOihoKzEpKndpZHRoXSBmb3Igcm93IGluIHhdIGZvciBoIGluIHJhbmdlKGhlYWRzKV0KCmRlZiBtdWx0aWhlYWQocSxrLHYsaGVhZHMsd291dCxjYXVzYWw9VHJ1ZSk6CiAgICAiIiJTZXBhcmF0ZSBoZWFkIGF0dGVudGlvbiAtPiBjb25jYXRlbmF0ZSBvdXRwdXRzIC0+IGxlYXJuZWQgb3V0cHV0IHByb2plY3Rpb24uIiIiCiAgICBxcyxrcyx2cyA9IHNwbGl0X2hlYWRzKHEsaGVhZHMpLHNwbGl0X2hlYWRzKGssaGVhZHMpLHNwbGl0X2hlYWRzKHYsaGVhZHMpCiAgICByZXN1bHRzID0gW2F0dGVudGlvbihhLGIsYyxjYXVzYWwpWydvdXRwdXQnXSBmb3IgYSxiLGMgaW4gemlwKHFzLGtzLHZzKV0KICAgIGNvbWJpbmVkID0gW1t4IGZvciBoZWFkIGluIHJlc3VsdHMgZm9yIHggaW4gaGVhZFt0XV0gZm9yIHQgaW4gcmFuZ2UobGVuKHEpKV0KICAgIHJldHVybiBtYXRtdWwoY29tYmluZWQsd291dCkKCmRlZiBwcmVfbm9ybV9ibG9jayh4LHdxLHdrLHd2LHdvLHcxLHcyLGhlYWRzPTEpOgogICAgIiIiT25lIGlsbHVzdHJhdGl2ZSBjYXVzYWwgcHJlLW5vcm0gYmxvY2ssIG5vIGJpYXNlcy9kcm9wb3V0IG9yIHRyYWluZWQgd2VpZ2h0cy4iIiIKICAgIG5vcm1hbGl6ZWQgPSBbbGF5ZXJfbm9ybShyb3cpIGZvciByb3cgaW4geF0KICAgIGF0dG4gPSBtdWx0aWhlYWQobWF0bXVsKG5vcm1hbGl6ZWQsd3EpLG1hdG11bChub3JtYWxpemVkLHdrKSwKICAgICAgICAgICAgICAgICAgICAgbWF0bXVsKG5vcm1hbGl6ZWQsd3YpLGhlYWRzLHdvKQogICAgaCA9IHJlc2lkdWFsKHgsYXR0bikKICAgIHJldHVybiByZXNpZHVhbChoLG1scChbbGF5ZXJfbm9ybShyb3cpIGZvciByb3cgaW4gaF0sdzEsdzIpKQoKZGVmIGJsb2NrX3RyYWNlKCk6CiAgICAiIiJFeHBvc2UgZWFjaCBzdGFnZSBvZiB0aGUgZXhhY3QgdGlueSBibG9jayB1c2VkIGJ5IHRoZSBpbmRlcGVuZGVudCBjaGVja2VyLiIiIgogICAgeD1bWzEsMF0sWzAsMV0sWzIsLTFdXQogICAgaWRlbnRpdHk9W1sxLDBdLFswLDFdXQogICAgdzE9W1sxLC0xLDJdLFsyLDEsMF1dO3cyPVtbMSwwXSxbMCwxXSxbLjUsLS41XV0KICAgIG5vcm1hbGl6ZWQ9W2xheWVyX25vcm0ocm93KSBmb3Igcm93IGluIHhdCiAgICBhdHRuPWF0dGVudGlvbihub3JtYWxpemVkLG5vcm1hbGl6ZWQsbm9ybWFsaXplZCxUcnVlKQogICAgaD1yZXNpZHVhbCh4LGF0dG5bJ291dHB1dCddKQogICAgbm9ybV9oPVtsYXllcl9ub3JtKHJvdykgZm9yIHJvdyBpbiBoXQogICAgZXhwYW5kZWQ9bWF0bXVsKG5vcm1faCx3MSkKICAgIGFjdGl2YXRlZD1bW2dlbHUodikgZm9yIHYgaW4gcm93XSBmb3Igcm93IGluIGV4cGFuZGVkXQogICAgdXBkYXRlPW1hdG11bChhY3RpdmF0ZWQsdzIpCiAgICByZXR1cm4geydpbnB1dCc6eCwndzEnOncxLCd3Mic6dzIsJ25vcm1hbGl6ZWRfaW5wdXQnOm5vcm1hbGl6ZWQsCiAgICAgICAgICAgICdhdHRlbnRpb25fd2VpZ2h0cyc6YXR0blsnd2VpZ2h0cyddLCdhdHRlbnRpb25fb3V0cHV0JzphdHRuWydvdXRwdXQnXSwKICAgICAgICAgICAgJ3Jlc2lkdWFsX2gnOmgsJ25vcm1hbGl6ZWRfaCc6bm9ybV9oLCdleHBhbmRlZF9mZWF0dXJlcyc6ZXhwYW5kZWQsCiAgICAgICAgICAgICdnZWx1X2ZlYXR1cmVzJzphY3RpdmF0ZWQsJ21scF91cGRhdGUnOnVwZGF0ZSwnb3V0cHV0JzpyZXNpZHVhbChoLHVwZGF0ZSl9CgpkZWYgaGVhZF90cmFjZSgpOgogICAgIiIiRXhwb3NlIGJvdGggaGVhZCBjYWxjdWxhdGlvbnMsIHRoZWlyIGNvbmNhdGVuYXRpb24sIGFuZCBvdXRwdXQgcHJvamVjdGlvbi4iIiIKICAgIHE9W1sxLDAsMiwxXSxbMCwxLDEsMl1dO2s9W1sxLDEsMCwyXSxbMiwwLDEsMV1dO3Y9W1sxLDIsMyw0XSxbNSw2LDcsOF1dCiAgICB3b3V0PVtbMSwwLDAsMF0sWzAsMSwwLDBdLFswLDAsMSwwXSxbMCwwLDAsMV1dCiAgICBxcyxrcyx2cz1zcGxpdF9oZWFkcyhxLDIpLHNwbGl0X2hlYWRzKGssMiksc3BsaXRfaGVhZHModiwyKQogICAgaGVhZHM9W2F0dGVudGlvbihxcSxrayx2dixUcnVlKSBmb3IgcXEsa2ssdnYgaW4gemlwKHFzLGtzLHZzKV0KICAgIHJldHVybiB7J3EnOnEsJ2snOmssJ3YnOnYsJ2hlYWRzJzpoZWFkcywnb3V0cHV0JzptdWx0aWhlYWQocSxrLHYsMix3b3V0KX0KCmRlZiBmaXh0dXJlcygpOgogICAgIiIiUmV0dXJuIHJlcHJvZHVjaWJsZSBvdXRwdXRzIGZvciB0aGUgZXhhbXBsZXMgdXNlZCBieSB0aGUgY29uY2VwdCBjYXJkcy4iIiIKICAgIHggPSBbWzEsMCwxXSxbMCwxLDFdLFsxLDEsMF1dCiAgICB3cSA9IFtbMSwwLDBdLFswLDEsMF0sWzEsMSwxXV0KICAgIHdrID0gW1sxLDEsMF0sWzEsMCwxXSxbMCwxLDFdXQogICAgd3YgPSBbWzEsMCwwXSxbMCwxLDBdLFsxLC0xLDFdXQogICAgcSxrLHYgPSBtYXRtdWwoeCx3cSksbWF0bXVsKHgsd2spLG1hdG11bCh4LHd2KQogICAgcCxzdHVkZW50ID0gWy43LC4yNSwuMDVdLFsuNCwuNCwuMl0KICAgIGd4LGd3ID0gW1sxLDJdLFszLDRdXSxbWzEsLTFdLFsuNSwyXV0KICAgIGdyYWRpZW50LF8gPSBxdWFkcmF0aWNfZ3JhZGllbnRzKGd4LGd3KQogICAgdXBkYXRlZCA9IFtbdy0uMDEqZyBmb3IgdyxnIGluIHppcChyb3csZ3JhZCldIGZvciByb3csZ3JhZCBpbiB6aXAoZ3csZ3JhZGllbnQpXQogICAgcmV0dXJuIHsKICAgICAgICAnbWF0cml4JzptYXRtdWwoZ3gsZ3cpLCAnbWF0cml4X2dyYWRpZW50cyc6cXVhZHJhdGljX2dyYWRpZW50cyhneCxndyksCiAgICAgICAgJ2xvc3NfYmVmb3JlJzpxdWFkcmF0aWNfbG9zcyhneCxndyksJ2xvc3NfYWZ0ZXInOnF1YWRyYXRpY19sb3NzKGd4LHVwZGF0ZWQpLAogICAgICAgICdzdGFibGVfc29mdG1heCc6c29mdG1heChbMTAwMCwxMDAxLDEwMDJdKSwKICAgICAgICAncCc6cCwncSc6c3R1ZGVudCwnZW50cm9weSc6ZW50cm9weShwKSwnY3Jvc3NfZW50cm9weSc6Y3Jvc3NfZW50cm9weShwLHN0dWRlbnQpLAogICAgICAgICdrbF9mb3J3YXJkJzprbChwLHN0dWRlbnQpLCdrbF9yZXZlcnNlJzprbChzdHVkZW50LHApLAogICAgICAgICdtb21lbnRzJzptb21lbnRzKFswLDEsM10sWy4yLC41LC4zXSksCiAgICAgICAgJ2NlJzpjZV9sb2dpdHMoW21hdGgubG9nKDEpLG1hdGgubG9nKDIpLG1hdGgubG9nKDMpXSwyKSwKICAgICAgICAnY2VfZ3JhZGllbnQnOmNlX2dyYWRpZW50KFttYXRoLmxvZygxKSxtYXRoLmxvZygyKSxtYXRoLmxvZygzKV0sMiksCiAgICAgICAgJ2lucHV0c190YXJnZXRzJzpzaGlmdGVkX3RhcmdldHMoWzIsMCwxLDJdKSwKICAgICAgICAnZW1iZWRkaW5ncyc6ZW1iZWRkaW5nKFsyLDAsMl0sW1sxLDBdLFswLDFdLFsxLDFdXSksCiAgICAgICAgJ3Frdic6eydxJzpxLCdrJzprLCd2Jzp2fSwnY2F1c2FsX2F0dGVudGlvbic6YXR0ZW50aW9uKHEsayx2LFRydWUpLAogICAgICAgICdsYXllcm5vcm0nOmxheWVyX25vcm0oWzEsM10sMCksJ2xheWVybm9ybV9lcHMxJzpsYXllcl9ub3JtKFsxLDNdLDEpLAogICAgICAgICdsYXllcm5vcm1fYWZmaW5lJzpsYXllcl9ub3JtKFsxLDNdLDAsWzIsM10sWzEsLTFdKSwKICAgICAgICAnZ2VsdSc6W2dlbHUodCkgZm9yIHQgaW4gWy0xLDAsMV1dLAogICAgICAgICdtdWx0aWhlYWRfdHJhY2UnOmhlYWRfdHJhY2UoKSwnYmxvY2tfdHJhY2UnOmJsb2NrX3RyYWNlKCksCiAgICB9CgppZiBfX25hbWVfXyA9PSAnX19tYWluX18nOgogICAgcHJpbnQoanNvbi5kdW1wcyhmaXh0dXJlcygpLGluZGVudD0yLGFsbG93X25hbj1GYWxzZSkpCg==">Download complete Python companion</a></p><h3 id="audit-checks">Executed checks and their independent methods</h3><p>Python 3.12.14; NumPy 2.3.5. PyTorch was unavailable and was not executed.</p><table><caption>Every listed check executed successfully</caption><thead><tr><th scope="col">Check</th><th scope="col">Independent evidence</th><th scope="col">Result</th></tr></thead><tbody><tr><td>F01-matmul</td><td>Independent NumPy @ and explicit entries</td><td>Passed</td></tr><tr><td>F01-numpy</td><td>Independent NumPy linear algebra</td><td>Passed</td></tr><tr><td>F01-shape-errors</td><td>Invalid dimensions/ragged matrices</td><td>Passed</td></tr><tr><td>F02-transpose</td><td>Expected values distinct from reshape</td><td>Passed</td></tr><tr><td>F03-softmax</td><td>60-digit Decimal exponential; large-shift invariance</td><td>Passed</td></tr><tr><td>F03-temperature</td><td>Explicit equal logits and positive-temperature validation</td><td>Passed</td></tr><tr><td>F03-underflow</td><td>Stable log probability survives exp underflow</td><td>Passed</td></tr><tr><td>F04-joint-log</td><td>Exact rational product then independent logs</td><td>Passed</td></tr><tr><td>F05-info</td><td>60-digit Decimal logs and independently arranged sums</td><td>Passed</td></tr><tr><td>F05-identity</td><td>CE = H + KL; distinct expression paths</td><td>Passed</td></tr><tr><td>F05-support</td><td>Zero-support infinity and 0 log 0 conventions</td><td>Passed</td></tr><tr><td>F06-chain-rule</td><td>Central differences against derivative 4(2w-1)</td><td>Passed</td></tr><tr><td>F07-moments</td><td>Explicit population mean/variance; alternative E[X²]-E[X]²</td><td>Passed</td></tr><tr><td>F08-dW</td><td>Matrix-entry central differences against analytic XᵀXW</td><td>Passed</td></tr><tr><td>F08-dX</td><td>Matrix-entry central differences against analytic XWWᵀ</td><td>Passed</td></tr><tr><td>F08-known-gradient</td><td>Explicit independently multiplied expected gradient entries</td><td>Passed</td></tr><tr><td>F09-gradient-step</td><td>Direct reevaluation after stated update</td><td>Passed</td></tr><tr><td>F10-CE</td><td>Exact 1:2:3 probabilities and log(2) answer</td><td>Passed</td></tr><tr><td>F10-CE-gradient</td><td>Central differences for every logit</td><td>Passed</td></tr><tr><td>F10-jacobian</td><td>Independent finite-difference Jacobian and shift-nullspace</td><td>Passed</td></tr><tr><td>T01-shift</td><td>Explicit expected adjacent token pairs</td><td>Passed</td></tr><tr><td>T01-loss-mask</td><td>Valid-token denominator and ignored invalid target</td><td>Passed</td></tr><tr><td>T02-embedding</td><td>One-hot NumPy matrix multiplication versus row gather</td><td>Passed</td></tr><tr><td>T03-QKV</td><td>Explicit worked projection entries</td><td>Passed</td></tr><tr><td>T04-attention</td><td>NumPy batched score/softmax/matmul plus mask invariants</td><td>Passed</td></tr><tr><td>T04-first-token</td><td>Hand-derived first row can only select its own value</td><td>Passed</td></tr><tr><td>T05-causality</td><td>Future-input perturbation must preserve earlier token outputs</td><td>Passed</td></tr><tr><td>T05-empty-mask</td><td>Reject undefined all-masked distribution</td><td>Passed</td></tr><tr><td>T06-scaling</td><td>Variance algebra under stated independent unit-variance assumptions</td><td>Passed</td></tr><tr><td>T07-permutation</td><td>Position-free unmasked attention equivariance</td><td>Passed</td></tr><tr><td>T07-position</td><td>Explicit vector addition and independent NumPy addition</td><td>Passed</td></tr><tr><td>T08-layernorm</td><td>Explicit two-feature normal/epsilon/affine answers</td><td>Passed</td></tr><tr><td>T08-constant</td><td>Positive epsilon makes constant feature row finite</td><td>Passed</td></tr><tr><td>T09-residual</td><td>Explicit addition and prohibited broadcasting</td><td>Passed</td></tr><tr><td>T09-identity-path</td><td>Central differences for an identity sum and a cancelling update</td><td>Passed</td></tr><tr><td>T10-GELU</td><td>Known erf-based values and exact zero</td><td>Passed</td></tr><tr><td>T11-heads</td><td>Separate NumPy head calculations and concatenation</td><td>Passed</td></tr><tr><td>T11-head-shape</td><td>Reject width/head-count mismatch</td><td>Passed</td></tr><tr><td>T12-block</td><td>Independent NumPy pre-norm forward pass and block-level causality</td><td>Passed</td></tr><tr><td>T13-logits</td><td>Vocabulary axis and bias-free unembedding dot products</td><td>Passed</td></tr><tr><td>T14-dropout</td><td>Counterexample: inverted dropout weights need not sum to one</td><td>Passed</td></tr></tbody></table><h3 id="v3-heading-audit-batch-1-7">Remaining work</h3><p>Next batches: decoding and efficient adaptation; basic quantization; DeepSeek architecture and training; KD/RL/MiniLLM; reasoning/R1/ReTool; Indic benchmarks; inherited numerical and claim reconciliation; real-browser/accessibility/mobile/printing review. No completion gate has been inferred from this batch count.</p></section>

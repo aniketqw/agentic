@@ -1,0 +1,786 @@
+<section class="chunk" id="chunk-les-r100-8-i110" data-id="les-r100-8-i110"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r100-8-i110"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r100-8-i110" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r100-7-i109">← Previous lesson</a> · <a href="#chunk-les-r100-9-i111">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r100-7-i109">R100.7 — MTPModule: Turning One Hidden State into a Causal Prediction Chain</a></p><p><strong>This lesson:</strong> R100.8 — The TransformerBlock: Putting Attention and MoE Together</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r100-8-i110"></a></p>
+<h3 id="v3-heading-chunk-les-r100-8-i110-1">R100.8 — The <code>TransformerBlock</code>: Putting Attention and MoE Together</h3>
+<p><em>Plan node: A6 · chat order #110</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We have now built the individual pieces:</p>
+<div class="math block">
+\boxed{\text{DeepSeekAttention}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{DeepSeekMoE}}
+</div>
+<p>The next step is not a new mathematical innovation. It is the <strong>architectural composition layer</strong>: the <code>TransformerBlock</code> that puts those two modules into the standard Transformer residual structure.</p>
+<p>The source explicitly describes this as a <strong>pre-norm</strong> block with two residual connections. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-2">1. First see the complete block</h4>
+<p>The source's block is:</p>
+<pre><code class="language-text">                    x
+                    │
+                    ▼
+               LayerNorm 1
+                    │
+                    ▼
+             DeepSeekAttention
+                    │
+                    ▼
+               attention h
+                    │
+                    ▼
+                 x + h
+                    │
+                    ▼
+               LayerNorm 2
+                    │
+                    ▼
+               DeepSeekMoE
+                    │
+                    ▼
+                MoE output
+                    │
+                    ▼
+              (x + h) + MoE
+                    │
+                    ▼
+               block output
+</code></pre>
+<p>So mathematically:</p>
+<div class="math block">
+\boxed{
+h=x+\operatorname{Attention}(\operatorname{LN}_1(x))
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+y=h+\operatorname{MoE}(\operatorname{LN}_2(h)).
+}
+</div>
+<p>That is the complete block.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-3">2. Why is it called &quot;pre-norm&quot;?</h4>
+<p>Look at the order:</p>
+<div class="math block">
+x
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{Attention}
+</div>
+<p>rather than:</p>
+<div class="math block">
+x
+\rightarrow
+\text{Attention}
+\rightarrow
+\text{Norm}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+h
+\rightarrow
+\text{Norm}
+\rightarrow
+\text{MoE}.
+</div>
+<p>Therefore the normalization happens <strong>before</strong> each major sublayer.</p>
+<p>Hence:</p>
+<div class="math block">
+\boxed{\text{pre-norm Transformer}.}
+</div>
+<p>The source explicitly labels its implementation this way. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-4">3. The source code</h4>
+<p>The source gives:</p>
+<pre><code class="language-python">class TransformerBlock(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        # Use LayerNorm for simplicity,
+        # though DeepSeek uses RMSNorm
+        self.norm1 = nn.LayerNorm(args.d_model)
+
+        self.attention = DeepSeekAttention(args)
+
+        self.norm2 = nn.LayerNorm(args.d_model)
+
+        self.feed_forward = DeepSeekMoE(args)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        attn_mask: torch.Tensor,
+        past_kv: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        position_offset: int = 0
+    ):
+        # Attention block with residual connection
+        h, new_cache = self.attention(
+            self.norm1(x),
+            attn_mask,
+            past_kv,
+            position_offset
+        )
+
+        x = x + h
+
+        # Feed-forward block with residual connection
+        x = x + self.feed_forward(
+            self.norm2(x)
+        )
+
+        return x, new_cache
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>We should understand every line because this is the point where the previous components become one Transformer layer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-5">4. First normalization</h4>
+<p>The source creates:</p>
+<pre><code class="language-python">self.norm1 = nn.LayerNorm(args.d_model)
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">self.norm1(x)
+</code></pre>
+<p>is fed into attention. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+x
+\rightarrow
+LN_1(x)
+\rightarrow
+DeepSeekAttention.
+</div>
+<p>If:</p>
+<div class="math block">
+x\in\mathbb R^{B\times S\times D},
+</div>
+<p>then LayerNorm preserves the shape:</p>
+<div class="math block">
+\boxed{
+[B,S,D]\rightarrow[B,S,D].
+}
+</div>
+<p>It changes the numerical representation, not the dimensions.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-6">5. An important source qualification: LayerNorm vs RMSNorm</h4>
+<p>The source explicitly comments:</p>
+<blockquote>
+<p>Use LayerNorm for simplicity, though DeepSeek uses RMSNorm. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<p>This distinction must be preserved.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{Mini-DeepSeek source implementation}
+=
+\text{LayerNorm}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek architecture in the source's conceptual discussion}
+=
+\text{RMSNorm}.
+}
+</div>
+<p>We should not silently replace the code's <code>LayerNorm</code> with <code>RMSNorm</code>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-7">6. Why normalize before attention?</h4>
+<p>At this level, the source is using the standard pre-norm Transformer organization.</p>
+<p>The sequence is:</p>
+<div class="math block">
+\boxed{
+x
+\rightarrow
+LN
+\rightarrow
+Attention
+\rightarrow
+Residual.
+}
+</div>
+<p>The residual connection means the original representation has a direct path around the attention computation.</p>
+<p>This gives:</p>
+<div class="math block">
+x_{\text{new}}
+=
+x+
+h.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-8">7. Attention call</h4>
+<p>The source executes:</p>
+<pre><code class="language-python">h, new_cache = self.attention(
+    self.norm1(x),
+    attn_mask,
+    past_kv,
+    position_offset
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice that four things enter the attention module:</p>
+<h6 id="v3-heading-chunk-les-r100-8-i110-9">1. Normalized hidden state</h6>
+<div class="math block">
+LN_1(x)
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-10">2. Attention mask</h6>
+<div class="math block">
+attn\_mask
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-11">3. Previous cache</h6>
+<div class="math block">
+past\_kv
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-12">4. Position offset</h6>
+<div class="math block">
+position\_offset.
+</div>
+<p>This connects the Transformer block directly to everything we have already learned about MLA, RoPE, and cached inference.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-13">8. The attention output has two results</h4>
+<p>The function returns:</p>
+<pre><code class="language-python">h, new_cache
+</code></pre>
+<p>So attention produces:</p>
+<div class="math block">
+\boxed{h}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{new\_cache}.
+</div>
+<p>The first is the actual attention output.</p>
+<p>The second is the updated state needed if the model is doing cached inference.</p>
+<p>So conceptually:</p>
+<pre><code class="language-text">normalized x
+     │
+     ▼
+DeepSeekAttention
+     │
+     ├────────────→ h
+     │
+     └────────────→ new_cache
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-14">9. First residual connection</h4>
+<p>The source then performs:</p>
+<pre><code class="language-python">x = x + h
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the first residual connection.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+x_1=x_0+h.
+}
+</div>
+<p>where:</p>
+<div class="math block">
+h=Attention(LN_1(x_0)).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+x_1
+=
+x_0+
+Attention(LN_1(x_0)).
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-15">10. Why does the original <code>x</code> remain?</h4>
+<p>Because attention should be treated as a transformation/refinement of the representation, not as a complete replacement.</p>
+<p>The block says:</p>
+<div class="math block">
+\boxed{
+\text{new representation}
+=
+\text{old representation}
++
+\text{learned update}.
+}
+</div>
+<p>This residual structure is already familiar from the Transformer, but here the &quot;learned update&quot; is now the specialized DeepSeek attention mechanism.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-16">11. Second normalization</h4>
+<p>After the attention residual:</p>
+<div class="math block">
+x_1
+</div>
+<p>goes through:</p>
+<pre><code class="language-python">self.norm2(x)
+</code></pre>
+<p>before entering MoE. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+x_1
+\rightarrow
+LN_2(x_1)
+\rightarrow
+MoE.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-17">12. Why a second normalization instead of reusing the first?</h4>
+<p>Because the attention and MoE sublayers are separate transformations.</p>
+<p>The architecture is:</p>
+<div class="math block">
+\boxed{
+LN_1\rightarrow Attention
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+LN_2\rightarrow MoE.
+}
+</div>
+<p>Each gets its own normalization layer and therefore its own normalization parameters.</p>
+<p>The source creates two separate <code>LayerNorm</code> instances:</p>
+<pre><code class="language-python">self.norm1
+self.norm2
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-18">13. Feed-forward is now MoE</h4>
+<p>The source names the second sublayer:</p>
+<pre><code class="language-python">self.feed_forward = DeepSeekMoE(args)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This name can be slightly misleading.</p>
+<p><code>feed_forward</code> here does <strong>not</strong> mean one ordinary dense FFN.</p>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeekMoE}.
+}
+</div>
+<p>So:</p>
+<div class="math block">
+x_1
+\rightarrow
+DeepSeekMoE(LN_2(x_1)).
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-19">14. Second residual connection</h4>
+<p>The source then executes:</p>
+<pre><code class="language-python">x = x + self.feed_forward(
+    self.norm2(x)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+x_2
+=
+x_1+
+MoE(LN_2(x_1)).
+}
+</div>
+<p>Combined with the first equation:</p>
+<div class="math block">
+x_1
+=
+x_0+
+Attention(LN_1(x_0)).
+</div>
+<p>So the entire block is:</p>
+<div class="math block">
+\boxed{
+x_2=
+x_0+
+Attention(LN_1(x_0))
++
+MoE(LN_2(x_1))
+}
+</div>
+<p>where:</p>
+<div class="math block">
+x_1=x_0+Attention(LN_1(x_0)).
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-20">15. This means the block has two residual routes</h4>
+<p>Picture it like this:</p>
+<pre><code class="language-text">                    x₀
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+          │                residual
+          ▼                   │
+        LN₁                   │
+          │                   │
+          ▼                   │
+      Attention               │
+          │                   │
+          ▼                   │
+         h                    │
+          │                   │
+          └────────┬──────────┘
+                   ▼
+                  x₁
+                   │
+          ┌────────┴────────┐
+          │                 │
+         LN₂             residual
+          │                 │
+          ▼                 │
+         MoE                │
+          │                 │
+          └────────┬────────┘
+                   ▼
+                  x₂
+</code></pre>
+<p>This is the complete computational structure of one block.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-21">16. Shape flow through the block</h4>
+<p>Let:</p>
+<div class="math block">
+x:[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-22">Norm 1</h6>
+<div class="math block">
+[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-23">Attention</h6>
+<div class="math block">
+[B,S,D]
+\rightarrow
+[B,S,D].
+</div>
+<p>So:</p>
+<div class="math block">
+h:[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-24">First residual</h6>
+<div class="math block">
+x_1:[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-25">Norm 2</h6>
+<div class="math block">
+[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-26">MoE</h6>
+<div class="math block">
+[B,S,D]
+\rightarrow
+[B,S,D].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-27">Second residual</h6>
+<div class="math block">
+\boxed{
+x_2:[B,S,D].
+}
+</div>
+<p>The key property is:</p>
+<div class="math block">
+\boxed{
+\text{TransformerBlock preserves the model dimension}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-28">17. What happens to the KV cache?</h4>
+<p>This is especially important.</p>
+<p>The block receives:</p>
+<div class="math block">
+past\_kv.
+</div>
+<p>The attention layer may update it and returns:</p>
+<div class="math block">
+new\_cache.
+</div>
+<p>Then the block returns:</p>
+<pre><code class="language-python">return x, new_cache
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice:</p>
+<div class="math block">
+\boxed{
+\text{MoE does not generate the attention cache}.
+}
+</div>
+<p>The cache belongs to the attention pathway.</p>
+<p>That is why the block simply passes <code>new_cache</code> back upward.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-29">18. Training behavior</h4>
+<p>During training, the source calls:</p>
+<pre><code class="language-python">x, _ = blk(
+    x,
+    attn_mask=mask
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Notice:</p>
+<div class="math block">
+past\_kv
+</div>
+<p>is not supplied.</p>
+<p>The source explicitly says the KV cache is ignored during training because the full input sequence is processed at once. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<pre><code class="language-text">Training:
+
+x
+ ↓
+Norm
+ ↓
+Attention without cache
+ ↓
+Residual
+ ↓
+Norm
+ ↓
+MoE
+ ↓
+Residual
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-30">19. Inference behavior</h4>
+<p>During cached inference, the same block can receive:</p>
+<div class="math block">
+past\_kv.
+</div>
+<p>Then:</p>
+<pre><code class="language-text">new token
+    ↓
+Norm
+    ↓
+Attention
+    │
+    ├── past cache
+    └── position_offset
+    ↓
+new output + new cache
+    ↓
+MoE
+    ↓
+block output
+</code></pre>
+<p>The source explicitly threads <code>past_kv</code> and <code>position_offset</code> through the block to <code>DeepSeekAttention</code>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is elegant because the same <code>TransformerBlock</code> supports both modes.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-31">20. One complete numerical shape trace</h4>
+<p>Use the source's default dimensions:</p>
+<div class="math block">
+B=24
+</div>
+<div class="math block">
+S=256
+</div>
+<div class="math block">
+D=512.
+</div>
+<p>Input:</p>
+<div class="math block">
+\boxed{x:[24,256,512]}.
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-32">First normalization</h6>
+<div class="math block">
+[24,256,512]
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-33">DeepSeekAttention</h6>
+<div class="math block">
+[24,256,512]
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-34">Residual</h6>
+<div class="math block">
+x_1:[24,256,512].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-35">Second normalization</h6>
+<div class="math block">
+[24,256,512].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-36">DeepSeekMoE</h6>
+<div class="math block">
+[24,256,512].
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-37">Final residual</h6>
+<div class="math block">
+\boxed{
+x_2:[24,256,512].
+}
+</div>
+<p>So despite all the internal complexity:</p>
+<div class="math block">
+\boxed{
+[B,S,D]\rightarrow[B,S,D].
+}
+</div>
+<p>That is exactly what allows us to stack multiple blocks.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-38">21. Why can we stack blocks?</h4>
+<p>Because the output shape matches the input shape.</p>
+<p>Therefore:</p>
+<div class="math block">
+x^{(0)}
+\rightarrow
+Block_1
+\rightarrow
+x^{(1)}
+</div>
+<p>then:</p>
+<div class="math block">
+x^{(1)}
+\rightarrow
+Block_2
+\rightarrow
+x^{(2)}
+</div>
+<p>and so on.</p>
+<p>The source later constructs:</p>
+<pre><code class="language-python">self.blocks = nn.ModuleList([
+    TransformerBlock(args)
+    for _ in range(args.n_layers)
+])
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So with:</p>
+<div class="math block">
+n_{\text{layers}}=8
+</div>
+<p>the model creates:</p>
+<div class="math block">
+\boxed{8\text{ TransformerBlocks}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-39">22. The hierarchy is now visible</h4>
+<p>We've reached an important architectural hierarchy:</p>
+<pre><code class="language-text">MiniDeepSeek
+   │
+   ├── Embedding
+   │
+   ├── TransformerBlock × N
+   │      │
+   │      ├── LayerNorm
+   │      ├── DeepSeekAttention
+   │      │      ├── MLA
+   │      │      └── Decoupled RoPE
+   │      │
+   │      ├── Residual
+   │      │
+   │      ├── LayerNorm
+   │      ├── DeepSeekMoE
+   │      │      ├── Shared experts
+   │      │      └── Routed experts
+   │      │
+   │      └── Residual
+   │
+   ├── Final normalization
+   │
+   ├── LM head
+   │
+   └── MTP modules
+</code></pre>
+<p>This is the architecture tree we have been building piece by piece.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-40">23. Notice how our earlier concepts now have a precise place</h4>
+<p>Everything we studied before now fits somewhere:</p>
+<h6 id="v3-heading-chunk-les-r100-8-i110-41">RoPE</h6>
+<p>Inside:</p>
+<div class="math block">
+\boxed{\text{DeepSeekAttention}}
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-42">MLA</h6>
+<p>Inside:</p>
+<div class="math block">
+\boxed{\text{DeepSeekAttention}}
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-43">KV cache</h6>
+<p>Passed through:</p>
+<div class="math block">
+\boxed{\text{TransformerBlock}\rightarrow\text{DeepSeekAttention}}
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-44">MoE</h6>
+<p>Inside:</p>
+<div class="math block">
+\boxed{\text{TransformerBlock}}
+</div>
+<h6 id="v3-heading-chunk-les-r100-8-i110-45">MTP</h6>
+<p>Attached at the <strong>model level</strong>, after the main Transformer trunk.</p>
+<p>This separation is important.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-46">24. What the block does NOT do</h4>
+<p>The <code>TransformerBlock</code> itself does not:</p>
+<ul>
+<li>tokenize text,</li>
+<li>sample tokens,</li>
+<li>compute the vocabulary logits,</li>
+<li>calculate the MTP loss,</li>
+<li>run the optimizer.</li>
+</ul>
+<p>Its job is narrower:</p>
+<div class="math block">
+\boxed{
+\text{transform one hidden-state tensor into the next hidden-state tensor}.
+}
+</div>
+<p>It delegates specialized computation to attention and MoE.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-47">25. The entire one-block equation</h4>
+<p>Let:</p>
+<div class="math block">
+a(x)=DeepSeekAttention(LN_1(x)).
+</div>
+<p>Then:</p>
+<div class="math block">
+h=x+a(x).
+</div>
+<p>Let:</p>
+<div class="math block">
+m(h)=DeepSeekMoE(LN_2(h)).
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+Block(x)=h+m(h)
+}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{
+Block(x)
+=
+x+
+DeepSeekAttention(LN_1(x))
++
+DeepSeekMoE
+\left(
+LN_2
+\left[
+x+DeepSeekAttention(LN_1(x))
+\right]
+\right).
+}
+</div>
+<p>That's the full mathematical structure of the block represented by the source's code. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r100-8-i110-48">26. One subtle systems insight</h4>
+<p>The block is actually carrying <strong>two different kinds of state</strong>.</p>
+<h6 id="v3-heading-chunk-les-r100-8-i110-49">Hidden state</h6>
+<div class="math block">
+x
+</div>
+<p>moves through the network and becomes the representation used by subsequent blocks.</p>
+<h6 id="v3-heading-chunk-les-r100-8-i110-50">Attention cache</h6>
+<div class="math block">
+(c_{kv},k_r)
+</div>
+<p>is maintained for efficient autoregressive inference.</p>
+<p>So:</p>
+<pre><code class="language-text">Hidden state
+    ↓
+Block computation
+    ↓
+next hidden state
+
+KV cache
+    ↓
+Attention only
+    ↓
+updated KV cache
+</code></pre>
+<p>The MoE affects the hidden state but not the KV cache.</p>
+<p>This distinction becomes very useful when reasoning about inference memory.</p>
+<hr />
+</section>

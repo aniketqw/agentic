@@ -1,0 +1,742 @@
+<section class="chunk" id="chunk-les-r102-3-i120" data-id="les-r102-3-i120"><div class="v3-route" data-v3="added" data-lesson="chunk-les-r102-3-i120"><div class="v3-route-top"><span>Book revisit / integration</span><button type="button" class="v3-complete" data-lesson="chunk-les-r102-3-i120" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r102-2-i119">← Previous lesson</a> · <a href="#chunk-les-r102-4-i121">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-12-i53">Step 5.12 — DeepSeek-R1 From Scratch: R1-Zero → R1 → Distill</a></p><p><strong>This lesson:</strong> R102.3 — RLVR: Turning a Verifier Into the Reward Function</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r102-3-i120"></a></p>
+<h3 id="v3-heading-chunk-les-r102-3-i120-1">R102.3 — RLVR: Turning a Verifier Into the Reward Function</h3>
+<p><em>Plan node: B2 · chat order #120</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-5-7-i48">Step 5.7 — The Full GRPO Training Algorithm</a> · <a href="#les-step-5-12-i53">Step 5.12 — DeepSeek-R1 From Scratch: R1-Zero → R1 → Distill</a></p>
+</blockquote>
+<p>We have now reached the point where GRPO becomes especially powerful for reasoning tasks.</p>
+<p>Recall the GRPO pipeline:</p>
+<div class="math block">
+\text{prompt}
+\rightarrow
+\text{multiple completions}
+\rightarrow
+\text{rewards}
+\rightarrow
+\text{group-relative advantages}
+\rightarrow
+\text{GRPO update}.
+</div>
+<p>The next question is:</p>
+<blockquote>
+<p><strong>Where do those rewards come from?</strong></p>
+</blockquote>
+<p>The source introduces:</p>
+<div class="math block">
+\boxed{\text{RLVR = Reinforcement Learning with Verifiable Rewards}}
+</div>
+<p>The central idea is simple:</p>
+<div class="math block">
+\boxed{
+\text{replace a learned reward model with a deterministic verifier}
+}
+</div>
+<p>when the task has objectively checkable outcomes. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-2">1. Reward is the missing piece</h4>
+<p>We already have:</p>
+<div class="math block">
+\pi_\theta
+</div>
+<p>generating responses.</p>
+<p>For one prompt:</p>
+<pre><code class="language-text">Prompt
+  │
+  ├── Response 1
+  ├── Response 2
+  ├── Response 3
+  └── Response 4
+</code></pre>
+<p>Now we need:</p>
+<div class="math block">
+r_1,r_2,r_3,r_4.
+</div>
+<p>The reward answers:</p>
+<blockquote>
+<p><strong>How successful was each response?</strong></p>
+</blockquote>
+<p>In PPO/GRPO, this reward could come from a learned reward model.</p>
+<p>But for some tasks, we can do something much simpler.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-3">2. Math gives us an obvious verifier</h4>
+<p>Suppose the prompt is:</p>
+<blockquote>
+<p>What is <span class="math inline">5+2\times3</span>?</p>
+</blockquote>
+<p>The correct answer is:</p>
+<div class="math block">
+11.
+</div>
+<p>The model generates:</p>
+<pre><code class="language-text">Response A → 11
+Response B → 8
+Response C → 11
+Response D → 9
+</code></pre>
+<p>A deterministic program can check them.</p>
+<p>For example:</p>
+<pre><code class="language-text">if extracted_answer == gold_answer:
+    reward = 1
+else:
+    reward = 0
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+[1,0,1,0].
+</div>
+<p>No neural reward model is required.</p>
+<p>That is RLVR. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-4">3. Why is a verifier attractive?</h4>
+<p>A learned reward model approximates a judgment.</p>
+<p>A deterministic verifier directly computes it.</p>
+<p>For an objective task:</p>
+<div class="math block">
+\boxed{
+\text{correct answer}
+\rightarrow
+\text{known rule}
+\rightarrow
+\text{reward}
+}
+</div>
+<p>This has several advantages.</p>
+<p>The source emphasizes that RLVR can provide a less subjective and automatically computable reward signal without requiring human labels for every generated response. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-5">4. Code is another natural RLVR task</h4>
+<p>Suppose the prompt says:</p>
+<blockquote>
+<p>Write a Python function to reverse a string.</p>
+</blockquote>
+<p>The model produces code.</p>
+<p>We can run:</p>
+<pre><code class="language-text">generated code
+      ↓
+unit tests
+      ↓
+pass/fail
+      ↓
+reward
+</code></pre>
+<p>For example:</p>
+<div class="math block">
+R=
+\begin{cases}
+1,&amp;\text{tests pass}\\
+0,&amp;\text{tests fail}
+\end{cases}
+</div>
+<p>The source explicitly gives code tests or a compiler as examples of deterministic verification. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-6">5. Symbolic tasks also work</h4>
+<p>The source also mentions symbolic tasks.</p>
+<p>For example, if the model has to produce something satisfying a formal rule:</p>
+<div class="math block">
+\text{candidate}
+\rightarrow
+\text{formal checker}
+\rightarrow
+R.
+</div>
+<p>So the general criterion is not:</p>
+<blockquote>
+<p>“Is this task about math?”</p>
+</blockquote>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{Can correctness be reliably checked automatically?}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-7">6. RLVR is not the same as “reward = 1 if answer is correct”</h4>
+<p>That is only the simplest example.</p>
+<p>The source emphasizes that verifier design itself matters.</p>
+<p>A verifier has to answer two questions:</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-8">Correctness</h6>
+<div class="math block">
+\boxed{\text{Did the model actually solve the task?}}
+</div>
+<h6 id="v3-heading-chunk-les-r102-3-i120-9">Extraction / protocol</h6>
+<div class="math block">
+\boxed{\text{Can I reliably identify what the model claims as its answer?}}
+</div>
+<p>Both matter.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-10">7. Why answer parsing matters</h4>
+<p>Imagine the model produces:</p>
+<pre><code class="language-text">I first thought the answer might be 12.
+
+After checking, I get 11.
+
+Final answer: 11
+</code></pre>
+<p>A naive verifier that simply searches for the first number might extract:</p>
+<div class="math block">
+12
+</div>
+<p>and mark the response wrong.</p>
+<p>But the actual answer was:</p>
+<div class="math block">
+11.
+</div>
+<p>So the verifier itself introduces noise.</p>
+<p>The source therefore recommends defining a structured response protocol, such as placing the final answer after a marker like:</p>
+<pre><code class="language-text">Final answer:
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-11">8. Format becomes part of the RL problem</h4>
+<p>Suppose we require:</p>
+<pre><code class="language-text">&lt;think&gt;
+reasoning...
+&lt;/think&gt;
+
+Final answer: 11
+</code></pre>
+<p>Now the verifier knows exactly where to look.</p>
+<p>This can make reward assignment much more reliable.</p>
+<p>The source notes that format rules can be used alongside correctness rewards, especially in the DeepSeek-R1-Zero discussion. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-12">9. DeepSeek-R1-Zero's reward design</h4>
+<p>This takes us directly to the DeepSeek reasoning story.</p>
+<p>The source describes R1-Zero as using rule-based rewards for reasoning tasks, including:</p>
+<div class="math block">
+\boxed{\text{correctness reward}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{format reward}}.
+</div>
+<p>The correctness component checks whether the final answer is correct.</p>
+<p>The format component encourages the expected reasoning/final-answer structure.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+R
+=
+R_{\text{correctness}}
++
+R_{\text{format}}
+}
+</div>
+<p>This is a conceptual decomposition from the source's description; the exact weighting/formula is not established in the excerpt, so we should not invent it.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-13">10. Why is RLVR especially suitable for reasoning?</h4>
+<p>This is the important insight.</p>
+<p>Suppose we have a difficult math problem.</p>
+<p>We may <strong>not know the exact reasoning sequence</strong> the model should use.</p>
+<p>There may be many valid paths:</p>
+<pre><code class="language-text">Path A ──→ correct
+Path B ──→ correct
+Path C ──→ correct
+Path D ──→ wrong
+</code></pre>
+<p>Supervised learning would ideally need target traces for those paths.</p>
+<p>RLVR doesn't.</p>
+<p>It can simply ask:</p>
+<div class="math block">
+\boxed{
+\text{Did the generated solution reach the correct result?}
+}
+</div>
+<p>Then GRPO can compare multiple candidate solutions.</p>
+<p>This is exactly the setting in which the source says RL can discover reasoning behavior instead of merely imitating human-written reasoning traces. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-14">11. But RLVR does NOT solve all alignment</h4>
+<p>This is a crucial qualification from the source.</p>
+<p>RLVR works beautifully when correctness is objectively verifiable.</p>
+<p>But what about:</p>
+<blockquote>
+<p>“Was this answer helpful?”</p>
+</blockquote>
+<p>There is no simple deterministic checker.</p>
+<p>Or:</p>
+<blockquote>
+<p>“Was the tone appropriate?”</p>
+</blockquote>
+<p>Again, not a simple mathematical predicate.</p>
+<p>Or:</p>
+<blockquote>
+<p>“Was this creative story better?”</p>
+</blockquote>
+<p>No objective verifier.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{RLVR is not a universal replacement for reward models}
+}
+</div>
+<p>For open-ended behavior, the source says learned reward models, preference data, or human evaluation may still be necessary. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-15">12. Math vs open-ended assistant behavior</h4>
+<p>Think of the difference:</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-16">Math</h6>
+<div class="math block">
+answer=11?
+</div>
+<p>Easy to verify.</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-17">Code</h6>
+<div class="math block">
+\text{does program pass tests?}
+</div>
+<p>Often automatically verifiable.</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-18">Helpful conversation</h6>
+<div class="math block">
+\text{is response useful?}
+</div>
+<p>Requires a more subjective signal.</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-19">Safety</h6>
+<div class="math block">
+\text{is behavior harmless?}
+</div>
+<p>Not generally reducible to a single deterministic checker.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{objective task}
+\rightarrow
+\text{RLVR is natural}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{subjective task}
+\rightarrow
+\text{preference/reward-model signals}
+}
+</div>
+<p>The source later describes DeepSeek-R1 itself as using this hybrid idea. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-20">13. Now combine GRPO + RLVR</h4>
+<p>We have:</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-21">GRPO</h6>
+<p>Generates:</p>
+<div class="math block">
+G
+</div>
+<p>responses for one prompt.</p>
+<h6 id="v3-heading-chunk-les-r102-3-i120-22">RLVR</h6>
+<p>Scores each response with a deterministic verifier.</p>
+<p>So:</p>
+<pre><code class="language-text">Prompt P
+   │
+   ├── Completion 1 → verifier → r₁
+   ├── Completion 2 → verifier → r₂
+   ├── Completion 3 → verifier → r₃
+   └── Completion 4 → verifier → r₄
+                              │
+                              ▼
+                       group normalization
+                              │
+                              ▼
+                       advantages A₁...A₄
+                              │
+                              ▼
+                         GRPO objective
+</code></pre>
+<p>This is the combination that produces the central DeepSeek-R1-Zero experiment. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-23">14. Now comes the famous R1-Zero question</h4>
+<p>The source asks a very interesting experimental question:</p>
+<blockquote>
+<p><strong>Can reasoning emerge from RL alone, without supervised reasoning examples first?</strong></p>
+</blockquote>
+<p>The setup is:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-V3-Base}
++
+\text{GRPO}
++
+\text{verifiable rewards}
+}
+</div>
+<p>with no initial supervised chain-of-thought training.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>That produces:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1-Zero}}
+</div>
+<p>in the source's framing.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-24">15. What does “without SFT” mean here?</h4>
+<p>It does <strong>not</strong> mean:</p>
+<blockquote>
+<p>“No pre-training happened.”</p>
+</blockquote>
+<p>The starting point is already a pretrained base model:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-V3-Base}}
+</div>
+<p>The absence is specifically:</p>
+<div class="math block">
+\boxed{
+\text{no supervised chain-of-thought examples before the RL experiment}
+}
+</div>
+<p>This distinction is extremely important.</p>
+<p>The pipeline is:</p>
+<pre><code class="language-text">Pretrained Base Model
+        │
+        ▼
+       GRPO
+        │
+   Verifiable rewards
+        │
+        ▼
+    R1-Zero
+</code></pre>
+<p>not:</p>
+<pre><code class="language-text">random model → RL
+</code></pre>
+<p>The source explicitly states that R1-Zero starts from DeepSeek-V3-Base. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-25">16. What behavior did the source highlight?</h4>
+<p>During training, the model begins allocating more tokens to difficult problems.</p>
+<p>The source is careful here:</p>
+<div class="math block">
+\boxed{
+\text{longer responses are not valuable by themselves}
+}
+</div>
+<p>Rather, longer reasoning can provide room to:</p>
+<ul>
+<li>try an approach,</li>
+<li>inspect intermediate results,</li>
+<li>detect mistakes,</li>
+<li>revise.</li>
+</ul>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\text{length}\uparrow
+</div>
+<p>is interesting only when:</p>
+<div class="math block">
+\text{correctness}\uparrow
+</div>
+<p>too.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-26">17. The “aha moment”</h4>
+<p>The source highlights an example from the DeepSeek-R1 report in which the model notices that its current approach needs to be reconsidered.</p>
+<p>This is presented as an <strong>“aha moment”</strong> example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The important interpretation is not:</p>
+<blockquote>
+<p>“The model magically became conscious.”</p>
+</blockquote>
+<p>Rather, the source's technical interpretation is that RL pressure can produce increasingly self-corrective reasoning behavior on verifiable tasks.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-27">18. What is <code>&lt;think&gt;</code>?</h4>
+<p>The source makes a useful clarification.</p>
+<p>The:</p>
+<pre><code class="language-text">&lt;think&gt;
+</code></pre>
+<p>marker is:</p>
+<div class="math block">
+\boxed{\text{not a Python construct}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{not a special interpreter}}
+</div>
+<p>It is a formatting convention used in the reported response to distinguish the reasoning-style region from the final answer region. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<pre><code class="language-text">&lt;think&gt;
+reasoning-style text
+&lt;/think&gt;
+
+final answer
+</code></pre>
+<p>is simply part of the model's output protocol in that context.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-28">19. A critical qualification about R1-Zero</h4>
+<p>We should not overstate the result.</p>
+<p>The source explicitly says:</p>
+<div class="math block">
+\boxed{
+\text{R1-Zero demonstrates reasoning-like behavior under RL pressure}
+}
+</div>
+<p>but <strong>not</strong>:</p>
+<div class="math block">
+\boxed{
+\text{any model + any reward ⇒ reasoning}
+}
+</div>
+<p>Nor does R1-Zero automatically become a polished assistant.</p>
+<p>The source notes issues such as:</p>
+<ul>
+<li>poor readability,</li>
+<li>language mixing.</li>
+</ul>
+<p>These limitations motivate the more engineered DeepSeek-R1 pipeline. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-29">20. Now the three names become clear</h4>
+<p>This is one of the most important pieces to understand.</p>
+<h5 id="v3-heading-chunk-les-r102-3-i120-30">DeepSeek-R1-Zero</h5>
+<div class="math block">
+\boxed{
+\text{pure RL experiment}
+}
+</div>
+<p>starting from:</p>
+<div class="math block">
+\text{V3-Base}
+</div>
+<p>with:</p>
+<div class="math block">
+\text{GRPO + verifiable rewards}
+</div>
+<p>and no supervised reasoning traces beforehand.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-r102-3-i120-31">DeepSeek-R1</h5>
+<div class="math block">
+\boxed{
+\text{engineered reasoning pipeline}
+}
+</div>
+<p>The source describes:</p>
+<div class="math block">
+\text{cold-start SFT}
+\rightarrow
+\text{reasoning RL}
+\rightarrow
+\text{rejection sampling}
+\rightarrow
+\text{mixed-data SFT}
+\rightarrow
+\text{final RL}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-r102-3-i120-32">DeepSeek-R1-Distill</h5>
+<div class="math block">
+\boxed{
+\text{smaller student models trained from R1-generated data}
+}
+</div>
+<p>This comes later in the knowledge-distillation chapter.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-33">21. A subtle but very important data-flow distinction</h4>
+<p>The source explicitly warns against thinking:</p>
+<div class="math block">
+R1\text{-Zero}
+\rightarrow
+R1
+</div>
+<p>means:</p>
+<blockquote>
+<p>“Take R1-Zero's weights and continue training.”</p>
+</blockquote>
+<p>That's not the intended interpretation.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+R1\text{-Zero outputs}
+\rightarrow
+\text{sample}
+\rightarrow
+\text{filter}
+\rightarrow
+\text{training data}
+\rightarrow
+R1
+}
+</div>
+<p>So this is a:</p>
+<div class="math block">
+\boxed{\text{data flow}}
+</div>
+<p>not a direct:</p>
+<div class="math block">
+\boxed{\text{parameter flow}}.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This distinction will become extremely important when we reach distillation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-34">22. Why R1 needed more than pure RL</h4>
+<p>R1-Zero demonstrates that pure RL can create useful reasoning behavior.</p>
+<p>But pure verifier-driven optimization does not directly optimize:</p>
+<div class="math block">
+\text{readability}
+</div>
+<div class="math block">
+\text{language consistency}
+</div>
+<div class="math block">
+\text{general assistant behavior}.
+</div>
+<p>Therefore DeepSeek-R1 adds supervised stages and later broader reward signals.</p>
+<p>The source describes its later final RL stage as hybrid:</p>
+<div class="math block">
+\boxed{
+\text{rule-based rewards for verifiable tasks}
++
+\text{learned rewards for preference-based tasks}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-35">23. The complete DeepSeek reasoning progression</h4>
+<p>Now our whole Chapter 7 story becomes:</p>
+<pre><code class="language-text">Pretrained Base Model
+        │
+        ▼
+Policy Gradient
+        │
+        ▼
+PPO
+ ┌──────┴────────┐
+ │               │
+Value model    Reference model
+ │               │
+ └──────┬────────┘
+        ▼
+       GRPO
+        │
+   remove value model
+        │
+   sample groups
+        │
+        ▼
+      RLVR
+        │
+ verifier-based reward
+        │
+        ▼
+   R1-Zero
+        │
+   reasoning emerges
+        │
+   filtered outputs
+        ▼
+       R1
+        │
+   reasoning + usability
+        │
+        ▼
+   R1-Distill
+</code></pre>
+<p>This captures the progression described across the source's Chapter 7. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-36">24. The most important distinction in one table</h4>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Main idea</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPO</td>
+<td>Improve policy while constraining policy updates; commonly uses a learned value baseline</td>
+</tr>
+<tr>
+<td>GRPO</td>
+<td>Remove learned value model; derive advantages from multiple completions for the same prompt</td>
+</tr>
+<tr>
+<td>RLVR</td>
+<td>Generate reward with a deterministic verifier when correctness is objectively checkable</td>
+</tr>
+<tr>
+<td>R1-Zero</td>
+<td>Test whether GRPO + verifiable rewards can induce reasoning behavior directly from a pretrained base model</td>
+</tr>
+<tr>
+<td>R1</td>
+<td>Add staged SFT, filtering, broader data, and hybrid rewards to make the model more usable</td>
+</tr>
+<tr>
+<td>R1-Distill</td>
+<td>Transfer R1-generated reasoning behavior into smaller students</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r102-3-i120-37">25. Final mental model</h4>
+<p>The entire transformation is:</p>
+<div class="math block">
+\boxed{
+\text{Predict tokens}
+}
+</div>
+<p>becomes:</p>
+<div class="math block">
+\boxed{
+\text{Generate candidate solutions}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Verify outcomes}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Compare candidates}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{Increase probability of better trajectories}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{repeat at scale}
+}
+</div>
+<p>This is the conceptual engine behind the source's DeepSeek reasoning story.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-r102-3-i120-38">R102.3 checkpoint</h5>
+<p>You should now be able to answer:</p>
+<div class="math block">
+\boxed{\text{What is RLVR?}}
+</div>
+<blockquote>
+<p>RL where the reward is produced by a deterministic verifier instead of a learned reward model, for tasks whose correctness can be objectively checked. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{Why is math ideal?}}
+</div>
+<blockquote>
+<p>Because many mathematical answers can be checked mechanically.</p>
+</blockquote>
+<div class="math block">
+\boxed{\text{Why is code ideal?}}
+</div>
+<blockquote>
+<p>Generated programs can often be evaluated with tests/compiler execution.</p>
+</blockquote>
+<div class="math block">
+\boxed{\text{Why can't RLVR solve all alignment?}}
+</div>
+<blockquote>
+<p>Many useful properties—helpfulness, style, nuanced preferences, harmlessness—are not deterministically verifiable. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{What is R1-Zero?}}
+</div>
+<blockquote>
+<p>The source's pure-RL experiment starting from DeepSeek-V3-Base, using GRPO and verifiable reasoning rewards without prior supervised chain-of-thought training. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+</blockquote>
+<div class="math block">
+\boxed{\text{R1-Zero}\rightarrow\text{R1}: \text{parameter flow or data flow?}}
+</div>
+<div class="math block">
+\boxed{\text{Data flow}}
+</div>
+<p>R1-Zero outputs are sampled and filtered into training data for the staged R1 pipeline. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

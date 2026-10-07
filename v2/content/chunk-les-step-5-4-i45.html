@@ -1,0 +1,1060 @@
+<section class="chunk" id="chunk-les-step-5-4-i45" data-id="les-step-5-4-i45"><details class="audit-card" id="audit-R01" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> R01 — Group advantages and standard-deviation conventions</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Compare answers to the same prompt relative to their sampled siblings.</p><p><strong>Prerequisites:</strong> <a href="#audit-F07">Expectation and population variance</a></p><h4 id="v3-heading-chunk-les-step-5-4-i45-1">Notation and assumptions</h4><p>A=(reward-mean)/(std+epsilon). Record population divisor G or sample divisor G-1. Epsilon is distinct from PPO clip epsilon.</p><h4 id="v3-heading-chunk-les-step-5-4-i45-2">Derivation and mechanism</h4><ol><li>Compute group mean.</li><li>Compute the declared spread and denominator.</li><li>Center each reward and divide; equal rewards give zero reward advantages with positive epsilon.</li></ol><h4 id="v3-heading-chunk-les-step-5-4-i45-3">Worked example</h4><p>Toy rewards[1,1,1,0]:mean.75. Population std√3/4 gives advantages[1/√3,1/√3,1/√3,-√3]. Sample std.5 instead gives[.5,.5,.5,-1.5]. The supplied slide13 uses a different group[1,1,0,0] and sample std, hence approximately±.8659.</p><h4 id="v3-heading-chunk-les-step-5-4-i45-4">Limitations</h4><ul><li>Zero reward advantages remove that policy-gradient signal, not necessarily KL or auxiliary updates.</li><li>Low-variance normalization can amplify small reward differences; no-spread groups need a defined rule.</li></ul><h4 id="v3-heading-chunk-les-step-5-4-i45-5">Connections to later concepts</h4><ul><li>R02 uses these advantages with policy ratios. R03 can still contribute a KL gradient when reward advantages vanish.</li></ul><h4 id="v3-heading-chunk-les-step-5-4-i45-6">Source support</h4><ul><li>rl-grpo-slides(1).pdf · physical PDF pages 12, 13, 21 · Group statistics</li><li>Build a Reasoning Model (From Scratch)(2).pdf · physical PDF pages 226, 227 · Chapter6 GRPO group mechanism</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-4-i45-7">Executed code and evidence</h4><p>Functions: advantages. Passed checks: GRPO-population, GRPO-sample, GRPO-zero-group</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-4-i45"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-4-i45" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-3-i44">← Previous lesson</a> · <a href="#chunk-les-step-5-5-i46">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-3-i44">Step 5.3 — Why GRPO Instead of PPO?</a></p><p><strong>This lesson:</strong> Step 5.4 — Complete GRPO Worked Example, From Prompt to Policy Loss</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-4-i45"></a></p>
+<h2>Step 5.4 — Complete GRPO Worked Example, From Prompt to Policy Loss</h2>
+<p><em>Plan node: I6 · chat order #45</em></p>
+<p>Now we will do the <strong>entire Chapter 6 GRPO example by hand</strong>, exactly following the source's worked setup.</p>
+<p>The purpose of this step is to make every arrow in</p>
+<div class="math block">
+\boxed{
+\text{Prompt}
+\rightarrow
+\text{Rollouts}
+\rightarrow
+\text{Rewards}
+\rightarrow
+\text{Advantages}
+\rightarrow
+\text{Logprobs}
+\rightarrow
+\text{Policy loss}
+}
+</div>
+<p>completely concrete. The source presents this as the core GRPO procedure. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-8">1. The problem</h3>
+<p>The prompt used in the source is:</p>
+<blockquote>
+<p>“Half the value of <span class="math inline">3x-9</span> is <span class="math inline">x+37</span>. What is the value of <span class="math inline">x</span>? Write the final result in <span class="math inline">\boxed{}</span>.”</p>
+</blockquote>
+<p>Mathematically:</p>
+<div class="math block">
+\frac{3x-9}{2}=x+37.
+</div>
+<p>Multiply by 2:</p>
+<div class="math block">
+3x-9=2x+74.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+x=83.
+</div>
+<p>So the ground-truth answer is:</p>
+<div class="math block">
+\boxed{83}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-9">2. The model generates multiple rollouts</h3>
+<p>Instead of generating one answer, GRPO samples several answers for the <strong>same prompt</strong>.</p>
+<p>The source uses four:</p>
+<div class="math block">
+o_1=\boxed{83}
+</div>
+<div class="math block">
+o_2=\text{“The correct answer is }\boxed{83}\text{”}
+</div>
+<div class="math block">
+o_3=\text{“The final answer is 83”}
+</div>
+<div class="math block">
+o_4=\text{“We get }\boxed{38}\text{”}
+</div>
+<p>These are the four rollouts used in the worked example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Think of them as four attempts by the <strong>same policy</strong>.</p>
+<pre><code class="language-text">                     SAME PROMPT
+                          │
+             ┌────────────┼────────────┐
+             ↓            ↓            ↓
+           Rollout 1    Rollout 2   ... Rollout 4
+</code></pre>
+<p>This is why GRPO needs a <strong>group</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-10">3. Stage 1 — Sampling rollouts</h3>
+<p>The model samples rather than simply taking argmax.</p>
+<p>The source uses the earlier chapter's sampling machinery, including temperature/top-p generation. The important point here is:</p>
+<div class="math block">
+o_i\sim\pi_\theta(\cdot\mid q).
+</div>
+<p>So all four outputs come from the current policy.</p>
+<p>The source's practical implementation explicitly uses multiple calls to the sampling function to obtain different rollouts. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-11">4. Stage 2 — Calculate rewards</h3>
+<p>Now the verifier examines each rollout.</p>
+<p>The source's reward function requires:</p>
+<ol>
+<li>the answer to be correct, and</li>
+<li>the answer to use the required <span class="math inline">\boxed{}</span> format. <em>(Source: Build a Reasoning Model (From Scratch))</em></li>
+</ol>
+<p>So:</p>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-12">Rollout 1</h5>
+<div class="math block">
+\boxed{83}
+</div>
+<p>Correct answer and correct format:</p>
+<div class="math block">
+R_1=1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-13">Rollout 2</h5>
+<div class="math block">
+\text{The correct answer is }\boxed{83}
+</div>
+<p>Also correct and properly formatted:</p>
+<div class="math block">
+R_2=1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-14">Rollout 3</h5>
+<div class="math block">
+\text{The final answer is 83}
+</div>
+<p>Correct numerical answer, but no <span class="math inline">\boxed{}</span> format.</p>
+<p>Under this source's reward function:</p>
+<div class="math block">
+R_3=0.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-15">Rollout 4</h5>
+<div class="math block">
+\boxed{38}
+</div>
+<p>Wrong answer:</p>
+<div class="math block">
+R_4=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+R=[1,1,0,0]
+}
+</div>
+<p>This is exactly the reward vector shown in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-16">5. Important: reward is not probability</h3>
+<p>At this moment we have:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>These numbers do <strong>not</strong> mean:</p>
+<blockquote>
+<p>rollout 1 has 100% probability.</p>
+</blockquote>
+<p>They mean:</p>
+<blockquote>
+<p>rollout 1 received reward 1.</p>
+</blockquote>
+<p>So keep these quantities separate:</p>
+<div class="math block">
+\boxed{
+R_i=\text{quality signal}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\pi_\theta(o_i\mid q)=\text{model probability}
+}
+</div>
+<p>This distinction is fundamental.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-17">6. Stage 3 — Calculate the group mean</h3>
+<p>Rewards:</p>
+<div class="math block">
+[1,1,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu_R
+=
+\frac{1+1+0+0}{4}
+=
+\frac24
+=
+\boxed{0.5}.
+</div>
+<p>Interpretation:</p>
+<div class="math block">
+\boxed{\text{average rollout reward}=0.5}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{50\%}
+</div>
+<p>of these sampled responses succeeded under this verifier.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-18">7. Why do we subtract the group mean?</h3>
+<p>Calculate:</p>
+<div class="math block">
+R_i-\mu_R.
+</div>
+<p>For rollout 1:</p>
+<div class="math block">
+1-0.5=0.5.
+</div>
+<p>Rollout 2:</p>
+<div class="math block">
+1-0.5=0.5.
+</div>
+<p>Rollout 3:</p>
+<div class="math block">
+0-0.5=-0.5.
+</div>
+<p>Rollout 4:</p>
+<div class="math block">
+0-0.5=-0.5.
+</div>
+<p>Thus:</p>
+<div class="math block">
+R-\mu_R
+=
+[0.5,0.5,-0.5,-0.5].
+</div>
+<p>Now we have a relative interpretation:</p>
+<pre><code class="language-text">+0.5 → better than group average
+-0.5 → worse than group average
+</code></pre>
+<p>That is the entire meaning of <strong>relative</strong> in GRPO.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-19">8. Calculate the standard deviation</h3>
+<p>Using the sample-standard-deviation convention used in the source's PyTorch code:</p>
+<div class="math block">
+\sigma_R\approx0.577.
+</div>
+<p>Then the normalized advantage is:</p>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\mu_R}
+{\sigma_R+\epsilon}
+}
+</div>
+<p>with a small <span class="math inline">\epsilon</span> for numerical stability. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-20">9. Calculate all four advantages</h3>
+<p>For the correct first rollout:</p>
+<div class="math block">
+A_1
+=
+\frac{1-0.5}{0.577+10^{-4}}
+\approx
+\boxed{0.8659}.
+</div>
+<p>Similarly:</p>
+<div class="math block">
+A_2\approx\boxed{0.8659}.
+</div>
+<p>For rollout 3:</p>
+<div class="math block">
+A_3
+=
+\frac{0-0.5}{0.577+10^{-4}}
+\approx
+\boxed{-0.8659}.
+</div>
+<p>And:</p>
+<div class="math block">
+A_4\approx\boxed{-0.8659}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+A=[0.8659,0.8659,-0.8659,-0.8659]
+}
+</div>
+<p>which is the source's exact worked result. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-21">10. What the advantages now tell the optimizer</h3>
+<p>This is the most useful interpretation:</p>
+<table>
+<thead>
+<tr>
+<th>Rollout</th>
+<th style="text-align:right">Reward</th>
+<th style="text-align:right">Advantage</th>
+<th>Learning direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\boxed{83}</span></td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">+0.8659</span></td>
+<td>Reinforce</td>
+</tr>
+<tr>
+<td>Correct + boxed</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">+0.8659</span></td>
+<td>Reinforce</td>
+</tr>
+<tr>
+<td>Correct but not boxed</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right"><span class="math inline">-0.8659</span></td>
+<td>Suppress</td>
+</tr>
+<tr>
+<td><span class="math inline">\boxed{38}</span></td>
+<td style="text-align:right">0</td>
+<td style="text-align:right"><span class="math inline">-0.8659</span></td>
+<td>Suppress</td>
+</tr>
+</tbody>
+</table>
+<p>Notice something subtle.</p>
+<p>The third answer is <strong>numerically correct</strong>, but this particular reward function gives it zero because the source has explicitly included a formatting requirement. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So the policy is not merely learning:</p>
+<div class="math block">
+\text{“answer 83.”}
+</div>
+<p>It is learning:</p>
+<div class="math block">
+\boxed{
+\text{“answer correctly and follow the required response protocol.”}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-22">11. Why not simply use the rewards?</h3>
+<p>You might ask:</p>
+<blockquote>
+<p>Why not use <span class="math inline">1,1,0,0</span> directly?</p>
+</blockquote>
+<p>You could construct a policy-gradient estimator around raw rewards, but GRPO specifically derives a <strong>relative, normalized</strong> learning signal from the group.</p>
+<p>The source describes the purpose of the advantage as identifying which outputs performed better or worse <strong>relative to the other outputs for the same prompt</strong>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+R=[1,1,0,0]
+</div>
+<p>becomes:</p>
+<div class="math block">
+A=[+0.8659,+0.8659,-0.8659,-0.8659].
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-23">12. Stage 4 — Score each rollout with sequence log probability</h3>
+<p>Now we take a separate branch from the rollouts.</p>
+<p>For each answer, we ask:</p>
+<blockquote>
+<p>How likely does the current LLM think this generated response is?</p>
+</blockquote>
+<p>The source calls this <strong>sequence-level log probability</strong>. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Mathematically:</p>
+<div class="math block">
+\log P_\theta(o_i\mid q)
+=
+\sum_{t=1}^{T_i}
+\log
+P_\theta(y_t^{(i)}\mid q,y_{&lt;t}^{(i)}).
+</div>
+<p>So we sum the log probability of every generated answer token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-24">13. The source's actual logprob results</h3>
+<p>For the four rollouts, the source obtains:</p>
+<div class="math block">
+\boxed{
+[-7.9243,\,-20.1546,\,-16.6130,\,-23.3677]
+}
+</div>
+<p>respectively. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So our complete table is now:</p>
+<table>
+<thead>
+<tr>
+<th>Rollout</th>
+<th style="text-align:right">Reward</th>
+<th style="text-align:right">Advantage</th>
+<th style="text-align:right">Sequence logprob</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\boxed{83}</span></td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">+0.8659</span></td>
+<td style="text-align:right"><span class="math inline">-7.9243</span></td>
+</tr>
+<tr>
+<td>Correct + boxed</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right"><span class="math inline">+0.8659</span></td>
+<td style="text-align:right"><span class="math inline">-20.1546</span></td>
+</tr>
+<tr>
+<td>Correct but unboxed</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right"><span class="math inline">-0.8659</span></td>
+<td style="text-align:right"><span class="math inline">-16.6130</span></td>
+</tr>
+<tr>
+<td><span class="math inline">\boxed{38}</span></td>
+<td style="text-align:right">0</td>
+<td style="text-align:right"><span class="math inline">-0.8659</span></td>
+<td style="text-align:right"><span class="math inline">-23.3677</span></td>
+</tr>
+</tbody>
+</table>
+<p>This table is the heart of the worked example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-25">14. Why are log probabilities negative?</h3>
+<p>Because:</p>
+<div class="math block">
+0&lt;P&lt;1.
+</div>
+<p>For any:</p>
+<div class="math block">
+0&lt;P&lt;1,
+</div>
+<p>we have:</p>
+<div class="math block">
+\log P&lt;0.
+</div>
+<p>For example:</p>
+<div class="math block">
+\log(0.5)\approx-0.693.
+</div>
+<p>So a negative sequence logprob is perfectly normal.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-26">15. Why is the shorter answer less negative?</h3>
+<p>The first response:</p>
+<div class="math block">
+\boxed{83}
+</div>
+<p>is very short.</p>
+<p>Its logprob is:</p>
+<div class="math block">
+-7.9243.
+</div>
+<p>The second response is longer:</p>
+<blockquote>
+<p>The correct answer is <span class="math inline">\boxed{83}</span></p>
+</blockquote>
+<p>and has:</p>
+<div class="math block">
+-20.1546.
+</div>
+<p>The source explicitly notes that summed sequence log probabilities naturally tend to favor shorter/concise outputs because more token log probabilities are being summed. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is an important nuance.</p>
+<p>A higher sequence logprob does <strong>not</strong> automatically mean “better reasoning.”</p>
+<p>It is simply the summed likelihood of the generated sequence under the policy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-27">16. Why do we need logprob at all?</h3>
+<p>Reward says:</p>
+<div class="math block">
+\boxed{\text{Was the answer good?}}
+</div>
+<p>Advantage says:</p>
+<div class="math block">
+\boxed{\text{Was it better or worse than its peers?}}
+</div>
+<p>Log probability says:</p>
+<div class="math block">
+\boxed{\text{How much probability does the policy assign to this sampled behavior?}}
+</div>
+<p>We need both.</p>
+<p>So the optimizer can connect:</p>
+<div class="math block">
+\text{quality of behavior}
+</div>
+<p>to:</p>
+<div class="math block">
+\text{probability assigned to that behavior}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-28">17. Stage 5 — Build the policy-gradient loss</h3>
+<p>Now combine:</p>
+<div class="math block">
+A_i
+</div>
+<p>with:</p>
+<div class="math block">
+\log P_\theta(o_i\mid q).
+</div>
+<p>The simplified source objective is:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\frac1N
+\sum_{i=1}^{N}
+A_i
+\log P_\theta(o_i\mid q)
+}
+</div>
+<p>The implementation is:</p>
+<pre><code class="language-python">logps = torch.stack(rollout_logps)
+pg_loss = -(advantages.detach() * logps).mean()
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-29">18. Substitute the actual numbers</h3>
+<p>We have:</p>
+<div class="math block">
+A=
+[0.8659,0.8659,-0.8659,-0.8659]
+</div>
+<p>and:</p>
+<div class="math block">
+\log P=
+[-7.9243,-20.1546,-16.6130,-23.3677].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{PG}}
+=
+-\frac14
+[
+(0.8659)(-7.9243)
++
+(0.8659)(-20.1546)
+</div>
+<div class="math block">
++
+(-0.8659)(-16.6130)
++
+(-0.8659)(-23.3677)
+].
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-30">19. Calculate term by term</h3>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-31">Rollout 1</h5>
+<div class="math block">
+(0.8659)(-7.9243)
+\approx
+-6.858.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-32">Rollout 2</h5>
+<div class="math block">
+(0.8659)(-20.1546)
+\approx
+-17.454.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-33">Rollout 3</h5>
+<div class="math block">
+(-0.8659)(-16.6130)
+\approx
+14.383.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-34">Rollout 4</h5>
+<div class="math block">
+(-0.8659)(-23.3677)
+\approx
+20.229.
+</div>
+<p>So:</p>
+<div class="math block">
+-6.858-17.454+14.383+20.229
+\approx10.300.
+</div>
+<p>Then:</p>
+<div class="math block">
+-\frac{10.300}{4}
+\approx-2.575.
+</div>
+<p>With the exact source values and floating-point calculations:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}=-2.5764
+}
+</div>
+<p>which is the result reported in the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-35">20. Now understand the sign</h3>
+<p>This is much more important than the arithmetic.</p>
+<p>For a <strong>good</strong> rollout:</p>
+<div class="math block">
+A_i&gt;0.
+</div>
+<p>The optimizer tries to increase:</p>
+<div class="math block">
+\log P_\theta(o_i\mid q).
+</div>
+<p>Since larger log probability means larger probability:</p>
+<div class="math block">
+\boxed{
+\text{good rollout}
+\rightarrow
+\text{make it more probable}
+}
+</div>
+<p>For a <strong>bad</strong> rollout:</p>
+<div class="math block">
+A_i&lt;0.
+</div>
+<p>The optimization pressure goes in the opposite direction:</p>
+<div class="math block">
+\boxed{
+\text{bad rollout}
+\rightarrow
+\text{make it less probable}
+}
+</div>
+<p>This is policy learning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-36">21. A microscopic two-rollout intuition</h3>
+<p>Forget the whole batch.</p>
+<p>Suppose:</p>
+<div class="math block">
+A=+1
+</div>
+<p>for a successful response, and its probability is:</p>
+<div class="math block">
+P=0.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log P=\log(0.1)\approx-2.303.
+</div>
+<p>Its contribution to:</p>
+<div class="math block">
+-A\log P
+</div>
+<p>is:</p>
+<div class="math block">
+-1(-2.303)
+=
+2.303.
+</div>
+<p>Optimization tries to reduce the loss, which pushes the model toward increasing the probability of this successful response.</p>
+<p>For a bad response:</p>
+<div class="math block">
+A=-1,
+</div>
+<p>the direction reverses.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-37">22. Stage 6 — Backpropagation</h3>
+<p>Now:</p>
+<div class="math block">
+L_{\text{PG}}
+</div>
+<p>is differentiable with respect to the model parameters because the sequence log probabilities came from the model.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta L_{\text{PG}}
+}
+</div>
+<p>can be calculated.</p>
+<p>The source explains that PyTorch's computation graph retains the path from the model parameters through the sequence log probabilities, allowing backpropagation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-38">23. Stage 7 — Update the model</h3>
+<p>Once we have:</p>
+<div class="math block">
+\nabla_\theta L,
+</div>
+<p>an optimizer such as AdamW updates the model:</p>
+<div class="math block">
+\boxed{
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\theta</span> = policy parameters,</li>
+<li><span class="math inline">\eta</span> = learning rate.</li>
+</ul>
+<p>The next time the same type of problem appears, the policy has slightly different token probabilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-39">24. The whole example in one table</h3>
+<p>Here is the complete chain:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th style="text-align:right">Rollout 1</th>
+<th style="text-align:right">Rollout 2</th>
+<th style="text-align:right">Rollout 3</th>
+<th style="text-align:right">Rollout 4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Response</td>
+<td style="text-align:right"><span class="math inline">\boxed{83}</span></td>
+<td style="text-align:right">correct + boxed</td>
+<td style="text-align:right">correct, unboxed</td>
+<td style="text-align:right"><span class="math inline">\boxed{38}</span></td>
+</tr>
+<tr>
+<td>Reward</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td>Mean reward</td>
+<td style="text-align:right">0.5</td>
+<td style="text-align:right">0.5</td>
+<td style="text-align:right">0.5</td>
+<td style="text-align:right">0.5</td>
+</tr>
+<tr>
+<td>Deviation</td>
+<td style="text-align:right">+0.5</td>
+<td style="text-align:right">+0.5</td>
+<td style="text-align:right">−0.5</td>
+<td style="text-align:right">−0.5</td>
+</tr>
+<tr>
+<td>Advantage</td>
+<td style="text-align:right">+0.8659</td>
+<td style="text-align:right">+0.8659</td>
+<td style="text-align:right">−0.8659</td>
+<td style="text-align:right">−0.8659</td>
+</tr>
+<tr>
+<td>Logprob</td>
+<td style="text-align:right">−7.9243</td>
+<td style="text-align:right">−20.1546</td>
+<td style="text-align:right">−16.6130</td>
+<td style="text-align:right">−23.3677</td>
+</tr>
+</tbody>
+</table>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}=-2.5764
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-40">25. Why this works even though the verifier is not differentiable</h3>
+<p>This is one of the most beautiful parts of the method.</p>
+<p>The verifier produces:</p>
+<div class="math block">
+R_i.
+</div>
+<p>We don't backpropagate through:</p>
+<div class="math block">
+R_i.
+</div>
+<p>Instead:</p>
+<div class="math block">
+R_i
+\rightarrow
+A_i
+</div>
+<p>and then treat:</p>
+<div class="math block">
+A_i
+</div>
+<p>as a fixed learning signal.</p>
+<p>The differentiable path is through:</p>
+<div class="math block">
+\log P_\theta(o_i\mid q).
+</div>
+<p>So:</p>
+<pre><code class="language-text">Verifier
+   ↓
+Reward
+   ↓
+Advantage ──────────────┐
+                        ×
+Model ──→ logprob ──────┘
+             ↓
+            loss
+             ↓
+        backpropagation
+</code></pre>
+<p>This is why <code>advantages.detach()</code> appears in the implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-41">26. The zero-signal case</h3>
+<p>Now consider:</p>
+<div class="math block">
+R=[0,0,0,0].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\mu=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+R_i-\mu=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+A=[0,0,0,0]
+}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+L_{\text{PG}}=0.
+</div>
+<p>Similarly, if:</p>
+<div class="math block">
+R=[1,1,1,1],
+</div>
+<p>then:</p>
+<div class="math block">
+A=[0,0,0,0].
+</div>
+<p>The source explicitly highlights this as an intentional property: when all rollouts are equally good or equally bad, there is no relative signal telling GRPO which behavior to reinforce or suppress. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-42">27. This gives GRPO its most important behavior</h3>
+<p>Suppose four answers all fail:</p>
+<div class="math block">
+[0,0,0,0].
+</div>
+<p>GRPO does <strong>not</strong> say:</p>
+<blockquote>
+<p>“Pick one wrong answer and reinforce it.”</p>
+</blockquote>
+<p>Instead:</p>
+<div class="math block">
+\boxed{\text{No relative preference} \Rightarrow \text{zero group signal}}
+</div>
+<p>This is one of the reasons the group formulation is meaningful.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-43">28. Numerical exam question 1</h3>
+<p>A group has:</p>
+<div class="math block">
+R=[1,1,0,0].
+</div>
+<p>Find the mean.</p>
+<div class="math block">
+\boxed{0.5}
+</div>
+<p>Find the deviations.</p>
+<div class="math block">
+\boxed{[0.5,0.5,-0.5,-0.5]}
+</div>
+<p>Using:</p>
+<div class="math block">
+\sigma\approx0.577,
+</div>
+<p>find the advantages:</p>
+<div class="math block">
+\boxed{[0.8659,0.8659,-0.8659,-0.8659]}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-44">29. Numerical exam question 2</h3>
+<p>Suppose:</p>
+<div class="math block">
+A=[0.5,-0.5]
+</div>
+<p>and:</p>
+<div class="math block">
+\log P=[-4,-8].
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+-\frac12
+[(0.5)(-4)+(-0.5)(-8)].
+</div>
+<div class="math block">
+=
+-\frac12(-2+4)
+</div>
+<div class="math block">
+=\boxed{-1}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-45">30. Numerical exam question 3 — interpretation</h3>
+<p>Suppose:</p>
+<div class="math block">
+A_1=+0.9
+</div>
+<p>and:</p>
+<div class="math block">
+A_2=-0.9.
+</div>
+<p>Which response should receive greater probability after training?</p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{Response 1}}
+</div>
+<p>because positive advantage means:</p>
+<div class="math block">
+\boxed{\text{reinforce this behavior}}
+</div>
+<p>while negative advantage means:</p>
+<div class="math block">
+\boxed{\text{penalize this behavior}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-46">31. Numerical exam question 4 — zero update</h3>
+<p>Rewards:</p>
+<div class="math block">
+[1,1,1,1].
+</div>
+<p>Mean:</p>
+<div class="math block">
+1.
+</div>
+<p>Advantages:</p>
+<div class="math block">
+[0,0,0,0].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{L_{\text{PG}}=0}
+</div>
+<p>and this prompt contributes no policy-gradient update in this simplified group-relative formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-47">32. Numerical exam question 5 — tensor reasoning</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=32,\quad G=8,\quad T=1024.
+</div>
+<p>Then:</p>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-48">Rewards</h5>
+<div class="math block">
+\boxed{[32,8]}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-49">Advantages</h5>
+<div class="math block">
+\boxed{[32,8]}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-4-i45-50">Token log probabilities</h5>
+<div class="math block">
+\boxed{[32,8,1024]}
+</div>
+<p>After summing across tokens:</p>
+<div class="math block">
+\boxed{[32,8]}
+</div>
+<p>Then:</p>
+<div class="math block">
+A\odot\log P
+</div>
+<p>has:</p>
+<div class="math block">
+\boxed{[32,8]}
+</div>
+<p>and the final mean is:</p>
+<div class="math block">
+\boxed{\text{scalar}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-51">33. One important source-specific subtlety</h3>
+<p>The source's Chapter 6 implementation is deliberately <strong>simplified</strong>.</p>
+<p>At this stage it uses:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\operatorname{mean}(A\cdot\log P)
+}
+</div>
+<p>and postpones the more complete policy-ratio clipping and KL machinery to Chapter 7. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So what we have just derived is:</p>
+<div class="math block">
+\boxed{\text{simplified GRPO foundation}}
+</div>
+<p>not yet the final stabilized GRPO formulation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-52">34. The full conceptual chain</h3>
+<p>You should now be able to explain this without looking at notes:</p>
+<div class="math block">
+\boxed{
+q
+\rightarrow
+\{o_1,o_2,\ldots,o_G\}
+}
+</div>
+<p>Generate multiple responses for one prompt.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\{o_i\}
+\rightarrow
+\{R_i\}
+}
+</div>
+<p>The verifier evaluates them.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\{R_i\}
+\rightarrow
+\{A_i\}
+}
+</div>
+<p>Normalize the rewards relative to the group.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+o_i
+\rightarrow
+\log P_\theta(o_i\mid q)
+}
+</div>
+<p>Measure how much probability the policy gives the sampled response.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+A_i\times \log P_\theta(o_i\mid q)
+}
+</div>
+<p>Connect behavioral quality to policy probability.</p>
+<p>Finally:</p>
+<div class="math block">
+\boxed{
+L_{\text{PG}}
+=
+-\frac1G
+\sum_i
+A_i\log P_\theta(o_i\mid q)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+L
+\rightarrow
+\nabla_\theta L
+\rightarrow
+\theta'
+}
+</div>
+<p>Update the model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-4-i45-53">35. The one sentence that captures the entire mechanism</h3>
+<blockquote>
+<p><strong>GRPO samples several answers to the same problem, rewards them, determines which answers were better or worse than their peers, and changes the policy to make the better behaviors more probable and the worse behaviors less probable.</strong></p>
+</blockquote>
+<p>That is exactly the bridge from:</p>
+<div class="math block">
+\boxed{\text{verifiable reward}}
+</div>
+<p>to:</p>
+<div class="math block">
+\boxed{\text{model learning}}.
+</div>
+<p>The source's worked example implements these steps in sequence and then combines them in <code>compute_grpo_loss</code>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-4-i45-54">Step 5.4 checkpoint</h4>
+<p>At this point, you should know all of these without memorization by pattern:</p>
+<div class="math block">
+\boxed{
+R=[1,1,0,0]
+}
+</div>
+<div class="math block">
+\boxed{
+A=[0.8659,0.8659,-0.8659,-0.8659]
+}
+</div>
+<div class="math block">
+\boxed{
+\log P=[-7.9243,-20.1546,-16.6130,-23.3677]
+}
+</div>
+<div class="math block">
+\boxed{
+L_{\text{PG}}=-2.5764
+}
+</div>
+<p>and, most importantly:</p>
+<div class="math block">
+\boxed{
+A&gt;0\Rightarrow\text{reinforce}
+}
+</div>
+<div class="math block">
+\boxed{
+A&lt;0\Rightarrow\text{suppress}
+}
+</div>
+<hr />
+</section>

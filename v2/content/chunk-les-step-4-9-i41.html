@@ -1,0 +1,1190 @@
+<section class="chunk" id="chunk-les-step-4-9-i41" data-id="les-step-4-9-i41"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-4-9-i41"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-4-9-i41" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-4-8-i40">← Previous lesson</a> · <a href="#chunk-les-step-5-1-i42">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-4-8-i40">Step 4.8 — Empirical Evidence: Does Distillation Actually Work?</a></p><p><strong>This lesson:</strong> Step 4.9 — Limits of Distillation and How to Choose the Student</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-4-9-i41"></a></p>
+<h2>Step 4.9 — Limits of Distillation and How to Choose the Student</h2>
+<p><em>Plan node: I5 · chat order #41</em></p>
+<p>We now have the complete <strong>mechanism</strong>, <strong>pipeline</strong>, and <strong>empirical evidence</strong>.</p>
+<p>The last major part of this distillation chapter is understanding the limits:</p>
+<div class="math block">
+\boxed{
+\text{When does distillation work extremely well?}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{When does the student fail to absorb the teacher?}
+}
+</div>
+<p>The supplied material identifies several interacting factors: student capacity, quality of the teacher-generated data, choice of base model, sequence length, and the distinction between transferring existing capability and creating genuinely new capability. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-1">1. The first limit — capacity gap</h3>
+<p>The most fundamental limitation is:</p>
+<div class="math block">
+\boxed{\text{student capacity}}
+</div>
+<p>A teacher may contain vastly more learned structure than the student can represent.</p>
+<p>Suppose:</p>
+<div class="math block">
+T=671B
+</div>
+<p>and:</p>
+<div class="math block">
+S=1.5B.
+</div>
+<p>The student is approximately:</p>
+<div class="math block">
+\frac{671}{1.5}\approx447\times
+</div>
+<p>smaller by parameter count.</p>
+<p>The student therefore cannot be expected to preserve every capability of the teacher.</p>
+<p>The source calls this the <strong>capacity gap</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-2">2. What exactly is being lost?</h3>
+<p>Think of the teacher as having learned many things simultaneously:</p>
+<div class="math block">
+\text{mathematics}
+</div>
+<div class="math block">
+\text{coding}
+</div>
+<div class="math block">
+\text{language}
+</div>
+<div class="math block">
+\text{world knowledge}
+</div>
+<div class="math block">
+\text{reasoning strategies}
+</div>
+<div class="math block">
+\text{formatting}
+</div>
+<div class="math block">
+\text{instruction following}.
+</div>
+<p>A tiny student has to compress all of those into a much smaller parameter space.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{some capabilities survive better than others}
+}
+</div>
+<p>rather than:</p>
+<div class="math block">
+\boxed{
+\text{all capabilities shrink equally}
+}.
+</div>
+<p>The benchmark table demonstrates exactly this unevenness. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-3">3. 1.5B is the clearest example</h3>
+<p>For the reported 1.5B student:</p>
+<div class="math block">
+\text{MATH-500}=83.9\%
+</div>
+<p>but:</p>
+<div class="math block">
+\text{LiveCodeBench}=16.9\%.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+83.9-16.9
+=
+\boxed{67.0}
+</div>
+<p>percentage points.</p>
+<p>So the model is very strong in one reported domain and much weaker in another.</p>
+<p>That is a classic capacity-gap signature. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-4">4. Why coding suffers more</h3>
+<p>The source's explanation is that coding requires a much broader representational space:</p>
+<div class="math block">
+\text{syntax}
++
+\text{APIs}
++
+\text{libraries}
++
+\text{architectural patterns}
++
+\text{program behavior}.
+</div>
+<p>A very small model may simply not have enough capacity to retain all of these patterns while also maintaining general language capability.</p>
+<p>The chapter explicitly interprets the 1.5B coding weakness this way. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-5">5. This gives us an important design rule</h3>
+<p>Do not ask only:</p>
+<blockquote>
+<p>“How many parameters does my student have?”</p>
+</blockquote>
+<p>Also ask:</p>
+<div class="math block">
+\boxed{
+\text{What capability am I trying to compress?}
+}
+</div>
+<p>For a narrow task:</p>
+<div class="math block">
+\text{small student}
+</div>
+<p>may work surprisingly well.</p>
+<p>For broad general-purpose behavior:</p>
+<div class="math block">
+\text{larger student}
+</div>
+<p>may be necessary.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-6">6. Second limit — teacher quality</h3>
+<p>Distillation cannot transfer what the teacher does not know.</p>
+<p>Let:</p>
+<div class="math block">
+f_T(x)
+</div>
+<p>be teacher behavior.</p>
+<p>Student tries to approximate:</p>
+<div class="math block">
+f_S(x)\approx f_T(x).
+</div>
+<p>If:</p>
+<div class="math block">
+f_T
+</div>
+<p>contains an error, then a naive student-training pipeline may learn that error.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{teacher quality sets the quality ceiling of transferable behavior}
+}
+</div>
+<p>The source repeatedly emphasizes that distillation transfers existing capabilities rather than creating entirely new ones. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-7">7. Why rejection sampling matters here</h3>
+<p>Suppose the teacher produces:</p>
+<div class="math block">
+100
+</div>
+<p>candidate responses.</p>
+<p>Imagine:</p>
+<div class="math block">
+70
+</div>
+<p>are good and:</p>
+<div class="math block">
+30
+</div>
+<p>are poor.</p>
+<p>If we train on all 100:</p>
+<div class="math block">
+\boxed{
+30\%\text{ noisy supervision}
+}
+</div>
+<p>enters the student.</p>
+<p>But if verification/filtering retains only:</p>
+<div class="math block">
+65
+</div>
+<p>high-quality examples, then the student sees a much cleaner target distribution.</p>
+<p>So rejection sampling changes:</p>
+<div class="math block">
+\boxed{
+\text{raw teacher behavior}
+\rightarrow
+\text{selected teacher behavior}
+}
+</div>
+<p>before the student learns it.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-8">8. The student learns style as well as content</h3>
+<p>This is an especially important insight from the source.</p>
+<p>Suppose the dataset contains many responses with:</p>
+<ul>
+<li>chaotic formatting,</li>
+<li>language mixing,</li>
+<li>excessive code blocks,</li>
+<li>incoherent explanations.</li>
+</ul>
+<p>The student can learn those patterns because they are present in its training targets.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{data quality controls learned behavior quality}
+}
+</div>
+<p>not merely benchmark correctness.</p>
+<p>The chapter explicitly says the student learns to mimic the <strong>style</strong> of the training data as well as its content. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-9">9. Therefore, rejection sampling is not just “remove wrong answers”</h3>
+<p>The actual filtering objective is closer to:</p>
+<div class="math block">
+\boxed{
+\text{correct}
+\cap
+\text{well-formatted}
+\cap
+\text{useful}
+}
+</div>
+<p>Only the intersection should ideally enter the student dataset.</p>
+<p>This is why:</p>
+<div class="math block">
+\boxed{\text{data curation}}
+</div>
+<p>is effectively part of the model-training algorithm.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-10">10. Third limit — base model matters</h3>
+<p>The student does not start from zero.</p>
+<p>Let:</p>
+<div class="math block">
+S_0
+</div>
+<p>be the pretrained base.</p>
+<p>Distillation gives:</p>
+<div class="math block">
+S_0
+\rightarrow
+S_1.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+S_0\text{'s prior capability affects what can be learned}
+}
+</div>
+<p>The source explicitly notes that distillation is not “one size fits all.” The base model's pretrained knowledge interacts with teacher-generated data. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-11">11. Think of distillation as adding on top of a foundation</h3>
+<p>Imagine two students receive exactly the same teacher lessons.</p>
+<p>Student A:</p>
+<div class="math block">
+\text{strong algebra foundation}
+</div>
+<p>Student B:</p>
+<div class="math block">
+\text{weak algebra foundation}.
+</div>
+<p>The same teacher explanation can produce different results.</p>
+<p>Likewise:</p>
+<div class="math block">
+\boxed{
+\text{same teacher data}
++
+\text{different base model}
+\Rightarrow
+\text{different final student}
+}
+</div>
+<p>That is why base-model selection is strategically important. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-12">12. Qwen vs Llama evidence</h3>
+<p>The reported AIME results include:</p>
+<div class="math block">
+\text{Qwen-7B}=55.5\%
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Llama-8B}=50.4\%.
+</div>
+<p>So:</p>
+<div class="math block">
+55.5-50.4
+=
+\boxed{5.1}
+</div>
+<p>percentage points.</p>
+<p>The Llama model is actually slightly larger but performs worse on this reported benchmark.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{parameter count alone is insufficient}
+}
+</div>
+<p>The source attributes this to differences in the base model and pretrained capabilities. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-13">13. Strategic student-selection rule</h3>
+<p>For math-heavy applications, the chapter points toward a math-capable base.</p>
+<p>For broader applications, a general-purpose base may be preferable.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{choose the base whose prior capabilities match the target domain}
+}
+</div>
+<p>rather than blindly choosing the largest available model. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-14">14. Fourth limit — sequence length</h3>
+<p>Reasoning traces can be very long.</p>
+<p>The source reports an average sample length of:</p>
+<div class="math block">
+\boxed{5,355\text{ tokens}}
+</div>
+<p>for its large DeepSeek-R1 distillation dataset. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Long reasoning traces are valuable because they carry more intermediate reasoning.</p>
+<p>But they also increase compute cost.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-15">15. Why long context is expensive</h3>
+<p>For standard self-attention:</p>
+<div class="math block">
+\boxed{
+\text{attention matrix}\in\mathbb{R}^{N\times N}
+}
+</div>
+<p>so attention work grows approximately as:</p>
+<div class="math block">
+O(N^2).
+</div>
+<p>If:</p>
+<div class="math block">
+N\rightarrow2N,
+</div>
+<p>then approximately:</p>
+<div class="math block">
+N^2\rightarrow4N^2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{doubling sequence length}\approx4\times\text{ quadratic attention work}
+}
+</div>
+<p>for the attention component.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-16">16. Source's practical sequence-length filtering</h3>
+<p>In the smaller hands-on experiment, the raw examples had:</p>
+<div class="math block">
+\text{average}=2946
+</div>
+<p>tokens,</p>
+<p>while the longest reached:</p>
+<div class="math block">
+42005.
+</div>
+<p>The chapter filters to:</p>
+<div class="math block">
+\boxed{2048}
+</div>
+<p>maximum sequence length for the demonstration. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-17">17. Why filtering can make distillation feasible</h3>
+<p>Suppose an example has:</p>
+<div class="math block">
+42,005
+</div>
+<p>tokens.</p>
+<p>Compared with:</p>
+<div class="math block">
+2,048,
+</div>
+<p>the approximate quadratic attention-work ratio is:</p>
+<div class="math block">
+\left(\frac{42005}{2048}\right)^2
+</div>
+<div class="math block">
+\approx
+(20.51)^2
+</div>
+<div class="math block">
+\approx
+\boxed{421}.
+</div>
+<p>So the quadratic attention component for the extremely long sequence can be hundreds of times larger.</p>
+<p>That illustrates why long-sequence filtering can dramatically reduce cost.</p>
+<p>This is a derived numerical interpretation of the source's lengths, not a runtime measurement reported by the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-18">18. Fifth limit — the student may memorize style without understanding</h3>
+<p>This is a conceptual subtlety.</p>
+<p>Suppose the dataset contains:</p>
+<pre><code class="language-text">Step 1...
+Step 2...
+Step 3...
+Answer...
+</code></pre>
+<p>The student learns the token patterns.</p>
+<p>But successful sequence prediction does not necessarily mean the student has internally reproduced exactly the teacher's reasoning mechanism.</p>
+<p>What we can safely say from the source is that the student learns to reproduce <strong>teacher behavior/reasoning traces</strong> through supervised next-token prediction. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{behavioral imitation}
+\neq
+\text{literal internal mechanism copying}
+}
+</div>
+<p>This distinction is important when discussing what “knowledge transfer” really means.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-19">19. Sixth limit — distillation does not automatically create new reasoning</h3>
+<p>Suppose teacher capability is:</p>
+<div class="math block">
+C_T.
+</div>
+<p>Student learns:</p>
+<div class="math block">
+C_S\approx\text{compressed subset of }C_T.
+</div>
+<p>Pure imitation does not normally create:</p>
+<div class="math block">
+C_{\text{new}}&gt;C_T.
+</div>
+<p>The source explicitly says advancing beyond the teacher's frontier may require stronger base models and larger-scale reinforcement learning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{distillation = transfer}
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{RL = potential capability discovery/improvement}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-20">20. This explains why RL and distillation are complementary</h3>
+<p>The full picture is:</p>
+<div class="math block">
+\boxed{
+\text{RL}
+\rightarrow
+\text{improve teacher}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{distillation}
+\rightarrow
+\text{compress/distribute teacher}
+}
+</div>
+<p>So the two-stage strategy is:</p>
+<div class="math block">
+\boxed{
+\text{discover first}
+\rightarrow
+\text{compress second}
+}
+</div>
+<p>This is one of the deepest conclusions of the chapter. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-21">21. Why small-model RL can fail</h3>
+<p>The source reports that smaller models such as 7B dense and 16B MoE models showed little meaningful AIME improvement under direct RL in the described experiments.</p>
+<p>It notes that increasing response lengths led these smaller models toward repetition and that they could not effectively exploit long chains of thought. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the problem can be expressed as:</p>
+<div class="math block">
+\boxed{
+\text{RL exploration requirement}
+&gt;
+\text{small model's effective capacity}
+}
+</div>
+<p>at least in the described setup.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-22">22. Distillation changes the problem</h3>
+<p>Direct RL asks:</p>
+<blockquote>
+<p>Discover a useful reasoning strategy.</p>
+</blockquote>
+<p>Distillation asks:</p>
+<blockquote>
+<p>Reproduce this strategy that already exists in the dataset.</p>
+</blockquote>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{exploration}
+\rightarrow
+\text{imitation}
+}
+</div>
+<p>The source describes this as the fundamental advantage of distillation for smaller models. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-23">23. Numerical comparison of training effort</h3>
+<p>The reported same-architecture experiment used:</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-24">RL</h5>
+<div class="math block">
+&gt;10,000
+</div>
+<p>policy-gradient steps.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-25">Distillation</h5>
+<div class="math block">
+2\text{–}3
+</div>
+<p>SFT epochs.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Do not directly conclude that:</p>
+<div class="math block">
+10,000\text{ steps} &gt; 3\text{ epochs}
+</div>
+<p>in a precise computational sense, because a step and an epoch are different quantities.</p>
+<p>What the source is demonstrating is the <strong>qualitative training-effort contrast</strong>:</p>
+<div class="math block">
+\boxed{
+\text{large repeated RL exploration}
+}
+</div>
+<p>versus:</p>
+<div class="math block">
+\boxed{
+\text{a few passes over curated supervised data}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-26">24. Training economics</h3>
+<p>The chapter reports these estimated figures:</p>
+<div class="math block">
+\boxed{\$202K}
+</div>
+<p>for DeepSeek-R1-Zero's RL training,</p>
+<div class="math block">
+\boxed{\$82K}
+</div>
+<p>for the full R1 pipeline,</p>
+<p>and:</p>
+<div class="math block">
+\boxed{\$10K}
+</div>
+<p>for generating the distillation dataset.</p>
+<p>It notes that the $10K figure corresponds to approximately:</p>
+<div class="math block">
+\boxed{5,000\text{ H800 GPU hours}}
+</div>
+<p>and that these cost values are estimates derived from disclosed GPU-hour counts and public cloud pricing; exact internal costs may differ. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-27">25. Numerical — cost ratio</h3>
+<p>Using the chapter estimates:</p>
+<div class="math block">
+\frac{202}{10}
+=
+\boxed{20.2}.
+</div>
+<p>So the R1-Zero RL estimate is about 20.2 times the estimated distillation-data-generation cost.</p>
+<p>Again:</p>
+<div class="math block">
+\boxed{
+\text{this is a chapter-specific estimate, not a universal cost ratio}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-28">26. The one-time investment property</h3>
+<p>This is one of the strongest systems ideas.</p>
+<p>Suppose teacher-generated data costs:</p>
+<div class="math block">
+\$10K.
+</div>
+<p>Once the dataset exists, you can train:</p>
+<div class="math block">
+S_1
+</div>
+<p>then:</p>
+<div class="math block">
+S_2
+</div>
+<p>then:</p>
+<div class="math block">
+S_3.
+</div>
+<p>The expensive teacher-generation stage does not have to be repeated for each student.</p>
+<p>The source explicitly emphasizes this reuse and notes that DeepSeek trained six students from the same data. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-29">27. Numerical — amortizing teacher data</h3>
+<p>Suppose the data-generation cost is:</p>
+<div class="math block">
+\$10,000
+</div>
+<p>and six student models use it.</p>
+<p>Ignoring student-training costs, average teacher-data-generation cost per student is:</p>
+<div class="math block">
+\frac{10000}{6}
+=
+\boxed{\$1666.67}.
+</div>
+<p>For:</p>
+<div class="math block">
+20
+</div>
+<p>students:</p>
+<div class="math block">
+\frac{10000}{20}
+=
+\boxed{\$500}.
+</div>
+<p>So the more students reuse the dataset, the lower the amortized teacher-data cost per student becomes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-30">28. But the data itself is large</h3>
+<p>The source's dataset is approximately:</p>
+<div class="math block">
+804,745
+</div>
+<p>samples.</p>
+<p>Average length:</p>
+<div class="math block">
+5,355
+</div>
+<p>tokens.</p>
+<p>Therefore:</p>
+<div class="math block">
+804745\times5355
+\approx
+\boxed{4.31\times10^9}
+</div>
+<p>tokens.</p>
+<p>So the dataset is enormous even though the student training procedure is comparatively simple.</p>
+<p>This reminds us:</p>
+<div class="math block">
+\boxed{
+\text{simple training objective}
+\neq
+\text{small data/computation problem}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-31">29. Choosing student size</h3>
+<p>The reported Qwen-AIME sequence is:</p>
+<div class="math block">
+1.5B\rightarrow28.9\%
+</div>
+<div class="math block">
+7B\rightarrow55.5\%
+</div>
+<div class="math block">
+14B\rightarrow69.7\%
+</div>
+<div class="math block">
+32B\rightarrow72.6\%.
+</div>
+<p>This gives a natural deployment ladder.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-32">Very small student</h5>
+<div class="math block">
+1.5B
+</div>
+<p>Good when:</p>
+<div class="math block">
+\boxed{\text{deployment cost is the priority}}
+</div>
+<p>but expect capability loss.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-33">Medium</h5>
+<div class="math block">
+7B-14B
+</div>
+<p>Better balance.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-34">Large student</h5>
+<div class="math block">
+32B+
+</div>
+<p>Better at absorbing complex teacher behavior, but more expensive to train and deploy.</p>
+<p>The source's scaling results support this qualitative trade-off. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-35">30. Numerical — improvement efficiency</h3>
+<p>Consider:</p>
+<div class="math block">
+1.5B\rightarrow7B.
+</div>
+<p>Parameter increase:</p>
+<div class="math block">
+7-1.5=5.5B.
+</div>
+<p>AIME gain:</p>
+<div class="math block">
+55.5-28.9=26.6.
+</div>
+<p>Now:</p>
+<div class="math block">
+14B\rightarrow32B
+</div>
+<p>adds:</p>
+<div class="math block">
+18B
+</div>
+<p>parameters but only:</p>
+<div class="math block">
+2.9
+</div>
+<p>AIME points.</p>
+<p>So the later scaling region gives less benchmark gain per additional parameter in this reported sequence.</p>
+<p>Again, this is a calculation from the table, not a universal scaling law.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-36">31. What should you optimize?</h3>
+<p>The chapter's results suggest that there are at least four design variables:</p>
+<div class="math block">
+\boxed{
+\text{teacher quality}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{student capacity}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{base model}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{training-data quality}
+}
+</div>
+<p>The final performance is therefore not simply:</p>
+<div class="math block">
+f(\text{student parameters}).
+</div>
+<p>It is more like:</p>
+<div class="math block">
+\boxed{
+f(
+\text{teacher},
+\text{data},
+\text{base},
+\text{student capacity},
+\text{training}
+)
+}
+</div>
+<p>This is a conceptual model, not a formula stated in the source.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-37">32. A useful engineering decision tree</h3>
+<p>Suppose you need a distilled reasoning model.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-38">Requirement: maximum portability</h5>
+<p>Choose:</p>
+<div class="math block">
+\boxed{1.5B\text{–}3B\text{-scale student}}
+</div>
+<p>and accept that broad capabilities may be limited.</p>
+<p>The source's 1.5B result illustrates this trade-off. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-39">Requirement: strong reasoning + reasonable cost</h5>
+<p>A:</p>
+<div class="math block">
+\boxed{7B\text{–}14B}
+</div>
+<p>student can be attractive based on the reported scaling.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-40">Requirement: preserve much more teacher capability</h5>
+<p>Move toward:</p>
+<div class="math block">
+\boxed{32B+}.
+</div>
+<p>The reported 32B results show considerably stronger performance than the tiny student. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-41">33. Another important trade-off: context length</h3>
+<p>Suppose the student supports:</p>
+<div class="math block">
+N=2048.
+</div>
+<p>A long reasoning trace may be truncated.</p>
+<p>Then the student may lose:</p>
+<div class="math block">
+\boxed{\text{later reasoning steps}}
+</div>
+<p>or:</p>
+<div class="math block">
+\boxed{\text{final verification/answer}}.
+</div>
+<p>So maximum sequence length is not merely a memory setting.</p>
+<p>It can affect:</p>
+<div class="math block">
+\boxed{\text{what portion of the teacher behavior is actually supervised}}
+</div>
+<p>because the student cannot learn tokens that are removed from the training sequence.</p>
+<p>This follows directly from the chapter's length filtering and answer-sequence training procedure. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-42">34. Numerical — truncation effect</h3>
+<p>Suppose a teacher trace has:</p>
+<div class="math block">
+5,000
+</div>
+<p>tokens.</p>
+<p>Student maximum:</p>
+<div class="math block">
+2,048.
+</div>
+<p>Tokens discarded:</p>
+<div class="math block">
+5000-2048
+=
+\boxed{2952}.
+</div>
+<p>Percentage discarded:</p>
+<div class="math block">
+\frac{2952}{5000}\times100
+=
+\boxed{59.04\%}.
+</div>
+<p>So over half the teacher sequence would be unavailable to the student in that simple truncation scenario.</p>
+<p>This is why length filtering is a substantive design decision.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-43">35. Important caveat: the chapter's hands-on setup is not DeepSeek's full production training</h3>
+<p>The practical chapter implementation uses a much smaller model and filtered subset.</p>
+<p>For example, the chapter's demonstration uses:</p>
+<div class="math block">
+10
+</div>
+<p>training examples and:</p>
+<div class="math block">
+10
+</div>
+<p>validation examples for a short run. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This should never be confused with the full DeepSeek training scale.</p>
+<p>The educational implementation demonstrates the algorithm.</p>
+<p>The production system operates at much larger data and compute scales.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-44">36. Full limitation map</h3>
+<p>We can now summarize the limits:</p>
+<div class="math block">
+\boxed{
+\text{Teacher limitation}
+}
+</div>
+<p>→ cannot transfer knowledge that is not present.</p>
+<div class="math block">
+\boxed{
+\text{Student capacity limitation}
+}
+</div>
+<p>→ cannot absorb everything.</p>
+<div class="math block">
+\boxed{
+\text{Data quality limitation}
+}
+</div>
+<p>→ noisy teacher outputs become noisy supervision.</p>
+<div class="math block">
+\boxed{
+\text{Base-model limitation}
+}
+</div>
+<p>→ pretrained capabilities affect absorption.</p>
+<div class="math block">
+\boxed{
+\text{Sequence-length limitation}
+}
+</div>
+<p>→ long reasoning traces increase cost or may be truncated.</p>
+<div class="math block">
+\boxed{
+\text{Frontier limitation}
+}
+</div>
+<p>→ distillation mainly transfers existing behavior rather than discovering beyond the teacher.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-45">37. The entire knowledge-distillation chapter in one picture</h3>
+<pre><code class="language-text">                         LARGE TEACHER
+                              |
+                         RL / SFT
+                              |
+                              v
+                     Strong reasoning
+                              |
+                     Generate many traces
+                              |
+                              v
+                    Verification / filtering
+                              |
+                              v
+                       Curated dataset
+                              |
+              +---------------+---------------+
+              |               |               |
+              v               v               v
+            1.5B             7B             32B
+              |               |               |
+              +---------------+---------------+
+                              |
+                             SFT
+                              |
+                              v
+                     Distilled students
+                              |
+                 +------------+------------+
+                 |                         |
+          deployment benefit        capability loss
+                 |                         |
+                 +------------+------------+
+                              |
+                       capacity gap
+</code></pre>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-46">38. Connect this with our earlier classical KD</h3>
+<p>We can now see the entire conceptual progression.</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-47">Classical KD</h5>
+<div class="math block">
+\boxed{
+\text{Teacher logits}
+\rightarrow
+\text{soft targets}
+\rightarrow
+KL
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-48">DeepSeek hard distillation</h5>
+<div class="math block">
+\boxed{
+\text{Teacher reasoning traces}
+\rightarrow
+\text{curated synthetic data}
+\rightarrow
+SFT
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-49">System-level strategy</h5>
+<div class="math block">
+\boxed{
+\text{RL builds stronger teacher}
+\rightarrow
+\text{distillation compresses teacher}
+}
+</div>
+<p>That is the real architecture.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-50">39. Final exam framework for the entire chapter</h3>
+<p>For any distillation question, identify these five things:</p>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-51">1. Teacher</h5>
+<div class="math block">
+\boxed{\text{Who generates the knowledge?}}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-52">2. Transfer signal</h5>
+<div class="math block">
+\boxed{
+\text{logits/probabilities or text?}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-53">3. Objective</h5>
+<div class="math block">
+\boxed{
+KL+CE
+\quad\text{or}\quad
+\text{next-token CE}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-54">4. Student</h5>
+<div class="math block">
+\boxed{
+\text{How much capacity does it have?}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-55">5. Data quality</h5>
+<div class="math block">
+\boxed{
+\text{Were teacher outputs verified and filtered?}
+}
+</div>
+<p>Once these five are clear, most distillation questions become straightforward.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-56">40. Final master formula set</h3>
+<h4 id="v3-heading-chunk-les-step-4-9-i41-57">Classical KD</h4>
+<div class="math block">
+\boxed{
+P_T^T=\operatorname{softmax}(z_T/T)
+}
+</div>
+<div class="math block">
+\boxed{
+P_S^T=\operatorname{softmax}(z_S/T)
+}
+</div>
+<div class="math block">
+\boxed{
+L_{\text{soft}}
+=
+KL(P_T^T\|P_S^T)
+}
+</div>
+<div class="math block">
+\boxed{
+L=
+\alpha L_{\text{hard}}
++
+\beta T^2L_{\text{soft}}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-9-i41-58">R1 hard distillation</h4>
+<div class="math block">
+\boxed{
+L=
+-\frac1N
+\sum_t
+\log P_S(y_t|x,y_{&lt;t})
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-9-i41-59">Compression</h4>
+<div class="math block">
+\boxed{
+\text{Teacher}
+\rightarrow
+\text{synthetic reasoning data}
+\rightarrow
+\text{student}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-4-9-i41-60">Strategic relationship</h4>
+<div class="math block">
+\boxed{
+\text{RL}\rightarrow\text{discover/strengthen}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{Distillation}\rightarrow\text{transfer/compress}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-61">41. Final numerical bank for this section</h3>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-62">Capacity ratio</h5>
+<div class="math block">
+671/1.5
+\approx
+\boxed{447\times}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-63">1.5B math-coding gap</h5>
+<div class="math block">
+83.9-16.9
+=
+\boxed{67.0}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-64">Qwen-7B vs Llama-8B</h5>
+<div class="math block">
+55.5-50.4
+=
+\boxed{5.1}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-65">1.5B → 32B parameter ratio</h5>
+<div class="math block">
+32/1.5
+=
+\boxed{21.33\times}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-66">14B → 32B AIME improvement</h5>
+<div class="math block">
+72.6-69.7
+=
+\boxed{2.9}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-67">RL → distilled 32B AIME gap</h5>
+<div class="math block">
+72.6-47.0
+=
+\boxed{25.6}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-68">Estimated cost ratio</h5>
+<div class="math block">
+202/10
+=
+\boxed{20.2\times}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-69">Dataset token estimate</h5>
+<div class="math block">
+804745\times5355
+\approx
+\boxed{4.31B}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-70">42,005 vs 2,048 quadratic attention ratio</h5>
+<div class="math block">
+(42005/2048)^2
+\approx
+\boxed{421\times}
+</div>
+<h5 id="v3-heading-chunk-les-step-4-9-i41-71">5,000-token trace truncated to 2,048</h5>
+<div class="math block">
+5000-2048
+=
+\boxed{2952}
+</div>
+<div class="math block">
+2952/5000
+=
+\boxed{59.04\%}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-4-9-i41-72">Step 4.9 complete</h3>
+<p>We have now completed the <strong>Knowledge Distillation chapter conceptually</strong>:</p>
+<div class="math block">
+\boxed{
+\text{Why distillation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Teacher-student paradigm}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Hard vs soft distillation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Temperature + dark knowledge}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Three progressive KD attempts}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{CE + KL + }T^2
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 text-based distillation}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{rejection sampling + 800K dataset}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{student SFT}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{empirical results}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{capacity, data, base-model, and frontier limitations}
+}
+</div>
+<p>The supplied chapter itself closes with essentially these lessons: the 800K curated reasoning dataset, strong performance of distilled models, the 32B distillation-vs-RL comparison, the capacity gap, and the fact that distillation transfers existing capability rather than creating a new frontier. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-b3">B.3 — R1 Distillation: Behaviour, Implementation, Evidence (book view)</a> — <em>R1 distillation (book view) and its evidence</em></p>
+</blockquote>
+<hr />
+</section>

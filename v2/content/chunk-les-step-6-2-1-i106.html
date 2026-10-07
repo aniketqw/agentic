@@ -1,0 +1,1007 @@
+<section class="chunk" id="chunk-les-step-6-2-1-i106" data-id="les-step-6-2-1-i106"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-6-2-1-i106"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-6-2-1-i106" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-6-2-1-i105">← Previous lesson</a> · <a href="#chunk-les-r100-5-i107">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-6-2-1-i105">R100.3 — Step 6.2.1: ModelArgs — The Architecture Contract</a></p><p><strong>This lesson:</strong> R100.4 — Step 6.2.1: Implementing RoPE in model.py</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-6-2-1-i106"></a></p>
+<h3 id="v3-heading-chunk-les-step-6-2-1-i106-1">R100.4 — Step 6.2.1: Implementing RoPE in <code>model.py</code></h3>
+<p><em>Plan node: A6 · chat order #106</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-13-i20">Step 1.13 — Stacking Transformer Blocks → Final Norm → Unembedding → Log</a></p>
+</blockquote>
+<p>We now take the <strong>RoPE mathematics we already derived earlier</strong> and see exactly how the source turns it into executable PyTorch code.</p>
+<p>The source introduces <code>RotaryPositionalEncoding</code> as the first self-contained component of <code>model.py</code>. It precomputes the rotation frequencies and applies them to the Query/Key tensors. In the Mini-DeepSeek implementation, the important addition is <code>position_offset</code>, which allows the same RoPE module to work when inference is using a KV cache. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-2">1. First, remember what RoPE is doing</h4>
+<p>We already know the mathematical idea.</p>
+<p>Instead of adding a positional vector to a token representation, RoPE rotates pairs of coordinates of Query and Key according to their position.</p>
+<p>For one 2-D pair:</p>
+<div class="math block">
+\begin{bmatrix}
+x_1'\\
+x_2'
+\end{bmatrix}
+=
+\begin{bmatrix}
+\cos\theta &amp;-\sin\theta\\
+\sin\theta &amp; \cos\theta
+\end{bmatrix}
+\begin{bmatrix}
+x_1\\
+x_2
+\end{bmatrix}.
+</div>
+<p>Equivalently:</p>
+<div class="math block">
+(x_1+i x_2)e^{i\theta}.
+</div>
+<p>That second form is exactly what this implementation exploits.</p>
+<p>So the key idea is:</p>
+<div class="math block">
+\boxed{
+\text{2 real dimensions}
+\leftrightarrow
+\text{1 complex number}
+}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+\text{rotation}
+=
+\text{complex multiplication}.
+}
+</div>
+<p>The source explicitly says that the implementation applies the rotations efficiently using complex-number multiplication. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-3">2. What shape reaches RoPE?</h4>
+<p>This is important before reading the code.</p>
+<p>In <code>DeepSeekAttention</code>, the position-path Query and Key are reshaped as:</p>
+<div class="math block">
+[B,S,H,d_{\text{rope}}]
+</div>
+<p>and then transposed to:</p>
+<div class="math block">
+\boxed{
+[B,H,S,d_{\text{rope}}]
+}
+</div>
+<p>before being passed to RoPE. The source's <code>DeepSeekAttention</code> code shows this exact reshape/transposition. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So RoPE receives:</p>
+<pre><code class="language-text">x
+shape = [B, H, S, d_rope]
+</code></pre>
+<p>where:</p>
+<ul>
+<li><span class="math inline">B</span> = batch size</li>
+<li><span class="math inline">H</span> = number of heads</li>
+<li><span class="math inline">S</span> = sequence length</li>
+<li><span class="math inline">d_{\text{rope}}</span> = dimensions receiving positional rotation</li>
+</ul>
+<p>For the default <code>ModelArgs</code>:</p>
+<div class="math block">
+H=8,\qquad d_{\text{rope}}=32.
+</div>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+x\in\mathbb R^{B\times8\times S\times32}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-4">3. The class begins here</h4>
+<p>The source gives:</p>
+<pre><code class="language-python">class RotaryPositionalEncoding(nn.Module):
+    def __init__(
+        self,
+        d_head: int,
+        max_seq_len: int = 2048
+    ):
+        super().__init__()
+        self.d_head = d_head
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Here <code>d_head</code> is the dimension of the vector being rotated.</p>
+<p>In the Mini-DeepSeek position path, the source constructs:</p>
+<pre><code class="language-python">self.rope = RotaryPositionalEncoding(
+    args.d_rope,
+    max_seq_len=args.max_seq_len
+)
+</code></pre>
+<p>so:</p>
+<div class="math block">
+\boxed{
+d_{\text{head}}\text{ inside RoPE}=d_{\text{rope}}.
+}
+</div>
+<p>That naming is worth noticing: the helper itself is generic and calls the rotating dimension <code>d_head</code>, but in this architecture it is being used for the dedicated RoPE dimension.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-5">4. Step A — Construct the frequency vector <code>theta</code></h4>
+<p>The source uses:</p>
+<pre><code class="language-python">theta = 1.0 / (
+    10000 ** (
+        torch.arange(0, d_head, 2).float()
+        / d_head
+    )
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Let's unpack this carefully.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-6-2-1-i106-6">4.1 <code>torch.arange(0, d_head, 2)</code></h5>
+<p>Suppose:</p>
+<div class="math block">
+d_{\text{head}}=8.
+</div>
+<p>Then:</p>
+<pre><code class="language-text">torch.arange(0, 8, 2)
+</code></pre>
+<p>produces:</p>
+<div class="math block">
+[0,2,4,6].
+</div>
+<p>Why every 2 dimensions?</p>
+<p>Because RoPE groups dimensions into pairs:</p>
+<pre><code class="language-text">(0,1)
+(2,3)
+(4,5)
+(6,7)
+</code></pre>
+<p>Each pair gets a rotation.</p>
+<p>Therefore there are:</p>
+<div class="math block">
+\frac{d_{\text{head}}}{2}
+</div>
+<p>rotation frequencies.</p>
+<p>For <span class="math inline">d_{\text{head}}=32</span>:</p>
+<div class="math block">
+\frac{32}{2}=16.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{\theta\in\mathbb R^{16}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-7">5. Why do different pairs need different frequencies?</h4>
+<p>This comes from the original RoPE construction.</p>
+<p>We don't rotate every dimension pair at the same angular speed.</p>
+<p>Instead:</p>
+<div class="math block">
+\theta_j
+=
+10000^{-2j/d_{\text{head}}}.
+</div>
+<p>The source expresses the same idea in reciprocal form:</p>
+<div class="math block">
+\boxed{
+\theta_j =
+\frac{1}
+{10000^{2j/d_{\text{head}}}}
+}
+</div>
+<p>through:</p>
+<pre><code class="language-python">1.0 / (10000 ** (...))
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This gives multiple rotation frequencies.</p>
+<p>Intuitively:</p>
+<pre><code class="language-text">dimension pair
+     ↓
+frequency
+
+pair 1  → relatively fast
+pair 2  → slower
+pair 3  → slower still
+...
+</code></pre>
+<p>This multi-frequency representation allows the positional encoding to represent different positional scales.</p>
+<p>That is the mathematical reason the frequency vector exists.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-8">6. <code>register_buffer('theta', theta)</code></h4>
+<p>The source then does:</p>
+<pre><code class="language-python">self.register_buffer('theta', theta)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is a PyTorch implementation detail.</p>
+<p><code>theta</code> is <strong>not a learnable parameter</strong>.</p>
+<p>It is fixed.</p>
+<p>So conceptually:</p>
+<pre><code class="language-text">Learnable:
+    weights
+    biases
+    ...
+
+Fixed model state:
+    theta
+</code></pre>
+<p>Using <code>register_buffer</code> makes <code>theta</code> part of the module's tensor state without making it trainable.</p>
+<p>That distinction is important:</p>
+<div class="math block">
+\boxed{
+\theta\text{ is computed, not learned}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-9">7. Step B — Precompute all positions</h4>
+<p>The source then creates:</p>
+<pre><code class="language-python">positions = torch.arange(max_seq_len)
+</code></pre>
+<p>Suppose:</p>
+<div class="math block">
+max\_seq\_len=8.
+</div>
+<p>Then:</p>
+<div class="math block">
+positions=[0,1,2,3,4,5,6,7].
+</div>
+<p>These are the absolute token positions for which we will prepare rotations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-10">8. Construct the phase matrix</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">freqs = torch.outer(positions, self.theta)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This creates:</p>
+<div class="math block">
+\boxed{
+freqs\in\mathbb R^{L\times d_{\text{head}}/2}
+}
+</div>
+<p>where:</p>
+<div class="math block">
+L=max\_seq\_len.
+</div>
+<p>For our example:</p>
+<div class="math block">
+8\times4.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-6-2-1-i106-11">What does one element mean?</h5>
+<p>The element:</p>
+<div class="math block">
+freqs[p,j]
+</div>
+<p>is:</p>
+<div class="math block">
+\boxed{
+p\cdot\theta_j
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">p</span> = token position</li>
+<li><span class="math inline">j</span> = rotary dimension pair.</li>
+</ul>
+<p>So position controls <strong>how far we rotate</strong>, while <span class="math inline">\theta_j</span> determines the frequency for that dimension pair.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{rotation angle}
+=
+\text{position}\times\text{frequency}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-12">9. Why use an outer product?</h4>
+<p>Suppose:</p>
+<div class="math block">
+positions=
+\begin{bmatrix}
+0\\
+1\\
+2
+\end{bmatrix}
+</div>
+<p>and:</p>
+<div class="math block">
+\theta=
+\begin{bmatrix}
+\theta_0&amp;\theta_1
+\end{bmatrix}.
+</div>
+<p>Then:</p>
+<div class="math block">
+positions\otimes\theta
+=
+\begin{bmatrix}
+0\theta_0&amp;0\theta_1\\
+1\theta_0&amp;1\theta_1\\
+2\theta_0&amp;2\theta_1
+\end{bmatrix}.
+</div>
+<p>So every position gets every frequency.</p>
+<p>That produces the complete table of phases we need.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-13">10. Convert phase angles to complex rotations</h4>
+<p>Now comes the clever implementation.</p>
+<p>The source writes:</p>
+<pre><code class="language-python">freqs_cis = torch.polar(
+    torch.ones_like(freqs),
+    freqs
+)
+</code></pre>
+<p>and registers it as:</p>
+<pre><code class="language-python">self.register_buffer(
+    'freqs_cis',
+    freqs_cis,
+    persistent=False
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-6-2-1-i106-14">10.1 What does <code>torch.polar</code> mean?</h5>
+<p>In complex-number mathematics:</p>
+<div class="math block">
+re^{i\theta}
+</div>
+<p>has:</p>
+<div class="math block">
+\text{magnitude}=r
+</div>
+<p>and:</p>
+<div class="math block">
+\text{angle}=\theta.
+</div>
+<p>The source uses magnitude:</p>
+<div class="math block">
+r=1.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+e^{i\theta}
+=
+\cos\theta+i\sin\theta.
+}
+</div>
+<p>So <code>torch.polar(1, theta)</code> constructs exactly the complex-number rotation factor needed by RoPE.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-15">11. Therefore <code>freqs_cis</code> represents the rotation itself</h4>
+<p>This is an important mental shortcut.</p>
+<p>We can think of:</p>
+<div class="math block">
+\boxed{
+freqs
+=
+\text{angles}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+freqs\_cis
+=
+e^{i\,freqs}
+=
+\text{actual complex rotation factors}.
+}
+</div>
+<p>So during initialization the model performs the expensive-looking trigonometric preparation <strong>once</strong>.</p>
+<p>Then the forward pass can simply multiply by the precomputed rotation factors.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-16">12. Why precompute?</h4>
+<p>Suppose the model processes thousands of sequences.</p>
+<p>We don't need to repeatedly calculate:</p>
+<div class="math block">
+\cos(p\theta)
+</div>
+<p>and:</p>
+<div class="math block">
+\sin(p\theta)
+</div>
+<p>from scratch for every call.</p>
+<p>Instead:</p>
+<pre><code class="language-text">Initialization
+     ↓
+calculate theta
+     ↓
+calculate all position phases
+     ↓
+calculate complex rotation factors
+     ↓
+store them
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-text">Forward pass
+     ↓
+take required positions
+     ↓
+multiply
+</code></pre>
+<p>This is an implementation optimization.</p>
+<p>The source explicitly describes the helper as <strong>pre-computing the necessary rotation frequencies</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-17">13. Now the forward method</h4>
+<p>The source defines:</p>
+<pre><code class="language-python">def forward(
+    self,
+    x: torch.Tensor,
+    position_offset: int = 0
+):
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is where the actual rotation happens.</p>
+<p>The new piece compared with the earlier Chapter 3 implementation is:</p>
+<div class="math block">
+\boxed{
+position\_offset
+}
+</div>
+<p>We will first understand the ordinary case, then why the offset is needed.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-18">14. Step C — Determine the sequence length</h4>
+<p>The source uses:</p>
+<pre><code class="language-python">seq_len = x.shape[2]
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Remember:</p>
+<div class="math block">
+x.shape=[B,H,S,d_{\text{rope}}].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+x.shape[2]=S.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+seq\_len=S.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-19">15. Step C — Turn pairs into complex numbers</h4>
+<p>The source then does:</p>
+<pre><code class="language-python">x_complex = torch.view_as_complex(
+    x.float().reshape(
+        *x.shape[:-1],
+        -1,
+        2
+    )
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This looks complicated, but it directly implements the mathematical pairing.</p>
+<p>Suppose:</p>
+<div class="math block">
+d_{\text{rope}}=8.
+</div>
+<p>A vector:</p>
+<pre><code class="language-text">[x0, x1, x2, x3, x4, x5, x6, x7]
+</code></pre>
+<p>becomes:</p>
+<pre><code class="language-text">[[x0,x1],
+ [x2,x3],
+ [x4,x5],
+ [x6,x7]]
+</code></pre>
+<p>and then each pair becomes a complex number:</p>
+<div class="math block">
+x_0+i x_1
+</div>
+<div class="math block">
+x_2+i x_3
+</div>
+<div class="math block">
+x_4+i x_5
+</div>
+<div class="math block">
+x_6+i x_7.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+d_{\text{rope}}\text{ real dimensions}
+\rightarrow
+d_{\text{rope}}/2\text{ complex dimensions}.
+}
+</div>
+<p>For:</p>
+<div class="math block">
+d_{\text{rope}}=32
+</div>
+<p>we get:</p>
+<div class="math block">
+\boxed{16\text{ complex values per head}}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-20">16. Why <code>x.float()</code> first?</h4>
+<p>The source explicitly converts to float before the reshaping/complex representation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The reason from the implementation perspective is that the complex representation is constructed from real-valued floating-point components.</p>
+<p>The source then eventually converts the result back to the original tensor type using:</p>
+<pre><code class="language-python">return x_out.type_as(x)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the overall flow is:</p>
+<div class="math block">
+\boxed{
+\text{input dtype}
+\rightarrow
+\text{float for rotation}
+\rightarrow
+\text{complex}
+\rightarrow
+\text{real}
+\rightarrow
+\text{original dtype}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-21">17. Step D — Select the correct positions</h4>
+<p>The most important updated line is:</p>
+<pre><code class="language-python">freqs_cis_slice =
+    self.freqs_cis[
+        position_offset :
+        position_offset + seq_len
+    ]
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>In the normal full-sequence case:</p>
+<div class="math block">
+position\_offset=0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+freqs\_cis[0:S].
+</div>
+<p>So a sequence of length <span class="math inline">S</span> gets rotation positions:</p>
+<div class="math block">
+0,1,2,\ldots,S-1.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-22">18. Why do we need <code>position_offset</code>?</h4>
+<p>This connects directly to our earlier KV-cache discussion.</p>
+<p>Imagine the model has already generated:</p>
+<div class="math block">
+100
+</div>
+<p>tokens.</p>
+<p>Now it receives one new token.</p>
+<p>That new token is physically represented by a tensor of sequence length:</p>
+<div class="math block">
+S=1.
+</div>
+<p>But it is <strong>not position 0</strong>.</p>
+<p>It is position:</p>
+<div class="math block">
+100.
+</div>
+<p>So if we simply used:</p>
+<pre><code class="language-python">freqs_cis[:1]
+</code></pre>
+<p>we would incorrectly rotate the new token using the position-0 rotation.</p>
+<p>Instead:</p>
+<div class="math block">
+position\_offset=100.
+</div>
+<p>Then:</p>
+<pre><code class="language-python">freqs_cis[100:101]
+</code></pre>
+<p>is selected.</p>
+<p>Therefore the new token receives the positional rotation corresponding to absolute position 100.</p>
+<p>This is exactly why the source says <code>position_offset</code> is crucial for correctly applying positional encodings when cached inference processes a new token at a time. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-23">19. This is the relationship with KV Cache</h4>
+<p>The source later computes the offset in the model's inference path as:</p>
+<pre><code class="language-python">position_offset =
+    past_kv_cache[0][0].shape[1]
+    if past_kv_cache
+    else 0
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So conceptually:</p>
+<div class="math block">
+\boxed{
+position\_offset
+=
+\text{number of previously cached tokens}.
+}
+</div>
+<p>Then that offset is passed into each Transformer block, and eventually into RoPE. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<pre><code class="language-text">Previous sequence
+positions 0 ... 99
+        ↓
+KV cache contains them
+        ↓
+new token arrives
+        ↓
+position_offset = 100
+        ↓
+RoPE uses position 100
+</code></pre>
+<p>This is one of the most important implementation details in this step.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-24">20. Broadcast the rotation factors</h4>
+<p>The source does:</p>
+<pre><code class="language-python">freqs_cis = (
+    freqs_cis_slice
+    .unsqueeze(0)
+    .unsqueeze(0)
+)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Why two <code>unsqueeze</code>s?</p>
+<p>We need the positional rotations to apply to every:</p>
+<ul>
+<li>batch</li>
+<li>attention head.</li>
+</ul>
+<p>Suppose:</p>
+<div class="math block">
+freqs\_cis\_slice
+</div>
+<p>has shape:</p>
+<div class="math block">
+[S,d_{\text{rope}}/2].
+</div>
+<p>After adding dimensions:</p>
+<div class="math block">
+\boxed{
+[1,1,S,d_{\text{rope}}/2]
+}
+</div>
+<p>while <code>x_complex</code> has approximately:</p>
+<div class="math block">
+[B,H,S,d_{\text{rope}}/2].
+</div>
+<p>PyTorch broadcasting lets the same positional rotation table be reused across all batches and heads.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+[1,1,S,D_r/2]
+}
+</div>
+<p>multiplies:</p>
+<div class="math block">
+\boxed{
+[B,H,S,D_r/2].
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-25">21. Step E — The actual RoPE operation</h4>
+<p>Finally:</p>
+<pre><code class="language-python">x_rotated = x_complex * freqs_cis
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>This is the entire mathematical rotation.</p>
+<p>Remember:</p>
+<div class="math block">
+x_{\text{complex}}
+=
+a+ib
+</div>
+<p>and:</p>
+<div class="math block">
+freqs\_cis
+=
+e^{i\theta}
+=
+\cos\theta+i\sin\theta.
+</div>
+<p>Then:</p>
+<div class="math block">
+(a+ib)e^{i\theta}
+</div>
+<p>is exactly the RoPE rotation.</p>
+<p>So the whole complicated-looking implementation eventually reduces to:</p>
+<div class="math block">
+\boxed{
+\text{complex multiplication}
+=
+\text{2-D rotation}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-26">22. Convert back to real numbers</h4>
+<p>After the complex multiplication:</p>
+<pre><code class="language-python">x_out = torch.view_as_real(x_rotated).flatten(3)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Suppose we had:</p>
+<div class="math block">
+16
+</div>
+<p>complex values.</p>
+<p>Each complex number has:</p>
+<div class="math block">
+\text{real}+\text{imaginary}
+</div>
+<p>so <code>view_as_real</code> converts:</p>
+<div class="math block">
+16
+</div>
+<p>complex numbers into:</p>
+<div class="math block">
+16\times2=32
+</div>
+<p>real numbers.</p>
+<p>Then <code>flatten(3)</code> reconstructs the original final feature dimension.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+[B,H,S,32]
+\rightarrow
+\text{complex}
+\rightarrow
+[B,H,S,16]
+\rightarrow
+[B,H,S,32].
+}
+</div>
+<p>The output has the same overall shape as the input.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-27">23. The complete RoPE data flow</h4>
+<p>Now put everything together.</p>
+<pre><code class="language-text">Input x
+[B,H,S,d_rope]
+      │
+      ▼
+Pair dimensions
+[B,H,S,d_rope/2,2]
+      │
+      ▼
+view_as_complex
+[B,H,S,d_rope/2]
+      │
+      │ ×
+      │
+      ▼
+Precomputed complex rotations
+[1,1,S,d_rope/2]
+      │
+      ▼
+Complex multiplication
+      │
+      ▼
+view_as_real
+[B,H,S,d_rope/2,2]
+      │
+      ▼
+flatten
+[B,H,S,d_rope]
+      │
+      ▼
+Original dtype
+</code></pre>
+<p>That is the complete implementation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-28">24. Now connect this back to attention</h4>
+<p>RoPE is <strong>not applied to the entire hidden state</strong>.</p>
+<p>In this Mini-DeepSeek design, it is applied to the specialized position-path Query and Key:</p>
+<div class="math block">
+q_r
+</div>
+<p>and:</p>
+<div class="math block">
+k_r.
+</div>
+<p>The source creates:</p>
+<div class="math block">
+q_r^{\text{unrotated}}
+</div>
+<p>and:</p>
+<div class="math block">
+k_r^{\text{unrotated}},
+</div>
+<p>then passes both through RoPE. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+q_r \rightarrow \operatorname{RoPE}(q_r)
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+k_r \rightarrow \operatorname{RoPE}(k_r).
+}
+</div>
+<p>The content path does <strong>not</strong> get this RoPE transformation.</p>
+<p>This is the &quot;decoupled&quot; part of the architecture.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-29">25. Why Query and Key, but not Value?</h4>
+<p>The source's architecture separates the two roles:</p>
+<pre><code class="language-text">Content Path:
+q_c, k_c, v_c
+      │
+      └── semantic/content information
+
+Position Path:
+q_r, k_r
+      │
+      └── positional information
+</code></pre>
+<p>The two attention score components are then:</p>
+<div class="math block">
+\text{content\_scores}
+=
+\frac{q_c k_c^T}{\sqrt{d_{\text{head}}}}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{position\_scores}
+=
+\frac{q_r k_r^T}{\sqrt{d_{\text{rope}}}}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{attn\_scores}
+=
+\text{content\_scores}
++
+\text{position\_scores}.
+}
+</div>
+<p>The source shows this combination in the attention implementation. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So RoPE contributes specifically to the <strong>position-dependent part of the attention score</strong>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-30">26. Training vs cached inference</h4>
+<p>This is where the new <code>position_offset</code> becomes especially useful.</p>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i106-31">Training</h6>
+<p>The full sequence is processed at once:</p>
+<div class="math block">
+position\_offset=0.
+</div>
+<p>Therefore:</p>
+<pre><code class="language-text">token 0 → position 0
+token 1 → position 1
+token 2 → position 2
+...
+</code></pre>
+<h6 id="v3-heading-chunk-les-step-6-2-1-i106-32">Cached inference</h6>
+<p>Suppose 256 tokens are already cached.</p>
+<p>Then:</p>
+<div class="math block">
+position\_offset=256.
+</div>
+<p>A new token with local sequence length:</p>
+<div class="math block">
+S=1
+</div>
+<p>gets:</p>
+<div class="math block">
+position=256.
+</div>
+<p>So the tensor may physically have only one token:</p>
+<div class="math block">
+[B,H,1,d_{\text{rope}}],
+</div>
+<p>but RoPE correctly interprets it as the <strong>256th position</strong>.</p>
+<p>That is a subtle but critical distinction:</p>
+<div class="math block">
+\boxed{
+\text{local tensor length}
+\neq
+\text{absolute position}.
+}
+</div>
+<p><code>position_offset</code> bridges those two.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-33">27. A numerical mini-example</h4>
+<p>Suppose:</p>
+<div class="math block">
+d_{\text{rope}}=4.
+</div>
+<p>Then we have two pairs:</p>
+<div class="math block">
+(x_0,x_1)
+</div>
+<p>and:</p>
+<div class="math block">
+(x_2,x_3).
+</div>
+<p>Suppose the rotation angles at a particular position are:</p>
+<div class="math block">
+\theta_0,\theta_1.
+</div>
+<p>The complex representation is:</p>
+<div class="math block">
+z_0=x_0+i x_1
+</div>
+<div class="math block">
+z_1=x_2+i x_3.
+</div>
+<p>RoPE creates:</p>
+<div class="math block">
+r_0=e^{i\theta_0}
+</div>
+<div class="math block">
+r_1=e^{i\theta_1}.
+</div>
+<p>Then:</p>
+<div class="math block">
+z_0'=z_0r_0
+</div>
+<p>and:</p>
+<div class="math block">
+z_1'=z_1r_1.
+</div>
+<p>Convert back to real values and we obtain the rotated 4-dimensional vector.</p>
+<p>Thus the implementation is mathematically identical to performing two separate <span class="math inline">2\times2</span> rotation matrices.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-34">28. Why this implementation is elegant</h4>
+<p>Instead of writing something like:</p>
+<div class="math block">
+\begin{bmatrix}
+\cos\theta &amp;-\sin\theta\\
+\sin\theta &amp;\cos\theta
+\end{bmatrix}
+</div>
+<p>for every pair, every token, every head, the source uses:</p>
+<div class="math block">
+\boxed{
+\text{pair dimensions}
+\rightarrow
+\text{complex numbers}
+\rightarrow
+\text{one multiplication}
+\rightarrow
+\text{real dimensions}.
+}
+</div>
+<p>So the code is compact while directly matching the mathematical derivation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-35">29. The earlier Chapter 3 implementation vs the Chapter 6 version</h4>
+<p>This is worth explicitly distinguishing.</p>
+<p>The earlier source implementation had:</p>
+<pre><code class="language-python">def forward(self, x):
+</code></pre>
+<p>and simply selected:</p>
+<pre><code class="language-python">freqs_cis[:seq_len]
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The Chapter 6 Mini-DeepSeek version changes this to:</p>
+<pre><code class="language-python">def forward(
+    self,
+    x,
+    position_offset=0
+):
+</code></pre>
+<p>and selects:</p>
+<pre><code class="language-python">self.freqs_cis[
+    position_offset:
+    position_offset + seq_len
+]
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the architecture has not changed mathematically.</p>
+<p>The <strong>implementation has been extended for cached inference</strong>.</p>
+<p>That is an excellent example of the distinction between:</p>
+<div class="math block">
+\boxed{
+\text{algorithm}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{production-aware implementation}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-6-2-1-i106-36">30. Final mental model</h4>
+<p>When you see this:</p>
+<pre><code class="language-python">self.rope(q_r_unrotated, position_offset)
+</code></pre>
+<p>think immediately:</p>
+<div class="math block">
+\boxed{
+\text{specialized positional Query}
+\rightarrow
+\text{pair dimensions}
+\rightarrow
+\text{complex numbers}
+\rightarrow
+e^{i\theta}
+\rightarrow
+\text{rotate}
+}
+</div>
+<p>and when you see:</p>
+<pre><code class="language-python">self.rope(k_r_unrotated, position_offset)
+</code></pre>
+<p>think the same process for the Key.</p>
+<p>The purpose is:</p>
+<div class="math block">
+\boxed{
+\text{inject position into }q_r,k_r
+}
+</div>
+<p>while keeping the content pathway suitable for MLA's compressed KV-cache design. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

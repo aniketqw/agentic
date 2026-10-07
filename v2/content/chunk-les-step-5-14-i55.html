@@ -1,0 +1,1800 @@
+<section class="chunk" id="chunk-les-step-5-14-i55" data-id="les-step-5-14-i55"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-14-i55"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-14-i55" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-13-i54">← Previous lesson</a> · <a href="#chunk-les-step-5-15-i56">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-13-i54">Step 5.13 — DeepSeek-R1 Distillation: From a 671B Teacher to Small Reasoning Models</a></p><p><strong>This lesson:</strong> Step 5.14 — DeepSeek-R1 Distillation Training Mechanics</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-14-i55"></a></p>
+<h2>Step 5.14 — DeepSeek-R1 Distillation Training Mechanics</h2>
+<p><em>Plan node: I8 · chat order #55</em></p>
+<p>Now we will go from the <strong>idea</strong> of distillation to the exact computation performed for one training example.</p>
+<p>This step is important because here we connect:</p>
+<div class="math block">
+\boxed{
+\text{teacher response}
+\rightarrow
+\text{tokens}
+\rightarrow
+\text{shifted input/targets}
+\rightarrow
+\text{prompt masking}
+\rightarrow
+\text{student logits}
+\rightarrow
+\text{cross-entropy}
+\rightarrow
+\text{backpropagation}
+}
+</div>
+<p>The supplied source gives the exact implementation pattern used for the answer-only loss. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-1">5.14.1 First: what exactly does the student receive?</h3>
+<p>Suppose the original question is:</p>
+<blockquote>
+<p>Half the value of <span class="math inline">3x-9</span> is <span class="math inline">x+37</span>. Find <span class="math inline">x</span>.</p>
+</blockquote>
+<p>The teacher might generate:</p>
+<pre><code class="language-text">Multiply both sides by 2.
+3x - 9 = 2x + 74.
+Subtract 2x from both sides.
+x - 9 = 74.
+Therefore x = 83.
+</code></pre>
+<p>The student training example is essentially:</p>
+<div class="math block">
+\boxed{
+(\text{prompt},\text{teacher-generated reasoning + answer})
+}
+</div>
+<p>The teacher's generated tokens become the supervised targets.</p>
+<p>The source explicitly describes this as <strong>hard distillation</strong>, which is essentially SFT on teacher-generated synthetic data.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-2">5.14.2 Important: the teacher is NOT providing probabilities</h3>
+<p>For DeepSeek-R1 distillation, the student does <strong>not</strong> need:</p>
+<div class="math block">
+z_T
+</div>
+<p>the teacher logits.</p>
+<p>It does not need:</p>
+<div class="math block">
+p_T=\operatorname{softmax}(z_T/T).
+</div>
+<p>It does not need:</p>
+<div class="math block">
+D_{KL}(p_T\|p_S).
+</div>
+<p>Instead, it needs the teacher's generated sequence:</p>
+<div class="math block">
+\boxed{
+y_1,y_2,\ldots,y_N
+}
+</div>
+<p>and learns to reproduce it. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-3">5.14.3 One complete training example</h3>
+<p>Let's construct a tiny artificial example.</p>
+<p>Suppose the full sequence is:</p>
+<div class="math block">
+[
+P_1,P_2,P_3,P_4,A_1,A_2,A_3,A_4,A_5
+]
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">P_1,\ldots,P_4</span> are prompt tokens,</li>
+<li><span class="math inline">A_1,\ldots,A_5</span> are teacher-answer/reasoning tokens.</li>
+</ul>
+<p>Thus:</p>
+<div class="math block">
+\boxed{\text{prompt\_len}=4}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{total length}=9}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-4">5.14.4 Why do we shift the sequence?</h3>
+<p>Because an autoregressive language model is trained to predict:</p>
+<div class="math block">
+\boxed{\text{next token}}
+</div>
+<p>not the token it has already seen.</p>
+<p>So the source constructs:</p>
+<div class="math block">
+\text{input\_ids}
+=
+\text{tok}[:-1]
+</div>
+<p>and:</p>
+<div class="math block">
+\text{target\_ids}
+=
+\text{tok}[1:].
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>For our sequence:</p>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-5">Original</h5>
+<div class="math block">
+[P_1,P_2,P_3,P_4,A_1,A_2,A_3,A_4,A_5]
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-6">Input</h5>
+<div class="math block">
+[P_1,P_2,P_3,P_4,A_1,A_2,A_3,A_4]
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-7">Target</h5>
+<div class="math block">
+[P_2,P_3,P_4,A_1,A_2,A_3,A_4,A_5]
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-8">5.14.5 Align them side by side</h3>
+<p>This is the most important visualization:</p>
+<table>
+<thead>
+<tr>
+<th>Input token</th>
+<th>Target token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">P_1</span></td>
+<td><span class="math inline">P_2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">P_2</span></td>
+<td><span class="math inline">P_3</span></td>
+</tr>
+<tr>
+<td><span class="math inline">P_3</span></td>
+<td><span class="math inline">P_4</span></td>
+</tr>
+<tr>
+<td><span class="math inline">P_4</span></td>
+<td><span class="math inline">A_1</span></td>
+</tr>
+<tr>
+<td><span class="math inline">A_1</span></td>
+<td><span class="math inline">A_2</span></td>
+</tr>
+<tr>
+<td><span class="math inline">A_2</span></td>
+<td><span class="math inline">A_3</span></td>
+</tr>
+<tr>
+<td><span class="math inline">A_3</span></td>
+<td><span class="math inline">A_4</span></td>
+</tr>
+<tr>
+<td><span class="math inline">A_4</span></td>
+<td><span class="math inline">A_5</span></td>
+</tr>
+</tbody>
+</table>
+<p>This is ordinary autoregressive training.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-9">5.14.6 Now comes the subtle part: we do NOT want prompt loss</h3>
+<p>The student is supposed to learn:</p>
+<div class="math block">
+\boxed{\text{teacher's reasoning and answer}}
+</div>
+<p>not:</p>
+<div class="math block">
+\boxed{\text{how to reproduce the prompt}}
+</div>
+<p>because the prompt is already supplied at inference time.</p>
+<p>The source therefore discards the logits/targets corresponding only to the prompt portion when calculating the distillation loss. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-10">5.14.7 Which target positions correspond to the teacher response?</h3>
+<p>Look at the shifted table again:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Logit index</th>
+<th>Input</th>
+<th>Target</th>
+<th>Desired loss?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td><span class="math inline">P_1</span></td>
+<td><span class="math inline">P_2</span></td>
+<td>No</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td><span class="math inline">P_2</span></td>
+<td><span class="math inline">P_3</span></td>
+<td>No</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td><span class="math inline">P_3</span></td>
+<td><span class="math inline">P_4</span></td>
+<td>No</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td><span class="math inline">P_4</span></td>
+<td><span class="math inline">A_1</span></td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td><span class="math inline">A_1</span></td>
+<td><span class="math inline">A_2</span></td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td><span class="math inline">A_2</span></td>
+<td><span class="math inline">A_3</span></td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">6</td>
+<td><span class="math inline">A_3</span></td>
+<td><span class="math inline">A_4</span></td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">7</td>
+<td><span class="math inline">A_4</span></td>
+<td><span class="math inline">A_5</span></td>
+<td><strong>Yes</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Notice the first answer target <span class="math inline">A_1</span> appears at:</p>
+<div class="math block">
+\boxed{\text{index}=3}.
+</div>
+<p>And:</p>
+<div class="math block">
+\text{prompt\_len}-1
+=
+4-1
+=
+3.
+</div>
+<p>Exactly as in the source:</p>
+<div class="math block">
+\boxed{
+\text{answer\_start}
+=
+\max(\text{prompt\_len}-1,0)
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-11">5.14.8 Why is it prompt_len − 1?</h3>
+<p>This is one of the most common places students make mistakes.</p>
+<p>The model sees:</p>
+<div class="math block">
+P_1,P_2,P_3,P_4
+</div>
+<p>and the logit generated after reading <span class="math inline">P_4</span> predicts:</p>
+<div class="math block">
+A_1.
+</div>
+<p>But because we shifted the target by one position, that prediction appears at:</p>
+<div class="math block">
+4-1=3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{first answer logit index}
+=
+\text{prompt length}-1
+}
+</div>
+<p>This is not an arbitrary indexing trick. It follows directly from the one-token shift.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-12">5.14.9 A second example</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt\_len}=7.
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{answer\_start}
+=
+7-1
+=
+\boxed{6}.
+</div>
+<p>So the logit at index 6 predicts the first teacher-response token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-13">5.14.10 What does the source code do?</h3>
+<p>The source's exact structure is:</p>
+<pre><code class="language-python">input_ids = torch.tensor(
+    token_ids[:-1], dtype=torch.long, device=device
+).unsqueeze(0)
+
+target_ids = torch.tensor(
+    token_ids[1:], dtype=torch.long, device=device
+)
+
+logits = model(input_ids).squeeze(0)
+
+answer_start = max(prompt_len - 1, 0)
+
+answer_logits = logits[answer_start:]
+answer_targets = target_ids[answer_start:]
+
+loss = torch.nn.functional.cross_entropy(
+    answer_logits, answer_targets
+)
+</code></pre>
+<p>This is the core implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-14">5.14.11 Tensor shapes</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=9
+</div>
+<p>tokens in the original sequence.</p>
+<p>Then:</p>
+<div class="math block">
+\text{input shape}=[1,8]
+</div>
+<p>after adding batch dimension.</p>
+<p>The model produces:</p>
+<div class="math block">
+\text{logits shape}
+=
+[1,8,V]
+</div>
+<p>where <span class="math inline">V</span> is vocabulary size.</p>
+<p>After:</p>
+<pre><code class="language-python">.squeeze(0)
+</code></pre>
+<p>we have:</p>
+<div class="math block">
+\boxed{
+[8,V]
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{answer\_start}=3.
+</div>
+<p>So:</p>
+<div class="math block">
+\text{answer\_logits}
+\in
+\mathbb R^{5\times V}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{answer\_targets}
+\in
+\mathbb R^{5}.
+</div>
+<p>Therefore <code>cross_entropy</code> compares:</p>
+<div class="math block">
+\boxed{
+5\text{ prediction positions}
+}
+</div>
+<p>against:</p>
+<div class="math block">
+\boxed{
+5\text{ teacher target tokens}.
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-15">5.14.12 Why does the student need logits for every answer token?</h3>
+<p>Suppose the teacher response is:</p>
+<div class="math block">
+A_1,A_2,A_3,A_4,A_5.
+</div>
+<p>The student is trained to learn:</p>
+<div class="math block">
+P_S(A_1|q)
+</div>
+<p>then:</p>
+<div class="math block">
+P_S(A_2|q,A_1)
+</div>
+<p>then:</p>
+<div class="math block">
+P_S(A_3|q,A_1,A_2)
+</div>
+<p>and so on.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+P_S(A_t|q,A_{&lt;t})
+}
+</div>
+<p>for every teacher token.</p>
+<p>This is exactly the standard autoregressive language-model objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-16">5.14.13 The loss for one token</h3>
+<p>Suppose the vocabulary is:</p>
+<div class="math block">
+V=\{A,B,C\}
+</div>
+<p>and the target token is <span class="math inline">A</span>.</p>
+<p>The student logits are:</p>
+<div class="math block">
+z=[2,1,0].
+</div>
+<p>Softmax gives:</p>
+<div class="math block">
+p_A=\frac{e^2}{e^2+e^1+e^0}.
+</div>
+<p>Using:</p>
+<div class="math block">
+e^2\approx7.389,
+\quad e^1\approx2.718,
+\quad e^0=1,
+</div>
+<p>denominator:</p>
+<div class="math block">
+7.389+2.718+1=11.107.
+</div>
+<p>Thus:</p>
+<div class="math block">
+p_A\approx\frac{7.389}{11.107}
+\approx0.665.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-17">5.14.14 Cross-entropy</h3>
+<p>For the correct target <span class="math inline">A</span>:</p>
+<div class="math block">
+L=-\log p_A.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L=-\log(0.665).
+</div>
+<p>Approximately:</p>
+<div class="math block">
+\boxed{L\approx0.408}.
+</div>
+<p>So the model is not terribly wrong because it assigned the correct teacher token a probability of about 66.5%.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-18">5.14.15 Suppose the student becomes more confident</h3>
+<p>New logits:</p>
+<div class="math block">
+[4,1,0].
+</div>
+<p>Now:</p>
+<div class="math block">
+e^4\approx54.598.
+</div>
+<p>Denominator:</p>
+<div class="math block">
+54.598+2.718+1
+=
+58.316.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+p_A
+\approx
+\frac{54.598}{58.316}
+\approx0.936.
+</div>
+<p>Loss:</p>
+<div class="math block">
+-\log(0.936)
+\approx
+\boxed{0.066}.
+</div>
+<p>So:</p>
+<div class="math block">
+0.408\rightarrow0.066.
+</div>
+<p>Lower loss means the student has become much better at predicting the teacher's target token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-19">5.14.16 What if the model predicts the wrong token?</h3>
+<p>Suppose:</p>
+<div class="math block">
+p_A=0.05.
+</div>
+<p>Then:</p>
+<div class="math block">
+L=-\log(0.05)
+\approx
+\boxed{2.996}.
+</div>
+<p>So:</p>
+<div class="math block">
+p_{\text{correct}}\downarrow
+\Rightarrow
+L\uparrow.
+</div>
+<p>This is standard cross-entropy behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-20">5.14.17 Multi-token loss</h3>
+<p>Suppose the teacher response has three target tokens.</p>
+<p>Student assigns:</p>
+<div class="math block">
+P(A_1)=0.8
+</div>
+<div class="math block">
+P(A_2)=0.5
+</div>
+<div class="math block">
+P(A_3)=0.9.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_1=-\ln(0.8)\approx0.223
+</div>
+<div class="math block">
+L_2=-\ln(0.5)\approx0.693
+</div>
+<div class="math block">
+L_3=-\ln(0.9)\approx0.105.
+</div>
+<p>Mean loss:</p>
+<div class="math block">
+L
+=
+\frac{0.223+0.693+0.105}{3}.
+</div>
+<div class="math block">
+\boxed{L\approx0.340}.
+</div>
+<p>This is what cross-entropy does across the selected target positions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-21">5.14.18 Why is this called “answer-only loss”?</h3>
+<p>Because the source deliberately selects:</p>
+<div class="math block">
+\boxed{
+\text{answer\_logits}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{answer\_targets}
+}
+</div>
+<p>starting at:</p>
+<div class="math block">
+\text{answer\_start}.
+</div>
+<p>So the prompt prediction positions are discarded. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>It is more accurately understood as:</p>
+<div class="math block">
+\boxed{
+\text{teacher-response-only loss}
+}
+</div>
+<p>because the target includes the reasoning trace and final answer, not merely the final numeric answer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-22">5.14.19 Why is prompt masking necessary?</h3>
+<p>Imagine the prompt contains 50 tokens and the teacher response contains 500 tokens.</p>
+<p>If you trained on both:</p>
+<div class="math block">
+50+500=550
+</div>
+<p>positions.</p>
+<p>But 50 positions are merely teaching the model to reproduce an input it already receives.</p>
+<p>The useful distillation signal is:</p>
+<div class="math block">
+\boxed{500}
+</div>
+<p>teacher-response positions.</p>
+<p>So masking focuses the learning budget on the teacher's behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-23">5.14.20 Important distinction: prompt is still used by the student</h3>
+<p>Prompt tokens are excluded from the <strong>loss</strong>, but they are absolutely not removed from the <strong>input</strong>.</p>
+<p>This is a subtle but critical distinction.</p>
+<p>The student needs:</p>
+<div class="math block">
+q
+</div>
+<p>as context to learn:</p>
+<div class="math block">
+P(A_1|q).
+</div>
+<p>So:</p>
+<pre><code class="language-text">Prompt → INPUT
+Prompt → NOT a loss target
+Teacher response → INPUT progressively
+Teacher response → LOSS TARGET
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{mask from loss}
+\neq
+\text{remove from context}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-24">5.14.21 Teacher forcing</h3>
+<p>This also connects to the concept of <strong>teacher forcing</strong>.</p>
+<p>During training, after predicting <span class="math inline">A_1</span>, the model is given the true teacher token <span class="math inline">A_1</span> when predicting <span class="math inline">A_2</span>.</p>
+<p>So:</p>
+<div class="math block">
+P_S(A_2|q,A_1)
+</div>
+<p>uses the teacher's actual <span class="math inline">A_1</span>, not the student's sampled prediction.</p>
+<p>Likewise:</p>
+<div class="math block">
+P_S(A_3|q,A_1,A_2).
+</div>
+<p>This makes SFT training stable and efficient.</p>
+<p>The source uses ordinary next-token cross-entropy for the generated reasoning sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-25">5.14.22 This is different from RL generation</h3>
+<p>During RL:</p>
+<div class="math block">
+o_t
+\sim
+\pi_\theta(\cdot|q,o_{&lt;t})
+</div>
+<p>the model samples its own token.</p>
+<p>During distillation SFT:</p>
+<div class="math block">
+o_t
+</div>
+<p>comes from the teacher dataset and serves as the target.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{RL: sample behavior}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{distillation SFT: imitate recorded behavior}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-26">5.14.23 Gradient calculation</h3>
+<p>For one token, cross-entropy is:</p>
+<div class="math block">
+L=-\log p_y.
+</div>
+<p>With softmax:</p>
+<div class="math block">
+p_j=\frac{e^{z_j}}{\sum_k e^{z_k}}.
+</div>
+<p>The gradient with respect to logit <span class="math inline">z_j</span> is:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial z_j}
+=
+p_j-\mathbf 1[j=y]
+}
+</div>
+<p>where:</p>
+<div class="math block">
+\mathbf1[j=y]
+=
+\begin{cases}
+1 &amp; j=y\\
+0 &amp; j\ne y.
+\end{cases}
+</div>
+<p>This is the central reason the student learns.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-27">5.14.24 Numerical gradient example</h3>
+<p>Suppose:</p>
+<div class="math block">
+p=[0.665,0.245,0.090]
+</div>
+<p>and the correct teacher token is class <span class="math inline">A</span>.</p>
+<p>Then:</p>
+<div class="math block">
+y=[1,0,0].
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial z}
+=
+[0.665-1,\;0.245-0,\;0.090-0]
+</div>
+<div class="math block">
+=
+\boxed{[-0.335,\;0.245,\;0.090]}.
+</div>
+<p>The gradient says:</p>
+<div class="math block">
+\boxed{
+\text{increase correct-token logit}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{decrease competing logits}
+}
+</div>
+<p>after the optimizer applies the negative gradient direction.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-28">5.14.25 Where does the gradient go?</h3>
+<p>The teacher is not part of the computation graph.</p>
+<p>The training flow is:</p>
+<pre><code class="language-text">Teacher response
+       │
+       │ stored as tokens
+       ▼
+Static dataset
+       │
+       ▼
+Student model
+       │
+       ▼
+logits
+       │
+       ▼
+cross-entropy
+       │
+       ▼
+backpropagation
+       │
+       ▼
+student parameters update
+</code></pre>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_S}L\neq0
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_T}L=0
+}
+</div>
+<p>because the teacher has already generated the target data and is not being trained alongside the student.</p>
+<p>The source explicitly contrasts this with classical KD, where the teacher normally participates during training to produce soft targets. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-29">5.14.26 Classical KD vs R1 distillation: computational graph</h3>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-30">Classical KD</h5>
+<pre><code class="language-text">                    Teacher
+                       │
+                    logits
+                       │
+                       ▼
+                  soft targets
+                       │
+Input ────────────────┼───────────────┐
+                     │               │
+                     ▼               ▼
+                   Teacher        Student
+                                     │
+                                     ▼
+                              KL + hard CE
+                                     │
+                                     ▼
+                                 Backprop
+                                     │
+                                     ▼
+                               Student update
+</code></pre>
+<p>Teacher stays available.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-31">R1 text distillation</h5>
+<pre><code class="language-text">Teacher
+   │
+   │ offline
+   ▼
+Reasoning text
+   │
+   ▼
+Filtered dataset
+   │
+   ▼
+Student
+   │
+   ▼
+Cross-entropy
+   │
+   ▼
+Student update
+</code></pre>
+<p>The teacher disappears from the student-training loop.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-32">5.14.27 Why does this dramatically simplify training?</h3>
+<p>Classical KD requires:</p>
+<div class="math block">
+\boxed{
+\text{teacher forward pass}
+}
+</div>
+<p>for each training batch.</p>
+<p>R1 text distillation requires:</p>
+<div class="math block">
+\boxed{
+\text{teacher inference only once during data generation}
+}
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{student training}
+=
+\text{ordinary SFT}
+}
+</div>
+<p>This is one of the key practical advantages emphasized in the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-33">5.14.28 What happens with padding?</h3>
+<p>In a real batch, examples have different lengths.</p>
+<p>Suppose:</p>
+<div class="math block">
+L_1=500,\quad L_2=800,\quad L_3=650.
+</div>
+<p>To batch them, you might pad to:</p>
+<div class="math block">
+L_{\max}=800.
+</div>
+<p>Then padded positions must not contribute to loss.</p>
+<p>The source's implementation discussion emphasizes excluding padding tokens in practical setups; its simple example avoids batching to keep the code compact, with broader batching discussion deferred elsewhere. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+\text{valid response tokens}
+\rightarrow
+\text{loss}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{prompt tokens}
+\rightarrow
+\text{no loss}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{padding tokens}
+\rightarrow
+\text{no loss}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-34">5.14.29 Three masks/regions to mentally separate</h3>
+<p>For a real training sequence, think of three categories:</p>
+<div class="math block">
+\boxed{
+\begin{array}{c}
+\text{Prompt}\\
+\text{Teacher response}\\
+\text{Padding}
+\end{array}
+}
+</div>
+<p>Their roles are:</p>
+<table>
+<thead>
+<tr>
+<th>Region</th>
+<th>Input to model?</th>
+<th>Contributes to loss?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prompt</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Teacher response</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Padding</td>
+<td>Padded input</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>This is an important implementation pattern.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-35">5.14.30 Why not simply use <code>ignore_index=-100</code>?</h3>
+<p>That is another common implementation.</p>
+<p>You can construct target IDs such that:</p>
+<pre><code class="language-text">prompt targets → -100
+response targets → actual token IDs
+padding targets → -100
+</code></pre>
+<p>and then:</p>
+<pre><code class="language-python">F.cross_entropy(logits, targets, ignore_index=-100)
+</code></pre>
+<p>But the source's simple implementation does something even more direct:</p>
+<div class="math block">
+\boxed{
+\text{slice away the prompt region}
+}
+</div>
+<p>before calling cross-entropy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So both are conceptually doing:</p>
+<div class="math block">
+\boxed{\text{loss masking}}
+</div>
+<p>but the source uses explicit slicing in its compact example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-36">5.14.31 The source's numerical sanity check</h3>
+<p>The source reports that the direct cross-entropy computation gives approximately:</p>
+<div class="math block">
+\boxed{1.68}
+</div>
+<p>and that this matches the result from its earlier sequence-logprob calculation.</p>
+<p>This is important because it validates that:</p>
+<div class="math block">
+\boxed{
+\text{cross\_entropy}
+}
+</div>
+<p>is implementing the same underlying quantity as:</p>
+<div class="math block">
+\boxed{
+-\text{mean log probability of target tokens}
+}
+</div>
+<p>in this context. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-37">5.14.32 Let's derive that equivalence</h3>
+<p>For target tokens:</p>
+<div class="math block">
+y_1,\ldots,y_N
+</div>
+<p>the mean negative log-likelihood is:</p>
+<div class="math block">
+L
+=
+-\frac1N
+\sum_{t=1}^N
+\log P_S(y_t|x,y_{&lt;t}).
+</div>
+<p>Cross-entropy computes exactly this average over the selected targets.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{CrossEntropy}
+=
+-\text{mean target-token log probability}
+}
+</div>
+<p>for the selected positions.</p>
+<p>That is why the two source implementations give essentially the same value.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-38">5.14.33 Numerical equivalence</h3>
+<p>Suppose three teacher target probabilities are:</p>
+<div class="math block">
+[0.8,0.5,0.9].
+</div>
+<p>Sequence log probability:</p>
+<div class="math block">
+\log P_{\text{seq}}
+=
+\ln0.8+\ln0.5+\ln0.9.
+</div>
+<p>Approximately:</p>
+<div class="math block">
+-0.223-0.693-0.105
+=
+-1.021.
+</div>
+<p>Mean negative log probability:</p>
+<div class="math block">
+\frac{1.021}{3}
+=
+\boxed{0.340}.
+</div>
+<p>That exactly matches our cross-entropy calculation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-39">5.14.34 But don't confuse mean NLL with sequence probability</h3>
+<p>The sequence probability is:</p>
+<div class="math block">
+P_{\text{seq}}
+=
+0.8\times0.5\times0.9
+=
+0.36.
+</div>
+<p>Sequence negative log probability:</p>
+<div class="math block">
+-\ln0.36
+\approx1.021.
+</div>
+<p>Mean token-level CE:</p>
+<div class="math block">
+\boxed{0.340}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{sequence NLL}=1.021
+}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{
+\text{mean token CE}=0.340
+}.
+</div>
+<p>They differ by the number of tokens:</p>
+<div class="math block">
+1.021/3\approx0.340.
+</div>
+<p>This distinction matters when interpreting reported losses.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-40">5.14.35 Full one-example algorithm</h3>
+<p>Now write the entire computation as an algorithm.</p>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-41">Step 1</h5>
+<p>Take:</p>
+<div class="math block">
+[\text{prompt}+\text{teacher response}].
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-42">Step 2</h5>
+<p>Convert text to token IDs:</p>
+<div class="math block">
+t=[t_1,t_2,\ldots,t_L].
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-43">Step 3</h5>
+<p>Shift:</p>
+<div class="math block">
+X=[t_1,\ldots,t_{L-1}]
+</div>
+<p>and:</p>
+<div class="math block">
+Y=[t_2,\ldots,t_L].
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-44">Step 4</h5>
+<p>Run the student:</p>
+<div class="math block">
+Z=f_{\theta_S}(X).
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-45">Step 5</h5>
+<p>Find:</p>
+<div class="math block">
+s=\text{prompt\_len}-1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-46">Step 6</h5>
+<p>Keep:</p>
+<div class="math block">
+Z_{s:}
+</div>
+<p>and:</p>
+<div class="math block">
+Y_s:.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-47">Step 7</h5>
+<p>Compute:</p>
+<div class="math block">
+\boxed{
+L=
+-\frac1N
+\sum_t
+\log P_S(Y_t\mid X_{\le t})
+}
+</div>
+<p>only over teacher-response targets.</p>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-48">Step 8</h5>
+<p>Backpropagate:</p>
+<div class="math block">
+\nabla_{\theta_S}L.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-49">Step 9</h5>
+<p>Update:</p>
+<div class="math block">
+\theta_S
+\leftarrow
+\theta_S-\eta\nabla_{\theta_S}L.
+</div>
+<p>That is the complete distillation training loop for one example.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-50">5.14.36 Why is this still “knowledge distillation”?</h3>
+<p>Because the student is learning behavior produced by a stronger teacher.</p>
+<p>The teacher's knowledge has been converted into:</p>
+<div class="math block">
+\boxed{
+\text{synthetic supervision}
+}
+</div>
+<p>and the student absorbs that supervision.</p>
+<p>The source explicitly calls this <strong>hard distillation</strong> and identifies DeepSeek-R1's smaller models as using this approach.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-51">5.14.37 What exactly is transferred?</h3>
+<p>Not:</p>
+<div class="math block">
+\boxed{\text{teacher parameters}}
+</div>
+<p>Not:</p>
+<div class="math block">
+\boxed{\text{teacher hidden states}}
+</div>
+<p>Not:</p>
+<div class="math block">
+\boxed{\text{teacher logits}}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{\text{teacher-generated behavior}}
+</div>
+<p>represented as text.</p>
+<p>That is why:</p>
+<div class="math block">
+\boxed{
+\text{R1 distillation = behavior transfer through synthetic text}
+}
+</div>
+<p>is the best mental model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-52">5.14.38 Why can a smaller model learn something difficult this way?</h3>
+<p>Suppose the large teacher has discovered:</p>
+<div class="math block">
+\text{problem decomposition}
+\rightarrow
+\text{intermediate algebra}
+\rightarrow
+\text{verification}.
+</div>
+<p>The student repeatedly sees this mapping.</p>
+<p>Instead of discovering the entire strategy through random exploration, it gets thousands or millions of demonstrations of successful trajectories.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{learning a strategy from demonstrations}
+}
+</div>
+<p>can be easier than:</p>
+<div class="math block">
+\boxed{
+\text{discovering the strategy through RL exploration}
+}.
+</div>
+<p>This is consistent with the source's comparison showing distilled 32B substantially outperforming the RL-only 32B. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-53">5.14.39 Numerical: direct RL vs distillation</h3>
+<p>Given:</p>
+<div class="math block">
+\text{AIME}_{\text{distill}}=72.6\%
+</div>
+<div class="math block">
+\text{AIME}_{\text{RL}}=47.0\%
+</div>
+<p>the difference is:</p>
+<div class="math block">
+72.6-47.0
+=
+\boxed{25.6\text{ percentage points}}.
+</div>
+<p>This is the same architecture size comparison from the source. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-54">5.14.40 Numerical: prompt indexing</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt length}=12.
+</div>
+<p>Then:</p>
+<div class="math block">
+\text{answer\_start}
+=
+12-1
+=
+\boxed{11}.
+</div>
+<p>If total token length is:</p>
+<div class="math block">
+100,
+</div>
+<p>then the shifted target sequence has:</p>
+<div class="math block">
+99
+</div>
+<p>positions.</p>
+<p>Answer targets begin at index:</p>
+<div class="math block">
+11.
+</div>
+<p>Therefore the number of selected teacher-response target positions is:</p>
+<div class="math block">
+99-11
+=
+\boxed{88}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-55">5.14.41 Numerical: exact number of answer positions</h3>
+<p>Suppose:</p>
+<div class="math block">
+L=50
+</div>
+<p>original tokens and:</p>
+<div class="math block">
+P=10
+</div>
+<p>prompt tokens.</p>
+<p>Then:</p>
+<div class="math block">
+\text{input length}=49.
+</div>
+<div class="math block">
+\text{target length}=49.
+</div>
+<p>Answer starts at:</p>
+<div class="math block">
+P-1=9.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+49-9
+=
+\boxed{40}
+</div>
+<p>target positions contribute to the loss.</p>
+<p>That matches:</p>
+<div class="math block">
+L-P=50-10=\boxed{40}
+</div>
+<p>teacher-response tokens.</p>
+<p>This equality is a useful check:</p>
+<div class="math block">
+\boxed{
+(L-1)-(P-1)=L-P
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-56">5.14.42 Numerical: cross-entropy</h3>
+<p>Suppose three target probabilities are:</p>
+<div class="math block">
+0.9,\;0.8,\;0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+L
+=
+-\frac13
+(\ln0.9+\ln0.8+\ln0.5).
+</div>
+<p>Using:</p>
+<div class="math block">
+\ln0.9\approx-0.105,
+</div>
+<div class="math block">
+\ln0.8\approx-0.223,
+</div>
+<div class="math block">
+\ln0.5\approx-0.693,
+</div>
+<p>we get:</p>
+<div class="math block">
+L
+=
+\frac{0.105+0.223+0.693}{3}.
+</div>
+<div class="math block">
+\boxed{L\approx0.340}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-57">5.14.43 Numerical: teacher response gets longer</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{prompt}=20\text{ tokens}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{teacher response}=180\text{ tokens}.
+</div>
+<p>Original sequence:</p>
+<div class="math block">
+L=200.
+</div>
+<p>Shifted sequence length:</p>
+<div class="math block">
+199.
+</div>
+<p>Answer start:</p>
+<div class="math block">
+20-1=19.
+</div>
+<p>Loss positions:</p>
+<div class="math block">
+199-19
+=
+\boxed{180}.
+</div>
+<p>Exactly the number of response tokens.</p>
+<p>This is another excellent sanity check.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-58">5.14.44 Numerical: batch size and token workload</h3>
+<p>Suppose:</p>
+<div class="math block">
+B=64
+</div>
+<p>examples and each averages:</p>
+<div class="math block">
+T=5,355
+</div>
+<p>teacher-response tokens.</p>
+<p>Approximate number of supervised target-token events per batch:</p>
+<div class="math block">
+64\times5,355
+=
+\boxed{342,720}.
+</div>
+<p>This illustrates why long reasoning traces create substantial training compute even though the optimization algorithm itself is just ordinary SFT.</p>
+<p>The source reports a batch size of 64 for the large-scale distilled models.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-59">5.14.45 Why long sequences matter for memory</h3>
+<p>Suppose the teacher response grows from:</p>
+<div class="math block">
+2,000
+</div>
+<p>to:</p>
+<div class="math block">
+8,000
+</div>
+<p>tokens.</p>
+<p>That's:</p>
+<div class="math block">
+4\times
+</div>
+<p>the sequence length.</p>
+<p>The model must process far more token positions, and self-attention has quadratic dependence on sequence length in standard dense attention.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{long reasoning traces}
+\rightarrow
+\text{valuable supervision}
+}
+</div>
+<p>but also:</p>
+<div class="math block">
+\boxed{
+\text{long reasoning traces}
+\rightarrow
+\text{higher training cost}
+}.
+</div>
+<p>This is one reason the dataset construction and context-length choices matter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-60">5.14.46 Why teacher-generated data must be filtered</h3>
+<p>Suppose 100 teacher outputs contain:</p>
+<div class="math block">
+40\text{ correct},
+</div>
+<div class="math block">
+30\text{ incorrect},
+</div>
+<div class="math block">
+20\text{ poorly formatted},
+</div>
+<div class="math block">
+10\text{ incoherent}.
+</div>
+<p>Training blindly on all 100 would expose the student to bad behavior.</p>
+<p>Rejection sampling instead aims to retain:</p>
+<div class="math block">
+\boxed{\text{correct + well-formatted + high-quality}}
+</div>
+<p>examples.</p>
+<p>The source explicitly describes rejection sampling as the process of generating multiple candidates, verifying them, and keeping correct, well-formatted responses. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-61">5.14.47 This creates a subtle dependency</h3>
+<p>The quality chain is:</p>
+<div class="math block">
+\boxed{
+\text{Teacher quality}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Generated traces}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Filtering quality}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Student training data}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{Student quality}
+}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{distillation quality is limited by the quality of the synthetic data}
+}
+</div>
+<p>This is why the source repeatedly emphasizes data curation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-62">5.14.48 Why the source prefers built-in <code>cross_entropy</code></h3>
+<p>The source first computes sequence log probabilities using a custom method.</p>
+<p>Then it directly computes cross-entropy.</p>
+<p>Both produce approximately:</p>
+<div class="math block">
+\boxed{1.68}
+</div>
+<p>in its example.</p>
+<p>Therefore the source uses PyTorch's optimized:</p>
+<pre><code class="language-python">torch.nn.functional.cross_entropy(...)
+</code></pre>
+<p>for actual training rather than the custom sequence-logprob function. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is a useful engineering lesson:</p>
+<div class="math block">
+\boxed{
+\text{understand the mathematics manually}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{use optimized library primitives in production}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-63">5.14.49 One complete example from text to loss</h3>
+<p>Let's make the entire pipeline concrete.</p>
+<p>Teacher response:</p>
+<pre><code class="language-text">A1 A2 A3 A4
+</code></pre>
+<p>Prompt:</p>
+<pre><code class="language-text">P1 P2 P3
+</code></pre>
+<p>Full sequence:</p>
+<div class="math block">
+[P_1,P_2,P_3,A_1,A_2,A_3,A_4].
+</div>
+<p>So:</p>
+<div class="math block">
+L=7
+</div>
+<p>and:</p>
+<div class="math block">
+P=3.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-64">Shift</h5>
+<p>Input:</p>
+<div class="math block">
+[P_1,P_2,P_3,A_1,A_2,A_3]
+</div>
+<p>Target:</p>
+<div class="math block">
+[P_2,P_3,A_1,A_2,A_3,A_4].
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-65">Answer start</h5>
+<div class="math block">
+P-1=2.
+</div>
+<p>Keep target positions from index 2 onward:</p>
+<div class="math block">
+[A_1,A_2,A_3,A_4].
+</div>
+<p>Exactly four positions.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-66">Student probabilities</h5>
+<p>Suppose it assigns:</p>
+<div class="math block">
+[0.8,0.6,0.5,0.9].
+</div>
+<p>Loss:</p>
+<div class="math block">
+L=
+-\frac14
+[
+\ln0.8+\ln0.6+\ln0.5+\ln0.9
+].
+</div>
+<p>Approx:</p>
+<div class="math block">
+=
+-\frac14
+[-0.223-0.511-0.693-0.105]
+</div>
+<div class="math block">
+=
+\frac{1.532}{4}
+</div>
+<div class="math block">
+\boxed{L\approx0.383}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{backpropagate }0.383
+}
+</div>
+<p>through the student.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-67">5.14.50 The entire data flow in one picture</h3>
+<pre><code class="language-text">                ORIGINAL PROMPT
+                      │
+                      ▼
+                Teacher R1
+                      │
+                      ▼
+          reasoning + final answer
+                      │
+                      ▼
+             rejection filtering
+                      │
+                      ▼
+             curated dataset
+                      │
+                      ▼
+              tokenize sequence
+                      │
+            ┌─────────┴─────────┐
+            ▼                   ▼
+        input_ids           target_ids
+        tok[:-1]             tok[1:]
+            │                   │
+            └─────────┬─────────┘
+                      ▼
+                Student model
+                      │
+                      ▼
+                    logits
+                      │
+                      ▼
+            discard prompt loss
+                      │
+                      ▼
+        teacher-response logits
+                      │
+                      ▼
+             cross-entropy
+                      │
+                      ▼
+                 backward()
+                      │
+                      ▼
+             update student
+</code></pre>
+<p>This is the complete computational story.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-68">5.14.51 The three key equations</h3>
+<p>You only need three equations to reconstruct the whole implementation.</p>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-69">1. Shift</h5>
+<div class="math block">
+\boxed{
+X=t[:-1],\qquad Y=t[1:]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-70">2. Answer-only selection</h5>
+<div class="math block">
+\boxed{
+s=\max(P-1,0)
+}
+</div>
+<div class="math block">
+\boxed{
+X_{\text{loss}}=Z[s:],\qquad
+Y_{\text{loss}}=Y[s:]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-71">3. Cross-entropy</h5>
+<div class="math block">
+\boxed{
+L
+=
+-\frac1N
+\sum_{t=1}^{N}
+\log P_S(y_t|q,y_{&lt;t})
+}
+</div>
+<p>Everything else is implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-72">5.14.52 The critical conceptual comparison</h3>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-73">RL</h5>
+<div class="math block">
+\boxed{
+\text{model generates}
+\rightarrow
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{gradient}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-74">R1 text distillation</h5>
+<div class="math block">
+\boxed{
+\text{teacher generates}
+\rightarrow
+\text{filter}
+\rightarrow
+\text{target sequence}
+\rightarrow
+\text{cross-entropy}
+\rightarrow
+\text{student gradient}
+}
+</div>
+<p>So the <strong>gradient source</strong> is fundamentally different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-75">5.14.53 Why this matters for the whole DeepSeek story</h3>
+<p>We can now see the complete division of labor:</p>
+<div class="math block">
+\boxed{
+\text{R1}
+\rightarrow
+\text{RL discovers/strengthens reasoning}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{R1}
+\rightarrow
+\text{generate successful reasoning traces}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{rejection sampling}
+\rightarrow
+\text{curated supervision}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\text{ordinary SFT}
+\rightarrow
+\text{small student learns those traces}
+}
+</div>
+<p>So the large teacher pays the difficult exploration cost once.</p>
+<p>The student then learns through a familiar supervised-learning objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-76">Step 5.14 — Exam bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-14-i55-77">N1 — Shifting</h5>
+<p>Original sequence has 100 tokens.</p>
+<p>What are the input and target sequence lengths?</p>
+<div class="math block">
+\boxed{99,\;99}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-78">N2 — Answer-start index</h5>
+<p>Prompt has 25 tokens.</p>
+<div class="math block">
+\boxed{
+25-1=24
+}
+</div>
+<p>So the first teacher-response prediction is at logit index:</p>
+<div class="math block">
+\boxed{24}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-79">N3 — Number of loss positions</h5>
+<p>Total sequence:</p>
+<div class="math block">
+L=500.
+</div>
+<p>Prompt:</p>
+<div class="math block">
+P=80.
+</div>
+<p>Number of teacher-response target positions:</p>
+<div class="math block">
+500-80
+=
+\boxed{420}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-80">N4 — Cross-entropy</h5>
+<p>Target-token probabilities:</p>
+<div class="math block">
+[0.9,0.8,0.5].
+</div>
+<p>Compute:</p>
+<div class="math block">
+\boxed{L\approx0.340}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-81">N5 — Gradient</h5>
+<p>For:</p>
+<div class="math block">
+p=[0.7,0.2,0.1]
+</div>
+<p>with first class as target:</p>
+<div class="math block">
+\boxed{
+\nabla_zL=[-0.3,0.2,0.1]
+}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-82">N6 — Batch target tokens</h5>
+<div class="math block">
+B=64,\qquad
+T=5,355.
+</div>
+<p>Approximate target-token count:</p>
+<div class="math block">
+\boxed{342,720}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-83">N7 — Distillation vs RL</h5>
+<div class="math block">
+72.6\%-47.0\%
+=
+\boxed{25.6\text{ points}}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-14-i55-84">N8 — Teacher requirement</h5>
+<p>Does the 671B teacher need to be loaded during every student training batch?</p>
+<div class="math block">
+\boxed{\text{No}}
+</div>
+<p>because the teacher first generates the offline dataset; student training then uses the static teacher-generated text. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-14-i55-85">Final mental model</h3>
+<p>The single most important thing from this step is:</p>
+<div class="math block">
+\boxed{
+\textbf{The teacher provides the sequence; the student provides the probability.}
+}
+</div>
+<p>The teacher says:</p>
+<div class="math block">
+\boxed{
+A_1,A_2,A_3,\ldots,A_N
+}
+</div>
+<p>The student tries to make:</p>
+<div class="math block">
+\boxed{
+P_S(A_1|q),
+P_S(A_2|q,A_1),
+\ldots,
+P_S(A_N|q,A_{&lt;N})
+}
+</div>
+<p>as large as possible.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek-R1 distillation}
+=
+\text{teacher-generated reasoning text}
++
+\text{answer-only SFT loss}
+}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{
+\text{no teacher logits}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{no temperature}
+}
+</div>
+<div class="math block">
+\boxed{
+\text{no KL distillation term}
+}
+</div>
+<p>in the R1 distilled-model training described by the source.</p>
+<hr />
+</section>

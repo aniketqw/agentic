@@ -1,0 +1,1050 @@
+<section class="chunk" id="chunk-les-step-5-48-1c-i92" data-id="les-step-5-48-1c-i92"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-48-1c-i92"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-48-1c-i92" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-48-1b-i91">← Previous lesson</a> · <a href="#chunk-les-step-5-48-1d-i93">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-48-1b-i91">Step 5.48.1B — Complete DeepSeek Causal MTP Training Pass</a></p><p><strong>This lesson:</strong> Step 5.48.1C — Backpropagation Through the DeepSeek MTP Chain</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-48-1c-i92"></a></p>
+<h3 id="v3-heading-chunk-les-step-5-48-1c-i92-1">Step 5.48.1C — Backpropagation Through the DeepSeek MTP Chain</h3>
+<p><em>Plan node: A3 · chat order #92</em></p>
+<blockquote class="back"><p><strong>↩ Back to main text:</strong> <a href="#les-step-1-1-i8">Step 1.1 — What Exactly Is a Language Model?</a> · <a href="#les-step-2-5-i25">Step 2.5 — Putting the Decoding Strategies Together</a></p>
+</blockquote>
+<p>We now reach the part that explains <strong>why the causal MTP architecture actually changes learning</strong>.</p>
+<p>Forward pass told us:</p>
+<div class="math block">
+h^0\rightarrow h^1\rightarrow h^2\rightarrow h^3
+</div>
+<p>with losses:</p>
+<div class="math block">
+L_1,\;L_2,\;L_3.
+</div>
+<p>Now we ask:</p>
+<blockquote>
+<p>When <span class="math inline">L_3</span> is wrong, which part of the model gets corrected?</p>
+</blockquote>
+<p>The answer is the heart of causal MTP:</p>
+<div class="math block">
+\boxed{
+L_3
+\rightarrow MTP_3
+\rightarrow MTP_2
+\rightarrow MTP_1
+\rightarrow \text{main Transformer}.
+}
+</div>
+<p>That follows from the recurrent hidden-state dependency described by the source. The source explicitly says each refined hidden state becomes the input to the next MTP module, and that the resulting losses provide a richer, multi-faceted gradient signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-2">5.48.1C.1 First recall the forward chain</h4>
+<p>For three prediction depths:</p>
+<div class="math block">
+h^0
+\rightarrow
+h^1
+\rightarrow
+h^2
+\rightarrow
+h^3.
+</div>
+<p>More explicitly:</p>
+<div class="math block">
+h^1=f_1(h^0,e_1)
+</div>
+<div class="math block">
+h^2=f_2(h^1,e_2)
+</div>
+<div class="math block">
+h^3=f_3(h^2,e_3)
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">f_1</span> = MTP-1 module,</li>
+<li><span class="math inline">f_2</span> = MTP-2 module,</li>
+<li><span class="math inline">f_3</span> = MTP-3 module,</li>
+<li><span class="math inline">e_k</span> = relevant future-token embedding.</li>
+</ul>
+<p>Each produces logits:</p>
+<div class="math block">
+z_1=W_{out}h^1
+</div>
+<div class="math block">
+z_2=W_{out}h^2
+</div>
+<div class="math block">
+z_3=W_{out}h^3.
+</div>
+<p>And losses:</p>
+<div class="math block">
+L_1=\operatorname{CE}(z_1,y_1)
+</div>
+<div class="math block">
+L_2=\operatorname{CE}(z_2,y_2)
+</div>
+<div class="math block">
+L_3=\operatorname{CE}(z_3,y_3).
+</div>
+<p>The source describes this sequential computation and the summed depth-wise losses. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-3">5.48.1C.2 The total objective</h4>
+<p>The source implementation gives:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\sum_{k=1}^{D}L_k
+}
+</div>
+<p>so for <span class="math inline">D=3</span>:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{main}}
++
+\frac{\lambda}{3}(L_1+L_2+L_3).
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Define:</p>
+<div class="math block">
+\alpha=\frac{\lambda}{D}.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{total}}
+=
+L_{\text{main}}
++
+\alpha L_1
++
+\alpha L_2
++
+\alpha L_3.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-4">5.48.1C.3 First understand ordinary backpropagation</h4>
+<p>For a simple network:</p>
+<div class="math block">
+x
+\rightarrow
+f
+\rightarrow
+g
+\rightarrow
+L
+</div>
+<p>the chain rule gives:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial g}
+\frac{\partial g}{\partial f}
+\frac{\partial f}{\partial x}.
+}
+</div>
+<p>The important principle is:</p>
+<div class="math block">
+\boxed{
+\text{later loss can affect earlier layers}.
+}
+</div>
+<p>MTP simply makes the dependency chain longer and richer.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-5">5.48.1C.4 A loss at MTP-1</h4>
+<p>Consider:</p>
+<div class="math block">
+L_1.
+</div>
+<p>It depends on:</p>
+<div class="math block">
+h^1.
+</div>
+<p>And:</p>
+<div class="math block">
+h^1=f_1(h^0,e_1).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L_1}{\partial h^0}
+=
+\frac{\partial L_1}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+L_1\rightarrow MTP_1\rightarrow h^0.
+}
+</div>
+<p>Nothing surprising yet.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-6">5.48.1C.5 Now the important one: MTP-2</h4>
+<p>MTP-2 loss depends on:</p>
+<div class="math block">
+h^2.
+</div>
+<p>But:</p>
+<div class="math block">
+h^2=f_2(h^1,e_2).
+</div>
+<p>And:</p>
+<div class="math block">
+h^1=f_1(h^0,e_1).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L_2}{\partial h^0}
+=
+\frac{\partial L_2}{\partial h^2}
+\frac{\partial h^2}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}.
+</div>
+<p>So the gradient from <span class="math inline">L_2</span> travels through:</p>
+<div class="math block">
+\boxed{
+MTP_2
+\rightarrow
+MTP_1
+\rightarrow
+\text{main Transformer}.
+}
+</div>
+<p>This is the first major difference from independent heads.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-7">5.48.1C.6 Now MTP-3</h4>
+<p>We have:</p>
+<div class="math block">
+h^3=f_3(h^2,e_3)
+</div>
+<div class="math block">
+h^2=f_2(h^1,e_2)
+</div>
+<div class="math block">
+h^1=f_1(h^0,e_1).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L_3}{\partial h^0}
+=
+\frac{\partial L_3}{\partial h^3}
+\frac{\partial h^3}{\partial h^2}
+\frac{\partial h^2}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}.
+}
+</div>
+<p>The gradient travels through all three MTP modules.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+L_3
+\rightarrow
+MTP_3
+\rightarrow
+MTP_2
+\rightarrow
+MTP_1
+\rightarrow
+h^0.
+}
+</div>
+<p>This is the mathematical meaning of <strong>causal latent refinement</strong>.</p>
+<p>The source itself does not spell out these Jacobian equations, so this gradient derivation is a mathematical consequence of the architecture described in the source. The source does explicitly state that the refined hidden state from one module becomes the input to the next and that the resulting objective provides a richer gradient signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-8">5.48.1C.7 Why this is different from independent heads</h4>
+<p>Suppose we instead had:</p>
+<div class="math block">
+h^0\rightarrow Head_1
+</div>
+<div class="math block">
+h^0\rightarrow Head_2
+</div>
+<div class="math block">
+h^0\rightarrow Head_3.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_3
+</div>
+<p>would affect Head 3 and <span class="math inline">h^0</span>, but it would <strong>not pass through Head 2 and Head 1</strong>.</p>
+<p>Graphically:</p>
+<pre><code class="language-text">                 h⁰
+              /   |   \
+             ▼    ▼    ▼
+            H1   H2   H3
+            │    │    │
+           L1   L2   L3
+</code></pre>
+<p>DeepSeek causal MTP is:</p>
+<pre><code class="language-text">                 h⁰
+                  │
+                  ▼
+                 MTP1
+                  │
+                 h¹
+                  │
+                  ▼
+                 MTP2
+                  │
+                 h²
+                  │
+                  ▼
+                 MTP3
+                  │
+                 h³
+</code></pre>
+<p>So:</p>
+<div class="math block">
+\boxed{
+L_3\text{ can train MTP1 and MTP2 indirectly}.
+}
+</div>
+<p>That is the structural reason the causal design differs from independent prediction heads. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-9">5.48.1C.8 All losses reaching the main hidden state</h4>
+<p>Now combine all three paths.</p>
+<p>The total loss is:</p>
+<div class="math block">
+L=
+L_{\text{main}}+\alpha L_1+\alpha L_2+\alpha L_3.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\frac{\partial L}{\partial h^0}
+=
+\frac{\partial L_{\text{main}}}{\partial h^0}
++
+\alpha\frac{\partial L_1}{\partial h^0}
++
+\alpha\frac{\partial L_2}{\partial h^0}
++
+\alpha\frac{\partial L_3}{\partial h^0}.
+</div>
+<p>And:</p>
+<div class="math block">
+\frac{\partial L_1}{\partial h^0}
+=
+\frac{\partial L_1}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}
+</div>
+<div class="math block">
+\frac{\partial L_2}{\partial h^0}
+=
+\frac{\partial L_2}{\partial h^2}
+\frac{\partial h^2}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}
+</div>
+<div class="math block">
+\frac{\partial L_3}{\partial h^0}
+=
+\frac{\partial L_3}{\partial h^3}
+\frac{\partial h^3}{\partial h^2}
+\frac{\partial h^2}{\partial h^1}
+\frac{\partial h^1}{\partial h^0}.
+</div>
+<p>So the main Transformer receives:</p>
+<div class="math block">
+\boxed{
+\text{main-loss gradient}
++
+\text{depth-1 gradient}
++
+\text{depth-2 gradient}
++
+\text{depth-3 gradient}.
+}
+</div>
+<p>This is the mathematical meaning of the source's statement about a “rich, multi-faceted gradient signal.” <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-10">5.48.1C.9 Which modules receive which gradients?</h4>
+<p>This is an excellent exam question.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1c-i92-11">MTP-1 parameters</h6>
+<p>They receive gradient from:</p>
+<div class="math block">
+\boxed{
+L_1+L_2+L_3
+}
+</div>
+<p>because all three losses depend, directly or indirectly, on <span class="math inline">h^1</span>.</p>
+<h6 id="v3-heading-chunk-les-step-5-48-1c-i92-12">MTP-2 parameters</h6>
+<p>They receive gradient from:</p>
+<div class="math block">
+\boxed{
+L_2+L_3
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-1c-i92-13">MTP-3 parameters</h6>
+<p>They receive gradient from:</p>
+<div class="math block">
+\boxed{
+L_3
+}
+</div>
+<h6 id="v3-heading-chunk-les-step-5-48-1c-i92-14">Main Transformer</h6>
+<p>It receives:</p>
+<div class="math block">
+\boxed{
+L_{\text{main}}+L_1+L_2+L_3
+}
+</div>
+<p>through their respective paths.</p>
+<p>This is a derived consequence of the causal computation graph.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-15">5.48.1C.10 Draw the backward arrows</h4>
+<p>Forward:</p>
+<pre><code class="language-text">h⁰
+ ↓
+MTP1
+ ↓
+h¹
+ ↓
+MTP2
+ ↓
+h²
+ ↓
+MTP3
+ ↓
+h³
+</code></pre>
+<p>Backward:</p>
+<pre><code class="language-text">L3
+ │
+ ▼
+MTP3
+ │
+ ▼
+MTP2
+ │
+ ▼
+MTP1
+ │
+ ▼
+h⁰
+</code></pre>
+<p>and:</p>
+<pre><code class="language-text">L2
+ │
+ ▼
+MTP2
+ │
+ ▼
+MTP1
+ │
+ ▼
+h⁰
+</code></pre>
+<p>and:</p>
+<pre><code class="language-text">L1
+ │
+ ▼
+MTP1
+ │
+ ▼
+h⁰
+</code></pre>
+<p>So the earlier MTP modules accumulate gradients from later prediction depths.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-16">5.48.1C.11 Numerical gradient-routing example</h4>
+<p>Let's simplify every derivative to scalar values just to understand the chain rule.</p>
+<p>Suppose:</p>
+<div class="math block">
+\frac{\partial L_3}{\partial h^3}=2
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial h^3}{\partial h^2}=0.5
+</div>
+<div class="math block">
+\frac{\partial h^2}{\partial h^1}=0.8
+</div>
+<div class="math block">
+\frac{\partial h^1}{\partial h^0}=0.6.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial L_3}{\partial h^0}
+=
+2\times0.5\times0.8\times0.6.
+</div>
+<p>Calculate:</p>
+<div class="math block">
+2\times0.5=1
+</div>
+<div class="math block">
+1\times0.8=0.8
+</div>
+<div class="math block">
+0.8\times0.6
+=
+\boxed{0.48}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\frac{\partial L_3}{\partial h^0}=0.48.
+}
+</div>
+<p>This is a toy scalar illustration; real neural-network gradients are vectors/Jacobians or efficiently computed vector-Jacobian products.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-17">5.48.1C.12 Now include all three MTP losses</h4>
+<p>Suppose:</p>
+<div class="math block">
+\alpha=0.1.
+</div>
+<p>And suppose the gradients with respect to <span class="math inline">h^0</span> are:</p>
+<div class="math block">
+\frac{\partial L_1}{\partial h^0}=0.50
+</div>
+<div class="math block">
+\frac{\partial L_2}{\partial h^0}=0.40
+</div>
+<div class="math block">
+\frac{\partial L_3}{\partial h^0}=0.48
+</div>
+<p>and:</p>
+<div class="math block">
+\frac{\partial L_{\text{main}}}{\partial h^0}=1.20.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial L_{\text{total}}}{\partial h^0}
+=
+1.20
++
+0.1(0.50)
++
+0.1(0.40)
++
+0.1(0.48).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+1.20+0.05+0.04+0.048
+=
+\boxed{1.338}.
+</div>
+<p>So the main representation is receiving a combined training signal.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-18">5.48.1C.13 Why this can improve long-range learning</h4>
+<p>Standard NTP gives:</p>
+<div class="math block">
+h_t\rightarrow x_{t+1}.
+</div>
+<p>The hidden state is optimized primarily through the immediate next-token objective.</p>
+<p>Causal MTP creates:</p>
+<div class="math block">
+h_t
+\rightarrow x_{t+1}
+</div>
+<p>and through refinement:</p>
+<div class="math block">
+h_t
+\rightarrow x_{t+2}
+</div>
+<p>and:</p>
+<div class="math block">
+h_t
+\rightarrow x_{t+3}.
+</div>
+<p>Therefore the representation at <span class="math inline">h^0</span> receives training pressure from multiple horizons.</p>
+<p>The source interprets this as helping the model learn longer-range coherence, forecasting, and planning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-19">5.48.1C.14 A very important misconception</h4>
+<p>Do not say:</p>
+<blockquote>
+<p>“MTP makes the model predict the future perfectly three tokens ahead.”</p>
+</blockquote>
+<p>That is not what the loss means.</p>
+<p>It means:</p>
+<div class="math block">
+\boxed{
+\text{the training objective contains prediction tasks at multiple future depths}.
+}
+</div>
+<p>The model is still learning probability distributions:</p>
+<div class="math block">
+P(t_{i+k}\mid \text{available representation})
+</div>
+<p>and can make mistakes.</p>
+<p>MTP changes <strong>what the model is trained to optimize</strong>, not the guarantee of prediction accuracy.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-20">5.48.1C.15 Another important misconception</h4>
+<p>Do not say:</p>
+<blockquote>
+<p>“The model backpropagates through the sampled token.”</p>
+</blockquote>
+<p>The architecture described by the source uses the <strong>ground-truth future token embedding during training</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the differentiable path is through:</p>
+<div class="math block">
+h^{k-1}
+</div>
+<p>and the corresponding embedding representation, rather than through a discrete sampling operation.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-21">5.48.1C.16 Gradient also reaches the embedding matrix</h4>
+<p>This is another useful implementation detail.</p>
+<p>The source uses:</p>
+<pre><code class="language-python">future_token_embeds = self.get_embedding(future_token_ids)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Therefore, during training, gradients can flow into the shared embedding parameters through the future-token embedding path.</p>
+<p>At the same time, the source ties the LM-head weights to the embedding weights:</p>
+<pre><code class="language-python">self.shared_lm_head.weight = self.shared_embed.weight
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the shared embedding/output weight can receive gradient contributions from multiple paths.</p>
+<p>This is an implementation-level consequence rather than a separate MTP principle.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-22">5.48.1C.17 Think of the gradient as multiple teaching signals</h4>
+<p>For <span class="math inline">h^0</span>:</p>
+<pre><code class="language-text">                  Main loss
+                     │
+                     ▼
+                    h⁰
+                  ▲ ▲ ▲
+                 /  |  \
+                /   |   \
+              L1    L2    L3
+</code></pre>
+<p>The deeper losses are not merely extra numbers added to the final scalar.</p>
+<p>They create <strong>different computational paths through the network</strong>.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{one representation}
+\leftarrow
+\text{multiple future-oriented correction signals}.
+}
+</div>
+<p>That is much closer to what the source means by denser or richer supervision. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-23">5.48.1C.18 Why the early module gets more gradient sources</h4>
+<p>For <span class="math inline">D=4</span>:</p>
+<div class="math block">
+h^0\rightarrow MTP_1\rightarrow MTP_2\rightarrow MTP_3\rightarrow MTP_4.
+</div>
+<p>Then:</p>
+<div class="math block">
+MTP_4
+</div>
+<p>is directly involved only in:</p>
+<div class="math block">
+L_4.
+</div>
+<p>But:</p>
+<div class="math block">
+MTP_1
+</div>
+<p>lies on paths for:</p>
+<div class="math block">
+L_1,L_2,L_3,L_4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{early MTP modules receive supervision from more horizons}.
+}
+</div>
+<p>This is one mathematical interpretation of why deeper future-prediction objectives can influence earlier representations.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-24">5.48.1C.19 But more gradient is not automatically better</h4>
+<p>Important caution.</p>
+<p>More training signals do not mathematically guarantee better performance.</p>
+<p>There can be:</p>
+<ul>
+<li>conflicting gradients,</li>
+<li>optimization difficulty,</li>
+<li>computational cost,</li>
+<li>sensitivity to the MTP loss weight <span class="math inline">\lambda</span>.</li>
+</ul>
+<p>The source presents MTP as beneficial and reports improved data efficiency/forecasting, but these are empirical claims rather than a theorem that “more losses always improve a model.” <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{richer supervision}\neq\text{guaranteed improvement}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-25">5.48.1C.20 Why <span class="math inline">\lambda</span> matters</h4>
+<p>Recall:</p>
+<div class="math block">
+L=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\sum_kL_k.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\lambda=0.
+</div>
+<p>Then:</p>
+<div class="math block">
+L=L_{\text{main}}.
+</div>
+<p>MTP contributes nothing to optimization.</p>
+<p>At the other extreme, if <span class="math inline">\lambda</span> is made very large, MTP losses can dominate the objective.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\lambda
+\text{ controls how strongly MTP influences training}.
+}
+</div>
+<p>In the source verification implementation:</p>
+<div class="math block">
+\lambda=0.1.
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-26">5.48.1C.21 Exam numerical: effect of <span class="math inline">\lambda</span></h4>
+<p>Suppose:</p>
+<div class="math block">
+D=4
+</div>
+<p>and:</p>
+<div class="math block">
+L_1=0.5,\quad
+L_2=0.6,\quad
+L_3=0.7,\quad
+L_4=0.8.
+</div>
+<p>Then:</p>
+<div class="math block">
+\sum L_k=2.6.
+</div>
+<p>With:</p>
+<div class="math block">
+\lambda=0.2,
+</div>
+<p>the MTP contribution is:</p>
+<div class="math block">
+\frac{0.2}{4}(2.6)
+=
+0.05\times2.6
+=
+\boxed{0.13}.
+</div>
+<p>If:</p>
+<div class="math block">
+L_{\text{main}}=0.9,
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}=1.03.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-27">5.48.1C.22 Exam numerical: identify gradient paths</h4>
+<p>Suppose:</p>
+<div class="math block">
+D=3.
+</div>
+<p>Which losses can update the parameters of MTP-2?</p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{
+L_2,L_3.
+}
+</div>
+<p>Why?</p>
+<p>Because:</p>
+<div class="math block">
+L_2\rightarrow MTP_2
+</div>
+<p>and:</p>
+<div class="math block">
+L_3\rightarrow MTP_3\rightarrow MTP_2.
+</div>
+<p>But:</p>
+<div class="math block">
+L_1
+</div>
+<p>does not pass through MTP-2.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_2}L_{\text{total}}
+\text{ contains contributions from }L_2,L_3,
+}
+</div>
+<p>plus any scaling by <span class="math inline">\lambda/D</span>.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-28">5.48.1C.23 Exam numerical: gradient path through a chain</h4>
+<p>Suppose:</p>
+<div class="math block">
+\frac{\partial L_3}{\partial h^3}=3
+</div>
+<div class="math block">
+\frac{\partial h^3}{\partial h^2}=0.4
+</div>
+<div class="math block">
+\frac{\partial h^2}{\partial h^1}=0.5
+</div>
+<div class="math block">
+\frac{\partial h^1}{\partial h^0}=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\frac{\partial L_3}{\partial h^0}
+=
+3(0.4)(0.5)(0.2).
+</div>
+<p>Therefore:</p>
+<div class="math block">
+3(0.4)=1.2
+</div>
+<div class="math block">
+1.2(0.5)=0.6
+</div>
+<div class="math block">
+0.6(0.2)
+=
+\boxed{0.12}.
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-29">5.48.1C.24 One subtle issue: vanishing gradients</h4>
+<p>The scalar example also reveals something important.</p>
+<p>If every derivative factor is less than 1, their product can become small.</p>
+<p>For example:</p>
+<div class="math block">
+0.5^5=0.03125.
+</div>
+<p>Therefore, longer chains can introduce gradient attenuation.</p>
+<p>Real Transformers use residual connections, normalization, carefully chosen initialization, and other mechanisms to make deep optimization practical.</p>
+<p>This is general deep-learning reasoning, not an explicit claim made by the MTP section of the source.</p>
+<p>The source itself does not discuss vanishing/exploding gradients in its MTP treatment, so this point should be treated as supporting mathematical context rather than source-derived content.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-30">5.48.1C.25 The most important comparison</h4>
+<h5 id="v3-heading-chunk-les-step-5-48-1c-i92-31">Independent MTP heads</h5>
+<div class="math block">
+h^0\rightarrow H_1\rightarrow L_1
+</div>
+<div class="math block">
+h^0\rightarrow H_2\rightarrow L_2
+</div>
+<div class="math block">
+h^0\rightarrow H_3\rightarrow L_3
+</div>
+<p>Gradient:</p>
+<div class="math block">
+L_3\rightarrow H_3\rightarrow h^0.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-48-1c-i92-32">DeepSeek causal MTP</h5>
+<div class="math block">
+h^0\rightarrow MTP_1\rightarrow h^1
+</div>
+<div class="math block">
+h^1\rightarrow MTP_2\rightarrow h^2
+</div>
+<div class="math block">
+h^2\rightarrow MTP_3\rightarrow h^3.
+</div>
+<p>Gradient:</p>
+<div class="math block">
+L_3
+\rightarrow
+MTP_3
+\rightarrow
+MTP_2
+\rightarrow
+MTP_1
+\rightarrow
+h^0.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{DeepSeek causal MTP couples the prediction depths through hidden states.}
+}
+</div>
+<p>That is the key distinction.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-33">5.48.1C.26 Why this matters for “planning”</h4>
+<p>The source repeatedly frames MTP as helping the model with longer-range coherence and forecasting/planning. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The mathematical intuition is:</p>
+<div class="math block">
+\boxed{
+h^0
+\text{ is no longer trained only for the immediate next token}.
+}
+</div>
+<p>It is also indirectly trained so that its refined descendants:</p>
+<div class="math block">
+h^1,h^2,h^3,\ldots
+</div>
+<p>can support increasingly distant future predictions.</p>
+<p>So the representation must contain information useful beyond the immediate next step.</p>
+<p>That is the connection:</p>
+<div class="math block">
+\boxed{
+\text{multi-horizon supervision}
+\rightarrow
+\text{future-aware representations}.
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-34">5.48.1C.27 Complete backward graph</h4>
+<pre><code class="language-text">                         Lmain
+                           │
+                           ▼
+                           h⁰
+                         ▲ ▲ ▲
+                        /  |  \
+                       /   |   \
+                     L1    L2    L3
+                     │     │     │
+                     ▼     ▼     ▼
+                   MTP1   MTP2   MTP3
+                     ▲      ▲      │
+                     │      │      │
+                     └──────┘      │
+                        causal     │
+                        chain      │
+</code></pre>
+<p>A more precise backward ordering is:</p>
+<pre><code class="language-text">L3
+ │
+ ▼
+MTP3
+ │
+ ▼
+MTP2
+ │
+ ▼
+MTP1
+ │
+ ▼
+Main Transformer
+
+L2
+ │
+ ▼
+MTP2
+ │
+ ▼
+MTP1
+ │
+ ▼
+Main Transformer
+
+L1
+ │
+ ▼
+MTP1
+ │
+ ▼
+Main Transformer
+</code></pre>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-35">5.48.1C.28 What the optimizer ultimately sees</h4>
+<p>The optimizer does not receive:</p>
+<div class="math block">
+L_1,L_2,L_3
+</div>
+<p>as three separate optimization steps.</p>
+<p>It receives a single objective:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{main}}
++
+\frac{\lambda}{D}
+\left(L_1+L_2+\cdots+L_D\right).
+}
+</div>
+<p>Automatic differentiation then computes the gradient of this scalar with respect to all model parameters.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\theta
+\leftarrow
+\theta-\eta\nabla_\theta L_{\text{total}}.
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\theta</span> = all trainable parameters,</li>
+<li><span class="math inline">\eta</span> = learning rate.</li>
+</ul>
+<p>The source's implementation adds the weighted MTP loss to the main loss before returning the total loss. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-36">5.48.1C.29 The complete conceptual chain</h4>
+<p>We can now connect everything we have learned:</p>
+<div class="math block">
+\boxed{
+\text{one hidden state}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{future-token-conditioned refinement}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+h^1
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{another future-conditioned refinement}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+h^2
+</div>
+<p>↓</p>
+<div class="math block">
+\boxed{
+\text{another refinement}
+}
+</div>
+<p>↓</p>
+<div class="math block">
+h^3
+</div>
+<p>↓</p>
+<p>multiple future losses</p>
+<div class="math block">
+L_1,L_2,L_3.
+</div>
+<p>Then backward:</p>
+<div class="math block">
+\boxed{
+L_1,L_2,L_3
+\rightarrow
+\text{multiple gradient paths}
+\rightarrow
+\text{main representation}.
+}
+</div>
+<p>This is exactly why the source describes MTP as providing a richer, multi-faceted gradient signal. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-step-5-48-1c-i92-37">Step 5.48.1C checkpoint</h4>
+<p>You should now be able to explain this without looking at notes:</p>
+<div class="math block">
+\boxed{
+L_1\rightarrow MTP_1
+}
+</div>
+<div class="math block">
+\boxed{
+L_2\rightarrow MTP_2\rightarrow MTP_1
+}
+</div>
+<div class="math block">
+\boxed{
+L_3\rightarrow MTP_3\rightarrow MTP_2\rightarrow MTP_1
+}
+</div>
+<p>and therefore:</p>
+<div class="math block">
+\boxed{
+\text{earlier MTP stages receive gradients from later future predictions}.
+}
+</div>
+<p>That is the <strong>backpropagation consequence of the causal chain</strong>.</p>
+<hr />
+</section>

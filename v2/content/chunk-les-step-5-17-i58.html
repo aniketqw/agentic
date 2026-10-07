@@ -1,0 +1,1424 @@
+<section class="chunk" id="chunk-les-step-5-17-i58" data-id="les-step-5-17-i58"><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-17-i58"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-17-i58" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-16-i57">← Previous lesson</a> · <a href="#chunk-les-step-5-18-i59">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-16-i57">Step 5.16 — The 800K Distillation Dataset: Rejection Sampling and Data Composition</a></p><p><strong>This lesson:</strong> Step 5.17 — From the 800K Dataset to Actual Student Training</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a>; <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-6">Build a Large Language Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-17-i58"></a></p>
+<h2>Step 5.17 — From the 800K Dataset to Actual Student Training</h2>
+<p><em>Plan node: I8 · chat order #58</em></p>
+<p>Now we take everything from Steps 5.14–5.16 and turn it into an <strong>actual training process</strong>.</p>
+<p>We know:</p>
+<div class="math block">
+\boxed{\text{R1 generates the data}}
+</div>
+<div class="math block">
+\boxed{\text{rejection sampling cleans the data}}
+</div>
+<div class="math block">
+\boxed{\text{student receives teacher-response tokens}}
+</div>
+<p>Now the question is:</p>
+<blockquote>
+<p><strong>What happens during every training step?</strong></p>
+</blockquote>
+<p>The source's training loop is deliberately close to a standard PyTorch language-model fine-tuning loop. The special part is the <strong>answer-only distillation loss</strong>; the rest is ordinary optimization machinery. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-1">5.17.1 The whole training loop first</h3>
+<p>The source's flow is:</p>
+<pre><code class="language-text">800K curated examples
+        ↓
+   Training set
+        ↓
+   shuffle examples
+        ↓
+ choose one example
+        ↓
+ answer-only CE loss
+        ↓
+    backward()
+        ↓
+ optional gradient clipping
+        ↓
+   optimizer.step()
+        ↓
+ periodic validation
+        ↓
+ save checkpoint
+</code></pre>
+<p>This is repeated for multiple epochs. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The key insight is:</p>
+<div class="math block">
+\boxed{
+\text{Distillation training itself looks like ordinary SFT}
+}
+</div>
+<p>There is no GRPO rollout, reward calculation, advantage estimation, policy ratio, or KL-to-reference stage in this student-training loop.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-2">5.17.2 Step 1 — Start from a pretrained base model</h3>
+<p>The student is <strong>not initialized randomly</strong>.</p>
+<p>For the practical source example, the student is a pretrained Qwen model. More generally, the DeepSeek distilled models retain their underlying Qwen/Llama pretrained base and fine-tune it with R1-generated data.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\theta_0=\text{pretrained student parameters}
+}
+</div>
+<p>Then training transforms:</p>
+<div class="math block">
+\theta_0
+\rightarrow
+\theta_1
+\rightarrow
+\theta_2
+\rightarrow
+\cdots
+\rightarrow
+\theta_{\text{final}}.
+</div>
+<p>The teacher's parameters are not copied into this process.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-3">5.17.3 Step 2 — Initialize AdamW</h3>
+<p>The source implementation uses:</p>
+<pre><code class="language-python">optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+</code></pre>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So the optimizer maintains information that helps adapt the parameter updates.</p>
+<p>At the most basic level, think:</p>
+<div class="math block">
+\boxed{
+\theta \leftarrow \theta-\text{adaptive update based on }\nabla_\theta L
+}
+</div>
+<p>The exact AdamW update contains first- and second-moment statistics and weight decay; the supplied distillation section does not derive those equations, so we will not pretend the chapter does.</p>
+<p>The important source-grounded fact here is simply:</p>
+<div class="math block">
+\boxed{\text{AdamW is used}}
+</div>
+<p>for the training loop. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-4">5.17.4 Step 3 — Choose the number of epochs</h3>
+<p>The practical function has:</p>
+<pre><code class="language-python">epochs=2
+</code></pre>
+<p>by default. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The larger DeepSeek-style configuration described elsewhere in the source uses:</p>
+<div class="math block">
+\boxed{2\text{–}3\text{ epochs}}
+</div>
+<p>over the 800K dataset. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-5">5.17.5 What exactly is an epoch?</h3>
+<p>An epoch means:</p>
+<div class="math block">
+\boxed{\text{one complete pass through the training set}}
+</div>
+<p>Suppose:</p>
+<div class="math block">
+N=800,000.
+</div>
+<p>One epoch exposes the student to all approximately 800K examples once.</p>
+<p>Two epochs:</p>
+<div class="math block">
+800,000\times2
+=
+\boxed{1.6\text{ million example presentations}}.
+</div>
+<p>Three epochs:</p>
+<div class="math block">
+800,000\times3
+=
+\boxed{2.4\text{ million example presentations}}.
+</div>
+<p>This does <strong>not</strong> mean 2.4 million unique samples. The same dataset is revisited.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-6">5.17.6 Step 4 — Shuffle the training examples</h3>
+<p>The source explicitly does:</p>
+<pre><code class="language-python">epoch_examples = list(train_examples)
+rng.shuffle(epoch_examples)
+</code></pre>
+<p>at the start of every epoch. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Why?</p>
+<p>Suppose the dataset is stored:</p>
+<pre><code class="language-text">Math
+Math
+Math
+Math
+...
+Code
+Code
+Code
+...
+General
+General
+...
+</code></pre>
+<p>If you train in that fixed order, the optimizer may see long runs of similar examples.</p>
+<p>Shuffling produces a less structured ordering:</p>
+<pre><code class="language-text">Math → Code → General → Math → Logic → Code → ...
+</code></pre>
+<p>The model still sees the same distribution overall, but the order of gradient updates changes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-7">5.17.7 Why does order matter if the data is the same?</h3>
+<p>Because optimization is sequential.</p>
+<p>Let:</p>
+<div class="math block">
+g_1=\nabla L_1
+</div>
+<p>and:</p>
+<div class="math block">
+g_2=\nabla L_2.
+</div>
+<p>The model first updates using <span class="math inline">g_1</span>, changing its parameters before seeing <span class="math inline">g_2</span>.</p>
+<p>So:</p>
+<div class="math block">
+\theta_1=\operatorname{Update}(\theta_0,g_1)
+</div>
+<p>then:</p>
+<div class="math block">
+\theta_2=\operatorname{Update}(\theta_1,g_2).
+</div>
+<p>Changing the order changes the parameter trajectory.</p>
+<p>Thus shuffling is a standard way to avoid an unnecessarily structured update sequence. The source explicitly includes it in every epoch. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-8">5.17.8 Step 5 — Take one training example</h3>
+<p>The source's simple implementation processes examples one at a time:</p>
+<pre><code class="language-python">for example in epoch_examples:
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is intentionally pedagogical.</p>
+<p>It is <strong>not</strong> meant to imply that production-scale training must use batch size 1.</p>
+<p>The source explicitly notes that batching was omitted from the compact implementation and discusses throughput-oriented batching separately. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-9">5.17.9 Step 6 — Prepare input and target</h3>
+<p>For the teacher-generated token sequence:</p>
+<div class="math block">
+t_1,t_2,\ldots,t_L
+</div>
+<p>we construct:</p>
+<div class="math block">
+X=[t_1,\ldots,t_{L-1}]
+</div>
+<p>and:</p>
+<div class="math block">
+Y=[t_2,\ldots,t_L].
+</div>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+X=t[:-1]
+}
+</div>
+<div class="math block">
+\boxed{
+Y=t[1:]
+}
+</div>
+<p>The model predicts the next token.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-10">5.17.10 Step 7 — Run the student forward pass</h3>
+<p>The student computes:</p>
+<div class="math block">
+Z=f_{\theta}(X).
+</div>
+<p>For a sequence length <span class="math inline">L-1</span> and vocabulary size <span class="math inline">V</span>:</p>
+<div class="math block">
+\boxed{
+Z\in\mathbb R^{(L-1)\times V}
+}
+</div>
+<p>for the simple single-example implementation.</p>
+<p>Each row represents:</p>
+<div class="math block">
+\boxed{
+\text{logits for the next-token prediction at one position}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-11">5.17.11 Step 8 — Throw away prompt-only loss positions</h3>
+<p>Suppose prompt length is:</p>
+<div class="math block">
+P.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+s=P-1
+}
+</div>
+<p>and:</p>
+<pre><code class="language-python">answer_logits = logits[s:]
+answer_targets = target_ids[s:]
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is extremely important.</p>
+<p>The prompt still enters the model.</p>
+<p>But the prompt-only predictions do not affect the optimization objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-12">5.17.12 Step 9 — Compute cross-entropy</h3>
+<p>The source uses:</p>
+<pre><code class="language-python">loss = torch.nn.functional.cross_entropy(
+    answer_logits,
+    answer_targets
+)
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Mathematically:</p>
+<div class="math block">
+\boxed{
+L
+=
+-\frac1N
+\sum_{t=1}^N
+\log
+P_\theta(y_t\mid x,y_{&lt;t})
+}
+</div>
+<p>for the selected teacher-response positions.</p>
+<p>So the student is trained to increase the probability of the teacher's demonstrated sequence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-13">5.17.13 Step 10 — Backpropagation</h3>
+<p>Now:</p>
+<pre><code class="language-python">loss.backward()
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>PyTorch computes:</p>
+<div class="math block">
+\boxed{
+\nabla_\theta L
+}
+</div>
+<p>for all trainable parameters.</p>
+<p>This is where the error signal moves backward through:</p>
+<div class="math block">
+\text{output logits}
+\rightarrow
+\text{output projection}
+\rightarrow
+\text{Transformer blocks}
+\rightarrow
+\text{embeddings}
+</div>
+<p>and all relevant trainable components.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-14">5.17.14 Why does only the student change?</h3>
+<p>Because the target sequence is already fixed.</p>
+<p>The teacher generated:</p>
+<div class="math block">
+y_1,\ldots,y_N
+</div>
+<p>before student training.</p>
+<p>Therefore the target doesn't depend on current student parameters.</p>
+<p>So the gradient is:</p>
+<div class="math block">
+\boxed{
+\nabla_{\theta_S}L
+}
+</div>
+<p>but there is no corresponding teacher-update path.</p>
+<p>This is exactly the source's teacher-offline design. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-15">5.17.15 Step 11 — Gradient clipping</h3>
+<p>The source allows:</p>
+<pre><code class="language-python">if grad_clip_norm is not None:
+    torch.nn.utils.clip_grad_norm_(
+        model.parameters(),
+        grad_clip_norm
+    )
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The supplied example uses:</p>
+<div class="math block">
+\boxed{1.0}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-16">5.17.16 Why do we clip gradients?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\|\nabla_\theta L\|
+</div>
+<p>becomes extremely large.</p>
+<p>Then the update could be excessively large:</p>
+<div class="math block">
+\Delta\theta
+\propto
+-\nabla_\theta L.
+</div>
+<p>This can destabilize optimization.</p>
+<p>With a max norm <span class="math inline">c</span>, the gradient can be rescaled so that:</p>
+<div class="math block">
+\boxed{
+\|\nabla_\theta L\|\le c
+}
+</div>
+<p>after clipping.</p>
+<p>The supplied source uses gradient clipping as an optional stability mechanism. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-17">5.17.17 Numerical example: gradient clipping</h3>
+<p>Suppose:</p>
+<div class="math block">
+\|\nabla L\|=5.
+</div>
+<p>Set:</p>
+<div class="math block">
+c=1.
+</div>
+<p>The scale factor is:</p>
+<div class="math block">
+\frac{1}{5}=0.2.
+</div>
+<p>So every gradient component is effectively multiplied by approximately:</p>
+<div class="math block">
+\boxed{0.2}
+</div>
+<p>under simple norm clipping.</p>
+<p>Thus the resulting norm becomes:</p>
+<div class="math block">
+\boxed{1}.
+</div>
+<p>This is an illustrative calculation of norm clipping.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-18">5.17.18 Step 12 — Optimizer step</h3>
+<p>Then:</p>
+<pre><code class="language-python">optimizer.step()
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This actually changes the student parameters:</p>
+<div class="math block">
+\boxed{
+\theta_{\text{new}}
+=
+\operatorname{AdamW}(
+\theta_{\text{old}},
+\nabla_\theta L
+)
+}
+</div>
+<p>The exact AdamW formula is not expanded in this distillation section, so the key point is:</p>
+<div class="math block">
+\boxed{
+\text{backward computes the direction}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{optimizer.step applies the parameter update}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-19">5.17.19 Step 13 — Repeat</h3>
+<p>Now take the next example.</p>
+<p>Again:</p>
+<div class="math block">
+X,Y
+\rightarrow
+\text{student}
+\rightarrow
+L
+\rightarrow
+\text{backward}
+\rightarrow
+\text{clip}
+\rightarrow
+\text{optimizer.step}.
+</div>
+<p>Repeat until all examples in the epoch have been processed.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\text{next epoch}
+}
+</div>
+<p>and shuffle again.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-20">5.17.20 One full update in mathematical form</h3>
+<p>For example <span class="math inline">i</span>:</p>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-21">Input</h5>
+<div class="math block">
+X_i
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-22">Targets</h5>
+<div class="math block">
+Y_i
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-23">Forward</h5>
+<div class="math block">
+Z_i=f_{\theta}(X_i)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-24">Select response positions</h5>
+<div class="math block">
+Z_i^{(a)},Y_i^{(a)}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-25">Loss</h5>
+<div class="math block">
+L_i
+=
+CE(Z_i^{(a)},Y_i^{(a)})
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-26">Gradient</h5>
+<div class="math block">
+g_i=\nabla_\theta L_i
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-27">Optional clipping</h5>
+<div class="math block">
+\tilde g_i=\operatorname{Clip}(g_i)
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-28">Update</h5>
+<div class="math block">
+\boxed{
+\theta\leftarrow
+\operatorname{AdamW}(\theta,\tilde g_i)
+}
+</div>
+<p>That is one student training step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-29">5.17.21 Important: source implementation vs large-scale configuration</h3>
+<p>There are two different things in the supplied material.</p>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-30">Book's compact practical implementation</h5>
+<p>It uses:</p>
+<div class="math block">
+\boxed{\text{one example at a time}}
+</div>
+<p>and a tiny demonstration training subset.</p>
+<p>For example:</p>
+<pre><code class="language-python">train_examples=train_examples[:10]
+</code></pre>
+<p>with:</p>
+<div class="math block">
+\boxed{2\text{ epochs}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{lr=5\times10^{-6}}
+</div>
+<p>in that particular demonstration. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-31">DeepSeek-style reported larger training</h5>
+<p>The source separately reports:</p>
+<div class="math block">
+\boxed{2\text{–}3\text{ epochs}}
+</div>
+<div class="math block">
+\boxed{\text{batch size}=64}
+</div>
+<div class="math block">
+\boxed{\text{context}=32,768}
+</div>
+<p>with model-size-specific learning rates. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Do not mix the tiny demonstration hyperparameters with the reported large-scale DeepSeek configuration.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-32">5.17.22 Why did the book use only 10 examples?</h3>
+<p>Because it is a teaching experiment.</p>
+<p>The source explicitly says the training run is intentionally short and uses only the first 10 examples. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+10\text{ examples}
+\neq
+\text{the actual 800K production training set}
+}
+</div>
+<p>It is simply a sanity-check implementation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-33">5.17.23 Numerical: the tiny demonstration</h3>
+<p>Suppose:</p>
+<div class="math block">
+N=10
+</div>
+<p>training examples and:</p>
+<div class="math block">
+E=2
+</div>
+<p>epochs.</p>
+<p>Then:</p>
+<div class="math block">
+\boxed{10\times2=20}
+</div>
+<p>example-level optimizer steps.</p>
+<p>Because the source's compact loop calls <code>optimizer.step()</code> once per example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is different from the large-scale batch-size-64 configuration.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-34">5.17.24 Why batching changes the calculation</h3>
+<p>Suppose:</p>
+<div class="math block">
+N=800,000
+</div>
+<p>and:</p>
+<div class="math block">
+B=64.
+</div>
+<p>Then approximately:</p>
+<div class="math block">
+\frac{800,000}{64}
+=
+12,500
+</div>
+<p>batches per epoch.</p>
+<p>For 2 epochs:</p>
+<div class="math block">
+25,000
+</div>
+<p>optimizer steps.</p>
+<p>For 3 epochs:</p>
+<div class="math block">
+37,500.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{optimizer steps}
+\neq
+\text{number of examples}
+}
+</div>
+<p>once batching is introduced.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-35">5.17.25 Example-level vs token-level</h3>
+<p>There are two different counts you must keep separate.</p>
+<p>Suppose:</p>
+<div class="math block">
+800K
+</div>
+<p>examples.</p>
+<p>But each example averages:</p>
+<div class="math block">
+5,355
+</div>
+<p>tokens.</p>
+<p>Then the model sees a huge number of token prediction events:</p>
+<div class="math block">
+800,000\times5,355
+\approx
+4.28\times10^9.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{
+800K\text{ examples}
+}
+</div>
+<p>is not equivalent to:</p>
+<div class="math block">
+\boxed{
+800K\text{ token targets}
+}.
+</div>
+<p>The dataset contains billions of target-token prediction events.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-36">5.17.26 Variable-length examples create a batching problem</h3>
+<p>Suppose three sequences have lengths:</p>
+<div class="math block">
+100,\;150,\;300.
+</div>
+<p>You cannot directly stack them as a rectangular tensor without padding.</p>
+<p>You need:</p>
+<div class="math block">
+[100]\rightarrow[300]
+</div>
+<p>and:</p>
+<div class="math block">
+[150]\rightarrow[300].
+</div>
+<p>The source's earlier LLM batching material explains the standard solution:</p>
+<div class="math block">
+\boxed{\text{pad to the longest sequence in the batch}}
+</div>
+<p>rather than the longest sequence in the entire dataset. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-37">5.17.27 Why pad only within the batch?</h3>
+<p>Suppose the entire dataset's maximum length is:</p>
+<div class="math block">
+32,768.
+</div>
+<p>But your current batch contains:</p>
+<div class="math block">
+1,000,\;1,200,\;1,500
+</div>
+<p>token examples.</p>
+<p>Padding all of them to:</p>
+<div class="math block">
+32,768
+</div>
+<p>would waste enormous computation.</p>
+<p>Instead, pad only to:</p>
+<div class="math block">
+\boxed{1,500}.
+</div>
+<p>This is why the source describes batch-local dynamic padding as minimizing unnecessary padding. <em>(Source: Build a Large Language Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-38">5.17.28 Numerical: padding waste</h3>
+<p>Suppose a batch contains:</p>
+<div class="math block">
+100,\;200,\;500
+</div>
+<p>tokens.</p>
+<p>Without padding, total tokens:</p>
+<div class="math block">
+100+200+500
+=
+800.
+</div>
+<p>With padding to the batch maximum:</p>
+<div class="math block">
+500\times3
+=
+1500.
+</div>
+<p>Padding overhead:</p>
+<div class="math block">
+1500-800
+=
+\boxed{700\text{ token positions}}.
+</div>
+<p>So:</p>
+<div class="math block">
+\boxed{46.7\%}
+</div>
+<p>of the padded positions are unnecessary in this simplified calculation:</p>
+<div class="math block">
+\frac{700}{1500}\times100
+\approx46.7\%.
+</div>
+<p>This is why length-aware batching can matter.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-39">5.17.29 Padding must not contribute to the loss</h3>
+<p>This is another critical detail.</p>
+<p>Suppose:</p>
+<pre><code class="language-text">Sequence A: [1, 2, 3, 4, 5]
+Sequence B: [6, 7]
+</code></pre>
+<p>Pad B:</p>
+<pre><code class="language-text">[6, 7, PAD, PAD, PAD]
+</code></pre>
+<p>The model needs a rectangular tensor.</p>
+<p>But we do <strong>not</strong> want:</p>
+<div class="math block">
+PAD
+</div>
+<p>to become a supervised target.</p>
+<p>The source's LLM batching treatment uses an <code>ignore_index</code> such as:</p>
+<div class="math block">
+\boxed{-100}
+</div>
+<p>for padding targets so that those positions do not contribute to cross-entropy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-40">5.17.30 This creates two independent masking ideas</h3>
+<p>You should now distinguish:</p>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-41">Prompt masking</h5>
+<p>Do not train on:</p>
+<div class="math block">
+\text{prompt target positions}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-42">Padding masking</h5>
+<p>Do not train on:</p>
+<div class="math block">
+\text{padding target positions}.
+</div>
+<p>So the final loss mask is effectively:</p>
+<div class="math block">
+\boxed{
+\text{valid response token}
+}
+</div>
+<p>and only those positions should influence the student.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-43">5.17.31 There is a third masking concept in the Transformer</h3>
+<p>Do not confuse loss masking with causal attention masking.</p>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-44">Causal mask</h5>
+<p>Controls what a token is <strong>allowed to attend to</strong>.</p>
+<div class="math block">
+\boxed{
+\text{future tokens hidden}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-45">Loss mask</h5>
+<p>Controls which predictions <strong>contribute to training loss</strong>.</p>
+<div class="math block">
+\boxed{
+\text{prompt/padding excluded}
+}
+</div>
+<p>These are completely different mechanisms.</p>
+<p>This distinction is very exam-worthy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-46">5.17.32 A useful four-layer picture</h3>
+<p>For each token position:</p>
+<pre><code class="language-text">                INPUT
+                  │
+                  ▼
+           Causal Transformer
+                  │
+                  ▼
+                LOGIT
+                  │
+                  ▼
+             Loss mask
+             /        \
+          include     ignore
+             │
+             ▼
+        Cross-entropy
+             │
+             ▼
+          gradients
+</code></pre>
+<p>The causal mask operates <strong>inside attention</strong>.</p>
+<p>The loss mask operates <strong>after prediction</strong>, when constructing the objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-47">5.17.33 What is the role of validation loss?</h3>
+<p>The source defines:</p>
+<div class="math block">
+\boxed{\text{training loss}}
+</div>
+<p>as loss on examples being optimized.</p>
+<p>And:</p>
+<div class="math block">
+\boxed{\text{validation loss}}
+</div>
+<p>as loss on a held-out set without updating the weights.</p>
+<p>The source recommends validation loss as the cleaner indicator of generalization because training loss can fluctuate with recent updates and example ordering. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-48">5.17.34 Why can training loss be noisy?</h3>
+<p>Suppose one example is extremely easy:</p>
+<div class="math block">
+L=0.2
+</div>
+<p>and the next is difficult:</p>
+<div class="math block">
+L=2.5.
+</div>
+<p>The reported per-example training loss can jump around.</p>
+<p>But validation loss is measured on a fixed held-out set, producing a more stable signal.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+L_{\text{train}}\downarrow
+}
+</div>
+<p>is useful, but:</p>
+<div class="math block">
+\boxed{
+L_{\text{val}}\downarrow
+}
+</div>
+<p>is often more informative for whether improvement generalizes.</p>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-49">5.17.35 But lower validation loss is not the same as benchmark accuracy</h3>
+<p>This is important.</p>
+<p>You can have:</p>
+<div class="math block">
+L_{\text{val}}\downarrow
+</div>
+<p>without guaranteeing:</p>
+<div class="math block">
+\text{AIME accuracy}\uparrow
+</div>
+<p>by the same amount.</p>
+<p>Loss measures next-token prediction on the validation distribution.</p>
+<p>A benchmark measures task-specific behavior.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{training metric}\neq\text{final capability metric}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-50">5.17.36 Periodic evaluation</h3>
+<p>The source's loop performs validation every:</p>
+<pre><code class="language-python">log_every
+</code></pre>
+<p>steps, by default 50 in the compact function. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Then it records:</p>
+<div class="math block">
+\boxed{
+\text{train loss}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{validation loss}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-51">5.17.37 Why save checkpoints?</h3>
+<p>The source saves a model checkpoint at evaluation points/epoch boundaries. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>A checkpoint stores the current student parameters:</p>
+<div class="math block">
+\boxed{
+\theta_t
+}
+</div>
+<p>so training can be resumed or a particular stage can be evaluated later.</p>
+<p>This also protects against losing the entire run if something fails.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-52">5.17.38 What does one checkpoint represent?</h3>
+<p>It is a snapshot:</p>
+<div class="math block">
+\boxed{
+\theta^{(t)}
+}
+</div>
+<p>of the student after some number of updates.</p>
+<p>You can then compare:</p>
+<div class="math block">
+\theta^{(1000)}
+</div>
+<p>versus:</p>
+<div class="math block">
+\theta^{(5000)}
+</div>
+<p>versus:</p>
+<div class="math block">
+\theta^{(10000)}.
+</div>
+<p>And evaluate the corresponding models.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-53">5.17.39 The source also records CSV metrics</h3>
+<p>The compact implementation writes:</p>
+<pre><code class="language-text">epoch,total_steps,train_loss,val_loss
+</code></pre>
+<p>to a CSV log. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So you can later plot:</p>
+<div class="math block">
+\text{step}\rightarrow L_{\text{train}}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{step}\rightarrow L_{\text{val}}.
+</div>
+<p>This is ordinary experiment tracking, but it becomes important when diagnosing training behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-54">5.17.40 What should healthy training look like?</h3>
+<p>Conceptually:</p>
+<pre><code class="language-text">loss
+│\
+│ \
+│  \
+│   \__
+│
+└────────── training step
+</code></pre>
+<p>Training loss tends to decline.</p>
+<p>Validation loss should also generally improve, at least for some period.</p>
+<p>A later rise in validation loss while training loss continues falling can indicate overfitting.</p>
+<p>The source doesn't claim a specific overfitting curve for the DeepSeek 800K run, so this is the standard interpretation of the metric rather than a source-reported result.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-55">5.17.41 The source's practical memory result</h3>
+<p>For its compact implementation, the source states that with maximum sequence length:</p>
+<div class="math block">
+\boxed{2,048}
+</div>
+<p>the full demonstration training run requires approximately:</p>
+<div class="math block">
+\boxed{15\text{ GB GPU memory}}.
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>It notes that lowering the maximum length to:</p>
+<div class="math block">
+1024
+</div>
+<p>or:</p>
+<div class="math block">
+512
+</div>
+<p>can reduce resource requirements. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is the practical reason sequence-length filtering matters.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-56">5.17.42 Why does maximum sequence length affect memory so much?</h3>
+<p>Because Transformer computation depends strongly on sequence length.</p>
+<p>As we learned earlier, dense self-attention has:</p>
+<div class="math block">
+\boxed{
+O(N^2)
+}
+</div>
+<p>attention-score complexity with sequence length <span class="math inline">N</span>.</p>
+<p>So increasing sequence length can be expensive.</p>
+<p>This is why:</p>
+<div class="math block">
+\boxed{
+\text{data filtering}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{context-length control}
+}
+</div>
+<p>are not merely preprocessing details; they are computational decisions.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-57">5.17.43 But sequence truncation has a tradeoff</h3>
+<p>Suppose a reasoning trace has:</p>
+<div class="math block">
+4,000
+</div>
+<p>tokens.</p>
+<p>If your maximum length is:</p>
+<div class="math block">
+2,048,
+</div>
+<p>you cannot retain the entire trace.</p>
+<p>You gain:</p>
+<div class="math block">
+\text{lower memory and compute}
+</div>
+<p>but potentially lose:</p>
+<div class="math block">
+\text{later reasoning + final answer}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{max length}
+}
+</div>
+<p>must balance:</p>
+<div class="math block">
+\boxed{
+\text{training feasibility}
+}
+</div>
+<p>against:</p>
+<div class="math block">
+\boxed{
+\text{reasoning information retained}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-58">5.17.44 This is why the source filters examples</h3>
+<p>The supplied implementation discusses filtering examples based on a maximum length before training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>This is not simply:</p>
+<blockquote>
+<p>“throw away long examples.”</p>
+</blockquote>
+<p>It is:</p>
+<div class="math block">
+\boxed{
+\text{fit the computational budget}
+}
+</div>
+<p>while trying to retain useful reasoning supervision.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-59">5.17.45 A complete training example with numbers</h3>
+<p>Suppose:</p>
+<div class="math block">
+P=5
+</div>
+<p>prompt tokens and:</p>
+<div class="math block">
+A=8
+</div>
+<p>teacher-response tokens.</p>
+<p>Total:</p>
+<div class="math block">
+L=13.
+</div>
+<p>After shifting:</p>
+<div class="math block">
+13-1=12
+</div>
+<p>prediction positions.</p>
+<p>Answer starts at:</p>
+<div class="math block">
+5-1=4.
+</div>
+<p>Therefore number of response-loss positions:</p>
+<div class="math block">
+12-4
+=
+\boxed{8}.
+</div>
+<p>Exactly equal to the answer token count.</p>
+<hr />
+<p>Now suppose the student assigns correct-token probabilities:</p>
+<div class="math block">
+[0.9,0.8,0.7,0.6,0.9,0.8,0.5,0.95].
+</div>
+<p>The loss is:</p>
+<div class="math block">
+L
+=
+-\frac18
+\sum_{i=1}^8\ln p_i.
+</div>
+<p>Approximate terms:</p>
+<div class="math block">
+0.105,\;0.223,\;0.357,\;0.511,\;0.105,\;0.223,\;0.693,\;0.051.
+</div>
+<p>Sum:</p>
+<div class="math block">
+2.268.
+</div>
+<p>Mean:</p>
+<div class="math block">
+\boxed{
+L\approx0.284
+}.
+</div>
+<p>Then:</p>
+<div class="math block">
+\boxed{
+\texttt{loss.backward()}
+}
+</div>
+<p>computes gradients, followed by clipping and the AdamW update.</p>
+<p>That is one complete student training step.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-60">5.17.46 Now compare two students after one update</h3>
+<p>Suppose Student A predicts the selected tokens well:</p>
+<div class="math block">
+L_A=0.3.
+</div>
+<p>Student B predicts poorly:</p>
+<div class="math block">
+L_B=1.8.
+</div>
+<p>Student B receives a much larger error signal.</p>
+<p>This does <strong>not</strong> mean:</p>
+<div class="math block">
+\Delta\theta_B
+=
+6\times\Delta\theta_A
+</div>
+<p>because AdamW, gradient structure, parameter scaling, and clipping all affect the actual update.</p>
+<p>But qualitatively:</p>
+<div class="math block">
+\boxed{
+\text{higher prediction error}
+\rightarrow
+\text{larger learning signal}
+}
+</div>
+<p>before optimizer-specific transformations.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-61">5.17.47 Why response masking changes the learning signal</h3>
+<p>Suppose sequence has:</p>
+<div class="math block">
+100\text{ prompt tokens}
+</div>
+<p>and:</p>
+<div class="math block">
+20\text{ answer tokens}.
+</div>
+<p>If you mistakenly train on all 120 target positions, then:</p>
+<div class="math block">
+\frac{100}{120}
+=
+83.3\%
+</div>
+<p>of the target positions are prompt-related.</p>
+<p>Only:</p>
+<div class="math block">
+16.7\%
+</div>
+<p>would be teacher-response supervision.</p>
+<p>The source's answer-only objective avoids that distortion. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-62">5.17.48 This is an excellent implementation interview question</h3>
+<p>Suppose an interviewer asks:</p>
+<blockquote>
+<p>“Why don't you compute CE over the entire prompt+response sequence?”</p>
+</blockquote>
+<p>A strong answer is:</p>
+<blockquote>
+<p>Because the training objective is intended to teach the student to reproduce the teacher-generated response conditioned on the prompt. The prompt is context, not the behavior being distilled, so prompt-only target positions are excluded from the loss.</p>
+</blockquote>
+<p>That is exactly the source's logic. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-63">5.17.49 Another interview question</h3>
+<blockquote>
+<p>“Why can't you simply delete the prompt from the input?”</p>
+</blockquote>
+<p>Because the response is conditional on the prompt:</p>
+<div class="math block">
+\boxed{
+P(y_t|q,y_{&lt;t})
+}
+</div>
+<p>The student needs <span class="math inline">q</span> to know what problem it is solving.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{prompt retained in input}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{prompt excluded from loss}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-64">5.17.50 One more critical distinction</h3>
+<p>You may hear:</p>
+<blockquote>
+<p>“Distillation is just copying the teacher.”</p>
+</blockquote>
+<p>Not exactly.</p>
+<p>The student does not copy:</p>
+<div class="math block">
+W_T.
+</div>
+<p>It minimizes an empirical loss on teacher-generated sequences:</p>
+<div class="math block">
+\boxed{
+L_{\text{SFT}}
+=
+-\sum \log P_S(y_t|x,y_{&lt;t})
+}
+</div>
+<p>and updates its own parameters.</p>
+<p>So the student is learning an <strong>approximation of the teacher's demonstrated behavior</strong>, constrained by its own architecture and capacity.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-65">5.17.51 Training loop compared with GRPO</h3>
+<p>We can now put the two side by side.</p>
+<table>
+<thead>
+<tr>
+<th>Distillation SFT</th>
+<th>GRPO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Teacher-generated target</td>
+<td>Student samples rollouts</td>
+</tr>
+<tr>
+<td>Fixed target sequence</td>
+<td>Sampled trajectories</td>
+</tr>
+<tr>
+<td>Cross-entropy</td>
+<td>Policy-gradient objective</td>
+</tr>
+<tr>
+<td>No reward required during student SFT</td>
+<td>Reward required</td>
+</tr>
+<tr>
+<td>No group advantage</td>
+<td>Group-relative advantage</td>
+</tr>
+<tr>
+<td>No policy ratio</td>
+<td>Policy ratio</td>
+</tr>
+<tr>
+<td>No RL KL term in this R1 distill recipe</td>
+<td>Reference-policy KL</td>
+</tr>
+<tr>
+<td>Standard optimizer loop</td>
+<td>RL-specific rollout + optimizer loop</td>
+</tr>
+</tbody>
+</table>
+<p>This is the cleanest way to keep the chapters separate.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-66">5.17.52 The entire student pipeline</h3>
+<p>Memorize this:</p>
+<div class="math block">
+\boxed{
+\begin{aligned}
+&amp;\text{Load pretrained student}\\
+&amp;\downarrow\\
+&amp;\text{Shuffle training examples}\\
+&amp;\downarrow\\
+&amp;\text{Build shifted input/target}\\
+&amp;\downarrow\\
+&amp;\text{Run student forward pass}\\
+&amp;\downarrow\\
+&amp;\text{remove prompt-only loss positions}\\
+&amp;\downarrow\\
+&amp;\text{Cross-entropy}\\
+&amp;\downarrow\\
+&amp;\text{Backward}\\
+&amp;\downarrow\\
+&amp;\text{Gradient clipping}\\
+&amp;\downarrow\\
+&amp;\text{AdamW update}\\
+&amp;\downarrow\\
+&amp;\text{Validation / checkpoint}\\
+&amp;\downarrow\\
+&amp;\text{repeat}
+\end{aligned}
+}
+</div>
+<p>That is the actual mechanics of the distillation trainer. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-67">5.17.53 Numerical Bank</h3>
+<h5 id="v3-heading-chunk-les-step-5-17-i58-68">Level 1</h5>
+<p>800K examples, 2 epochs:</p>
+<div class="math block">
+\boxed{1.6M\text{ example presentations}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-69">Level 2</h5>
+<p>800K examples, batch size 64:</p>
+<div class="math block">
+\boxed{12,500\text{ batches/epoch}}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-70">Level 3</h5>
+<p>Three epochs:</p>
+<div class="math block">
+12,500\times3
+=
+\boxed{37,500\text{ optimizer steps}}
+</div>
+<p>under one-update-per-batch assumptions.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-71">Level 4</h5>
+<p>Prompt:</p>
+<div class="math block">
+P=80
+</div>
+<p>Total sequence:</p>
+<div class="math block">
+L=500.
+</div>
+<p>Response-token loss positions:</p>
+<div class="math block">
+\boxed{420}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-72">Level 5</h5>
+<p>Three target probabilities:</p>
+<div class="math block">
+0.9,0.8,0.5.
+</div>
+<div class="math block">
+L
+=
+-\frac13(\ln0.9+\ln0.8+\ln0.5)
+</div>
+<div class="math block">
+\boxed{L\approx0.340}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-73">Level 6</h5>
+<p>Gradient norm:</p>
+<div class="math block">
+5
+</div>
+<p>clip threshold:</p>
+<div class="math block">
+1.
+</div>
+<p>Scale:</p>
+<div class="math block">
+\boxed{0.2}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-74">Level 7</h5>
+<p>Batch sequence lengths:</p>
+<div class="math block">
+100,200,500.
+</div>
+<p>Padded positions:</p>
+<div class="math block">
+3\times500=1500.
+</div>
+<p>Actual:</p>
+<div class="math block">
+800.
+</div>
+<p>Padding overhead:</p>
+<div class="math block">
+\boxed{700}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-5-17-i58-75">Level 8 — Full mixed numerical</h5>
+<p>A batch contains 64 examples, average teacher-response length is 5,355 tokens, training lasts 3 epochs.</p>
+<p>Approximate response-token prediction events:</p>
+<div class="math block">
+64\times5355
+=
+342,720
+</div>
+<p>per batch.</p>
+<p>Number of batches:</p>
+<div class="math block">
+12,500
+</div>
+<p>per epoch.</p>
+<p>Thus:</p>
+<div class="math block">
+342,720\times12,500
+</div>
+<p>which is:</p>
+<div class="math block">
+\boxed{4.284\times10^9}
+</div>
+<p>response-token events per epoch.</p>
+<p>Across 3 epochs:</p>
+<div class="math block">
+\boxed{12.852\times10^9}
+</div>
+<p>response-token presentations.</p>
+<p>This is a useful way of appreciating the scale of the training computation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-76">5.17.54 The deepest idea from this step</h3>
+<p>The famous 800K distillation dataset does <strong>not</strong> enter some exotic distillation optimizer.</p>
+<p>It becomes:</p>
+<div class="math block">
+\boxed{\text{ordinary supervised training data}}
+</div>
+<p>and then:</p>
+<div class="math block">
+\boxed{
+\text{ordinary next-token CE}
+}
+</div>
+<p>does the teaching.</p>
+<p>The unusual intelligence-transfer part happened <strong>before</strong> the optimizer ever saw the student:</p>
+<div class="math block">
+\boxed{
+\text{strong teacher}
+\rightarrow
+\text{high-quality synthetic data}
+}.
+</div>
+<p>Once the data exists:</p>
+<div class="math block">
+\boxed{
+\text{student training}
+\approx
+\text{standard SFT}
+}
+</div>
+<p>as described by the source. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-17-i58-77">5.17.55 Final mental model</h3>
+<p>There are now four different layers in the complete process:</p>
+<div class="math block">
+\boxed{\textbf{Layer 1 — Teacher generation}}
+</div>
+<p>R1 produces candidate reasoning.</p>
+<div class="math block">
+\boxed{\textbf{Layer 2 — Data curation}}
+</div>
+<p>Verification + rejection sampling turns candidates into high-quality supervision.</p>
+<div class="math block">
+\boxed{\textbf{Layer 3 — Student optimization}}
+</div>
+<p>Shifted targets + answer-only CE + backprop + AdamW.</p>
+<div class="math block">
+\boxed{\textbf{Layer 4 — Evaluation}}
+</div>
+<p>Validation loss, checkpoints, and finally reasoning benchmarks.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{teacher intelligence}
+\rightarrow
+\text{curated data}
+\rightarrow
+\text{gradient updates}
+\rightarrow
+\text{compressed student behavior}
+}
+</div>
+<p>That is the complete mechanics from <strong>R1 output to student parameters</strong>.</p>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+</section>

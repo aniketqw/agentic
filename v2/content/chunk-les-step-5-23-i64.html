@@ -1,0 +1,1073 @@
+<section class="chunk" id="chunk-les-step-5-23-i64" data-id="les-step-5-23-i64"><details class="audit-card" id="audit-R04" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> R04 — ReTool trajectories: tool outputs are observations</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>The model learns when/what to call; interpreter outputs supply context for its next action.</p><p><strong>Prerequisites:</strong> <a href="#audit-R02">Clipped surrogate and advantage sign</a>, <a href="#audit-T01">Shifted next-token targets and masked loss</a></p><h4 id="v3-heading-chunk-les-step-5-23-i64-1">Notation and assumptions</h4><p>Separate assistant-generated action/text positions from tool-output observations. Reward and policy-loss masks must follow the actual training implementation.</p><h4 id="v3-heading-chunk-les-step-5-23-i64-2">Derivation and mechanism</h4><ol><li>Generate an assistant action that may invoke a tool.</li><li>Execute under the declared sandbox and return output/error as observation.</li><li>Continue generation with that observation; score only eligible generated positions under the policy loss.</li></ol><h4 id="v3-heading-chunk-les-step-5-23-i64-3">Worked example</h4><p>Toy token losses[1,10,3],mask[1,0,1]→(1+3)/2=2. Including the tool output would average14/3. Error observations can support a corrected call, but tool text is not itself a sampled assistant action.</p><h4 id="v3-heading-chunk-les-step-5-23-i64-4">Limitations</h4><ul><li>This mask example does not execute arbitrary tool code or reproduce full ReTool PPO.</li><li>Timeouts, malformed calls, sandbox errors and output truncation need explicit trajectory policies.</li></ul><h4 id="v3-heading-chunk-les-step-5-23-i64-5">Connections to later concepts</h4><ul><li>T01-style target masks prevent observation tokens from being treated as generated actions; B01-style verification affects reward rather than token provenance.</li></ul><h4 id="v3-heading-chunk-les-step-5-23-i64-6">Source support</h4><ul><li>retool-slides(1).pdf · physical PDF pages 3, 4, 5, 6, 7, 8, 9 · Rollout and optimization mechanism</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-5-23-i64-7">Executed code and evidence</h4><p>Functions: masked_mean. Passed checks: Tool-output-mask, Tool-mask-empty</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-23-i64"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-23-i64" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-22-i63">← Previous lesson</a> · <a href="#chunk-les-step-5-24-i65">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-22-i63">Step 5.22 — ReTool Cold-Start SFT</a></p><p><strong>This lesson:</strong> Step 5.23 — ReTool Full Rollout Engine</p><p><strong>Source references:</strong> <a href="#source-5">retool-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-23-i64"></a></p>
+<h2>Step 5.23 — ReTool Full Rollout Engine</h2>
+<p><em>Plan node: I9 · chat order #64</em></p>
+<p>Now we move from <strong>“how the cold-start model is trained”</strong> to the most important operational part:</p>
+<div class="math block">
+\boxed{
+\text{How does one complete ReTool rollout actually execute from start to finish?}
+}
+</div>
+<p>This is where all the pieces we have studied come together:</p>
+<div class="math block">
+\boxed{
+\text{LLM}
+\rightarrow
+\text{code}
+\rightarrow
+\text{sandbox}
+\rightarrow
+\text{feedback}
+\rightarrow
+\text{LLM}
+\rightarrow
+\text{answer}
+\rightarrow
+\text{reward}
+\rightarrow
+\text{PPO}
+}
+</div>
+<p>The ReTool slides describe the rollout as a single hybrid token sequence containing model reasoning, model-generated code, real interpreter feedback, and the final answer. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-8">5.23.1 Start with one question</h3>
+<p>Suppose the training question is:</p>
+<div class="math block">
+\boxed{q=\text{“Solve this computationally difficult problem.”}}
+</div>
+<p>and the ground-truth answer is:</p>
+<div class="math block">
+\boxed{a=699}.
+</div>
+<p>The model starts generating from <span class="math inline">q</span>.</p>
+<p>At this moment, the policy is:</p>
+<div class="math block">
+\boxed{\pi_{\text{old}}}
+</div>
+<p>because this is the policy used to collect the RL rollout.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-9">5.23.2 Token 1 onward: ordinary generation</h3>
+<p>The model begins:</p>
+<pre><code class="language-text">I need to find the valid candidate.
+</code></pre>
+<p>Then perhaps:</p>
+<pre><code class="language-text">A direct manual search would be tedious.
+</code></pre>
+<p>These are ordinary policy-generated tokens.</p>
+<p>Formally:</p>
+<div class="math block">
+o_1,o_2,\ldots,o_t
+\sim
+\pi_{\text{old}}(\cdot\mid s_t).
+</div>
+<p>Nothing special has happened yet.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-10">5.23.3 The model reaches a tool decision</h3>
+<p>Eventually it generates:</p>
+<pre><code class="language-text">&lt;code&gt;
+</code></pre>
+<p>This is a critical event.</p>
+<p>The model has effectively taken the action:</p>
+<div class="math block">
+\boxed{
+a_t=\text{invoke computational tool}
+}
+</div>
+<p>The ReTool prompt gives the model the <strong>ability</strong> to use executable Python, but does not hard-code when to use it. That timing is meant to be learned through RL. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-11">5.23.4 The model now generates code</h3>
+<p>For example:</p>
+<pre><code class="language-python">for x in range(1, 1000):
+    ...
+</code></pre>
+<p>The model continues until it reaches:</p>
+<pre><code class="language-text">&lt;/code&gt;
+</code></pre>
+<p>At that moment:</p>
+<div class="math block">
+\boxed{
+\text{generation pauses}
+}
+</div>
+<p>The slide explicitly states that code is sent to the real sandbox when <code>&lt;/code&gt;</code> is detected. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-12">5.23.5 Important: the model does NOT generate the next observation</h3>
+<p>The model generated:</p>
+<div class="math block">
+\boxed{\text{code}}
+</div>
+<p>but the next result comes from:</p>
+<div class="math block">
+\boxed{\text{environment}}.
+</div>
+<p>So the system executes:</p>
+<div class="math block">
+\text{Code}
+\longrightarrow
+\text{Sandbox}
+\longrightarrow
+\text{Output / Error}.
+</div>
+<p>This is the point where the LLM temporarily gives control to an external environment.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-13">5.23.6 The sandbox returns real feedback</h3>
+<p>Suppose the code returns:</p>
+<pre><code class="language-text">699
+</code></pre>
+<p>The system inserts something conceptually like:</p>
+<pre><code class="language-text">&lt;interpreter&gt;
+699
+&lt;/interpreter&gt;
+</code></pre>
+<p>into the rollout.</p>
+<p>The model now sees:</p>
+<div class="math block">
+\boxed{
+\text{its previous reasoning}
++
+\text{its code}
++
+\text{actual computation result}
+}
+</div>
+<p>and generation resumes. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-14">5.23.7 The rollout is still one trajectory</h3>
+<p>This point is easy to misunderstand.</p>
+<p>We do NOT create separate trajectories:</p>
+<div class="math block">
+\tau_1=\text{reasoning}
+</div>
+<div class="math block">
+\tau_2=\text{code}
+</div>
+<div class="math block">
+\tau_3=\text{interpreter}
+</div>
+<p>Instead, ReTool treats everything as one trajectory:</p>
+<div class="math block">
+\boxed{
+\tau=
+t_1
+\oplus
+c_1
+\oplus
+f_1
+\oplus
+t_2
+\oplus
+c_2
+\oplus
+f_2
+\oplus
+o
+}
+</div>
+<p>The slide explicitly describes this concatenation into a single token sequence. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-15">5.23.8 Why this matters</h3>
+<p>Because the eventual reward belongs to the <strong>whole strategy</strong>.</p>
+<p>Suppose:</p>
+<div class="math block">
+\tau=
+\text{reason}
+\rightarrow
+\text{code}
+\rightarrow
+\text{feedback}
+\rightarrow
+\text{correction}
+\rightarrow
+\text{final answer}.
+</div>
+<p>The reward doesn't separately say:</p>
+<div class="math block">
+R_{\text{reason}}=...
+</div>
+<div class="math block">
+R_{\text{code}}=...
+</div>
+<div class="math block">
+R_{\text{feedback}}=...
+</div>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+R(\tau)=+1
+}
+</div>
+<p>if the final answer is correct.</p>
+<p>Thus PPO must determine how to assign learning signal across the model's own decisions throughout the trajectory.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-16">5.23.9 Second tool call</h3>
+<p>Now imagine the first result is not enough.</p>
+<p>The model reasons:</p>
+<pre><code class="language-text">The candidate is 699, but I should verify the condition.
+</code></pre>
+<p>Then it generates another:</p>
+<pre><code class="language-text">&lt;code&gt;
+...
+&lt;/code&gt;
+</code></pre>
+<p>The sandbox executes again.</p>
+<p>Suppose it returns:</p>
+<pre><code class="language-text">valid
+</code></pre>
+<p>Now the trajectory is:</p>
+<div class="math block">
+\boxed{
+t_1
+\oplus
+c_1
+\oplus
+f_1
+\oplus
+t_2
+\oplus
+c_2
+\oplus
+f_2
+}
+</div>
+<p>and generation resumes again.</p>
+<p>This can repeat until the model chooses to produce its final answer. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-17">5.23.10 The final answer</h3>
+<p>Eventually:</p>
+<pre><code class="language-text">\boxed{699}
+</code></pre>
+<p>is produced.</p>
+<p>The system extracts the answer from the <code>\boxed{}</code> expression.</p>
+<p>So:</p>
+<div class="math block">
+\hat a=699.
+</div>
+<p>Ground truth:</p>
+<div class="math block">
+a=699.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-18">5.23.11 The verifier computes the reward</h3>
+<p>ReTool uses a rule-based correctness checker.</p>
+<p>Therefore:</p>
+<div class="math block">
+R(a,\hat a)=
+\begin{cases}
++1,&amp;\text{equivalent}\\
+-1,&amp;\text{otherwise}
+\end{cases}
+</div>
+<p>So here:</p>
+<div class="math block">
+\boxed{
+R=+1
+}
+</div>
+<p>The ReTool deck explicitly says this is the <strong>entire reward</strong> and deliberately does not add a separate reward merely for successfully executing code. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-19">5.23.12 Why does the reward arrive only at the end?</h3>
+<p>Consider two trajectories.</p>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-20">Trajectory A</h5>
+<pre><code class="language-text">reason
+→ code
+→ useful result
+→ correct answer
+</code></pre>
+<p>Reward:</p>
+<div class="math block">
++1.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-21">Trajectory B</h5>
+<pre><code class="language-text">reason
+→ useless code
+→ useless result
+→ wrong answer
+</code></pre>
+<p>Reward:</p>
+<div class="math block">
+-1.
+</div>
+<p>The model therefore has to discover that tool use is valuable when it improves eventual task success.</p>
+<p>That is why the deck says that correctness-only reward forces each code call to “earn its keep” through its contribution to the final result. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-22">5.23.13 Now the PPO stage begins</h3>
+<p>The rollout is now complete.</p>
+<p>We have:</p>
+<div class="math block">
+\boxed{\tau}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{R(\tau)}.
+</div>
+<p>We now need to turn that into learning signals.</p>
+<p>For each policy-generated token <span class="math inline">o_t</span>, PPO evaluates:</p>
+<div class="math block">
+\boxed{
+r_t(\theta)
+=
+\frac{
+\pi_\theta(o_t\mid s_t;CI)
+}{
+\pi_{\text{old}}(o_t\mid s_t;CI)
+}
+}
+</div>
+<p>as given in the ReTool objective. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-23">5.23.14 What exactly is <span class="math inline">s_t</span> here?</h3>
+<p>This is extremely important.</p>
+<p>In ordinary text-only RL:</p>
+<div class="math block">
+s_t=
+[q,\text{previous generated tokens}].
+</div>
+<p>In ReTool:</p>
+<div class="math block">
+\boxed{
+s_t=
+[q,\text{reasoning},\text{code},\text{interpreter feedback},\ldots]
+}
+</div>
+<p>So after the sandbox says:</p>
+<pre><code class="language-text">699
+</code></pre>
+<p>the next policy decision is conditioned on that new observation.</p>
+<p>This is where the environment actually changes the model's future behavior.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-24">5.23.15 Example: before and after tool feedback</h3>
+<p>Before execution:</p>
+<div class="math block">
+P(\text{“699”}\mid s_t)
+=
+\text{some probability}.
+</div>
+<p>After the interpreter returns:</p>
+<div class="math block">
+699,
+</div>
+<p>the context changes:</p>
+<div class="math block">
+s_t\rightarrow s_{t+1}.
+</div>
+<p>The model may now assign:</p>
+<div class="math block">
+P(\text{“The answer is”}\mid s_{t+1})
+</div>
+<p>a much larger probability.</p>
+<p>Therefore the external tool isn't merely attached to the end of the system.</p>
+<p>It changes the <strong>future token distribution</strong> of the policy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-25">5.23.16 Now the most important engineering detail: interpreter masking</h3>
+<p>Suppose the trajectory is:</p>
+<pre><code class="language-text">Token 1: I
+Token 2: will
+Token 3: calculate
+Token 4: &lt;code&gt;
+Token 5: print
+...
+Token 20: &lt;/code&gt;
+
+Token 21: &lt;interpreter&gt;
+Token 22: 699
+Token 23: &lt;/interpreter&gt;
+
+Token 24: Therefore
+Token 25: ...
+</code></pre>
+<p>Tokens 21–23 came from the environment.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{do not train the policy to predict them}
+}
+</div>
+<p>The ReTool slide explicitly says interpreter-generated tokens are excluded from the loss. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-26">5.23.17 Why exactly?</h3>
+<p>Suppose the sandbox returns:</p>
+<div class="math block">
+17\times41=697.
+</div>
+<p>The model did not choose:</p>
+<div class="math block">
+697.
+</div>
+<p>The environment did.</p>
+<p>Therefore giving the policy a token-level prediction loss for <code>697</code> would amount to saying:</p>
+<blockquote>
+<p>“Model, you should have predicted this environment output.”</p>
+</blockquote>
+<p>But the model had no control over that output.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{credit only decisions made by the policy}
+}
+</div>
+<p>is the correct learning principle.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-27">5.23.18 Visualize the loss mask</h3>
+<p>Imagine:</p>
+<pre><code class="language-text">Tokens:
+[ reasoning reasoning code code code INT INT INT reasoning reasoning final ]
+
+Mask:
+[    1        1    1    1    1    0   0   0      1        1     1  ]
+</code></pre>
+<p>where:</p>
+<div class="math block">
+1=\text{policy token}
+</div>
+<div class="math block">
+0=\text{interpreter token}.
+</div>
+<p>Thus the policy loss only sees:</p>
+<div class="math block">
+\boxed{
+\text{model-generated tokens}
+}
+</div>
+<p>and ignores:</p>
+<div class="math block">
+\boxed{
+\text{environment-generated tokens}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-28">5.23.19 Another important point: the feedback is still in the context</h3>
+<p>Masking does <strong>not</strong> mean removing interpreter output.</p>
+<p>This distinction is critical.</p>
+<p>The interpreter output is:</p>
+<div class="math block">
+\boxed{
+\text{visible to the model}
+}
+</div>
+<p>but:</p>
+<div class="math block">
+\boxed{
+\text{not treated as a policy prediction target}
+}.
+</div>
+<p>So the model can read:</p>
+<pre><code class="language-text">&lt;interpreter&gt;
+699
+&lt;/interpreter&gt;
+</code></pre>
+<p>and use <code>699</code> in later reasoning.</p>
+<p>But the loss does not ask the model to generate <code>699</code>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-29">5.23.20 Second engineering optimization: KV-cache reuse</h3>
+<p>Now suppose the model has already generated:</p>
+<div class="math block">
+N=5000
+</div>
+<p>tokens before making its code call.</p>
+<p>All of those tokens already have cached keys and values.</p>
+<p>When the interpreter returns:</p>
+<div class="math block">
+M=50
+</div>
+<p>new tokens, ReTool does not need to recompute the entire previous prefix.</p>
+<p>Instead:</p>
+<div class="math block">
+\boxed{
+K,V_{\text{old prefix}}
+\text{ are reused}
+}
+</div>
+<p>and only the new feedback is appended.</p>
+<p>The slide explicitly identifies this as one of the engineering details making multi-turn tool use affordable at RL scale. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-30">5.23.21 Why this is such a big deal</h3>
+<p>Without cache reuse:</p>
+<div class="math block">
+\text{tool call}
+\rightarrow
+\text{reprocess entire prefix}.
+</div>
+<p>With reuse:</p>
+<div class="math block">
+\text{tool call}
+\rightarrow
+\text{reuse prefix cache}
++
+\text{process new observation}.
+</div>
+<p>So repeated tool calls become much more manageable.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-31">5.23.22 Numerical KV-cache question</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{old}}=8000
+</div>
+<p>cached tokens.</p>
+<p>Interpreter adds:</p>
+<div class="math block">
+L_{\text{new}}=100.
+</div>
+<p>With KV reuse, the new feedback extends the cache by:</p>
+<div class="math block">
+\boxed{100\text{ tokens}}
+</div>
+<p>rather than requiring the whole 8100-token history to be treated as new input for cache construction.</p>
+<p>Again, this is the conceptual cache-efficiency calculation; the deck's claim is specifically that the old prefix can be reused and only new interpreter-feedback tokens need cache computation/appending. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-32">5.23.23 Why asynchronous execution is needed</h3>
+<p>Now imagine a batch of 1000 rollouts.</p>
+<p>One rollout's code:</p>
+<div class="math block">
+20\text{ ms}
+</div>
+<p>another:</p>
+<div class="math block">
+100\text{ ms}
+</div>
+<p>another:</p>
+<div class="math block">
+2\text{ s}
+</div>
+<p>another:</p>
+<div class="math block">
+8\text{ s}.
+</div>
+<p>If all code execution were strictly synchronous, slow executions could cause the entire generation pipeline to wait.</p>
+<p>ReTool therefore uses an <strong>asynchronous sandbox pool</strong> so slow executions do not stall the rest of RL training. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-33">5.23.24 Distributed-systems interpretation</h3>
+<p>You can view the system as:</p>
+<div class="math block">
+\boxed{
+\text{Inference workers}
+}
+</div>
+<p>communicating with:</p>
+<div class="math block">
+\boxed{
+\text{Sandbox worker pool}
+}
+</div>
+<p>through asynchronous requests/results.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">LLM Worker
+   │
+   │ code request
+   ▼
+Queue
+   │
+   ├──► Sandbox 1
+   ├──► Sandbox 2
+   ├──► Sandbox 3
+   └──► Sandbox N
+   │
+   ▼
+Execution result
+   │
+   ▼
+LLM Worker
+</code></pre>
+<p>That architecture follows the slide's description of an asynchronous sandbox pool; details such as the exact queue technology are not specified by the supplied slides.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-34">5.23.25 What happens if the code crashes?</h3>
+<p>This is one of ReTool's most interesting properties.</p>
+<p>Suppose the model produces:</p>
+<pre><code class="language-python">greedy()
+</code></pre>
+<p>but <code>greedy</code> is undefined.</p>
+<p>The environment returns:</p>
+<div class="math block">
+\boxed{\text{NameError}}
+</div>
+<p>The model sees that real feedback.</p>
+<p>It can then reason:</p>
+<pre><code class="language-text">The function has not been defined.
+</code></pre>
+<p>and produce corrected code.</p>
+<p>The supplied slide presents this as an emergent self-correction behavior that appeared through RL rather than being explicitly demonstrated in a training example. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-35">5.23.26 This is the birth of tool-mediated self-correction</h3>
+<p>Text-only self-correction:</p>
+<div class="math block">
+\text{model}
+\rightarrow
+\text{its own critique}
+\rightarrow
+\text{its own revision}
+</div>
+<p>ReTool can do:</p>
+<div class="math block">
+\boxed{
+\text{model}
+\rightarrow
+\text{real execution}
+\rightarrow
+\text{real error}
+\rightarrow
+\text{revision}
+}
+</div>
+<p>That is much more grounded because the correction is based on an externally generated observation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-36">5.23.27 Why is an error useful for RL?</h3>
+<p>Suppose:</p>
+<div class="math block">
+\text{Code}_1
+\rightarrow
+\text{NameError}
+\rightarrow
+\text{Code}_2
+\rightarrow
+\text{correct answer}.
+</div>
+<p>The overall trajectory receives:</p>
+<div class="math block">
+R=+1.
+</div>
+<p>Thus the successful trajectory contains:</p>
+<div class="math block">
+\boxed{
+\text{failure}
++
+\text{recovery}
+}
+</div>
+<p>The RL optimizer can reinforce the policy behavior surrounding that successful recovery.</p>
+<p>This is why useful behavior can emerge even without an SFT example showing exactly that same error correction. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-37">5.23.28 Important distinction: the environment isn't being trained</h3>
+<p>The policy is trained.</p>
+<p>The sandbox is an environment that provides feedback.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\theta_{\text{LLM}}
+\rightarrow
+\text{updated}
+}
+</div>
+<p>while the code interpreter remains the external execution mechanism.</p>
+<p>This is conceptually the standard agent-environment separation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-38">5.23.29 Full rollout in mathematical notation</h3>
+<p>Let's define:</p>
+<div class="math block">
+\tau=
+(o_1,o_2,\ldots,o_T)
+</div>
+<p>with some positions corresponding to interpreter outputs.</p>
+<p>The model generates certain positions according to:</p>
+<div class="math block">
+o_t\sim\pi_{\text{old}}(\cdot\mid s_t).
+</div>
+<p>When a code boundary is reached:</p>
+<div class="math block">
+c_i
+\rightarrow
+E(c_i)
+=
+f_i
+</div>
+<p>where <span class="math inline">E</span> is the sandbox execution function.</p>
+<p>Then:</p>
+<div class="math block">
+s_{t+1}
+=
+s_t\oplus c_i\oplus f_i.
+</div>
+<p>Eventually:</p>
+<div class="math block">
+\hat a=\operatorname{Extract}(\tau).
+</div>
+<p>Then:</p>
+<div class="math block">
+R(\tau)
+=
+\begin{cases}
++1,&amp;\operatorname{Equivalent}(a,\hat a)\\
+-1,&amp;\text{otherwise}.
+\end{cases}
+</div>
+<p>That scalar reward then drives PPO.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-39">5.23.30 The complete lifecycle</h3>
+<p>Now the entire ReTool rollout can be written as:</p>
+<div class="math block">
+\boxed{
+q
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\pi_{\text{old}}\text{ generates reasoning}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{model chooses code}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{sandbox execution}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{real output/error}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{output inserted into context}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{model resumes}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{repeat if necessary}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{final }\boxed{a}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+R\in\{-1,+1\}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{PPO advantage + ratio + clipping}
+}
+</div>
+<div class="math block">
+\downarrow
+</div>
+<div class="math block">
+\boxed{
+\text{update policy}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-40">5.23.31 Full numerical example</h3>
+<p>Let's make one trajectory.</p>
+<p>Model-generated tokens:</p>
+<div class="math block">
+T_M=900.
+</div>
+<p>Interpreter tokens:</p>
+<div class="math block">
+T_I=100.
+</div>
+<p>Total trajectory:</p>
+<div class="math block">
+T=1000.
+</div>
+<p>The model makes two tool calls.</p>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-41">First call</h5>
+<p>Code tokens:</p>
+<div class="math block">
+150.
+</div>
+<p>Interpreter:</p>
+<div class="math block">
+30.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-42">Second call</h5>
+<p>Code tokens:</p>
+<div class="math block">
+200.
+</div>
+<p>Interpreter:</p>
+<div class="math block">
+70.
+</div>
+<p>The remaining model-generated tokens are:</p>
+<div class="math block">
+900-(150+200)=550
+</div>
+<p>which can include reasoning and final answer.</p>
+<p>Check:</p>
+<div class="math block">
+550+150+200+30+70
+=
+\boxed{1000}.
+</div>
+<p>Thus the interpreter contributes:</p>
+<div class="math block">
+\frac{100}{1000}
+=
+\boxed{10\%}
+</div>
+<p>of trajectory tokens.</p>
+<p>But those 100 tokens are masked from the policy loss while remaining visible in the context.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-43">5.23.32 PPO numerical example on one generated token</h3>
+<p>Suppose a model-generated token has:</p>
+<div class="math block">
+\pi_{\text{old}}=0.10
+</div>
+<p>and candidate new policy:</p>
+<div class="math block">
+\pi_\theta=0.13.
+</div>
+<p>So:</p>
+<div class="math block">
+r_t=1.3.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\hat A_t=0.6
+</div>
+<p>and:</p>
+<div class="math block">
+\epsilon=0.2.
+</div>
+<p>Then:</p>
+<div class="math block">
+\operatorname{clip}(1.3,0.8,1.2)=1.2.
+</div>
+<p>Raw:</p>
+<div class="math block">
+1.3(0.6)=0.78.
+</div>
+<p>Clipped:</p>
+<div class="math block">
+1.2(0.6)=0.72.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+J_t=\min(0.78,0.72)=0.72.
+}
+</div>
+<p>The model still benefits from making that useful action more likely, but PPO limits the optimization incentive for a movement beyond the clipping region.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-44">5.23.33 What exactly is being learned?</h3>
+<p>Not simply:</p>
+<div class="math block">
+\boxed{\text{“Use Python.”}}
+</div>
+<p>The model is learning something much richer:</p>
+<div class="math block">
+\boxed{
+\text{Given the current state, what action sequence maximizes eventual correctness?}
+}
+</div>
+<p>The action sequence can contain:</p>
+<div class="math block">
+\text{text}
+\rightarrow
+\text{code}
+\rightarrow
+\text{interpretation}
+\rightarrow
+\text{text}
+\rightarrow
+\text{code}
+\rightarrow
+\text{final answer}.
+</div>
+<p>That is why ReTool is better understood as <strong>strategic tool-use learning</strong>, not merely tool calling.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-45">5.23.34 Why the result is interesting</h3>
+<p>The supplied results show a dramatic difference between:</p>
+<div class="math block">
+\text{SFT only}
+</div>
+<div class="math block">
+\text{text-only RL}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{\text{RL + real code interpreter}}
+</div>
+<p>on AIME2024 for the specified Qwen2.5-32B-Instruct setup:</p>
+<div class="math block">
+26.7\%
+\rightarrow
+40.9\%
+\rightarrow
+40.0\%
+\rightarrow
+67.0\%.
+</div>
+<p>The supplied slide attributes the large jump specifically to combining RL with the ability to call a real code interpreter, rather than to SFT or text-only RL alone. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-46">5.23.35 Training efficiency result</h3>
+<p>The supplied deck also reports that ReTool's accuracy curve rises much faster and reaches its plateau around step 400, while the text-only baseline continues improving beyond step 1000.</p>
+<p>It reports ReTool reaching its higher accuracy using approximately:</p>
+<div class="math block">
+\boxed{37\%}
+</div>
+<p>of the training steps used by that text-only RL baseline. <em>(Source: retool-slides)</em></p>
+<p>This supports a deeper interpretation:</p>
+<div class="math block">
+\boxed{
+\text{tools don't merely increase capability; they can simplify exploration}
+}
+</div>
+<p>because certain computations no longer have to be discovered entirely through token-level reasoning.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-47">5.23.36 One subtle but powerful conclusion</h3>
+<p>Earlier we said:</p>
+<div class="math block">
+\text{RL}
+=
+\text{discover/strengthen behavior}.
+</div>
+<p>ReTool reveals <strong>what kind of behavior</strong> can be discovered:</p>
+<div class="math block">
+\boxed{
+\text{interaction strategy}
+}
+</div>
+<p>not just verbal reasoning.</p>
+<p>The model can discover:</p>
+<div class="math block">
+\text{“I should calculate now.”}
+</div>
+<div class="math block">
+\text{“That output looks suspicious.”}
+</div>
+<div class="math block">
+\text{“The interpreter gave me an error.”}
+</div>
+<div class="math block">
+\text{“I should fix the code.”}
+</div>
+<div class="math block">
+\text{“Now I have enough evidence to answer.”}
+</div>
+<p>That is a qualitatively richer policy than:</p>
+<div class="math block">
+\boxed{
+\text{keep generating text until answer}
+}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-48">5.23.37 Exam checkpoint</h3>
+<p>You should now be able to explain all six of these without memorizing the deck:</p>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-49">1. What is the ReTool rollout?</h5>
+<div class="math block">
+\boxed{
+\text{single hybrid trajectory of reasoning + code + interpreter feedback + answer}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-50">2. Who generates interpreter tokens?</h5>
+<div class="math block">
+\boxed{\text{the external sandbox}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-51">3. Are interpreter tokens trained with the policy loss?</h5>
+<div class="math block">
+\boxed{\text{No, they are masked.}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-52">4. Why reuse KV cache?</h5>
+<div class="math block">
+\boxed{
+\text{to avoid recomputing the entire prefix after tool execution}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-53">5. Why asynchronous sandbox execution?</h5>
+<div class="math block">
+\boxed{
+\text{to prevent slow code executions from stalling RL generation}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-23-i64-54">6. What does PPO actually learn?</h5>
+<div class="math block">
+\boxed{
+\text{which model-generated actions, including tool-use decisions, lead to successful outcomes}
+}
+</div>
+<p>These points are directly grounded in the ReTool rollout and engineering slides. <em>(Source: retool-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-23-i64-55">5.23.38 Master picture for Steps 5.20–5.23</h3>
+<p>We can now compress everything into one equation chain:</p>
+<div class="math block">
+\boxed{
+\underbrace{
+D_{\text{init}}
+\rightarrow
+D_{\text{CI}}
+\rightarrow
+\text{SFT}
+}_{\text{learn protocol}}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\underbrace{
+\text{policy rollout}
+\rightarrow
+\text{code execution}
+\rightarrow
+\text{environment feedback}
+\rightarrow
+\text{final answer}
+}_{\text{generate hybrid trajectory}}
+}
+</div>
+<p>then:</p>
+<div class="math block">
+\boxed{
+\underbrace{
+R=\pm1
+\rightarrow
+\hat A_t
+\rightarrow
+r_t
+\rightarrow
+\operatorname{clip}
+\rightarrow
+\nabla_\theta
+}_{\text{PPO learns strategy}}
+}
+</div>
+<p>So the overall ReTool idea is:</p>
+<div class="math block">
+\boxed{
+\textbf{SFT teaches the model how to talk to the tool;}
+\quad
+\textbf{RL teaches the model when and why to use it.}
+}
+</div>
+<hr />
+</section>

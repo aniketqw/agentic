@@ -1,0 +1,632 @@
+<section class="chunk" id="chunk-les-r101-4-i116" data-id="les-r101-4-i116"><details class="audit-card" id="audit-A09" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> A09 — Pipeline bubbles: a model, not a measured DualPipe result</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Explain why filling and draining a pipeline consumes slots without useful steady-state work.</p><p><strong>Prerequisites:</strong> <a href="#audit-A05">Gradient accumulation with unequal valid-token counts</a></p><h4 id="v3-heading-chunk-les-r101-4-i116-1">Notation and assumptions</h4><p>Simplified balanced schedule with p stages and m microbatches; bubble fraction(p-1)/(m+p-1). This assumes equal stage time and no communication stalls.</p><h4 id="v3-heading-chunk-les-r101-4-i116-2">Derivation and mechanism</h4><ol><li>Count useful microbatch slots m.</li><li>Add fill/drain overhead p-1 under this schedule model.</li><li>Divide overhead by total slots; then assess where real scheduling violates assumptions.</li></ol><div class="math block">f_{bubble}=(p-1)/(m+p-1)</div><h4 id="v3-heading-chunk-les-r101-4-i116-3">Worked example</h4><p>p4,m8 gives3/11≈27.27%;m32 gives3/35≈8.57%. More microbatches reduce this idealized fraction, while memory and scheduling costs may rise.</p><h4 id="v3-heading-chunk-les-r101-4-i116-4">Limitations</h4><ul><li>DualPipe uses a more complex bidirectional overlap schedule.</li><li>Unequal stages, backward work, communication and expert dispatch require a measured timing trace.</li></ul><h4 id="v3-heading-chunk-les-r101-4-i116-5">Connections to later concepts</h4><ul><li>A02 expert routing adds dispatch/communication that invalidates a simple balanced-stage timing model.</li></ul><h4 id="v3-heading-chunk-les-r101-4-i116-6">Source support</h4><ul><li>Build a DeepSeek Model (From Scratch)(2).pdf · physical PDF pages 359, 360, 361, 362, 363, 364, 365 · Chapter6 pipeline/DualPipe context; idealized formula independently modelled</li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-r101-4-i116-7">Executed code and evidence</h4><p>Functions: pipeline_bubble. Passed checks: Pipeline-balanced, Pipeline-more-microbatches</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-r101-4-i116"><div class="v3-route-top"><span>Architecture / implementation expansion</span><button type="button" class="v3-complete" data-lesson="chunk-les-r101-4-i116" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-r101-3-i115">← Previous lesson</a> · <a href="#chunk-les-step-6-1-i103">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-r101-3-i115">R101.3 — Model Parallelism: When the Model Itself Does Not Fit</a></p><p><strong>This lesson:</strong> R101.4 — DualPipe: How DeepSeek Tackles the MoE Communication Bottleneck</p><p><strong>Source references:</strong> <a href="#source-1">Build a DeepSeek Model (From Scratch)</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-r101-4-i116"></a></p>
+<h3 id="v3-heading-chunk-les-r101-4-i116-8">R101.4 — DualPipe: How DeepSeek Tackles the MoE Communication Bottleneck</h3>
+<p><em>Plan node: A5 · chat order #116</em></p>
+<p>We have reached the most important part of the scaling story.</p>
+<p>So far:</p>
+<div class="math block">
+\text{Gradient Accumulation}
+\rightarrow
+\text{batch-memory problem}
+</div>
+<div class="math block">
+\text{DDP}
+\rightarrow
+\text{training-throughput problem}
+</div>
+<div class="math block">
+\text{Pipeline Parallelism}
+\rightarrow
+\text{model-too-large problem}
+</div>
+<div class="math block">
+\text{1F1B}
+\rightarrow
+\text{pipeline-bubble problem}
+</div>
+<p>But DeepSeek is an <strong>MoE model</strong>.</p>
+<p>And MoE introduces a new problem:</p>
+<div class="math block">
+\boxed{\text{expensive All-to-All communication}}
+</div>
+<p>The source's central claim is that this communication can become more expensive than the original pipeline bubble. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-9">1. Why 1F1B is no longer enough</h4>
+<p>Recall what 1F1B does:</p>
+<pre><code class="language-text">Forward → Backward → Forward → Backward
+</code></pre>
+<p>This keeps the pipeline busy.</p>
+<p>But now imagine an MoE layer.</p>
+<p>A token arrives at GPU 0, but its selected expert may live on GPU 3:</p>
+<pre><code class="language-text">GPU 0
+ token
+   │
+   │ routed to Expert 7
+   ▼
+GPU 3
+ Expert 7
+</code></pre>
+<p>The token must physically move.</p>
+<p>So the system has to perform communication such as:</p>
+<div class="math block">
+\boxed{\text{All-to-All}}
+</div>
+<p>across the GPUs.</p>
+<p>The source describes this as dynamically reorganizing and moving tokens to the devices hosting their selected experts. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-10">2. The new idle-time problem</h4>
+<p>Suppose the computation has finished but the required tokens have not arrived:</p>
+<pre><code class="language-text">Compute
+  ↓
+WAIT FOR COMMUNICATION
+  ↓
+Expert computation
+</code></pre>
+<p>The GPU may have powerful compute hardware sitting idle while networking/communication finishes.</p>
+<p>So now we have:</p>
+<pre><code class="language-text">Old problem:
+GPU idle because pipeline isn't filled.
+
+New problem:
+GPU idle because MoE communication hasn't finished.
+</code></pre>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{1F1B solves pipeline bubble}
+\neq
+\text{1F1B solves communication latency}
+}
+</div>
+<p>The source explicitly says vanilla 1F1B cannot hide this MoE communication cost. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-11">3. DeepSeek's question</h4>
+<p>The source essentially asks:</p>
+<blockquote>
+<p>Can we schedule computation so that while communication is happening for one piece of work, useful computation happens for another?</p>
+</blockquote>
+<p>That is the key idea.</p>
+<p>Instead of:</p>
+<pre><code class="language-text">Communication
+    ↓
+wait
+    ↓
+Compute
+</code></pre>
+<p>we want:</p>
+<pre><code class="language-text">Communication ───────────────
+         Compute ────────────
+</code></pre>
+<p>at the same time.</p>
+<p>This is:</p>
+<div class="math block">
+\boxed{
+\text{computation–communication overlap}
+}
+</div>
+<p>and this is the central innovation of DualPipe. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-12">4. First innovation: Pipeline Folding</h4>
+<p>The first structural change is called <strong>pipeline folding</strong> in the source's explanation.</p>
+<p>A normal pipeline has stages assigned sequentially:</p>
+<pre><code class="language-text">GPU 0 → Stage 0
+GPU 1 → Stage 1
+GPU 2 → Stage 2
+GPU 3 → Stage 3
+GPU 4 → Stage 4
+GPU 5 → Stage 5
+GPU 6 → Stage 6
+GPU 7 → Stage 7
+</code></pre>
+<p>Every GPU has one contiguous portion.</p>
+<p>DualPipe rearranges this.</p>
+<p>One physical GPU holds:</p>
+<div class="math block">
+\boxed{\text{one early stage + one late stage}}
+</div>
+<p>The source gives this example for 8 stages and 4 physical GPUs. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-13">5. The folded mapping</h4>
+<p>The source's mapping is:</p>
+<pre><code class="language-text">Rank 0:
+Stage 0 + Stage 7
+
+Rank 1:
+Stage 1 + Stage 6
+
+Rank 2:
+Stage 2 + Stage 5
+
+Rank 3:
+Stage 3 + Stage 4
+</code></pre>
+<p>So instead of:</p>
+<pre><code class="language-text">0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
+</code></pre>
+<p>being eight separate physical devices, we have:</p>
+<pre><code class="language-text">GPU 0: [0 ............... 7]
+GPU 1: [1 ........... 6]
+GPU 2: [2 ....... 5]
+GPU 3: [3 ... 4]
+</code></pre>
+<p>This is why the pipeline looks <strong>folded</strong>.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-14">6. Why is this useful?</h4>
+<p>Because now the physical device near one end of the pipeline also owns a stage from the opposite end.</p>
+<p>This creates much more flexibility in scheduling.</p>
+<p>The model is no longer simply:</p>
+<pre><code class="language-text">GPU0 → GPU1 → GPU2 → GPU3 → GPU4 → ...
+</code></pre>
+<p>Instead, execution can be arranged around a folded topology.</p>
+<p>That is the structural foundation for the later V-shape schedule.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-15">7. Full DualPipe is more than folding</h4>
+<p>There is an important source distinction here.</p>
+<p>The source says the <strong>DeepSeek paper's full DualPipe</strong> uses a true bidirectional schedule with <strong>two data streams</strong>.</p>
+<p>But the book chooses to focus on a more intuitive variant:</p>
+<div class="math block">
+\boxed{\text{DualPipeV}}
+</div>
+<p>also called:</p>
+<div class="math block">
+\boxed{\text{V-shape / cut-in-half}}
+</div>
+<p>schedule. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So don't treat the names as completely interchangeable.</p>
+<p>For our learning sequence:</p>
+<div class="math block">
+\boxed{
+\text{DualPipe idea}
+\rightarrow
+\text{DualPipeV practical/intuitive variant}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-16">8. The second innovation: Fine-Grained Scheduling</h4>
+<p>This is perhaps the most important conceptual part.</p>
+<p>1F1B essentially thinks in fairly large units:</p>
+<pre><code class="language-text">Forward
+Backward
+Forward
+Backward
+</code></pre>
+<p>DualPipe breaks those operations into smaller pieces.</p>
+<p>The source explicitly identifies components such as:</p>
+<ul>
+<li>Attention</li>
+<li>MLP / Expert computation</li>
+<li>All-to-All communication</li>
+</ul>
+<p>and schedules them more finely. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So rather than treating:</p>
+<div class="math block">
+\text{Forward}
+</div>
+<p>as one indivisible block, the scheduler can reason about its internal components.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-17">9. Why this matters</h4>
+<p>Suppose micro-batch <span class="math inline">m_1</span> is waiting on:</p>
+<div class="math block">
+\text{All-to-All}.
+</div>
+<p>Instead of leaving the GPU idle, the scheduler can perform:</p>
+<div class="math block">
+\text{Attention computation for }m_2
+</div>
+<p>or another useful computation.</p>
+<p>So:</p>
+<pre><code class="language-text">Timeline →
+
+m1:  All-to-All  ───────────
+m2:       Attention ────────
+m3:                 Expert ──
+</code></pre>
+<p>The communication for one workload is hidden underneath computation from another.</p>
+<p>The source describes this as the key mechanism for hiding the large MoE communication cost. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-18">10. Think of it like CPU + network overlap</h4>
+<p>A useful conceptual analogy is:</p>
+<pre><code class="language-text">Task A:
+Network transfer ───────────────
+
+Task B:
+               Computation ─────
+</code></pre>
+<p>If the hardware can make progress on both resources simultaneously, total wall-clock time can be much lower than:</p>
+<pre><code class="language-text">Network
+   ↓
+finish
+   ↓
+Computation
+   ↓
+finish
+</code></pre>
+<p>DualPipe is applying this idea at extremely fine granularity to distributed LLM training.</p>
+<p>The source's specific emphasis is:</p>
+<div class="math block">
+\boxed{
+\text{keep compute resources and communication resources busy simultaneously}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-19">11. What does &quot;overlap&quot; actually mean?</h4>
+<p>Suppose:</p>
+<div class="math block">
+T_{\text{communication}}=5
+</div>
+<p>and:</p>
+<div class="math block">
+T_{\text{computation}}=5.
+</div>
+<p>If done sequentially:</p>
+<div class="math block">
+T_{\text{total}}=5+5=10.
+</div>
+<p>If they can be perfectly overlapped:</p>
+<div class="math block">
+T_{\text{total}}\approx5.
+</div>
+<p>This is an idealized illustration of the reason overlap is valuable; it is not a performance number stated by the source.</p>
+<p>Real systems have dependencies and imperfect overlap.</p>
+<p>But the engineering goal is exactly this:</p>
+<div class="math block">
+\boxed{
+\text{hide communication behind useful computation}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-20">12. Now understand DualPipeV</h4>
+<p>The source calls DualPipeV the more intuitive &quot;cut-in-half&quot; or <strong>V-shape</strong> schedule. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>Use the earlier example:</p>
+<div class="math block">
+8\text{ stages}
+</div>
+<p>on:</p>
+<div class="math block">
+4\text{ physical GPUs}.
+</div>
+<p>The stage assignment is:</p>
+<pre><code class="language-text">GPU 0 → Stage 0 + Stage 7
+GPU 1 → Stage 1 + Stage 6
+GPU 2 → Stage 2 + Stage 5
+GPU 3 → Stage 3 + Stage 4
+</code></pre>
+<p>Now follow one micro-batch.</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-21">13. The Downstroke</h4>
+<p>The micro-batch first travels:</p>
+<div class="math block">
+Stage_0
+\rightarrow
+Stage_1
+\rightarrow
+Stage_2
+\rightarrow
+Stage_3.
+</div>
+<p>So physically:</p>
+<pre><code class="language-text">GPU 0
+  ↓
+GPU 1
+  ↓
+GPU 2
+  ↓
+GPU 3
+</code></pre>
+<p>The source calls this the <strong>downstroke</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-22">14. The Turnaround</h4>
+<p>Here comes the clever part.</p>
+<p>GPU 3 contains:</p>
+<div class="math block">
+Stage_3
+</div>
+<p><strong>and</strong></p>
+<div class="math block">
+Stage_4.
+</div>
+<p>So after the micro-batch finishes Stage 3:</p>
+<div class="math block">
+Stage_3\rightarrow Stage_4
+</div>
+<p>does not require another GPU.</p>
+<p>The pipeline effectively turns around <strong>on the same physical device</strong>.</p>
+<p>The source calls this the <strong>turnaround</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-23">15. The Upstroke</h4>
+<p>After Stage 4, the micro-batch moves:</p>
+<div class="math block">
+Stage_4
+\rightarrow
+Stage_5
+\rightarrow
+Stage_6
+\rightarrow
+Stage_7.
+</div>
+<p>Physically:</p>
+<pre><code class="language-text">GPU 3
+  ↓
+GPU 2
+  ↓
+GPU 1
+  ↓
+GPU 0
+</code></pre>
+<p>So the overall forward path is:</p>
+<pre><code class="language-text">GPU0
+ ↓
+GPU1
+ ↓
+GPU2
+ ↓
+GPU3
+ ↘
+  Stage4
+ ↗
+GPU2
+ ↑
+GPU1
+ ↑
+GPU0
+</code></pre>
+<p>which visually forms:</p>
+<div class="math block">
+\boxed{V}
+</div>
+<p>Hence <strong>V-shape schedule</strong>.</p>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-24">16. Why &quot;cut-in-half&quot;?</h4>
+<p>Normally, 8 pipeline stages might imply:</p>
+<div class="math block">
+8\text{ physical devices}
+</div>
+<p>for one stage per device.</p>
+<p>DualPipeV can place those 8 stages onto:</p>
+<div class="math block">
+\boxed{4\text{ physical devices}}
+</div>
+<p>because each device stores two stages.</p>
+<p>That is the source's &quot;cut-in-half&quot; idea. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-25">17. But there is a price</h4>
+<p>Nothing is free.</p>
+<p>Each GPU now owns:</p>
+<div class="math block">
+\boxed{2\text{ stages}}
+</div>
+<p>instead of:</p>
+<div class="math block">
+1\text{ stage}.
+</div>
+<p>So each physical GPU must store more model parameters.</p>
+<p>The source states the trade-off as approximately:</p>
+<div class="math block">
+\boxed{
+2\times\text{ parameter memory per GPU}
+}
+</div>
+<p>compared with the corresponding standard 1F1B folded-stage arrangement described there. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{less hardware / better bubble behavior}
+\quad\leftrightarrow\quad
+\text{more parameter memory per GPU}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-26">18. Why this trade-off can be worthwhile for DeepSeek</h4>
+<p>This is especially relevant to an MoE architecture.</p>
+<p>We already learned that DeepSeek uses other mechanisms such as:</p>
+<div class="math block">
+\text{FP8}
+</div>
+<p>and:</p>
+<div class="math block">
+\text{Expert Parallelism}
+</div>
+<p>to reduce or manage per-device memory and communication pressure.</p>
+<p>The source argues that these techniques make the extra parameter-memory cost of the folded arrangement more favorable. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-27">19. DualPipeV + interleaving</h4>
+<p>DualPipeV does not simply fold the network and stop there.</p>
+<p>The source says the schedule also interleaves forward and backward passes of different micro-batches.</p>
+<p>Therefore we combine two ideas:</p>
+<div class="math block">
+\boxed{
+\text{folded topology}
++
+\text{interleaved execution}
+}
+</div>
+<p>This reduces the pipeline bubble similarly to 1F1B while using half as many physical devices for the N-stage example. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-28">20. Now put all the pieces together</h4>
+<p>This is the real DeepSeek training story:</p>
+<pre><code class="language-text">                 HUGE MoE MODEL
+                       │
+                       ▼
+               Model too large?
+                       │
+                       ▼
+             Pipeline Parallelism
+                       │
+                       ▼
+               GPipe has bubble
+                       │
+                       ▼
+                    1F1B
+                       │
+             bubble improves
+                       │
+                       ▼
+              But MoE introduces
+               All-to-All cost
+                       │
+                       ▼
+                ┌──────────────┐
+                │   DualPipe   │
+                └──────┬───────┘
+                       │
+             pipeline folding
+                       │
+             fine-grained overlap
+                       │
+       ┌───────────────┴───────────────┐
+       │                               │
+  computation                     communication
+       │                               │
+       └───────────────┬───────────────┘
+                       ▼
+                less idle time
+</code></pre>
+<p>This is the source's core engineering progression. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-29">21. The complete bottleneck → solution chain</h4>
+<p>This is the part I recommend memorizing for an interview.</p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Technique</th>
+<th>What gets split/changed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desired batch doesn't fit</td>
+<td>Gradient Accumulation</td>
+<td>Time/chunks of data</td>
+</tr>
+<tr>
+<td>Training is slow</td>
+<td>DDP</td>
+<td>Data</td>
+</tr>
+<tr>
+<td>Model doesn't fit on one GPU</td>
+<td>Pipeline Parallelism</td>
+<td>Model layers</td>
+</tr>
+<tr>
+<td>Pipeline has idle periods</td>
+<td>1F1B</td>
+<td>Execution schedule</td>
+</tr>
+<tr>
+<td>MoE causes expensive token movement</td>
+<td>DualPipe</td>
+<td>Schedule + stage placement + overlap</td>
+</tr>
+</tbody>
+</table>
+<p>Source framing:</p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-30">22. One subtle but crucial distinction</h4>
+<p>Do not say in an interview:</p>
+<blockquote>
+<p>&quot;DualPipe removes the pipeline bubble completely.&quot;</p>
+</blockquote>
+<p>That is too strong.</p>
+<p>The source says DualPipe/DualPipeV <strong>dramatically reduces</strong> the bubble and, more importantly for MoE, hides expensive communication through overlap. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<p>The better mental statement is:</p>
+<div class="math block">
+\boxed{
+\text{DualPipe minimizes wasted time by overlapping useful computation and communication}
+}
+</div>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-31">23. What happened to our MiniDeepSeek?</h4>
+<p>Our MiniDeepSeek from <code>train.py</code> is still fundamentally a:</p>
+<div class="math block">
+\boxed{\text{single-GPU training system}}
+</div>
+<p>The source uses it to teach the concepts.</p>
+<p>We have now moved conceptually from:</p>
+<pre><code class="language-text">MiniDeepSeek
+    ↓
+1 GPU
+    ↓
+train.py
+</code></pre>
+<p>to the ideas required for:</p>
+<pre><code class="language-text">massive model
+    ↓
+many GPUs
+    ↓
+data parallelism
++
+pipeline parallelism
++
+MoE expert communication
++
+DualPipe scheduling
+</code></pre>
+<p>The book then closes Chapter 6 and moves to <strong>post-training</strong>, beginning with reinforcement learning, GRPO, and reasoning models. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+<h4 id="v3-heading-chunk-les-r101-4-i116-32">24. Final picture to keep in your head</h4>
+<pre><code class="language-text">               DEEPSEEK TRAINING
+
+                    Model
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+     Split DATA               Split MODEL
+          │                       │
+         DDP                   Pipeline
+                                  │
+                               GPipe
+                                  │
+                           Pipeline Bubble
+                                  │
+                                 1F1B
+                                  │
+                         MoE All-to-All
+                                  │
+                             DualPipe
+                                  │
+                        Pipeline Folding
+                                  │
+                    Fine-grained Overlap
+                                  │
+                Compute ↔ Communication
+                                  │
+                           High utilization
+</code></pre>
+<p>And the single most important sentence is:</p>
+<div class="math block">
+\boxed{
+\textbf{DeepSeek's DualPipe is fundamentally a scheduling strategy for hiding expensive MoE communication behind useful computation while also reducing pipeline inefficiency.}
+}
+</div>
+<p><em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<h6 id="v3-heading-chunk-les-r101-4-i116-33">Chapter 6 checkpoint</h6>
+<p>At this point, the <strong>pre-training pipeline</strong> is complete:</p>
+<div class="math block">
+\boxed{
+\text{Data}
+\rightarrow
+\text{MiniDeepSeek architecture}
+\rightarrow
+\text{Loss}
+\rightarrow
+\text{Optimization}
+\rightarrow
+\text{Multi-GPU scaling}
+\rightarrow
+\text{DualPipe}
+}
+</div>
+<p>The book's next major transition is:</p>
+<div class="math block">
+\boxed{
+\textbf{Pre-training}
+\rightarrow
+\textbf{Post-training}
+}
+</div>
+<p>where the model goes from <strong>predicting text</strong> to being trained for <strong>reasoning and useful behavior</strong>, starting with <strong>RL, PPO, rewards, and GRPO</strong>. <em>(Source: Build a DeepSeek Model (From Scratch))</em></p>
+<hr />
+</section>

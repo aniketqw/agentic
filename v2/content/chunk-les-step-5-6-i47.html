@@ -1,0 +1,911 @@
+<section class="chunk" id="chunk-les-step-5-6-i47" data-id="les-step-5-6-i47"><aside class="audit-card" data-continuation="added" id="audit-finding-E06-chunk-les-step-5-6-i47"><h3 id="v3-heading-chunk-les-step-5-6-i47-1">GRPO tutorial hyperparameters and reference refresh provenance</h3><p>Status: provided_book_claim_found; primary_confirmation_pending</p><p>The supplied reasoning book discusses these in Chapter7, physical pages270–275. The retrieved R1 v1 report does not independently confirm the claimed400-step setting. Keep those claims attributed to the tutorial/book instead of marking them as verified R1 implementation parameters. Also, clipping a surrogate does not impose a hard bound on the policy update.</p><p><a href="https://arxiv.org/html/2501.12948v1">Primary/official source</a> · Compare §2.2.1 with supplied reasoning book Chapter7 pp270–275 and RL slides24,27</p><p>Remaining evidence: Recover the exact author/released configuration or later report supporting the attributed settings.</p><p>The inherited statement remains below for traceability; use this version-specific qualification when interpreting it.</p></aside><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-5-6-i47"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-5-6-i47" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#chunk-les-step-5-5-i46">← Previous lesson</a> · <a href="#chunk-les-step-5-7-i48">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-5-5-i46">Step 5.5 — Why Plain Policy Gradient Is Not Enough: Policy Ratios and Clipping</a></p><p><strong>This lesson:</strong> Step 5.6 — KL Regularization: Why Do We Need a Reference Model?</p><p><strong>Source references:</strong> <a href="#source-2">Build a Reasoning Model (From Scratch)</a>; <a href="#source-20">rl-grpo-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-5-6-i47"></a></p>
+<h2>Step 5.6 — KL Regularization: Why Do We Need a Reference Model?</h2>
+<p><em>Plan node: I6 · chat order #47</em></p>
+<p>We have now built:</p>
+<div class="math block">
+\text{reward}
+\rightarrow
+\text{advantage}
+\rightarrow
+\text{policy ratio}
+\rightarrow
+\text{clipping}.
+</div>
+<p>But the GRPO pipeline still has another component:</p>
+<div class="math block">
+\boxed{\text{KL regularization}}
+</div>
+<p>The source introduces this as the mechanism that prevents the trained policy from drifting too far from a reference policy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>The key distinction is:</p>
+<div class="math block">
+\boxed{\text{clipping controls individual update size}}
+</div>
+<p>while:</p>
+<div class="math block">
+\boxed{\text{KL controls longer-term policy drift}}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-2">1. Start with the problem</h3>
+<p>Suppose RL is rewarding mathematical correctness.</p>
+<p>The model discovers:</p>
+<blockquote>
+<p>“Great. I can get reward 1 by exploiting the verifier.”</p>
+</blockquote>
+<p>It might begin producing:</p>
+<pre><code class="language-text">correct answer
++
+weird formatting
++
+unnecessary repetition
++
+strange token patterns
++
+very long outputs
+</code></pre>
+<p>The reward may still be high.</p>
+<p>So maximizing reward alone can cause the model to move too far from the original model's general behavior.</p>
+<p>The source describes this concern explicitly: reward optimization can lead to undesirable drift, while a reference-policy constraint helps preserve the original behavior. <em>(Source: rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-3">2. What is the reference policy?</h3>
+<p>We introduce:</p>
+<div class="math block">
+\boxed{\pi_{\mathrm{ref}}}
+</div>
+<p>This is a frozen reference model.</p>
+<p>The source describes it as typically being the original model at the beginning of training, kept fixed or refreshed relatively rarely. In the DeepSeek-R1 discussion, the reference model is refreshed every 400 steps in the source's description. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So now there are conceptually three model states:</p>
+<pre><code class="language-text">1. Old / rollout policy
+   → generated the current samples
+
+2. Current policy
+   → being trained
+
+3. Reference policy
+   → provides a longer-term anchor
+</code></pre>
+<p>Do not confuse them.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-4">3. Old policy vs reference policy</h3>
+<p>This is one of the most important distinctions.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-5">Old policy</h5>
+<p>Used for:</p>
+<div class="math block">
+\boxed{\text{policy ratio}}
+</div>
+<p>and answers:</p>
+<blockquote>
+<p>How different is the current policy from the policy that generated this rollout?</p>
+</blockquote>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-6">Reference policy</h5>
+<p>Used for:</p>
+<div class="math block">
+\boxed{\text{KL regularization}}
+</div>
+<p>and answers:</p>
+<blockquote>
+<p>How far has the current policy drifted from the chosen reference model?</p>
+</blockquote>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{old policy} \neq \text{reference policy}
+}
+</div>
+<p>even though a particular implementation may temporarily use the same model snapshot for both purposes.</p>
+<p>The source discusses these roles separately.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-7">4. Why clipping is not enough</h3>
+<p>Suppose every training step changes the policy only a little.</p>
+<p>For example:</p>
+<div class="math block">
+1\rightarrow1.1\rightarrow1.2\rightarrow1.3\rightarrow\cdots
+</div>
+<p>Each individual step may be acceptable.</p>
+<p>But after hundreds of updates, the model can still move substantially away from the starting distribution.</p>
+<p>This gives:</p>
+<div class="math block">
+\boxed{
+\text{small step changes}
+\not\Rightarrow
+\text{small total drift}
+}
+</div>
+<p>That is why the reference-policy KL term complements clipping.</p>
+<p>The source explicitly describes clipping as limiting changes between steps and KL as controlling change over the longer training trajectory. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-8">5. What does KL mean conceptually?</h3>
+<p>KL divergence measures how different one probability distribution is from another.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+D_{KL}(\pi_\theta\|\pi_{\mathrm{ref}})
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>How different is the current model's distribution from the reference distribution?</p>
+</blockquote>
+<p>A larger KL means:</p>
+<div class="math block">
+\boxed{\text{more divergence}}
+</div>
+<p>A smaller KL means:</p>
+<div class="math block">
+\boxed{\text{more similar}}
+</div>
+<p>The source uses KL precisely as a regularizer to discourage drastic changes. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-9">6. Classical KL formula</h3>
+<p>For two discrete distributions <span class="math inline">P</span> and <span class="math inline">Q</span>:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)
+=
+\sum_x
+P(x)
+\log
+\frac{P(x)}{Q(x)}
+}
+</div>
+<p>For an LLM, <span class="math inline">x</span> could represent tokens or complete token distributions.</p>
+<p>At the full token-distribution level:</p>
+<div class="math block">
+D_{KL}
+=
+\sum_v
+P_\theta(v\mid s)
+\log
+\frac{P_\theta(v\mid s)}
+{P_{\mathrm{ref}}(v\mid s)}.
+</div>
+<p>However, there is an important source-specific detail.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-10">7. Important: the source uses a simplified sampled KL term</h3>
+<p>The book's implementation does <strong>not</strong> explicitly compute the full vocabulary-wide distributional KL above.</p>
+<p>Instead, it computes a sampled log-probability difference:</p>
+<div class="math block">
+\boxed{
+\text{KL loss}
+=
+\text{kl\_coeff}
+\times
+\operatorname{mean}
+(
+\log p_{\text{new}}
+-
+\log p_{\text{ref}}
+)
+}
+</div>
+<p>This is the exact form shown in the source's implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So, for this course, keep the distinction clear:</p>
+<div class="math block">
+\boxed{
+\text{the source's KL term is a KL-like sampled regularization term}
+}
+</div>
+<p>rather than silently treating it as the full exact distributional KL computation.</p>
+<p>That distinction matters because the sampled log-probability difference can itself be negative.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-11">8. Why compare log probabilities?</h3>
+<p>Suppose the current policy assigns:</p>
+<div class="math block">
+p_{\text{new}}=0.2
+</div>
+<p>to a sampled token, while the reference assigns:</p>
+<div class="math block">
+p_{\text{ref}}=0.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log p_{\text{new}}
+=
+\log 0.2
+</div>
+<p>and:</p>
+<div class="math block">
+\log p_{\text{ref}}
+=
+\log 0.1.
+</div>
+<p>Their difference is:</p>
+<div class="math block">
+\log 0.2-\log0.1
+=
+\log2.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{0.6931}
+</div>
+<p>approximately.</p>
+<p>The current policy is assigning substantially more probability to that sampled token than the reference policy.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-12">9. If the current model becomes less likely</h3>
+<p>Suppose:</p>
+<div class="math block">
+p_{\text{new}}=0.05
+</div>
+<p>and:</p>
+<div class="math block">
+p_{\text{ref}}=0.1.
+</div>
+<p>Then:</p>
+<div class="math block">
+\log0.05-\log0.1
+=
+\log0.5
+\approx
+\boxed{-0.6931}.
+</div>
+<p>So the sampled log-probability difference can be negative.</p>
+<p>Again, this is why the exact source implementation should not be confused with the mathematical definition of nonnegative full KL divergence.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-13">10. Why does a reference model act like an anchor?</h3>
+<p>Imagine:</p>
+<pre><code class="language-text">Original model
+      │
+      │  ← reference anchor
+      │
+      ├───────────────┐
+      ↓               ↓
+  RL update 1      RL update 2
+      ↓               ↓
+ current model     current model
+</code></pre>
+<p>Without an anchor:</p>
+<div class="math block">
+\text{maximize reward}
+</div>
+<p>could continually push the model toward increasingly specialized strategies.</p>
+<p>With a KL regularizer:</p>
+<div class="math block">
+\boxed{
+\text{maximize reward}
++
+\text{stay reasonably close to reference}
+}
+</div>
+<p>The model therefore faces a tradeoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-14">11. The total loss</h3>
+<p>We previously had:</p>
+<div class="math block">
+L_{\text{PG}}
+</div>
+<p>or, with clipping:</p>
+<div class="math block">
+L_{\text{clip}}.
+</div>
+<p>Now add:</p>
+<div class="math block">
+L_{\text{KL}}.
+</div>
+<p>The source uses:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{PG}}
++
+L_{\text{KL}}
+}
+</div>
+<p>in its simplified KL extension. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-15">12. The KL coefficient</h3>
+<p>The source introduces:</p>
+<div class="math block">
+\boxed{\text{kl\_coeff}}
+</div>
+<p>which controls how strongly the reference constraint affects training. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Conceptually:</p>
+<div class="math block">
+L_{\text{KL}}
+=
+\beta
+\times
+\text{KL-like divergence}
+</div>
+<p>where:</p>
+<div class="math block">
+\beta=\text{kl\_coeff}.
+</div>
+<p>Therefore:</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-16">Small <span class="math inline">\beta</span></h5>
+<p>Weak constraint:</p>
+<div class="math block">
+\boxed{\text{reward dominates}}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-17">Large <span class="math inline">\beta</span></h5>
+<p>Strong constraint:</p>
+<div class="math block">
+\boxed{\text{stay closer to reference}}
+</div>
+<p>The source states that larger <code>kl_coeff</code> values impose a stronger restriction on how far the policy can move. It gives a practical range around <span class="math inline">0.001</span> to <span class="math inline">0.05</span> for its implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-18">13. The source's implementation</h3>
+<p>The relevant structure is:</p>
+<pre><code class="language-python">if kl_coeff:
+    kl_loss = kl_coeff * torch.mean(logps - ref_logps)
+else:
+    kl_loss = torch.tensor(0.0)
+
+loss = pg_loss + kl_loss
+</code></pre>
+<p><em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>Let's decode it.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-19"><code>logps</code></h5>
+<p>Current policy sequence log probabilities:</p>
+<div class="math block">
+\log p_{\text{new}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-20"><code>ref_logps</code></h5>
+<p>Reference policy sequence log probabilities:</p>
+<div class="math block">
+\log p_{\text{ref}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-21">Difference</h5>
+<div class="math block">
+\log p_{\text{new}}-\log p_{\text{ref}}.
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-22">Mean</h5>
+<p>Average across rollouts.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-23">Multiply by coefficient</h5>
+<p>Apply the regularization strength.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-24">Add to policy loss</h5>
+<div class="math block">
+L=L_{\text{PG}}+L_{\text{KL}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-25">14. The source's exact worked example</h3>
+<p>The source has:</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-26">Policy-gradient loss</h5>
+<div class="math block">
+\boxed{-2.5764}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-27">KL loss term</h5>
+<div class="math block">
+\boxed{-0.0075}
+</div>
+<p>Therefore:</p>
+<div class="math block">
+L_{\text{total}}
+=
+-2.5764+(-0.0075)
+</div>
+<p>giving:</p>
+<div class="math block">
+\boxed{
+-2.5839
+}
+</div>
+<p><em>(Source: Build a Reasoning Model (From Scratch); rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-28">15. Why does the KL term become negative here?</h3>
+<p>This can look strange.</p>
+<p>You may have learned:</p>
+<div class="math block">
+D_{KL}(P\|Q)\ge0.
+</div>
+<p>That is true for the <strong>full KL divergence</strong>.</p>
+<p>But the source's implementation computes:</p>
+<div class="math block">
+\operatorname{mean}
+(
+\log p_{\text{new}}
+-
+\log p_{\text{ref}}
+)
+</div>
+<p>on sampled outputs.</p>
+<p>That quantity is not guaranteed to be nonnegative.</p>
+<p>So the source can legitimately show:</p>
+<div class="math block">
+\boxed{-0.0075}.
+</div>
+<p>This is a crucial technical detail.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-29">16. Do not make this mistake in an exam</h3>
+<p>Do not write:</p>
+<blockquote>
+<p>“KL divergence can be negative.”</p>
+</blockquote>
+<p>That would be wrong for mathematical KL divergence.</p>
+<p>Instead say:</p>
+<blockquote>
+<p><strong>The full KL divergence is nonnegative; the source's sampled log-probability difference used as its simplified KL regularization term need not be nonnegative.</strong></p>
+</blockquote>
+<p>That is the source-faithful explanation.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-30">17. Numerical KL example</h3>
+<p>Suppose we have four sampled responses.</p>
+<p>Current logprobs:</p>
+<div class="math block">
+[-2.0,-3.0,-4.0,-5.0]
+</div>
+<p>Reference logprobs:</p>
+<div class="math block">
+[-2.1,-2.9,-4.2,-5.1].
+</div>
+<p>Differences:</p>
+<div class="math block">
+[0.1,-0.1,0.2,0.1].
+</div>
+<p>Mean:</p>
+<div class="math block">
+\frac{0.1-0.1+0.2+0.1}{4}
+=
+\frac{0.3}{4}
+=
+\boxed{0.075}.
+</div>
+<p>Suppose:</p>
+<div class="math block">
+\beta=0.02.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{KL}}
+=
+0.02(0.075)
+=
+\boxed{0.0015}.
+</div>
+<p>Therefore, if:</p>
+<div class="math block">
+L_{\text{PG}}=-2.4,
+</div>
+<p>then:</p>
+<div class="math block">
+L_{\text{total}}
+=
+-2.4+0.0015
+=
+\boxed{-2.3985}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-31">18. What is KL actually trying to prevent?</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{PG}}
+</div>
+<p>strongly rewards a strange output.</p>
+<p>The policy may want to assign much greater probability to that output.</p>
+<p>KL says:</p>
+<div class="math block">
+\boxed{
+\text{“Before doing that, check how different you are becoming from the reference.”}
+}
+</div>
+<p>So the combined objective balances:</p>
+<div class="math block">
+\boxed{\text{task improvement}}
+</div>
+<p>against:</p>
+<div class="math block">
+\boxed{\text{distributional stability}}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-32">19. Clipping vs KL</h3>
+<p>This distinction is extremely important.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-33">Clipping</h5>
+<p>Compares:</p>
+<div class="math block">
+\pi_{\text{current}}
+</div>
+<p>with:</p>
+<div class="math block">
+\pi_{\text{old}}.
+</div>
+<p>Its goal is:</p>
+<div class="math block">
+\boxed{\text{prevent an overly large policy update}}
+</div>
+<p>for the current optimization step.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-34">KL</h5>
+<p>Compares:</p>
+<div class="math block">
+\pi_{\text{current}}
+</div>
+<p>with:</p>
+<div class="math block">
+\pi_{\text{reference}}.
+</div>
+<p>Its goal is:</p>
+<div class="math block">
+\boxed{\text{prevent excessive drift from the reference behavior}}
+</div>
+<p>The source explicitly describes these as complementary mechanisms. <em>(Source: Build a Reasoning Model (From Scratch); rl-grpo-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-35">20. Visualize them together</h3>
+<pre><code class="language-text">                  CURRENT POLICY
+                        │
+            ┌───────────┴───────────┐
+            │                       │
+            ↓                       ↓
+        OLD POLICY             REFERENCE POLICY
+            │                       │
+            ↓                       ↓
+      POLICY RATIO                 KL TERM
+            │                       │
+            ↓                       ↓
+       STEP CONTROL             DRIFT CONTROL
+            │                       │
+            └───────────┬───────────┘
+                        ↓
+                  TOTAL OBJECTIVE
+</code></pre>
+<p>This is the cleanest mental model.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-36">21. Why keep the reference model frozen?</h3>
+<p>Suppose the reference model were updated every optimizer step.</p>
+<p>Then:</p>
+<div class="math block">
+\pi_{\text{ref}}
+\approx
+\pi_{\text{current}}.
+</div>
+<p>The KL difference could remain artificially small.</p>
+<p>That would weaken its role as a long-term anchor.</p>
+<p>So the source uses the original model for the KL reference and says it is kept fixed or refreshed relatively rarely. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-37">22. Resource cost of KL</h3>
+<p>There is a cost.</p>
+<p>You need an additional reference copy.</p>
+<p>The source explicitly notes that adding KL increases resource use because you now need an additional copy of the original model. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<p>So:</p>
+<div class="math block">
+\boxed{
+\text{KL stability}
+\leftrightarrow
+\text{extra memory/computation}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-38">23. Full GRPO structure so far</h3>
+<p>Now our simplified complete pipeline is:</p>
+<div class="math block">
+q
+\rightarrow
+\{o_1,\ldots,o_G\}
+</div>
+<p>then:</p>
+<div class="math block">
+\{o_i\}
+\rightarrow
+\{R_i\}
+</div>
+<p>then:</p>
+<div class="math block">
+R_i
+\rightarrow
+A_i
+</div>
+<p>then:</p>
+<div class="math block">
+o_i
+\rightarrow
+\log p_{\text{new},i}
+</div>
+<p>then:</p>
+<div class="math block">
+\log p_{\text{old},i}
+\rightarrow
+r_i
+</div>
+<p>then:</p>
+<div class="math block">
+r_i
+\rightarrow
+\operatorname{clip}(r_i)
+</div>
+<p>then:</p>
+<div class="math block">
+A_i,\;r_i
+\rightarrow
+L_{\text{clip}}
+</div>
+<p>and finally:</p>
+<div class="math block">
+\log p_{\text{new}},
+\log p_{\text{ref}}
+\rightarrow
+L_{\text{KL}}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+L_{\text{total}}
+=
+L_{\text{clip}}
++
+L_{\text{KL}}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-39">24. One important source nuance</h3>
+<p>There are <strong>two levels of GRPO formulation</strong> appearing in the source materials.</p>
+<p>The Chapter 6 implementation begins with:</p>
+<div class="math block">
+-\operatorname{mean}(A\log p)
+</div>
+<p>and Chapter 7 progressively adds clipping and KL.</p>
+<p>The DeepSeekMath slide material presents a more complete token-level GRPO objective directly.</p>
+<p>Meanwhile, the source's DeepSeek-R1 discussion notes a <strong>sequence-level</strong> simplification for the ratio.</p>
+<p>Therefore, when studying papers, do not assume every GRPO paper uses precisely the same granularity.</p>
+<p>The source explicitly contrasts:</p>
+<div class="math block">
+\boxed{\text{DeepSeekMath: token-level ratio}}
+</div>
+<p>with:</p>
+<div class="math block">
+\boxed{\text{DeepSeek-R1: sequence-level ratio}}
+</div>
+<p>and also notes later variants such as DAPO and GSPO. <em>(Source: rl-grpo-slides)</em></p>
+<p>We will handle those differences separately rather than mixing them together.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-40">25. Level 1 numerical</h3>
+<p>Current logprob:</p>
+<div class="math block">
+-2
+</div>
+<p>Reference logprob:</p>
+<div class="math block">
+-2.3.
+</div>
+<p>Difference:</p>
+<div class="math block">
+-2-(-2.3)
+=
+\boxed{0.3}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-41">26. Level 2 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+\beta=0.02
+</div>
+<p>and mean log-probability difference is:</p>
+<div class="math block">
+0.5.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{KL}}
+=
+0.02(0.5)
+=
+\boxed{0.01}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-42">27. Level 3 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{PG}}=-2.5
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{KL}}=0.02.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{total}}
+=
+-2.5+0.02
+=
+\boxed{-2.48}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-43">28. Level 4 numerical</h3>
+<p>Suppose:</p>
+<div class="math block">
+L_{\text{PG}}=-2.5764
+</div>
+<p>and:</p>
+<div class="math block">
+L_{\text{KL}}=-0.0075.
+</div>
+<p>Then:</p>
+<div class="math block">
+L_{\text{total}}
+=
+-2.5764-0.0075
+</div>
+<div class="math block">
+\boxed{-2.5839}.
+</div>
+<p>This is the source's exact reported numerical example. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-44">29. Level 5 — identify the correct component</h3>
+<p>Suppose a training system observes:</p>
+<blockquote>
+<p>The model changes moderately every step, but after thousands of updates its behavior has drifted dramatically from the starting model.</p>
+</blockquote>
+<p>Which mechanism specifically addresses this problem?</p>
+<div class="math block">
+\boxed{\text{KL regularization}}
+</div>
+<p>because its role is to constrain divergence from the reference policy over the training trajectory.</p>
+<p>Clipping primarily addresses the size of individual updates. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-45">30. Complete mathematical picture</h3>
+<p>We can now write:</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-46">Group advantage</h5>
+<div class="math block">
+\boxed{
+A_i=
+\frac{R_i-\mu_R}
+{\sigma_R+\epsilon}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-47">Policy ratio</h5>
+<div class="math block">
+\boxed{
+r_i=
+\frac{\pi_\theta(o_i|q)}
+{\pi_{\mathrm{old}}(o_i|q)}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-48">Clipped ratio</h5>
+<div class="math block">
+\boxed{
+\tilde r_i
+=
+\operatorname{clip}(r_i,1-\epsilon,1+\epsilon)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-49">Clipped objective</h5>
+<div class="math block">
+\boxed{
+L_{\mathrm{clip}}
+=
+-\mathbb E
+\left[
+\min(r_iA_i,\tilde r_iA_i)
+\right]
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-50">Source's KL regularization implementation</h5>
+<div class="math block">
+\boxed{
+L_{\mathrm{KL}}
+=
+\beta\,
+\operatorname{mean}
+\left(
+\log p_{\mathrm{new}}
+-
+\log p_{\mathrm{ref}}
+\right)
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-51">Total loss</h5>
+<div class="math block">
+\boxed{
+L_{\mathrm{total}}
+=
+L_{\mathrm{clip}}
++
+L_{\mathrm{KL}}
+}
+</div>
+<p>The last two equations reflect the source's simplified implementation. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-52">31. The deepest intuition</h3>
+<p>Everything we've built has a very specific job:</p>
+<div class="math block">
+\boxed{
+\text{Reward}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>Did the answer work?</p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{Advantage}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>Was this answer better than the other answers?</p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{Policy ratio}
+}
+</div>
+<p>asks:</p>
+<blockquote>
+<p>How much did the current model change its probability for this behavior?</p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{Clipping}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Don't change too much in one step.</p>
+</blockquote>
+<div class="math block">
+\boxed{
+\text{KL}
+}
+</div>
+<p>says:</p>
+<blockquote>
+<p>Don't drift too far from the reference behavior over time.</p>
+</blockquote>
+<p>That gives us the complete control system.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-53">32. One final analogy</h3>
+<p>Think of training a chef.</p>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-54">Reward</h5>
+<div class="math block">
+\text{“Customers liked this dish.”}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-55">Advantage</h5>
+<div class="math block">
+\text{“This version was better than the chef's other attempts.”}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-56">Policy ratio</h5>
+<div class="math block">
+\text{“How much did the chef change the recipe this round?”}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-57">Clipping</h5>
+<div class="math block">
+\text{“Don't radically change the recipe in one update.”}
+</div>
+<h5 id="v3-heading-chunk-les-step-5-6-i47-58">KL</h5>
+<div class="math block">
+\text{“Don't gradually turn the restaurant into a completely different restaurant.”}
+</div>
+<p>That is exactly the logic of the source's chef analogy. <em>(Source: Build a Reasoning Model (From Scratch))</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-5-6-i47-59">Step 5.6 checkpoint</h3>
+<p>You should now be able to distinguish all four:</p>
+<div class="math block">
+\boxed{
+R \rightarrow \text{quality}
+}
+</div>
+<div class="math block">
+\boxed{
+A \rightarrow \text{relative quality}
+}
+</div>
+<div class="math block">
+\boxed{
+r \rightarrow \text{policy change relative to old}
+}
+</div>
+<div class="math block">
+\boxed{
+KL \rightarrow \text{policy drift relative to reference}
+}
+</div>
+<p>and:</p>
+<div class="math block">
+\boxed{
+\text{clipping}+\text{KL}
+=
+\text{two complementary stability mechanisms}
+}
+</div>
+<p>The source's worked example ends with:</p>
+<div class="math block">
+\boxed{
+-2.5764
++
+(-0.0075)
+=
+-2.5839
+}
+</div>
+<p>for the policy-plus-KL objective. <em>(Source: Build a Reasoning Model (From Scratch); rl-grpo-slides)</em></p>
+<hr />
+</section>

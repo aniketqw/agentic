@@ -1,0 +1,1293 @@
+<section class="chunk" id="chunk-les-step-3-6-i31" data-id="les-step-3-6-i31"><details class="audit-card" id="audit-Q04" data-continuation="added"><summary><span class="audit-badge">Continuation · checked fixture</span> Q04 — GPTQ constrained compensation</summary><p>Checked continuation mechanism and declared fixture; this is not certification of every inherited claim.</p><p>Compensate one fixed quantization error using correlations in calibration activations.</p><p><strong>Prerequisites:</strong> <a href="#audit-F01">Matrix multiplication and shape contracts</a>, <a href="#audit-F08">Matrix gradients from a scalar loss</a>, <a href="#audit-Q01">Quantization scale units and rounding</a></p><h4 id="v3-heading-chunk-les-step-3-6-i31-1">Notation and assumptions</h4><p>Current free-coordinate positive-definite curvature proxy H; error e=wq-wqhat. Minimize δ^T H δ subject δq=e. Actual loss Hessian can include an overall factor2 that cancels in the ratio.</p><h4 id="v3-heading-chunk-les-step-3-6-i31-2">Derivation and mechanism</h4><ol><li>Use a Lagrange multiplier for the fixed-coordinate constraint.</li><li>The optimum displacement is proportional to H^-1[:,q].</li><li>Set its q component to e; update w←w-δ. Repeat with the remaining-coordinate inverse, not an unchanged full inverse.</li></ol><div class="math block">\delta={e\over(H^{-1})_{qq}}(H^{-1})_{:,q}</div><h4 id="v3-heading-chunk-les-step-3-6-i31-3">Worked example</h4><p>w=[.42,.30],H=[[1,-1],[-1,2]],H^-1=[[2,1],[1,1]],fix w0=3/7≈.428571. e≈-.008571; δ=[e,e/2]. New w≈[.428571,.304286]. Constrained loss=e²/2, versus e² for naive independent fixing.</p><h4 id="v3-heading-chunk-les-step-3-6-i31-4">Limitations</h4><ul><li>This is one compensation step, not a full blocked GPTQ implementation.</li><li>Calibration representativeness, damping and singular curvature matter.</li></ul><h4 id="v3-heading-chunk-les-step-3-6-i31-5">Connections to later concepts</h4><ul><li>F08 supplies matrix-gradient/curvature intuition, while calibration inputs determine which output directions quantization must preserve.</li></ul><h4 id="v3-heading-chunk-les-step-3-6-i31-6">Source support</h4><ul><li>quantization-slides(1).pdf · physical PDF pages 35, 36, 37, 38 · Quantization lecture</li><li><a href="https://arxiv.org/html/2210.17323v2" rel="noopener noreferrer">§3–4, constrained OBS update</a></li></ul><p>Source locators support the stated starting mechanism or teaching context. The fixture is independently calculated; its success does not establish every inherited result or source-version equivalence.</p><h4 id="v3-heading-chunk-les-step-3-6-i31-7">Executed code and evidence</h4><p>Functions: gptq_compensate. Passed checks: GPTQ-fixed-coordinate, GPTQ-kkt, GPTQ-cost, GPTQ-no-worse-fixture</p><p><a href="#audit-continuation-code">Read/download companion</a> · <a href="#audit-continuation-checks">Check methods</a></p></details><div class="v3-route" data-v3="added" data-lesson="chunk-les-step-3-6-i31"><div class="v3-route-top"><span>Core explanation</span><button type="button" class="v3-complete" data-lesson="chunk-les-step-3-6-i31" aria-pressed="false">Mark read</button></div><div class="v3-sequence"><a href="#v3-floats">← Previous lesson</a> · <a href="#chunk-les-step-3-6b-i32">Next lesson →</a></div><details><summary>Prerequisites, purpose, and source status</summary><p><strong>Before this:</strong> <a href="#chunk-les-step-3-5-i30">Step 3.5 — Quantization → QLoRA</a></p><p><strong>This lesson:</strong> Step 3.6 — Advanced Quantization: Clipping, Calibration, Dynamic/Static Quantization, and GPTQ</p><p><strong>Source references:</strong> <a href="#source-7">quantization-slides</a></p><p class="v3-muted">Original KaTeX syntax checked; claim-by-claim source/mathematical review pending. Original teaching retained; independent depth scoring pending.</p></details></div><p><a id="les-step-3-6-i31"></a></p>
+<h2>Step 3.6 — Advanced Quantization: Clipping, Calibration, Dynamic/Static Quantization, and GPTQ</h2>
+<p><em>Plan node: I4 · chat order #31</em></p>
+<p>We now move from the basic idea of quantization to the question that actually matters in practice:</p>
+<blockquote>
+<p><strong>How do we choose the quantization range and the quantized values so that model output changes as little as possible?</strong></p>
+</blockquote>
+<p>The supplied quantization deck develops this progression:</p>
+<div class="math block">
+\boxed{
+\text{basic quantization}
+\rightarrow
+\text{outliers}
+\rightarrow
+\text{clipping}
+\rightarrow
+\text{calibration}
+\rightarrow
+\text{dynamic/static quantization}
+\rightarrow
+\text{GPTQ}
+}
+</div>
+<p>I’ll take it in exactly that order.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-8">1. The fundamental problem with a quantization grid</h3>
+<p>Recall symmetric quantization:</p>
+<div class="math block">
+s=\frac{127}{\alpha}
+</div>
+<p>for INT8, where</p>
+<div class="math block">
+\alpha=\max |x|.
+</div>
+<p>Then:</p>
+<div class="math block">
+x_q=\operatorname{round}(sx).
+</div>
+<p>This looks perfect until an outlier appears.</p>
+<p>Suppose:</p>
+<div class="math block">
+X=[-1.0,-0.8,-0.6,-0.4,0,0.5,0.7,256].
+</div>
+<p>Then:</p>
+<div class="math block">
+\alpha=256.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s=\frac{127}{256}
+\approx0.496.
+</div>
+<p>Now look at <span class="math inline">x=1.0</span>:</p>
+<div class="math block">
+1(0.496)=0.496.
+</div>
+<p>So:</p>
+<div class="math block">
+x_q=\operatorname{round}(0.496)=0.
+</div>
+<p>And for:</p>
+<div class="math block">
+x=0.5:
+</div>
+<div class="math block">
+0.5(0.496)=0.248
+</div>
+<p>so again:</p>
+<div class="math block">
+x_q=0.
+</div>
+<p>Thus:</p>
+<div class="math block">
+0.5\rightarrow0
+</div>
+<p>even though <span class="math inline">0.5</span> is a perfectly meaningful value.</p>
+<p>The supplied deck explicitly demonstrates this “one outlier ruins the whole grid” problem. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-9">2. Why does one outlier cause such a big problem?</h3>
+<p>Because a <strong>single global scale</strong> must represent the entire interval.</p>
+<p>With:</p>
+<div class="math block">
+\alpha=256,
+</div>
+<p>the integer interval</p>
+<div class="math block">
+[-127,127]
+</div>
+<p>must represent:</p>
+<div class="math block">
+[-256,256].
+</div>
+<p>Therefore, one integer step corresponds to approximately:</p>
+<div class="math block">
+\frac{256}{127}
+\approx2.016.
+</div>
+<p>So the grid is extremely coarse.</p>
+<p>That means:</p>
+<pre><code class="language-text">Real values:
+
+-3 -2 -1  0  1  2  3
+ |  |  |  |  |  |  |
+
+Quantized grid:
+
+...     0     ...
+
+</code></pre>
+<p>Several distinct small values can collapse to the same integer.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-10">3. First solution: clipping</h3>
+<p>Instead of allowing the outlier to determine the range, we deliberately clip the tensor.</p>
+<p>Suppose:</p>
+<div class="math block">
+X=[-1,-0.8,-0.5,0,0.4,0.9,256].
+</div>
+<p>Instead of:</p>
+<div class="math block">
+[-256,256],
+</div>
+<p>we choose:</p>
+<div class="math block">
+\boxed{[-5,5]}.
+</div>
+<p>Any value outside this range is clipped.</p>
+<p>So:</p>
+<div class="math block">
+256\rightarrow5.
+</div>
+<p>Yes, we intentionally destroy the outlier.</p>
+<p>Why?</p>
+<p>Because we may gain much better precision for the huge number of ordinary values.</p>
+<p>The supplied deck explicitly presents clipping as trading accuracy on extreme values for better precision on the rest of the distribution. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-11">4. Numerical comparison</h3>
+<p>Suppose:</p>
+<div class="math block">
+x=1.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-12">Without clipping</h5>
+<div class="math block">
+\alpha=256.
+</div>
+<p>Thus:</p>
+<div class="math block">
+s=\frac{127}{256}
+\approx0.496.
+</div>
+<p>Then:</p>
+<div class="math block">
+x_q=\operatorname{round}(1\times0.496)
+=
+0.
+</div>
+<p>Dequantize:</p>
+<div class="math block">
+x_{\text{deq}}=\frac0{0.496}=0.
+</div>
+<p>Error:</p>
+<div class="math block">
+|1-0|=\boxed1.
+</div>
+<p>Very bad.</p>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6-i31-13">With clipping to <span class="math inline">5</span></h5>
+<p>Now:</p>
+<div class="math block">
+\alpha=5.
+</div>
+<p>Scale:</p>
+<div class="math block">
+s=\frac{127}{5}
+=
+25.4.
+</div>
+<p>Then:</p>
+<div class="math block">
+1(25.4)=25.4
+</div>
+<p>so:</p>
+<div class="math block">
+x_q=25.
+</div>
+<p>Dequantize:</p>
+<div class="math block">
+x_{\text{deq}}
+=
+\frac{25}{25.4}
+\approx0.984.
+</div>
+<p>Error:</p>
+<div class="math block">
+|1-0.984|
+\approx
+\boxed{0.016}.
+</div>
+<p>Huge improvement for the normal value.</p>
+<p>But the outlier:</p>
+<div class="math block">
+256\rightarrow5
+</div>
+<p>has enormous error.</p>
+<p>This is the central quantization tradeoff:</p>
+<div class="math block">
+\boxed{
+\text{protect the tails}
+\quad\text{vs}\quad
+\text{protect the bulk}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-14">5. So how do we choose the clipping threshold?</h3>
+<p>This is the <strong>calibration problem</strong>.</p>
+<p>We need to find a good range:</p>
+<div class="math block">
+[\beta,\alpha]
+</div>
+<p>or, for symmetric quantization,</p>
+<div class="math block">
+[-\alpha,\alpha].
+</div>
+<p>The supplied slides explain that calibration determines the quantization range before computing the scale. <em>(Source: quantization-slides)</em></p>
+<p>There are several possibilities.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-15">6. Calibration method 1 — literal min/max</h3>
+<p>Simplest:</p>
+<div class="math block">
+\alpha=\max|X|.
+</div>
+<p>No calibration dataset is needed.</p>
+<p>But a single extreme outlier can make the grid terrible.</p>
+<p>So:</p>
+<div class="math block">
+\boxed{\text{simple but potentially wasteful}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-16">7. Calibration method 2 — percentile clipping</h3>
+<p>Instead of using the absolute maximum, choose a high percentile.</p>
+<p>For example:</p>
+<div class="math block">
+P_{99.9}.
+</div>
+<p>Then values above that threshold are clipped.</p>
+<p>Conceptually:</p>
+<div class="math block">
+\boxed{
+99.9\%\text{ of values are preserved normally}
+}
+</div>
+<p>while the extreme <span class="math inline">0.1\%</span> can be clipped.</p>
+<p>The supplied deck uses percentile-based range selection as one calibration strategy. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-17">8. Why might percentile be better?</h3>
+<p>Imagine:</p>
+<div class="math block">
+9999
+</div>
+<p>values lie between:</p>
+<div class="math block">
+[-1,1]
+</div>
+<p>but one value is:</p>
+<div class="math block">
+100.
+</div>
+<p>Using max:</p>
+<div class="math block">
+\alpha=100.
+</div>
+<p>Using approximately the 99th percentile:</p>
+<div class="math block">
+\alpha\approx1.
+</div>
+<p>Then the quantization grid becomes much finer around the region where almost all data lies.</p>
+<p>So the objective is not necessarily:</p>
+<div class="math block">
+\boxed{\text{minimize every individual weight error}}
+</div>
+<p>but often:</p>
+<div class="math block">
+\boxed{\text{minimize the useful error over the distribution}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-18">9. Calibration method 3 — choose the clip by minimizing MSE</h3>
+<p>This is more principled.</p>
+<p>For every candidate clipping value <span class="math inline">c</span>:</p>
+<ol>
+<li>Clip values to <span class="math inline">[-c,c]</span>.</li>
+<li>Quantize.</li>
+<li>Dequantize.</li>
+<li>Compare reconstructed values with the originals.</li>
+<li>Compute MSE.</li>
+</ol>
+<p>The mean squared error is:</p>
+<div class="math block">
+\boxed{
+\operatorname{MSE}
+=
+\frac1n\sum_{i=1}^{n}(x_i-\hat{x}_i)^2
+}
+</div>
+<p>where:</p>
+<div class="math block">
+x_i=\text{original}
+</div>
+<p>and</p>
+<div class="math block">
+\hat{x}_i=\text{quantized/dequantized}.
+</div>
+<p>Then choose the <span class="math inline">c</span> producing the smallest MSE.</p>
+<p>The supplied deck gives an explicit INT4 calibration experiment with candidate clip values of 30%, 40%, 50%, 60%, and 100% of the true maximum. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-19">10. The slide's numerical example</h3>
+<p>The deck reports:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Candidate clipping</th>
+<th style="text-align:right">MSE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">30%</td>
+<td style="text-align:right">0.127</td>
+</tr>
+<tr>
+<td style="text-align:right">40%</td>
+<td style="text-align:right">0.068</td>
+</tr>
+<tr>
+<td style="text-align:right">50%</td>
+<td style="text-align:right"><strong>0.055</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">60%</td>
+<td style="text-align:right">0.063</td>
+</tr>
+<tr>
+<td style="text-align:right">100%</td>
+<td style="text-align:right">0.156</td>
+</tr>
+</tbody>
+</table>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{50\%\text{ is optimal in this example}}
+</div>
+<p>because:</p>
+<div class="math block">
+0.055
+</div>
+<p>is the smallest MSE.</p>
+<p>The deck reports that this MSE-selected clipping produced about 65% lower MSE than naive full-range clipping for that INT4 heavy-tailed example. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-20">11. Why doesn't the best clipping always equal 100%?</h3>
+<p>Because the objective has two competing errors.</p>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-21">Error A — quantization resolution</h5>
+<p>Larger range:</p>
+<div class="math block">
+c\uparrow
+</div>
+<p>means the quantization interval becomes larger.</p>
+<p>Therefore ordinary values are represented less precisely.</p>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-22">Error B — clipping distortion</h5>
+<p>Smaller range:</p>
+<div class="math block">
+c\downarrow
+</div>
+<p>means more values are clipped.</p>
+<p>Therefore tails are distorted more heavily.</p>
+<p>So MSE is approximately balancing:</p>
+<div class="math block">
+\boxed{
+\text{rounding error}
++
+\text{clipping error}
+}
+</div>
+<p>The optimal <span class="math inline">c</span> sits somewhere between the extremes.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-23">12. Why is this more important for INT4 than INT8?</h3>
+<p>INT8 has:</p>
+<div class="math block">
+256
+</div>
+<p>possible codes.</p>
+<p>INT4 has:</p>
+<div class="math block">
+2^4=16
+</div>
+<p>codes.</p>
+<p>So INT4 has vastly fewer available quantization levels.</p>
+<p>Therefore every level matters more.</p>
+<p>The supplied calibration experiment reports that clipping selection mattered strongly for INT4 but had much less benefit for INT8 in the same setup. <em>(Source: quantization-slides)</em></p>
+<p>This gives an important general principle:</p>
+<div class="math block">
+\boxed{
+\text{lower bit-width}
+\Rightarrow
+\text{greater need for careful calibration}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-24">13. Calibration method 4 — KL divergence</h3>
+<p>MSE isn't the only objective.</p>
+<p>Suppose the original activation/weight distribution is:</p>
+<div class="math block">
+P.
+</div>
+<p>After quantization, we obtain:</p>
+<div class="math block">
+Q.
+</div>
+<p>We can choose the clipping range that minimizes:</p>
+<div class="math block">
+\boxed{
+D_{KL}(P\|Q)
+}
+</div>
+<p>where:</p>
+<div class="math block">
+D_{KL}(P\|Q)
+=
+\sum_x
+P(x)\log\frac{P(x)}{Q(x)}.
+</div>
+<p>The supplied deck describes KL-divergence calibration as another search-based calibration method, using histograms of original and quantized distributions. <em>(Source: quantization-slides)</em></p>
+<p>The distinction is:</p>
+<div class="math block">
+\boxed{
+\text{MSE compares numerical values}
+}
+</div>
+<p>whereas:</p>
+<div class="math block">
+\boxed{
+\text{KL compares distributions}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-25">14. Very important: weights vs activations</h3>
+<p>Now we encounter another practical distinction.</p>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-26">Weights</h5>
+<p>After training, weights are fixed.</p>
+<p>Therefore their range can be measured ahead of time:</p>
+<div class="math block">
+W\rightarrow\text{measure range once}.
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-27">Activations</h5>
+<p>Activations depend on the input.</p>
+<p>For one input:</p>
+<div class="math block">
+X_1\rightarrow A_1
+</div>
+<p>and for another:</p>
+<div class="math block">
+X_2\rightarrow A_2.
+</div>
+<p>Usually:</p>
+<div class="math block">
+A_1\neq A_2.
+</div>
+<p>Therefore activation ranges can change from one inference to another.</p>
+<p>The supplied slides explicitly distinguish fixed weight ranges from input-dependent activation ranges. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-28">15. Dynamic quantization</h3>
+<p>Dynamic quantization handles changing activation ranges by measuring them <strong>during inference</strong>.</p>
+<p>For each new input:</p>
+<div class="math block">
+\boxed{
+\text{measure activation range}
+\rightarrow
+\text{compute scale/zero-point}
+\rightarrow
+\text{quantize}
+}
+</div>
+<p>The range is freshly computed for the current activation values.</p>
+<p>The supplied slides describe exactly this behavior. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-29">16. Dynamic quantization flow</h3>
+<p>Suppose layer 1 produces:</p>
+<div class="math block">
+A_1=[-2,3,5].
+</div>
+<p>Find:</p>
+<div class="math block">
+\alpha=5.
+</div>
+<p>Build quantization parameters.</p>
+<p>Then a different input produces:</p>
+<div class="math block">
+A_2=[-0.2,0.4,0.7].
+</div>
+<p>Now:</p>
+<div class="math block">
+\alpha=0.7.
+</div>
+<p>The scale is recomputed.</p>
+<p>Thus:</p>
+<div class="math block">
+\boxed{
+\text{same layer}
+\neq
+\text{same activation scale for every input}
+}
+</div>
+<p>under dynamic quantization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-30">17. Advantage of dynamic quantization</h3>
+<p>No large calibration dataset is required beforehand for the activation range.</p>
+<p>Because:</p>
+<div class="math block">
+\boxed{
+\text{the current input provides the range}
+}
+</div>
+<p>The supplied deck states that dynamic quantization needs no calibration data ahead of time. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-31">18. Disadvantage of dynamic quantization</h3>
+<p>The price is runtime work.</p>
+<p>For every inference:</p>
+<div class="math block">
+\text{measure}
+\rightarrow
+\text{calculate scale}
+\rightarrow
+\text{quantize}.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{less offline preparation}
+\quad\text{but more runtime overhead}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-32">19. Static quantization</h3>
+<p>Static quantization does the opposite.</p>
+<p>We run representative calibration data <strong>before deployment</strong>.</p>
+<p>Suppose:</p>
+<div class="math block">
+D_{\text{calibration}}
+=
+\{x_1,x_2,\ldots,x_N\}.
+</div>
+<p>Run the model on these.</p>
+<p>Observe the activation ranges.</p>
+<p>Choose fixed:</p>
+<div class="math block">
+s,z.
+</div>
+<p>Then deployment uses those fixed parameters.</p>
+<p>The supplied deck describes exactly this: a small calibration dataset is run offline, activation distributions are recorded, and the resulting <span class="math inline">s,z</span> are fixed before real inference. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-33">20. Dynamic vs static</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Dynamic</th>
+<th>Static</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Activation range</td>
+<td>computed at runtime</td>
+<td>determined offline</td>
+</tr>
+<tr>
+<td>Calibration dataset</td>
+<td>not required</td>
+<td>required</td>
+</tr>
+<tr>
+<td>Runtime overhead</td>
+<td>higher</td>
+<td>lower</td>
+</tr>
+<tr>
+<td>Sensitivity to calibration data</td>
+<td>low</td>
+<td>important</td>
+</tr>
+</tbody>
+</table>
+<p>The static method is only as good as the representativeness of its calibration dataset. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-34">21. Numerical static-vs-dynamic example</h3>
+<p>Suppose calibration data gives:</p>
+<div class="math block">
+A\in[-4,4].
+</div>
+<p>Static quantization chooses:</p>
+<div class="math block">
+\alpha=4.
+</div>
+<p>For INT8:</p>
+<div class="math block">
+s=\frac{127}{4}=31.75.
+</div>
+<p>Now suppose an actual deployment input produces:</p>
+<div class="math block">
+A=[-8,1,2].
+</div>
+<p>The fixed scale was designed for:</p>
+<div class="math block">
+[-4,4].
+</div>
+<p>The new value:</p>
+<div class="math block">
+8
+</div>
+<p>is outside the calibrated range.</p>
+<p>So it must be clipped.</p>
+<p>Dynamic quantization instead sees:</p>
+<div class="math block">
+\max|A|=8
+</div>
+<p>and computes:</p>
+<div class="math block">
+s=\frac{127}{8}=15.875.
+</div>
+<p>Thus dynamic adapts to the new input.</p>
+<p>This illustrates the fundamental tradeoff.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-35">22. Now the question becomes more interesting</h3>
+<p>So far our objective was:</p>
+<div class="math block">
+\text{minimize weight/activation reconstruction error}.
+</div>
+<p>But is that actually what we care about?</p>
+<p>Suppose:</p>
+<div class="math block">
+w=0.42
+</div>
+<p>becomes:</p>
+<div class="math block">
+\hat{w}=0.4286.
+</div>
+<p>That's a weight error of:</p>
+<div class="math block">
+0.0086.
+</div>
+<p>But does that necessarily mean the model output is badly affected?</p>
+<p>No.</p>
+<p>A small change in one weight might barely affect the final output.</p>
+<p>Conversely, a tiny change in a highly sensitive weight could matter enormously.</p>
+<p>This leads to:</p>
+<div class="math block">
+\boxed{\text{GPTQ}}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-36">23. GPTQ — the key idea</h3>
+<p>GPTQ is <strong>post-training quantization</strong> designed specifically to minimize the damage quantization does to a layer's outputs.</p>
+<p>The quantization deck describes GPTQ as processing a pretrained model <strong>one layer at a time</strong>, asking:</p>
+<blockquote>
+<p>Which quantized weights best reconstruct the original layer outputs on calibration data? <em>(Source: quantization-slides)</em></p>
+</blockquote>
+<p>This is a much more intelligent objective than:</p>
+<div class="math block">
+\min\|W-\hat W\|^2.
+</div>
+<p>Instead, conceptually:</p>
+<div class="math block">
+\boxed{
+\min_{\hat W}
+\|WX-\hat WX\|^2
+}
+</div>
+<p>where:</p>
+<ul>
+<li><span class="math inline">W</span> = original layer weights,</li>
+<li><span class="math inline">\hat W</span> = quantized weights,</li>
+<li><span class="math inline">X</span> = calibration activations.</li>
+</ul>
+<p>The slides explicitly formulate this output-reconstruction objective. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-37">24. Why does GPTQ use calibration activations?</h3>
+<p>Suppose a layer computes:</p>
+<div class="math block">
+Y=WX.
+</div>
+<p>A particular weight matters according to the input dimensions that actually pass through that layer.</p>
+<p>If calibration activations tell us that feature 7 varies strongly and feature 12 barely varies, then perturbing a weight connected to feature 7 may have a much larger effect.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{importance depends on the data flowing through the layer}
+}
+</div>
+<p>not simply on the numerical size of the weight itself.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-38">25. Deriving the quadratic objective</h3>
+<p>For one output row <span class="math inline">w</span>:</p>
+<div class="math block">
+y=wX.
+</div>
+<p>After quantization:</p>
+<div class="math block">
+\hat y=\hat wX.
+</div>
+<p>The output error is:</p>
+<div class="math block">
+\|wX-\hat wX\|^2.
+</div>
+<p>Define:</p>
+<div class="math block">
+\delta=w-\hat w.
+</div>
+<p>Then:</p>
+<div class="math block">
+wX-\hat wX
+=
+(w-\hat w)X
+=
+\delta X.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+\|\delta X\|^2.
+</div>
+<p>Using matrix algebra:</p>
+<div class="math block">
+\boxed{
+\|\delta X\|^2
+=
+\delta XX^T\delta^T
+}
+</div>
+<p>So define:</p>
+<div class="math block">
+\boxed{
+H=XX^T
+}
+</div>
+<p>or with regularization:</p>
+<div class="math block">
+\boxed{
+H=XX^T+\lambda I.
+}
+</div>
+<p>The supplied slides identify this <span class="math inline">H</span> as the Hessian-like matrix arising from calibration activations. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-39">26. Why call <span class="math inline">H</span> a Hessian?</h3>
+<p>Consider the quadratic objective:</p>
+<div class="math block">
+L(\delta)
+=
+\delta H\delta^T.
+</div>
+<p>The curvature of this quadratic depends on:</p>
+<div class="math block">
+H.
+</div>
+<p>So <span class="math inline">H</span> tells us how sensitive output reconstruction is to movement in different directions of weight space.</p>
+<p>This is why GPTQ can make <strong>data-aware corrections</strong>.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-40">27. The most important GPTQ insight</h3>
+<p>Suppose one weight is quantized.</p>
+<p>The quantization error is:</p>
+<div class="math block">
+e=w_q-w.
+</div>
+<p>Naive quantization says:</p>
+<blockquote>
+<p>“Too bad. That error is fixed.”</p>
+</blockquote>
+<p>GPTQ says:</p>
+<blockquote>
+<p>“Can I redistribute the damage across weights that are less sensitive?”</p>
+</blockquote>
+<p>The supplied slides explicitly describe this compensation idea. <em>(Source: quantization-slides)</em></p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{one weight's quantization error}
+\rightarrow
+\text{compensating changes elsewhere}
+}
+</div>
+<p>while respecting the quantization constraint.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-41">28. Worked GPTQ example from the slides</h3>
+<p>Consider:</p>
+<div class="math block">
+w=
+[0.42,\ 0.30,\ 0.50].
+</div>
+<p>Suppose INT4 quantization uses a grid such that:</p>
+<div class="math block">
+\hat w
+=
+\frac{\operatorname{round}(14w)}{14}.
+</div>
+<p>For the first element:</p>
+<div class="math block">
+0.42\times14=5.88.
+</div>
+<p>Round:</p>
+<div class="math block">
+6.
+</div>
+<p>Thus:</p>
+<div class="math block">
+\hat w_1=\frac6{14}
+=
+0.4286.
+</div>
+<p>Error:</p>
+<div class="math block">
+e=w_1-\hat w_1
+</div>
+<div class="math block">
+=0.42-0.4286
+=
+\boxed{-0.0086}.
+</div>
+<p>These are the values shown in the supplied GPTQ slides. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-42">29. Naive quantization vs GPTQ</h3>
+<p>Naive:</p>
+<div class="math block">
+[0.42,0.30,0.50]
+</div>
+<p>might become:</p>
+<div class="math block">
+[0.4286,0.2857,0.5000].
+</div>
+<p>GPTQ instead first quantizes the first weight and then modifies other still-unquantized weights to compensate for the induced output error.</p>
+<p>The slides give the sequence:</p>
+<div class="math block">
+[0.4200,0.3000,0.5000]
+</div>
+<p>↓</p>
+<div class="math block">
+[0.4286,0.2966,0.4999]
+</div>
+<p>↓</p>
+<div class="math block">
+[0.4286,0.2857,0.5010]
+</div>
+<p>↓</p>
+<div class="math block">
+[0.4286,0.2857,0.5000].
+</div>
+<p><em>(Source: quantization-slides)</em></p>
+<p>Notice something fascinating:</p>
+<p>The intermediate weights are deliberately moved <strong>away</strong> from their original values.</p>
+<p>That sounds wrong until we remember the objective.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-43">30. GPTQ does NOT minimize raw weight error</h3>
+<p>This is an extremely important exam/interview point.</p>
+<p>A student might assume:</p>
+<div class="math block">
+\boxed{
+\text{best quantization}
+=
+\min\|W-\hat W\|^2
+}
+</div>
+<p>GPTQ says:</p>
+<div class="math block">
+\boxed{
+\text{best quantization}
+=
+\text{minimize output damage}
+}
+</div>
+<p>The supplied deck gives a striking result:</p>
+<ul>
+<li>naive independent rounding has larger output error;</li>
+<li>GPTQ produces <strong>52.6% lower output error</strong> in its reported experiment;</li>
+<li>yet GPTQ can have <strong>higher raw weight error</strong>.</li>
+</ul>
+<p><em>(Source: quantization-slides)</em></p>
+<p>That sounds paradoxical only until you realize the objective is different.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-44">31. Intuition using a road analogy</h3>
+<p>Imagine two roads.</p>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-45">Direction A</h5>
+<p>Changing the road by 1 cm causes almost no traffic problem.</p>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-46">Direction B</h5>
+<p>Changing the road by 1 cm causes traffic to collapse.</p>
+<p>If you only minimize physical distance moved, you treat both directions equally.</p>
+<p>GPTQ instead asks:</p>
+<div class="math block">
+\boxed{\text{“Which direction can absorb the quantization error with least output damage?”}}
+</div>
+<p>So it may deliberately move some weights more if those dimensions are less sensitive.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-47">32. GPTQ's compensation equation</h3>
+<p>The slides give the compensation update in terms of the inverse Hessian.</p>
+<p>For the weight being quantized, the quantization error is incorporated into a correction:</p>
+<div class="math block">
+\boxed{
+\delta_q
+=
+\frac{e}
+{[H^{-1}]_{qq}}
+}
+</div>
+<p>and the remaining weights are adjusted using the corresponding column of <span class="math inline">H^{-1}</span>.</p>
+<p>The exact form shown in the deck is:</p>
+<div class="math block">
+\boxed{
+w_j
+\leftarrow
+w_j-\delta_q
+\,[H^{-1}]_{j,q}
+}
+</div>
+<p>with normalization by the corresponding diagonal term in the definition of <span class="math inline">\delta_q</span>. <em>(Source: quantization-slides)</em></p>
+<p>The important conceptual meaning is more important than memorizing every subscript:</p>
+<div class="math block">
+\boxed{
+H^{-1}
+=
+\text{how quantization error should be redistributed}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-48">33. Numerical GPTQ compensation from the slide</h3>
+<p>The slide gives:</p>
+<div class="math block">
+e=-0.0086
+</div>
+<p>and:</p>
+<div class="math block">
+[H^{-1}]_{qq}=0.1268
+</div>
+<p>with another relevant element:</p>
+<div class="math block">
+[H^{-1}]_{2,1}=-0.0504.
+</div>
+<p>The correction produces:</p>
+<div class="math block">
+w_2
+\leftarrow
+0.30
+-
+\frac{0.126?}{?}
+</div>
+<p>and the supplied result is:</p>
+<div class="math block">
+\boxed{w_2=0.2966}.
+</div>
+<p>The exact displayed algebra is less important for the intuition than the conclusion:</p>
+<div class="math block">
+0.30\rightarrow0.2966
+</div>
+<p><strong>before</strong> <span class="math inline">w_2</span> itself is quantized.</p>
+<p>That means GPTQ prepares future weights for the error created by earlier quantization. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-49">34. Why does GPTQ process weights sequentially?</h3>
+<p>Suppose we have:</p>
+<div class="math block">
+w_1,w_2,w_3,\ldots,w_d.
+</div>
+<p>GPTQ:</p>
+<ol>
+<li>quantizes one coordinate/column;</li>
+<li>measures its error;</li>
+<li>compensates remaining coordinates;</li>
+<li>moves to the next coordinate;</li>
+<li>repeats.</li>
+</ol>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{quantize}
+\rightarrow
+\text{compensate}
+\rightarrow
+\text{quantize}
+\rightarrow
+\text{compensate}
+\rightarrow\cdots
+}
+</div>
+<p>The supplied deck explicitly describes this sequential process. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-50">35. Why “one column across all rows”?</h3>
+<p>An important implementation detail.</p>
+<p>Suppose a weight matrix:</p>
+<div class="math block">
+W\in\mathbb{R}^{d_{\text{out}}\times d_{\text{in}}}.
+</div>
+<p>The calibration Hessian:</p>
+<div class="math block">
+H=XX^T
+</div>
+<p>depends only on the input activations <span class="math inline">X</span>.</p>
+<p>Every output row sees the same input features.</p>
+<p>Therefore every row can reuse:</p>
+<div class="math block">
+H,\quad H^{-1}.
+</div>
+<p>The slides say GPTQ processes one column across all rows simultaneously and reuses the same decomposition, rather than solving a completely independent problem for every row. <em>(Source: quantization-slides)</em></p>
+<p>This is an important computational optimization.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-51">36. Why is GPTQ computationally practical?</h3>
+<p>If we solved a separate optimization problem independently for every row, that would be expensive.</p>
+<p>Instead:</p>
+<div class="math block">
+H=XX^T
+</div>
+<p>is computed once for the layer.</p>
+<p>Its factorization is then reused.</p>
+<p>The slide describes a Cholesky decomposition being computed once and reused column-by-column across the weight matrix. <em>(Source: quantization-slides)</em></p>
+<p>The dominant matrix factorization is approximately:</p>
+<div class="math block">
+\boxed{O(d^3)}
+</div>
+<p>for the relevant input dimension, which the deck highlights. <em>(Source: quantization-slides)</em></p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-52">37. The complete advanced quantization picture</h3>
+<p>We can now see why all these techniques exist:</p>
+<div class="math block">
+\boxed{
+\text{Global min/max}
+}
+</div>
+<p>is simple but vulnerable to outliers.</p>
+<p>Therefore:</p>
+<div class="math block">
+\boxed{
+\text{clipping}
+}
+</div>
+<p>can trade tail accuracy for better bulk precision.</p>
+<p>But how should clipping be selected?</p>
+<div class="math block">
+\boxed{
+\text{calibration}
+}
+</div>
+<p>using:</p>
+<div class="math block">
+\text{percentiles}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{MSE}
+</div>
+<p>or:</p>
+<div class="math block">
+\text{KL divergence}.
+</div>
+<p>Then activations introduce another issue:</p>
+<div class="math block">
+\boxed{
+\text{dynamic vs static quantization}
+}
+</div>
+<p>because activation ranges depend on the input.</p>
+<p>Finally, instead of minimizing raw tensor reconstruction:</p>
+<div class="math block">
+\boxed{
+\text{GPTQ minimizes layer-output damage}
+}
+</div>
+<p>using calibration activations and curvature information.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-53">38. Exam numerical set — clipping</h3>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-54">Question</h5>
+<p>INT8 symmetric quantization.</p>
+<p>An outlier makes:</p>
+<div class="math block">
+\alpha=256.
+</div>
+<p>Calculate the scale.</p>
+<div class="math block">
+s=\frac{127}{256}
+</div>
+<div class="math block">
+\boxed{s\approx0.4961}
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6-i31-55">Question</h5>
+<p>What happens to:</p>
+<div class="math block">
+x=1?
+</div>
+<div class="math block">
+x_q=\operatorname{round}(1\times0.4961)
+</div>
+<div class="math block">
+\boxed{x_q=0}.
+</div>
+<hr />
+<h5 id="v3-heading-chunk-les-step-3-6-i31-56">Question</h5>
+<p>Now clip to:</p>
+<div class="math block">
+[-5,5].
+</div>
+<p>Then:</p>
+<div class="math block">
+s=\frac{127}{5}
+=
+\boxed{25.4}.
+</div>
+<p>For <span class="math inline">x=1</span>:</p>
+<div class="math block">
+x_q=\operatorname{round}(25.4)
+=
+\boxed{25}.
+</div>
+<p>Dequantize:</p>
+<div class="math block">
+\frac{25}{25.4}
+\approx
+\boxed{0.9843}.
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-57">39. Exam numerical — MSE calibration</h3>
+<p>Suppose candidate clipping thresholds yield:</p>
+<div class="math block">
+\{0.12,\ 0.08,\ 0.05,\ 0.07,\ 0.15\}
+</div>
+<p>for MSE.</p>
+<p>Minimum is:</p>
+<div class="math block">
+\boxed{0.05}.
+</div>
+<p>Therefore choose the corresponding clipping threshold.</p>
+<p>Very simple exam question, but conceptually important:</p>
+<div class="math block">
+\boxed{
+\text{choose the range producing minimum calibration loss}
+}
+</div>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-58">40. Exam numerical — quantization resolution</h3>
+<p>INT8 symmetric range:</p>
+<div class="math block">
+[-127,127].
+</div>
+<p>Total number of usable positive/negative code steps is roughly 254 apart from the centered zero convention.</p>
+<p>If:</p>
+<div class="math block">
+[-5,5]
+</div>
+<p>is mapped to this grid, approximate step size is:</p>
+<div class="math block">
+\frac{10}{254}
+\approx
+\boxed{0.0394}.
+</div>
+<p>If instead:</p>
+<div class="math block">
+[-256,256],
+</div>
+<p>step size becomes:</p>
+<div class="math block">
+\frac{512}{254}
+\approx
+\boxed{2.016}.
+</div>
+<p>This immediately shows why clipping can dramatically improve precision for ordinary values.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-59">41. Exam numerical — dynamic quantization</h3>
+<p>An activation tensor is:</p>
+<div class="math block">
+X=[-2,1,4].
+</div>
+<p>INT8 symmetric.</p>
+<div class="math block">
+\alpha=4.
+</div>
+<p>Therefore:</p>
+<div class="math block">
+s=\frac{127}{4}
+=
+\boxed{31.75}.
+</div>
+<p>Now another inference produces:</p>
+<div class="math block">
+X'=[-1,2,8].
+</div>
+<p>Dynamic quantization recalculates:</p>
+<div class="math block">
+\alpha'=8.
+</div>
+<p>Thus:</p>
+<div class="math block">
+s'=\frac{127}{8}
+=
+\boxed{15.875}.
+</div>
+<p>The scale changes.</p>
+<p>Static quantization would retain the previously calibrated scale.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-60">42. Exam numerical — GPTQ conceptual question</h3>
+<p>Suppose two quantization methods produce:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align:right">Weight MSE</th>
+<th style="text-align:right">Output MSE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Naive</td>
+<td style="text-align:right">0.010</td>
+<td style="text-align:right">0.020</td>
+</tr>
+<tr>
+<td>GPTQ</td>
+<td style="text-align:right">0.015</td>
+<td style="text-align:right">0.009</td>
+</tr>
+</tbody>
+</table>
+<p>Which method is better <strong>according to GPTQ's objective</strong>?</p>
+<p>Answer:</p>
+<div class="math block">
+\boxed{\text{GPTQ}}
+</div>
+<p>because:</p>
+<div class="math block">
+0.009&lt;0.020.
+</div>
+<p>Even though:</p>
+<div class="math block">
+0.015&gt;0.010
+</div>
+<p>for raw weight MSE.</p>
+<p>This is one of the most important conceptual exam questions in this section.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-61">43. Do not confuse these objectives</h3>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-62">Ordinary quantization</h5>
+<p>Often focuses on:</p>
+<div class="math block">
+\boxed{
+\|W-\hat W\|
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-63">GPTQ</h5>
+<p>Focuses on:</p>
+<div class="math block">
+\boxed{
+\|WX-\hat WX\|
+}
+</div>
+<p>That one change in objective is the conceptual leap.</p>
+<hr />
+<h3 id="v3-heading-chunk-les-step-3-6-i31-64">44. Current roadmap position</h3>
+<p>We have now completed the first major advanced-quantization block:</p>
+<div class="math block">
+\boxed{
+\text{Step 3.6A}
+}
+</div>
+<h5 id="v3-heading-chunk-les-step-3-6-i31-65">Covered</h5>
+<div class="math block">
+\boxed{
+\text{Outliers}
+\rightarrow
+\text{Clipping}
+\rightarrow
+\text{Calibration}
+\rightarrow
+\text{MSE/KL}
+\rightarrow
+\text{Dynamic/Static}
+\rightarrow
+\text{GPTQ}
+}
+</div>
+<p>The quantization deck then continues into:</p>
+<div class="math block">
+\boxed{
+\text{GGUF / K-quants}
+\rightarrow
+\text{QAT}
+\rightarrow
+\text{BitNet}
+\rightarrow
+\text{1.58-bit / ternary weights}
+}
+</div>
+<p>Those are <strong>not the same thing as GPTQ or QLoRA</strong>, and the distinction is important.</p>
+<p>The deck specifically describes GGUF's nested super-block/sub-block scales, QAT's “fake quantization” training, and BitNet's replacement of Linear with BitLinear. <em>(Source: quantization-slides)</em></p>
+<blockquote class="xref"><p><strong>➜ Extra / deeper material in the appendix:</strong> <a href="#app-g2">G.2 — Quantization slides not covered by the lessons (floating-point formats, GPTQ, BitNet)</a> — <em>floating-point formats, GPTQ results, BitNet recovery</em></p>
+</blockquote>
+<hr />
+</section>
