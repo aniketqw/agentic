@@ -28,5 +28,7 @@ For development, run `npm run extract` followed by `npm run dev`. Vite uses the 
 - Full-text search downloads its separate index only on use and runs in a worker.
 - Bookmarks, marked-read lessons and last lesson reuse `course-v3-progress`; theme reuses `theme`. Both versions share these settings when used in the same browser on the same origin.
 - Copy/download code controls, lesson printing, source cross-links and previous/next navigation are available.
+- Contents can be closed and reopened on phones, tablets and desktops. Desktop visibility is remembered in this browser.
+- Title-only part and appendix headings appear as group labels, not as reading pages. Older links to them open the first following lesson; the original section files remain preserved.
 
 The source contains mathematical and research verification limits. These are preserved; this migration does not certify the course's factual claims or execute its Python examples. There is no whole-course print command in the new reader; use the original course for that.

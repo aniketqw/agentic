@@ -74,8 +74,18 @@ for section in sections:
     pages.append({'id': sid, 'title': title, 'group': page_group,
                   'core': sid in meta, 'bytes': len(content.encode()), 'words': len(text.split())})
     search.append({'id': sid, 'text': text.lower()})
-manifest = {'pages': pages, 'order': data['order'], 'source_sha256': hashlib.sha256(source.encode()).hexdigest()}
+# Structural titles belong in the contents, not in standalone reading pages.
+redirects = {}
+next_page = None
+for page in reversed(pages):
+    header = re.fullmatch(r'chunk-(?:part-\d+|app-(?:a|b|[abg]\d+))', page['id'])
+    if header and next_page:
+        redirects[page['id']] = next_page
+        page['redirect'] = next_page
+    else:
+        next_page = page['id']
+manifest = {'pages': pages, 'redirects': redirects, 'order': data['order'], 'source_sha256': hashlib.sha256(source.encode()).hexdigest()}
 (OUT / 'anchors.json').write_text(json.dumps(anchors, separators=(',', ':')))
 (OUT / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')))
-(OUT / 'search.json').write_text(json.dumps(search, ensure_ascii=False, separators=(',', ':')))
+(OUT / 'search.json').write_text(json.dumps([entry for entry in search if entry['id'] not in redirects], ensure_ascii=False, separators=(',', ':')))
 print(f'Preserved {len(pages)} sections and {len(anchors)} anchors; largest section {max(p["bytes"] for p in pages):,} bytes.')
